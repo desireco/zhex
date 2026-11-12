@@ -132,3 +132,9 @@ pre code, pre samp { font: inherit; }
   .hero h1 { font-size: 49px; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+.roadmap-stage { border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; }
+.roadmap-stage ul { margin: 0; padding-left: 1.3rem; }
+.roadmap-stage li { padding-left: .4rem; margin-bottom: 1.4rem; font-size: 22px; line-height: 1.6; }
+.roadmap-source { font-size: 17px; line-height: 1.8; padding-bottom: 3rem; }
+@media (max-width: 760px) { .roadmap-stage { grid-template-columns: 1fr; gap: 1rem; } .roadmap-stage li { font-size: 20px; } }

@@ -17,6 +17,8 @@ func siteFixture(t *testing.T) string {
 		}
 	}
 	files := map[string]string{
+		"ROADMAP.md":         "# Zhex roadmap\n\nA readable language.\n\n## Done\n\nWorking today.\n\n- Checked words.\n\n## Next\n\nTry it interactively.\n\n- REPL.\n\n## Future\n\nOpen ideas.\n\n- Compilation.\n",
+		"site/roadmap.tmpl":  `<main><p>{{.Roadmap.Intro}}</p>{{range .Roadmap.Sections}}<section><h2>{{.Title}}</h2><p>{{.Summary}}</p><ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul></section>{{end}}<a href="ROADMAP.md">Roadmap source</a></main>`,
 		"site/index.tmpl":    "<main><pre>{{.HeroSource}}</pre>{{range .Examples}}<article id=\"{{.ID}}\"><h2>{{.Title}}</h2><pre>{{.Source}}</pre><pre>{{.Output}}</pre><a href=\"{{.SourceURL}}\">Source</a></article>{{end}}</main>",
 		"site/examples.tmpl": "<main>{{range .Examples}}<article id=\"{{.ID}}\"><pre>{{.Source}}</pre><a href=\"{{.SourceURL}}\">Download</a></article>{{end}}</main>",
 		"site/styles.css":    "body { color: black; }",
@@ -31,6 +33,46 @@ func siteFixture(t *testing.T) string {
 		}
 	}
 	return root
+}
+
+func TestRoadmapPageUsesMarkdownSource(t *testing.T) {
+	root := siteFixture(t)
+	path := filepath.Join(root, "ROADMAP.md")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source = []byte(strings.Replace(string(source), "- REPL.", "- REPL with <clear> errors.", 1))
+	if err := os.WriteFile(path, source, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := build(root, "output"); err != nil {
+		t.Fatal(err)
+	}
+	page, err := os.ReadFile(filepath.Join(root, "output", "roadmap.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Done", "Next", "Future", "REPL with &lt;clear&gt; errors."} {
+		if !strings.Contains(string(page), want) {
+			t.Fatalf("missing %q in roadmap", want)
+		}
+	}
+	copy, err := os.ReadFile(filepath.Join(root, "output", "ROADMAP.md"))
+	if err != nil || string(copy) != string(source) {
+		t.Fatalf("roadmap download differs: %v", err)
+	}
+}
+
+func TestRoadmapRejectsMissingOrRenamedMilestones(t *testing.T) {
+	for _, source := range []string{
+		"", "# Zhex roadmap\n\n## Done\n- Interpreter.\n",
+		"# Zhex roadmap\n\n## Done\n- Interpreter.\n## Later\n- REPL.\n## Future\n- Compilation.\n",
+	} {
+		if _, err := loadRoadmap([]byte(source)); err == nil {
+			t.Fatalf("accepted incomplete roadmap %q", source)
+		}
+	}
 }
 
 func TestBuildReadsExamplesExecutesThemAndEscapesHTML(t *testing.T) {

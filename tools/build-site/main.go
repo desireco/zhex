@@ -25,6 +25,58 @@ type pageData struct {
 	HeroInput  string
 	HeroOutput string
 	Examples   []Example
+	Roadmap    Roadmap
+}
+
+type Roadmap struct {
+	Intro    string
+	Sections []RoadmapSection
+}
+
+type RoadmapSection struct {
+	Title, Summary string
+	Items          []string
+}
+
+// The roadmap uses plain paragraphs, level-two headings, and single-line bullets.
+// Keep this small format explicit rather than silently dropping Markdown syntax.
+func loadRoadmap(source []byte) (Roadmap, error) {
+	var roadmap Roadmap
+	lines := strings.Split(strings.TrimSpace(string(source)), "\n")
+	if len(lines) == 0 || lines[0] != "# Zhex roadmap" {
+		return roadmap, fmt.Errorf("ROADMAP.md must start with # Zhex roadmap")
+	}
+	for _, line := range lines[1:] {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "## ") {
+			roadmap.Sections = append(roadmap.Sections, RoadmapSection{Title: strings.TrimPrefix(line, "## ")})
+			continue
+		}
+		if strings.HasPrefix(line, "#") || strings.ContainsAny(line, "`*_[]<>") && !strings.HasPrefix(line, "- ") {
+			return roadmap, fmt.Errorf("unsupported roadmap markup: %s", line)
+		}
+		if len(roadmap.Sections) == 0 {
+			roadmap.Intro = strings.TrimSpace(roadmap.Intro + " " + line)
+			continue
+		}
+		section := &roadmap.Sections[len(roadmap.Sections)-1]
+		if strings.HasPrefix(line, "- ") {
+			section.Items = append(section.Items, strings.TrimPrefix(line, "- "))
+		} else if len(section.Items) == 0 {
+			section.Summary = strings.TrimSpace(section.Summary + " " + line)
+		} else {
+			return roadmap, fmt.Errorf("roadmap bullets must each occupy one line: %s", line)
+		}
+	}
+	for i, title := range []string{"Done", "Next", "Future"} {
+		if len(roadmap.Sections) != 3 || roadmap.Sections[i].Title != title || len(roadmap.Sections[i].Items) == 0 {
+			return roadmap, fmt.Errorf("ROADMAP.md needs Done, Next, and Future sections with bullets")
+		}
+	}
+	return roadmap, nil
 }
 
 var exampleSpecs = []struct{ id, title, description, input string }{
@@ -84,7 +136,16 @@ func build(root, output string) error {
 		return err
 	}
 	files := map[string][]byte{".nojekyll": {}}
-	for _, name := range []string{"index", "examples"} {
+	roadmap, err := os.ReadFile(filepath.Join(root, "ROADMAP.md"))
+	if err != nil {
+		return fmt.Errorf("read roadmap: %w", err)
+	}
+	data.Roadmap, err = loadRoadmap(roadmap)
+	if err != nil {
+		return err
+	}
+	files["ROADMAP.md"] = roadmap
+	for _, name := range []string{"index", "examples", "roadmap"} {
 		page, err := template.ParseFiles(filepath.Join(root, "site", name+".tmpl"))
 		if err != nil {
 			return fmt.Errorf("parse website template %s: %w", name, err)

@@ -1,6 +1,6 @@
 # Zhex website and GitHub Pages
 
-The website introduces Zhex and shows runnable examples. Its source is two HTML templates, CSS, and an SVG icon in `site/`; no JavaScript or package installation is required.
+The website introduces Zhex and shows runnable examples. Its source is three HTML templates, CSS, and an SVG icon in `site/`; no JavaScript or package installation is required.
 
 The GitHub Pages address is [desireco.github.io/zhex](https://desireco.github.io/zhex/). The repository is configured to publish through GitHub Actions. A successful deployment appears in the repository's [Pages workflow](https://github.com/desireco/zhex/actions/workflows/pages.yml).
 
@@ -15,7 +15,7 @@ go run ./tools/build-site
 python3 -m http.server 8000 --directory _site
 ```
 
-Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, styles, the icon, and public downloads under `examples/`.
+Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, a public copy of `ROADMAP.md`, styles, the icon, and public downloads under `examples/`.
 
 ## Keep examples accurate
 
@@ -34,3 +34,7 @@ In repository **Settings → Pages**, the build source must be **GitHub Actions*
 If Pages reports that the account plan does not support a private repository, keep the repository private and resolve the plan or select another hosting arrangement. Changing repository visibility is a separate decision. GitHub documents Pages availability for public repositories on Free plans and private repositories on eligible paid plans in [Using custom workflows with GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
 To update or roll back the site, push the intended source revision to `main` and let the workflow publish it. The workflow status and deployment URL are the source of truth for whether a version is live.
+
+## Keep the roadmap current
+
+Edit the root `ROADMAP.md` to update both the repository roadmap and the public roadmap page. It uses a title, an introductory paragraph, and three sections: Done, Next, and Future. Each section has a short summary and at most four or five single-line bullets. Use plain text inside paragraphs and bullets; the site escapes it as text. The generator rejects missing sections and unsupported paragraph markup. Keep delivery dates out until they are agreed, and move work to Done only when implementation and validation are complete.
