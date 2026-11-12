@@ -79,7 +79,7 @@ The whole file is checked before execution, including unused word bodies. Static
 
 We want a readable, modular language for command-line tools, games, web applications and servers, HTML/text processing, and database software. High performance is a goal to establish through implementation and measurement.
 
-The current interpreter defines and tests behavior. A REPL, user-written modules, rich domain types, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md).
+The current interpreter defines and tests behavior. A REPL, user-written modules, rich domain types, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md). Further [language presentation research](docs/language-presentation-research.md) explores how to explain the language through readable examples.
 
 ## Tests are part of the language
 
@@ -92,6 +92,20 @@ go vet ./...
 ```
 
 See the [test catalog](docs/tests.md) to find the executable specification for each feature.
+
+## Development commands
+
+With [just](https://just.systems/man/en/) installed, run `just` to list the project's commands:
+
+```sh
+just test
+just check
+just build
+just run fibonacci
+just serve
+```
+
+`just run` starts the greeting example and keeps console input available. `just site` builds the website, and `just serve` rebuilds it and serves it at [127.0.0.1:8000](http://127.0.0.1:8000/). Pass a different port with `just serve 8080`. `just test-race` runs the race checks. The underlying Go commands remain available directly.
 
 ## Project documents
 
