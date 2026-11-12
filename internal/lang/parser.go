@@ -1,0 +1,315 @@
+package lang
+
+import "strconv"
+
+type parser struct {
+	tokens       []token
+	index, depth int
+}
+
+func parse(file, source string) (program *Program, err error) {
+	tokens, err := lex(file, source)
+	if err != nil {
+		return nil, err
+	}
+	// Syntax failures unwind recursive descent; programming errors are never swallowed.
+	defer func() {
+		if caught := recover(); caught != nil {
+			if d, ok := caught.(*diagnostic); ok {
+				program = nil
+				err = d
+			} else {
+				panic(caught)
+			}
+		}
+	}()
+	p := parser{tokens: tokens}
+	program = &Program{}
+	for !p.at("eof") {
+		if p.at("word") {
+			program.words = append(program.words, p.parseWord())
+		} else {
+			program.body = append(program.body, p.parseStatement())
+		}
+	}
+	return program, nil
+}
+
+func (p *parser) current() token { return p.tokens[p.index] }
+func (p *parser) at(kind string) bool {
+	t := p.current()
+	return t.kind == kind || t.kind == "name" && t.text == kind
+}
+func (p *parser) take() token { t := p.current(); p.index++; return t }
+func (p *parser) accept(kind string) bool {
+	if p.at(kind) {
+		p.take()
+		return true
+	}
+	return false
+}
+func (p *parser) require(kind string) token {
+	if !p.at(kind) {
+		panic(errorAt(p.current().pos, "expected %s, found %q", kind, p.current().text))
+	}
+	return p.take()
+}
+
+func reserved(name string) bool {
+	switch name {
+	case "word", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "and", "or", "not", "true", "false":
+		return true
+	}
+	return false
+}
+
+func (p *parser) name() token {
+	t := p.require("name")
+	if reserved(t.text) {
+		panic(errorAt(t.pos, "expected a name, found keyword %q", t.text))
+	}
+	return t
+}
+
+func (p *parser) parseType() valueType {
+	t := p.require("name")
+	switch valueType(t.text) {
+	case intType, boolType, stringType, unitType:
+		return valueType(t.text)
+	}
+	panic(errorAt(t.pos, "unknown type %q", t.text))
+}
+
+func (p *parser) parseWord() *word {
+	p.require("word")
+	t := p.name()
+	w := &word{name: t.text, pos: t.pos}
+	p.require("(")
+	if !p.at(")") {
+		for {
+			n := p.name()
+			p.require(":")
+			w.params = append(w.params, parameter{name: n.text, pos: n.pos, typ: p.parseType()})
+			if !p.accept(",") {
+				break
+			}
+		}
+	}
+	p.require(")")
+	p.require("->")
+	w.result = p.parseType()
+	w.body = p.block()
+	return w
+}
+
+func (p *parser) block() []*statement {
+	p.require("newline")
+	if !p.at("indent") {
+		panic(errorAt(p.current().pos, "expected an indented block"))
+	}
+	p.take()
+	p.depth++
+	defer func() { p.depth-- }()
+	if p.depth > 256 {
+		panic(errorAt(p.current().pos, "syntax nesting limit exceeded"))
+	}
+	var body []*statement
+	for !p.at("dedent") && !p.at("eof") {
+		body = append(body, p.parseStatement())
+	}
+	p.require("dedent")
+	if len(body) == 0 {
+		panic(errorAt(p.current().pos, "expected a nonempty indented block"))
+	}
+	return body
+}
+
+func (p *parser) parseStatement() *statement {
+	t := p.current()
+	s := &statement{pos: t.pos}
+	switch {
+	case p.at("let") || p.at("var"):
+		s.kind = p.take().text
+		s.name = p.name().text
+		p.require("=")
+		s.expr = p.expression(0)
+		p.require("newline")
+	case p.at("if"):
+		return p.parseIf()
+	case p.accept("for"):
+		s.kind = "for"
+		s.name = p.name().text
+		p.require("in")
+		p.require("range")
+		p.require("(")
+		s.expr = p.expression(0)
+		p.require(",")
+		s.end = p.expression(0)
+		p.require(")")
+		s.body = p.block()
+	case p.accept("flow"):
+		s.kind = "flow"
+		s.expr = p.expression(0)
+		p.require("newline")
+		if !p.at("indent") {
+			panic(errorAt(p.current().pos, "expected an indented flow"))
+		}
+		p.take()
+		for !p.at("dedent") && !p.at("eof") {
+			step := p.name()
+			s.steps = append(s.steps, &expression{kind: "call", text: step.text, pos: step.pos})
+			p.require("newline")
+		}
+		p.require("dedent")
+		if len(s.steps) == 0 {
+			panic(errorAt(s.pos, "flow requires a step"))
+		}
+	case t.kind == "name" && !reserved(t.text) && p.tokens[p.index+1].kind == "=":
+		s.kind = "assign"
+		s.name = p.take().text
+		p.require("=")
+		s.expr = p.expression(0)
+		p.require("newline")
+	default:
+		s.kind = "expression"
+		s.expr = p.expression(0)
+		p.require("newline")
+	}
+	return s
+}
+
+func (p *parser) parseIf() *statement {
+	p.depth++
+	defer func() { p.depth-- }()
+	if p.depth > 256 {
+		panic(errorAt(p.current().pos, "syntax nesting limit exceeded"))
+	}
+	t := p.take()
+	s := &statement{kind: "if", pos: t.pos, expr: p.expression(0)}
+	s.body = p.block()
+	if p.at("elif") {
+		s.otherwise = []*statement{p.parseIf()}
+	} else if p.accept("else") {
+		s.otherwise = p.block()
+	}
+	return s
+}
+
+func precedence(op string) int {
+	switch op {
+	case "or":
+		return 1
+	case "and":
+		return 2
+	case "==", "!=":
+		return 3
+	case "<", "<=", ">", ">=":
+		return 4
+	case "+", "-":
+		return 5
+	case "*", "/", "%":
+		return 6
+	}
+	return -1
+}
+
+func (p *parser) expression(minimum int) *expression {
+	p.depth++
+	defer func() { p.depth-- }()
+	if p.depth > 256 {
+		panic(errorAt(p.current().pos, "syntax nesting limit exceeded"))
+	}
+	left := p.checkDepth(p.unary())
+	for {
+		t := p.current()
+		level := precedence(t.text)
+		if level < minimum {
+			break
+		}
+		p.take()
+		right := p.expression(level + 1)
+		left = p.checkDepth(&expression{kind: "binary", text: t.text, pos: t.pos, left: left, right: right})
+	}
+	return left
+}
+
+func (p *parser) checkDepth(x *expression) *expression {
+	depth := 0
+	for _, child := range append([]*expression{x.left, x.right}, x.args...) {
+		if child != nil && child.depth > depth {
+			depth = child.depth
+		}
+	}
+	x.depth = depth + 1
+	if x.depth > 256 {
+		panic(errorAt(x.pos, "syntax nesting limit exceeded"))
+	}
+	return x
+}
+
+func (p *parser) unary() *expression {
+	if p.at("-") || p.at("not") {
+		t := p.take()
+		if t.text == "-" && p.at("number") {
+			n := p.take()
+			n.text = "-" + n.text
+			n.pos = t.pos
+			return p.number(n)
+		}
+		// Route through expression to include the nesting limit for repeated unary operators.
+		return &expression{kind: "unary", text: t.text, pos: t.pos, left: p.expression(7)}
+	}
+	x := p.primary()
+	for p.at("try") {
+		t := p.take()
+		x = p.checkDepth(&expression{kind: "try", pos: t.pos, left: x})
+	}
+	return x
+}
+
+func (p *parser) number(t token) *expression {
+	n, err := strconv.ParseInt(t.text, 10, 64)
+	if err != nil {
+		panic(errorAt(t.pos, "integer literal is outside the signed 64-bit range"))
+	}
+	return &expression{kind: "int", number: n, pos: t.pos}
+}
+
+func (p *parser) primary() *expression {
+	t := p.current()
+	if p.accept("(") {
+		x := p.expression(0)
+		p.require(")")
+		return x
+	}
+	if t.kind == "number" {
+		p.take()
+		return p.number(t)
+	}
+	if t.kind == "string" {
+		p.take()
+		return &expression{kind: "string", text: t.text, pos: t.pos}
+	}
+	if p.at("true") || p.at("false") {
+		p.take()
+		return &expression{kind: "bool", text: t.text, pos: t.pos}
+	}
+	if t.kind == "name" && !reserved(t.text) {
+		p.take()
+		x := &expression{kind: "name", text: t.text, pos: t.pos}
+		if p.accept("(") {
+			x.kind = "call"
+			if !p.at(")") {
+				for {
+					x.args = append(x.args, p.expression(0))
+					if !p.accept(",") {
+						break
+					}
+				}
+			}
+			p.require(")")
+		}
+		return x
+	}
+	panic(errorAt(t.pos, "expected an expression, found %q", t.text))
+}

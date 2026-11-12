@@ -1,0 +1,22 @@
+word fibonacci(n: Int) -> Int
+    if n < 2
+        n
+    else
+        var previous = 0
+        var current = 1
+
+        for step in range(1, n)
+            let next = previous + current
+            previous = current
+            current = next
+
+        current
+
+let index = console.read-int("Fibonacci index (0..92): ") try
+
+if index < 0 or index > 92
+    print("Enter an index from 0 to 92.")
+else
+    flow index
+        fibonacci
+        print

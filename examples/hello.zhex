@@ -1,0 +1,8 @@
+word greet(name: String) -> String
+    "Hello, " + name + "!"
+
+let name = console.read-line("Your name: ") try
+
+flow name
+    greet
+    print

@@ -1,0 +1,16 @@
+word factorial(n: Int) -> Int
+    var product = 1
+
+    for factor in range(1, n + 1)
+        product = product * factor
+
+    product
+
+let number = console.read-int("Factorial of (0..20): ") try
+
+if number < 0 or number > 20
+    print("Enter a number from 0 to 20.")
+else
+    flow number
+        factorial
+        print

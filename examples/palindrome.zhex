@@ -1,0 +1,9 @@
+word is-palindrome(value: String) -> Bool
+    value == text.reverse(value)
+
+let value = console.read-line("Text to check: ") try
+
+if is-palindrome(value)
+    print("Palindrome")
+else
+    print("Not a palindrome")

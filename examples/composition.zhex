@@ -1,0 +1,11 @@
+word square(n: Int) -> Int
+    let result = n * n
+    result
+
+word double(n: Int) -> Int
+    n + n
+
+flow 4
+    square
+    double
+    print

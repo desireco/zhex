@@ -1,0 +1,19 @@
+word fizzbuzz(n: Int) -> String
+    if n % 15 == 0
+        "FizzBuzz"
+    elif n % 3 == 0
+        "Fizz"
+    elif n % 5 == 0
+        "Buzz"
+    else
+        int.to-string(n)
+
+let limit = console.read-int("FizzBuzz up to (1..10000): ") try
+
+if limit < 1 or limit > 10000
+    print("Enter a number from 1 to 10000.")
+else
+    for n in range(1, limit + 1)
+        flow n
+            fizzbuzz
+            print
