@@ -1,0 +1,20 @@
+word is-palindrome(value: String) -> Bool
+# <- keyword
+#    ^ function
+#                  ^ variable.parameter
+#                         ^ type
+    value == text.reverse(value)
+#            ^ function
+
+let if-ready = true
+# <- keyword
+#   ^ variable
+#              ^ boolean
+let message = "if # quoted"
+#              ^ string
+let escaped = "\n"
+#              ^ string.escape
+var count = -12
+#            ^ number
+# word Int true
+# <- comment

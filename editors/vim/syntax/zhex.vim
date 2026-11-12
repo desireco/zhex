@@ -1,0 +1,40 @@
+if exists('b:current_syntax')
+  finish
+endif
+
+syntax case match
+syntax iskeyword @,48-57,_,45,46
+
+syntax match zhexIdentifier /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*/
+syntax match zhexFunction /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*\ze\s*(/
+syntax match zhexDefinition /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*/ contained
+syntax match zhexParameter /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*\ze\s*:/
+syntax keyword zhexKeyword word nextgroup=zhexDefinition skipwhite
+syntax keyword zhexKeyword let var if elif else for in flow try
+syntax keyword zhexType Int Bool String Unit
+syntax keyword zhexBoolean true false
+syntax keyword zhexOperator and or not
+syntax keyword zhexBuiltin print range int.to-string text.reverse console.read-line console.read-int
+syntax match zhexNumber /\%([A-Za-z0-9_.]\)\@<!\d\+\%([A-Za-z0-9_.]\)\@!/
+syntax match zhexOperator /->\|==\|!=\|<=\|>=\|[-+*\/%<>=]/
+syntax match zhexDelimiter /[(),:]/
+syntax region zhexString start=/"/ skip=/\\./ end=/"/ oneline contains=zhexEscape
+syntax match zhexEscape /\\\%([abfnrtv\\"]\|[0-7]\{3}\|x[0-9A-Fa-f]\{2}\|u[0-9A-Fa-f]\{4}\|U[0-9A-Fa-f]\{8}\)/ contained
+syntax match zhexComment /#.*/ contains=@Spell
+
+highlight default link zhexIdentifier Identifier
+highlight default link zhexFunction Function
+highlight default link zhexDefinition Function
+highlight default link zhexParameter Identifier
+highlight default link zhexKeyword Keyword
+highlight default link zhexType Type
+highlight default link zhexBoolean Boolean
+highlight default link zhexBuiltin Function
+highlight default link zhexNumber Number
+highlight default link zhexOperator Operator
+highlight default link zhexDelimiter Delimiter
+highlight default link zhexString String
+highlight default link zhexEscape SpecialChar
+highlight default link zhexComment Comment
+
+let b:current_syntax = 'zhex'

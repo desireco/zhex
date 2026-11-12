@@ -1,0 +1,10 @@
+{
+  "name": "tree-sitter-zhex",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Editor syntax grammar for Zhex",
+  "scripts": {
+    "generate": "tree-sitter generate --abi 14",
+    "test": "tree-sitter test"
+  }
+}

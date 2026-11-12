@@ -1,0 +1,63 @@
+{
+  "name": "zhex",
+  "displayName": "Zhex",
+  "description": "Syntax highlighting for the Zhex programming language.",
+  "version": "0.0.1",
+  "publisher": "desireco",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/desireco/zhex.git",
+    "directory": "editors/vscode"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "zhex",
+        "aliases": [
+          "Zhex",
+          "zhex"
+        ],
+        "extensions": [
+          ".zhex"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "zhex",
+        "scopeName": "source.zhex",
+        "path": "./syntaxes/zhex.tmLanguage.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[zhex]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "package": "vsce package --skip-license --out ../../dist/editors/zhex-0.0.1.vsix",
+    "prepackage": "node -e \"require('node:fs').mkdirSync('../../dist/editors', {recursive: true})\""
+  },
+  "devDependencies": {
+    "@vscode/vsce": "4.1.0",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.3.2"
+  },
+  "overrides": {
+    "@vscode/vsce": {
+      "minimatch": "11.0.1"
+    }
+  }
+}

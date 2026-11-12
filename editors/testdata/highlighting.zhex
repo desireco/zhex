@@ -1,0 +1,18 @@
+# word Int true console.read-line stay inside this comment
+word is-palindrome(value: String) -> Bool
+    value == text.reverse(value)
+
+let if-ready = true
+var count = -12
+let message = "if # \"quoted\" \n"
+if if-ready and not false
+    count = count + 1
+else
+    count = count - 1
+
+for item in range(0, 2)
+    print(int.to-string(item))
+
+flow "été"
+    is-palindrome
+    print
