@@ -9,7 +9,7 @@ The first language milestone runs real programs with checked types and console i
 - Interpreter: typed words, inferred locals, conditions, bounded loops, and checked flows.
 - Working examples: composition, console input, FizzBuzz, Fibonacci, factorial, and palindrome checking.
 - Executable specification: tests cover syntax, types, scope, arithmetic boundaries, Unicode, and failure paths.
-- Getting started: documentation, a public examples website, and local highlighting packages for Vim/Neovim, VS Code, and Zed.
+- Getting started: documentation, a public examples website, just recipes for development, and local highlighting packages for Vim/Neovim, VS Code, and Zed.
 
 ## Next
 
