@@ -1,12 +1,14 @@
 # Zhex
 
-Zhex is an experimental **Forth-inspired programming language** built around a simple idea: small, readable operations should compose into useful programs.
+**Small words. Readable programs.**
 
-We want code that people can understand without mentally tracking a stack. Named inputs, local values, familiar arithmetic, and clear control flow sit alongside explicit composition. The same clarity should make AI-generated code easier to review and correct.
+Zhex is an experimental **Forth-inspired language** for composing small operations into larger programs. It keeps the idea of passing values through a sequence of words, while adding named inputs, local values, familiar expressions, and clear control flow.
 
-The first interpreter is written in Go. **You can run the examples today**, including console input and output. Source files use `.zhex`.
+The first interpreter is written in Go. It runs real `.zhex` files with console input and output. The language is still taking shape; syntax and APIs may change.
 
-## A small example
+[Website and examples](https://desireco.github.io/zhex/) · [Getting started](docs/getting-started.md) · [Language reference](docs/initial-language.md)
+
+## What it looks like
 
 ```text
 word square(n: Int) -> Int
@@ -20,51 +22,66 @@ flow number
     print
 ```
 
-Enter `7` and the program prints `49`. The checker infers the local types and verifies that the steps fit together. `try` propagates an input error instead of silently substituting a value.
+Enter `7` and it prints `49`. A word is a function. A `flow` passes each result to the next word. The checker infers local types and verifies that the operations fit together before the program runs.
 
 ## Try it
 
-You need Go 1.23 or newer. There are no third-party Go dependencies.
+Install Go 1.23 or newer, then clone the repository. The source repository is currently private, so cloning requires access:
 
 ```sh
+git clone https://github.com/desireco/zhex.git
+cd zhex
 go run ./cmd/zhex run examples/hello.zhex
+```
+
+The program asks for your name and prints a greeting. No third-party Go dependencies are required.
+
+For more examples:
+
+```sh
 go run ./cmd/zhex run examples/fizzbuzz.zhex
 go run ./cmd/zhex run examples/fibonacci.zhex
 go run ./cmd/zhex run examples/factorial.zhex
 go run ./cmd/zhex run examples/palindrome.zhex
 ```
 
-Each of these programs prompts for input. To build a local executable:
+Build an executable when you want to use it directly:
 
 ```sh
 go build -o bin/zhex ./cmd/zhex
 ./bin/zhex run examples/fibonacci.zhex
 ```
 
-Input can also come from a pipe. For example, supplying `10` to Fibonacci prints `55` after its prompt. [Simple composition](examples/composition.zhex) runs without input and prints `32`.
+[Start with the short guide](docs/getting-started.md) for input, output, and the main language constructs.
 
-## What works now
+## Learn through examples
 
-- Typed word definitions, named parameters, inferred local types, and forward calls.
-- Immutable `let` values and explicitly mutable `var` values.
-- Integers, booleans, strings, arithmetic, comparisons, and short-circuit logic.
-- `if` / `elif` / `else`, bounded integer loops, and checked `flow` composition.
-- Prompted text and integer input, printing, integer formatting, and Unicode code-point reversal.
-- Source-located syntax, type, arithmetic, and input/output errors.
+| Example | What it demonstrates |
+| --- | --- |
+| [Composition](examples/composition.zhex) | Typed words, inferred locals, and a flow that prints `32`. |
+| [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
+| [FizzBuzz](examples/fizzbuzz.zhex) | Decisions, remainders, and a bounded loop. |
+| [Fibonacci](examples/fibonacci.zhex) | Explicitly mutable locals and iterative calculation. |
+| [Factorial](examples/factorial.zhex) | Accumulation and integer boundaries. |
+| [Palindrome](examples/palindrome.zhex) | Text input, comparison, and Unicode code-point reversal. |
 
-The whole file is checked before it runs, including unused word bodies. Invalid programs do not prompt or consume input. Integer arithmetic checks for overflow.
+The [example guide](docs/syntax-examples.md) records expected output and edge cases. The [language contract](docs/initial-language.md) defines the current rules.
+
+## What works today
+
+The interpreter supports typed word definitions, named parameters, inferred local types, immutable `let` bindings, mutable `var` bindings, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, printing, integer formatting, and text reversal are built in.
+
+The whole file is checked before execution, including unused word bodies. Static errors do not prompt or consume input. Runtime errors report a source location; integer overflow, division by zero, invalid input, and end-of-input are handled explicitly.
 
 ## Where we are heading
 
-The long-term goal is a readable, modular language for command-line tools, games, web applications and servers, HTML/text processing, and database software.
+We want a readable, modular language for command-line tools, games, web applications and servers, HTML/text processing, and database software. High performance is a goal to establish through implementation and measurement.
 
-High performance is part of that goal. Named values and rich types should allow efficient representations, while small operations should be easy to optimize together. The current interpreter establishes behavior; native compilation and its performance measurements are future work.
+The current interpreter defines and tests behavior. A REPL, user-written modules, rich domain types, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md).
 
-Modules, rich domain types such as dates and durations, resource scopes, a REPL, and native compilation are still ahead. The language is experimental and its syntax can change. Zhex is inspired by Forth; it does not aim for Forth compatibility.
+## Tests are part of the language
 
-## Tests are language examples
-
-Tests describe source programs, supplied input, expected output, and expected errors. They check the six example files as well as scope, type checking, evaluation order, overflow, input failures, and Unicode behavior.
+Tests describe source programs, supplied input, expected output, and expected errors. They validate the examples as well as scope, evaluation order, type checking, arithmetic boundaries, Unicode, and input/output failures.
 
 ```sh
 go test ./...
@@ -72,14 +89,11 @@ go test -race ./...
 go vet ./...
 ```
 
-Start with the [test catalog](docs/tests.md), [example guide](docs/syntax-examples.md), or [initial language contract](docs/initial-language.md).
+See the [test catalog](docs/tests.md) to find the executable specification for each feature.
 
 ## Project documents
 
-- [Language goals](docs/language-goals.md)
-- [First milestone](docs/first-milestone.md)
+- [Getting started](docs/getting-started.md)
+- [Language goals](docs/language-goals.md) and [first milestone](docs/first-milestone.md)
 - [Implementation plan](tasks/plan.md) and [task checklist](tasks/todo.md)
-- [Forth implementation research](docs/forth-implementation-research.md), including Mirth, Factor, and 8th
-- [Earlier design notes](docs/design-notes.md)
-
-The original exploration was the Codex chat **Make Forth Great Again**. Its comparison documents are preserved in [docs/reference](docs/reference/).
+- [Earlier design notes](docs/design-notes.md) and [reference material](docs/reference/)
