@@ -6,7 +6,15 @@ These are local packages. Extension-store publication, language-server completio
 
 ## Vim and Neovim
 
-Add the repository's `editors/vim` directory to your runtime path. Use an absolute path to your checkout:
+From the repository root, install the Vim and Neovim packages with:
+
+```sh
+just vim-install
+```
+
+The installer links this checkout into `~/.vim/pack/zhex/start/zhex` and `~/.local/share/nvim/site/pack/zhex/start/zhex`. Neovim uses `$XDG_DATA_HOME` instead of `~/.local/share` when set. Keep the checkout at its current path. Repeating the command is safe; it refuses to replace a different existing plugin.
+
+Restart Vim or Neovim after installation, then open a `.zhex` file. Alternatively, add the repository's `editors/vim` directory to your runtime path. Use an absolute path to your checkout:
 
 ```vim
 set runtimepath^=/absolute/path/to/zhex/editors/vim
@@ -50,10 +58,10 @@ Open a `.zhex` file and confirm the language mode is **Zhex**. The extension add
 The Zed extension uses the included Tree-sitter grammar. Prepare a dev-extension folder that refers to the grammar in your local Git checkout:
 
 ```sh
-python3 editors/zed/prepare.py
+just zed-prepare
 ```
 
-This requires Python 3.11 or newer. The command writes `dist/editors/zed` and prints its full path. In Zed, open **Extensions**, choose **Install Dev Extension**, and select that directory. Zed builds the grammar and recognizes `.zhex` files as **Zhex**. The helper changes only generated files under `dist/`; it does not modify editor settings.
+Run this from the repository root with Go 1.23 or newer and Git installed. Without `just`, run `go run ./tools/prepare-zed`. The command writes `dist/editors/zed` and prints its full path. In Zed, open **Extensions**, choose **Install Dev Extension**, and select that directory. Zed builds the grammar and recognizes `.zhex` files as **Zhex**. The helper changes only generated files under `dist/`; it does not modify editor settings.
 
 Zed downloads its grammar build tools when needed. See [Zed's dev-extension instructions](https://zed.dev/docs/extensions/developing-extensions) for Rust and WASI SDK requirements. If installing from `editors/zed` directly, its pinned remote grammar requires Git access to the private repository; the prepared local folder avoids that fetch.
 

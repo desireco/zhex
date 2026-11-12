@@ -26,6 +26,14 @@ run $example='hello':
 site:
     go run ./tools/build-site
 
+# Prepare the local Zed language extension.
+zed-prepare:
+    go run ./tools/prepare-zed
+
+# Install syntax support for Vim and Neovim.
+vim-install:
+    sh editors/vim/install.sh
+
 # Build and preview the website at http://127.0.0.1:8000.
 serve $port='8000': site
     python3 -m http.server "$port" --bind 127.0.0.1 --directory _site
