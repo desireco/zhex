@@ -41,3 +41,4 @@ These are directions to explore. Their order and implementation remain open, and
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.
 - Development tools: formatting, language-server support, and published editor packages as the syntax settles.
 - Development insight: record-and-replay runs, debug-adapter support, and agent tools, so people and AI agents can see and debug what a program is doing (see docs/diagnostics-plan.md).
+- Module growth: exposure lists, import renames, subfolder paths, and computed module constants, composing on the simple use-and-underscore design when each earns its place.
