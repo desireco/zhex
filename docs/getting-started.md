@@ -1,76 +1,41 @@
-# Getting started with Zhex
+# Getting started
 
-Zhex runs `.zhex` source files through a small Go interpreter. This guide introduces the supported syntax using console programs you can run and change.
+Build the interpreter, create a small Zhex program, and run it. You need Git, Go 1.23 or newer, and [`just`](https://just.systems/).
 
-## Run your first program
+## Build Zhex
 
-You need Go 1.23 or newer and access to the repository:
+Clone the repository, build the interpreter once, and add it to this terminal's `PATH`:
 
 ```sh
 git clone https://github.com/desireco/zhex.git
 cd zhex
-go run ./cmd/zhex run examples/hello.zhex
+just build
+export PATH="$PWD/bin:$PATH"
 ```
 
-A terminal session looks like this:
+The `export` command applies to the current shell. In a new terminal, run it again after changing to the repository.
 
-```text
-Your name: Ada
-Hello, Ada!
+## Create and run a program
+
+Create `hello.zhex` in the repository root with this line:
+
+```zhex
+print("Hello, Zhex!")
 ```
 
-`Ada` is the input you type. The prompt and greeting come from the program. You can supply input through a pipe too:
+Run it:
 
 ```sh
-printf 'Ada\n' | go run ./cmd/zhex run examples/hello.zhex
+zhex run hello.zhex
 ```
-
-With redirected input, the program writes `Your name: Hello, Ada!` followed by a newline; terminal input echo is not part of its output.
-
-To build the interpreter once:
-
-```sh
-go build -o bin/zhex ./cmd/zhex
-./bin/zhex run examples/hello.zhex
-```
-
-## Try it interactively
-
-The interpreter also has a REPL that checks and runs each entry as you type it:
-
-```sh
-go run ./cmd/zhex repl
-```
-
-Words and values persist across entries. A word header starts a multi-line entry, marked by the `....> ` continuation prompt, and a blank line submits it:
 
 ```text
-Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.
-zhex> word greet(name: String) -> String
-....>     "Hello, " + name + "!"
-....>
-zhex> greet("Ada")
-Hello, Ada!
-zhex> word greet(name: String) -> String
-....>     "Hi, " + name + "!"
-....>
-redefined greet
-zhex> greet("Grace")
-Hi, Grace!
-zhex> let name = read-line("Name: ") try
-Name: Linus
-zhex> greet(name)
-Hi, Linus!
-zhex> [Ctrl-D]
+Hello, Zhex!
 ```
 
-The lines after the `zhex> ` and `....> ` prompts are your input, as is `Linus` at the `Name:` prompt; `[Ctrl-D]` is the keypress that ends the session with exit status 0. Redefining a word replaces it and prints `redefined greet`. An entry that is a bare expression echoes its value, which is how `greet("Ada")` shows its greeting; `let` and `print` entries produce no echo. Statements never span lines — only a missing indented body continues an entry, and a blank line ends it. Errors print their diagnostic and the session survives, `words` lists the signatures defined so far, and `--trace` streams the same step events as `zhex run --trace`.
+Replace the file contents with a word that reads a name and sends it through a flow:
 
-## Read the greeting
-
-The [greeting source](../examples/hello.zhex) is:
-
-```text
+```zhex
 word greet(name: String) -> String
     "Hello, " + name + "!"
 
@@ -81,104 +46,47 @@ flow name
     print
 ```
 
-A **word** is a function. `greet` accepts a `String` and returns a `String`. Its final expression supplies the result. Blocks use four spaces, with no braces or semicolons.
-
-`let` names an immutable value. Its type is inferred: the successful result of `read-line` is a string, so `name` is a `String` without another annotation.
-
-`flow` expresses a sequence of one-argument operations. Here the name goes into `greet`, and the resulting greeting goes into `print`. The checker verifies each connection before execution. You can also call words directly with parentheses, such as `greet(name)`.
-
-## Read numbers and choose a fallback
-
-Read a line, then parse it with `text.to-int`, the inverse of `int.to-string`. This program uses `try` for input failure and handles malformed numeric text with `catch`:
-
-```zhex
-let line = read-line("Number: ") try
-let number = text.to-int(line) catch problem
-    print("Invalid integer: " + error.code(problem))
-    0
-print(number * number)
-```
-
-`read-line` returns a Result; `try` unwraps a successful line or propagates an input error to the caller. Here, invalid numeric text or an out-of-range integer is caught, its stable code is inspected, and the program substitutes `0`. The handler is lazy: it runs only when parsing fails.
-
-`read-line` preserves spaces and accepts an empty line. `text.to-int` trims surrounding whitespace and requires a signed 64-bit decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
-
-If one word calls another fallible word, declare a compatible `Result` return and add `try` at the call site. The [Results and error handling guide](../site/src/content/docs/results.md) shows multi-level propagation, structured errors, and the optional reporter.
-
-## Make decisions
-
-The [FizzBuzz example](../examples/fizzbuzz.zhex) uses conditions to return one kind of value from several branches:
+Run `zhex run hello.zhex` again and enter `Ada` at the prompt:
 
 ```text
-word fizzbuzz(n: Int) -> String
-    if n % 15 == 0
-        "FizzBuzz"
-    elif n % 3 == 0
-        "Fizz"
-    elif n % 5 == 0
-        "Buzz"
-    else
-        int.to-string(n)
+Your name: Ada
+Hello, Ada!
 ```
 
-Conditions must be booleans. Branch result types must agree. Here every branch returns a `String`; `int.to-string` makes the final conversion explicit. There is no automatic conversion between strings and integers.
+`greet` accepts and returns a `String`; the final expression in a word is its result. `read-line` can fail, so `try` handles its `Result`. The `flow` sends the name to `greet`, then sends the greeting to `print`. The checker verifies word names, parameter types, and flow connections before execution.
 
-## Repeat work and update values
+To run an included example, use `zhex run examples/hello.zhex`. When input comes from a pipe, the terminal does not echo the typed text:
 
-A range includes its start and excludes its end. This program prints `10`:
+```sh
+printf 'Ada\n' | zhex run examples/hello.zhex
+```
 
 ```text
-var total = 0
-
-for number in range(1, 5)
-    total = total + number
-
-print(total)
+Your name: Hello, Ada!
 ```
 
-`var` explicitly permits reassignment. The initial value determines its type, and assignments must preserve that type. Use `let` when the value should stay fixed. The iteration variable is immutable and local to the loop.
+## Try the REPL
 
-[Fibonacci](../examples/fibonacci.zhex) and [factorial](../examples/factorial.zhex) use this approach for iterative calculations. Their input bounds avoid overflowing an `Int`; arithmetic still checks overflow independently. [GCD](../examples/gcd.zhex) recurses — a word may call itself — and feeds a computed call into a flow, while the [times table](../examples/times-table.zhex) builds each row of a bounded loop from integers and strings.
-
-## Try the text example
+Start an interactive session:
 
 ```sh
-go run ./cmd/zhex run examples/palindrome.zhex
+zhex repl
 ```
 
-Try `racecar`, `hello`, or `été`. The [palindrome source](../examples/palindrome.zhex) compares the input with `text.reverse(input)`. Reversal operates on Unicode code points. The check is exact: case, spaces, punctuation, and normalization are not changed.
-
-## Read a file
-
-`for line in file.lines(path)` streams a file's chomped lines and always closes the file:
+Define and call a word. The blank line submits its body:
 
 ```text
-for line in file.lines("examples/text-stats-sample.txt")
-    print(text.upper(line))
+zhex> word greet(name: String) -> String
+....>     "Hello, " + name + "!"
+....>
+zhex> greet("Ada")
+Hello, Ada!
 ```
 
-Run it and the three sample lines print uppercased. The [text-stats source](../examples/text-stats.zhex) shows both halves of file reading:
+Words and values stay available in later entries. Press Ctrl-D to exit.
 
-```sh
-go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
-```
+## Continue learning
 
-With one argument it reads the whole file at once and prints `3 lines  11 words  64 chars`; any second argument streams the file uppercased line by line, as in the loop above. The path comes from `console.arg(0) try`, and `console.args-count()` says how many arguments followed `zhex run <file>`.
-
-## Understand an error
-
-A type error such as `print("hello" + 1)` is rejected before any program input or output occurs. Runtime failures can happen after a prompt or earlier output. Diagnostics include the source filename, line, and column.
-
-The built executable returns exit status `0` for success, `1` for file or language errors, and `2` for invalid command usage. If you invoke it through `go run`, Go may wrap the program's failure in its own diagnostic.
-
-Identifiers may contain hyphens, as in `is-palindrome`. Put spaces around subtraction between names: `a - b` subtracts; `a-b` names a value or word.
-
-## Explore and validate
-
-Start with the [ten examples and expected results](syntax-examples.md), then consult the [language contract](initial-language.md) for exact rules. Run the executable language tests with:
-
-```sh
-go test ./...
-```
-
-The [test catalog](tests.md) explains which tests cover each feature. Additional named-type forms such as choices and aliases, maps, temporal values, resource scopes, and native compilation remain future work.
+- [Syntax examples](syntax-examples.md): complete programs with expected output and edge cases.
+- [Language contract](initial-language.md): exact syntax and semantics.
+- [Test catalog](tests.md): where each behavior is checked.

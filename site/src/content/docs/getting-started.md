@@ -1,42 +1,44 @@
 ---
 title: Getting started
-description: Build Zhex, run your first program, and learn the basic shape of a word and a flow.
+description: Build Zhex, create a small program, run it, and try the REPL.
 section: Start
 order: 1
 ---
 
-Zhex runs `.zhex` source files with a checked interpreter. This guide gets the interpreter built, runs a program, and introduces the syntax you will use in the rest of the [language guide](syntax.html).
+Build the interpreter, create `hello.zhex`, and run it from your terminal. You need Git, Go 1.23 or newer, and [`just`](https://just.systems/).
 
-## Build and run
+## Build Zhex
 
-Clone the repository and build the interpreter. The build needs Go 1.23 or newer and [`just`](https://just.systems/).
+Clone the repository, build the interpreter once, and add it to this terminal's `PATH`:
 
 ```sh
 git clone https://github.com/desireco/zhex.git
 cd zhex
 just build
 export PATH="$PWD/bin:$PATH"
-zhex run examples/hello.zhex
 ```
 
-The program asks for a name. Type `Ada` and press Enter:
+The `export` command applies to the current shell. In a new terminal, run it again after changing to the repository.
 
-```text
-Your name: Ada
-Hello, Ada!
+## Create and run a program
+
+Create `hello.zhex` in the repository root with this line:
+
+```zhex
+print("Hello, Zhex!")
 ```
 
-`zhex run` checks the complete program before it reads input or writes output. You can pipe input into it too:
+Run it with `zhex run`:
 
 ```sh
-printf 'Ada\n' | zhex run examples/hello.zhex
+zhex run hello.zhex
 ```
 
-When input is piped, the terminal does not echo `Ada`, so the prompt and greeting appear on the same output line.
+```text
+Hello, Zhex!
+```
 
-## Read the program
-
-The greeting example defines a word, reads a line, then passes the value through a flow:
+Now replace the file with a word that reads a name and sends it through a flow:
 
 ```zhex
 word greet(name: String) -> String
@@ -49,29 +51,49 @@ flow name
     print
 ```
 
-A **word** is a function with named, typed parameters. Its final statement is the result. `let` gives a value a name; here the result of `read-line` is unwrapped with `try`. The `flow` sends `name` to `greet`, then sends the greeting to `print`. The checker verifies each step's type before the program runs.
+Run `zhex run hello.zhex` again. Enter `Ada` at the prompt:
 
-Blocks are indented with four spaces. There are no braces or semicolons. A blank line can separate top-level pieces for readability.
+```text
+Your name: Ada
+Hello, Ada!
+```
 
-You can call a word directly too: `greet(name)`. See [words and flows](words-and-flows.html) for signatures, recursion, and composition.
+`greet` accepts and returns a `String`. The word's final expression is its result. `read-line` can fail, so `try` handles its `Result`; `flow` passes the name to `greet`, then passes the greeting to `print`. Zhex checks word names, parameter types, and each step of the flow before execution.
+
+For a file you already have, run `zhex run examples/hello.zhex`. With piped input, the terminal does not echo the typed text:
+
+```sh
+printf 'Ada\n' | zhex run examples/hello.zhex
+```
+
+```text
+Your name: Hello, Ada!
+```
 
 ## Try the REPL
 
-The interactive interpreter checks and runs entries as you type them:
+Start an interactive session:
 
 ```sh
 zhex repl
 ```
 
-Definitions and values persist across entries. A blank line submits a multi-line word definition. The [REPL guide](repl.html) covers entry boundaries, errors, and `words`.
+Define and call a word. The blank line submits its body:
 
-## Where to go next
+```text
+zhex> word greet(name: String) -> String
+....>     "Hello, " + name + "!"
+....>
+zhex> greet("Ada")
+Hello, Ada!
+```
 
-- [Syntax](syntax.html): indentation, names, comments, and expressions.
-- [Values and operators](values.html): types, bindings, scope, and arithmetic.
-- [Records and named types](records.html): define a nominal record and read its typed fields.
-- [Lists and arrays](collections.html): build homogeneous collections, access elements, and change shared storage.
+Words and values stay available in later entries. Press Ctrl-D to exit.
+
+## Continue learning
+
+- [Syntax](syntax.html): names, expressions, and indentation.
+- [Values](values.html): bindings, types, and operators.
+- [Words and flows](words-and-flows.html): composition, parameters, and results.
 - [Control flow](control-flow.html): conditions and loops.
-- [Collection iteration](iteration.html): traverse lists and arrays with optional index or coordinate bindings.
-- [Examples](../examples.html): complete programs with real input and output.
-- [Language contract](https://github.com/desireco/zhex/blob/main/docs/initial-language.md): detailed current semantics.
+- [Examples](../examples.html): complete programs with source, input, and output.
