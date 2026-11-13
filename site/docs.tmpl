@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Zhex language features — words, flows, checked types, modules — plus setup for running the interpreter and syntax highlighting in Vim/Neovim, VS Code, and Zed.">
+  <meta name="theme-color" content="#f6f3ec">
+  <title>Docs — Zhex</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header wrap">
+    <a class="brand" href="./" aria-label="Zhex home"><img class="brand-logo" src="logo.svg" width="168" height="50" alt=""></a>
+    <nav aria-label="Main navigation">
+      {{.Nav}}
+    </nav>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="page-intro">
+      <p class="eyebrow">Documentation</p>
+      <h1>The language,<br>on one page.</h1>
+      <p class="lede">Zhex's features — and the tooling around them — with setup for running the interpreter and syntax highlighting.</p>
+      <p class="aside">This page summarizes what works today. The full contract lives in the repository at <a href="https://github.com/desireco/zhex/blob/main/docs/initial-language.md">docs/initial-language.md</a>; the <a href="manifesto.html">manifesto</a> records the intentions behind the language.</p>
+    </section>
+
+    <section class="section" aria-labelledby="features-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">The language</p><h2 id="features-title">Small words, checked types.</h2></div>
+        <p class="intro">Every program is checked — names, types, and word connections — before any of it runs. Blocks are four-space indentation; no braces, no semicolons.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Words with typed signatures.</h3>
+        <p>A <strong>word</strong> is a function. Parameter and result types are explicit, and the final statement supplies the result.</p>
+        <div class="command-block"><pre><code>{{`word greet(name: String) -> String
+    "Hello, " + name + "!"` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Named values.</h3>
+        <p><code>let</code> creates an immutable value; <code>var</code> allows local updates. Types are inferred, and arithmetic on 64-bit integers is checked — overflow is an error, not a surprise.</p>
+        <div class="command-block"><pre><code>{{`let greeting = "Hi"
+var attempts = 0
+attempts = attempts + 1` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Flow, made visible.</h3>
+        <p>A <code>flow</code> block passes each result to the next word, one per line. The seed can be any expression — <code>flow gcd(a, b)</code> starts from a computed value. The checker verifies every connection before execution; direct calls like <code>greet(name)</code> work too.</p>
+        <div class="command-block"><pre><code>{{`flow name
+    greet
+    print` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Decisions.</h3>
+        <p><code>if</code>, optional <code>elif</code>, and optional <code>else</code> select a branch. Conditions must be <code>Bool</code>, and branch results must match.</p>
+        <div class="command-block"><pre><code>{{`if n % 15 == 0
+    "FizzBuzz"
+elif n % 3 == 0
+    "Fizz"
+else
+    int.to-string(n)` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Bounded iteration.</h3>
+        <p><code>for</code> iterates upward over integers with an exclusive end. No lists are built; bounds evaluate once.</p>
+        <div class="command-block"><pre><code>{{`for n in range(1, limit + 1)
+    flow n
+        fizzbuzz
+        print` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Console input, honestly handled.</h3>
+        <p><code>read-line</code> and <code>text.to-int</code> return a result that can fail. Postfix <code>try</code> unwraps success and propagates failure — input never silently becomes zero or an empty string.</p>
+        <div class="command-block"><pre><code>{{`let line = read-line("Number: ") try
+let n = text.to-int(line) try
+print(n * n)` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Files, streamed and closed.</h3>
+        <p><code>for line in file.lines(path)</code> streams a file's chomped lines — the close is guaranteed on every exit. Whole-file reads exist too: <code>file.read-all</code> for text, <code>file.read-lines</code> for a <code>Buffer</code> of lines.</p>
+        <div class="command-block"><pre><code>{{`for line in file.lines("notes.txt")
+    print(text.upper(line))` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Standard operations.</h3>
+        <p>The predeclared words: <code>print</code>, <code>range</code>, <code>int.to-string</code>, <code>read-line</code>, and the dotted families. Text: <code>text.length</code>, <code>text.line-count</code>, <code>text.word-count</code>, <code>text.upper</code>, <code>text.lower</code>, <code>text.trim</code>, <code>text.contains</code>, <code>text.index-of</code>, <code>text.slice</code>, <code>text.replace</code>, <code>text.reverse</code>, <code>text.to-int</code>. Lines build in a <code>Buffer</code> (<code>buffer.new</code>, <code>buffer.add-line</code>, <code>buffer.line-count</code>, <code>buffer.line</code>, <code>buffer.set-line</code>, <code>buffer.to-text</code>), files read whole or streamed (<code>file.read-all</code>, <code>file.read-lines</code>, <code>file.open</code>, <code>file.read-line</code>, <code>file.close</code>), and program arguments arrive via <code>console.arg</code> and <code>console.args-count</code>. A dot names the type or module that owns the verb — nothing else is dotted; the core operations are bare words. <code>+</code> adds integers and concatenates strings; there are no implicit conversions.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>A REPL, checked entry by entry.</h3>
+        <p><code>zhex repl</code> keeps words and values across entries. A blank line submits a word's body, <code>words</code> lists the signatures defined so far, and errors print their diagnostic without ending the session. With <code>--trace</code>, the same step events as a run stream to stderr.</p>
+        <div class="command-block"><pre><code>{{`zhex repl
+zhex> word greet(name: String) -> String
+....>     "Hello, " + name + "!"
+....>
+zhex> greet("Ada")
+Hello, Ada!
+zhex> words
+greet(name: String) -> String` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Study working programs.</h3>
+        <p>The examples page renders each program with real input and output. <a href="examples.html#gcd">GCD</a> shows recursion and a flow seeded with a computed call; the <a href="examples.html#times-table">times table</a> shows a bounded loop building strings from integers.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="modules-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Modules</p><h2 id="modules-title">One program, many files.</h2></div>
+        <p class="intro">A program splits across files. <code>use math</code> imports the sibling <code>math.zhex</code> beside the importing file — the REPL resolves against the working directory and adopts the module for the session — and every loaded module checks before the file that imports it.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Importable by default, called qualified.</h3>
+        <p>A module's words are importable unless their names start with an underscore. From the importing file you call them qualified — <code>math.gcd(a, b)</code>, or a flow step like <code>math.abs</code> — while inside their own file they call each other bare.</p>
+        <div class="program-code">
+          <div class="code-label"><span>main.zhex</span></div>
+          <pre><code>{{`if a <= 0 or b <= 0
+    print("Enter two positive integers.")
+else
+    flow a - b
+        math.abs
+        print
+    print(math.gcd(a, b))
+    print(math.lcm(a, b))` | highlight}}</code></pre>
+          <div class="code-label"><span>math.zhex</span></div>
+          <pre><code>{{`word lcm(a: Int, b: Int) -> Int
+    _normalize(a * b) / gcd(a, b)
+
+word _normalize(n: Int) -> Int
+    abs(n)` | highlight}}</code></pre>
+        </div>
+        <p class="access-note">Both snippets are exact fragments of the two-file <a href="examples.html#modules/main">modules example</a>: the guard and else branch of <code>main.zhex</code> — the full program reads two numbers with <code>read-line</code> first — and the privacy pair from <code>math.zhex</code>. In the REPL, <code>words</code> lists an adopted module's signatures qualified.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>The underscore keeps a word private.</h3>
+        <p>A leading underscore makes a word private to its own file: callable inside its module, never suggested outside it, and reached from another file only as a checked error — hint included:</p>
+        <div class="command-block"><pre><code>main.zhex:4:7: "_normalize" is private to module "math"
+    print(math._normalize(5))
+          ^^^^^^^^^^^^^^^^^^
+hint: remove the leading underscore in math.zhex to export it</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Checked like the rest of the program.</h3>
+        <p>Imported files declare words only — top-level statements are a <code>module-body</code> error pointing into the module file. A module that cannot be loaded fails <code>use-missing</code> naming the searched path, an import cycle fails <code>use-cycle</code> spelling the files in the cycle, and a module named <code>text</code>, <code>int</code>, <code>buffer</code>, <code>file</code>, or <code>console</code> fails <code>use-reserved</code> — those prefixes belong to the standard operations. Module errors annotate the module's own source, at check time and at runtime.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="errors-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Diagnostics</p><h2 id="errors-title">Errors that name the fix.</h2></div>
+        <p class="intro">Nothing runs until the whole program checks — modules included. Every diagnostic reads the same way, and every one carries a stable code cataloged on the errors page.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>How to read one.</h3>
+        <p>The first line is stable — <code>file:line:column: message</code> — then the source line with a caret underlining the whole failing expression, and, where the compiler knows the fix, a <code>hint:</code> line that names an action. The message states the problem as fact; type mismatches even narrate where a value came from:</p>
+        <div class="command-block"><pre><code>fail.zhex:2:1: print does not support type Result&lt;String, InputError&gt;; line comes from read-line
+    print(line)
+          ^^^^
+hint: this value is a Result; add postfix try to unwrap it, as in text.to-int("N: ") try</code></pre></div>
+        <p class="access-note">Every code is cataloged with its fix on the <a href="errors.html">errors page</a>; <code>zhex run &lt;file&gt; --report=json</code> hands agents <code>{code, severity, file, line, column, message, hint}</code>.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="setup-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Setup</p><h2 id="setup-title">Run it yourself.</h2></div>
+        <p class="intro">Build the interpreter once, then run programs from your terminal — the same commands behind every example above. Building needs Go 1.23 or newer and <a href="https://just.systems/man/en/">just</a>.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Install.</h3>
+        <p>Clone the public repository — it carries the interpreter, the examples, and these pages.</p>
+        <div class="command-block"><pre><code>git clone https://github.com/desireco/zhex.git
+cd zhex</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Build.</h3>
+        <p>One command compiles the <code>zhex</code> binary; repeat after pulling changes.</p>
+        <div class="command-block"><pre><code>just build</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Run.</h3>
+        <p>Point the binary at any program — single files, or a directory entry whose modules load as siblings.</p>
+        <div class="command-block"><pre><code>./bin/zhex run examples/hello.zhex
+./bin/zhex run examples/modules/main.zhex</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>REPL.</h3>
+        <p>Check and run entries interactively; words, values, and adopted modules persist across entries.</p>
+        <div class="command-block"><pre><code>./bin/zhex repl</code></pre></div>
+      </div>
+
+      <p class="access-note">The full walkthrough — input piping, exit codes, reading files — lives in the repository's <a href="https://github.com/desireco/zhex/blob/main/docs/getting-started.md">getting-started guide</a>.</p>
+    </section>
+
+    <section class="section" aria-labelledby="editors-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Editor support</p><h2 id="editors-title">Syntax highlighting, per editor.</h2></div>
+        <p class="intro">Local packages bring Zhex highlighting to Vim and Neovim, VS Code, and Zed — with four-space indentation and <code>#</code> comments built in.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Vim and Neovim.</h3>
+        <p>Standard Vim syntax files — no Tree-sitter needed. The installer links this checkout into your pack directories; repeating it is safe.</p>
+        <div class="command-block"><pre><code>git clone https://github.com/desireco/zhex.git
+cd zhex
+just vim-install</code></pre></div>
+        <p class="access-note">Keep the checkout at its current path. Open a <code>.zhex</code> file and <code>:set filetype?</code> should report <code>zhex</code>.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>VS Code.</h3>
+        <p>TextMate highlighting, parentheses and quote pairing, and indentation rules. Build the extension with a current Node.js LTS release and npm.</p>
+        <div class="command-block"><pre><code>cd editors/vscode
+npm ci
+npm test
+npm run package
+code --install-extension ../../dist/editors/zhex-0.0.1.vsix</code></pre></div>
+        <p class="access-note">You can also run <strong>Extensions: Install from VSIX</strong>. Open a <code>.zhex</code> file and confirm the language mode is <strong>Zhex</strong>.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Zed.</h3>
+        <p>Tree-sitter grammar with bracket matching and a word-definition outline. Prepare a dev-extension folder, then install it from disk.</p>
+        <div class="command-block"><pre><code>just zed-prepare
+# Zed → Extensions → Install Dev Extension → select dist/editors/zed</code></pre></div>
+        <p class="access-note">Needs Go 1.23 or newer and Git; writes only generated files under <code>dist/</code>. Zed builds the grammar and recognizes <code>.zhex</code> files as <strong>Zhex</strong>.</p>
+      </div>
+    </section>
+
+    <section class="example-notes">
+      <p class="eyebrow">Worth knowing</p>
+      <h2>Where tools stop.</h2>
+      <ul>
+        <li>Editors highlight statements line by line; the interpreter remains responsible for validating indentation, scope, and types.</li>
+        <li>Themes choose the highlighting colors; the packages provide the structure.</li>
+        <li>The packages are local for now. Extension-store publication, language-server completion, live compiler diagnostics, and formatting are future work.</li>
+      </ul>
+      <a class="text-link" href="errors.html">Every diagnostic code, cataloged →</a>
+      <a class="text-link" href="https://github.com/desireco/zhex/blob/main/docs/initial-language.md">Read the full language contract →</a>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <a class="brand" href="./" aria-label="Zhex home"><img class="brand-logo" src="logo.svg" width="138" height="41" alt=""></a>
+    <p>Small words. Big ideas.</p>
+    <nav class="footer-links" aria-label="Footer navigation">
+      <a href="design/design-system.html">Design system</a>
+      <a href="design/archive/">Design archive</a>
+      <a href="https://github.com/users/desireco/projects/8">Project board ↗</a>
+      <a href="https://github.com/desireco/zhex/blob/main/docs/initial-language.md">Language reference ↗</a>
+    </nav>
+  </footer>
+</body>
+</html>
