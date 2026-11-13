@@ -276,7 +276,7 @@ func build(root, output string) error {
 		return err
 	}
 	files["ROADMAP.md"] = roadmap
-	for _, name := range []string{"index", "examples", "roadmap"} {
+	for _, name := range []string{"index", "examples", "roadmap", "editors"} {
 		page, err := template.New(name + ".tmpl").Funcs(template.FuncMap{"highlight": highlight}).ParseFiles(filepath.Join(root, "site", name+".tmpl"))
 		if err != nil {
 			return fmt.Errorf("parse website template %s: %w", name, err)

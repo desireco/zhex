@@ -1,6 +1,6 @@
 # Zhex website and GitHub Pages
 
-The website introduces Zhex and shows runnable examples. Its source is three HTML templates, CSS, and brand SVG assets in `site/`; no JavaScript framework or package installation is required.
+The website introduces Zhex and shows runnable examples. Its source is four HTML templates, CSS, and brand SVG assets in `site/`; no JavaScript framework or package installation is required.
 
 The GitHub Pages address is [desireco.github.io/zhex](https://desireco.github.io/zhex/). The repository is configured to publish through GitHub Actions. A successful deployment appears in the repository's [Pages workflow](https://github.com/desireco/zhex/actions/workflows/pages.yml).
 
@@ -15,7 +15,7 @@ go run ./tools/build-site
 python3 -m http.server 8000 --directory _site
 ```
 
-Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, a public copy of `ROADMAP.md`, styles, the logo and icon, and public downloads under `examples/`. The static `site/design/` tree is copied verbatim to `design/`, so the [design system](design/design-system.html) and the concept archive ship with the site; its pages participate in the same local-link validation as the generated ones.
+Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, `editors.html`, a public copy of `ROADMAP.md`, styles, the logo and icon, and public downloads under `examples/`. The editors page documents the local editor packages for Vim/Neovim, VS Code, and Zed; keep it consistent with `docs/editors.md`. The static `site/design/` tree is copied verbatim to `design/`, so the [design system](design/design-system.html) and the concept archive ship with the site; its pages participate in the same local-link validation as the generated ones.
 
 ## Keep examples accurate
 
