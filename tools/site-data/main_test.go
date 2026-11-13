@@ -58,9 +58,9 @@ func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n", "text-stats": "3 lines  11 words  64 chars\n", "modules/main": "First number: Second number: 30\n6\n144\n"}
+	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n", "text-stats": "3 lines  11 words  64 chars\n", "modules/main": "First number: Second number: 30\n6\n144\n", "recovery": "Handled text-to-int\nReported text-to-int\nThe retry count must be a decimal integer; using 3.\n3\n"}
 	wantCommand := map[string]string{"text-stats": "zhex run examples/text-stats.zhex examples/text-stats-sample.txt", "modules/main": "zhex run examples/modules/main.zhex"}
-	if len(data.Examples) != 10 {
+	if len(data.Examples) != 11 {
 		t.Fatalf("got %d examples", len(data.Examples))
 	}
 	for _, example := range data.Examples {

@@ -234,6 +234,7 @@ var exampleSpecs = []struct {
 	args                          []string
 	files                         []string // labeled library files beside the entry (a module)
 }{
+	{"recovery", "Error recovery", "Propagate a parse failure, inspect it, and report a handled error.", "", nil, nil},
 	{"composition", "Composition", "Build larger operations from small typed words.", "", nil, nil},
 	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil, nil},
 	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", nil, nil},

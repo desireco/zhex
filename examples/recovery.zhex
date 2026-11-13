@@ -1,0 +1,30 @@
+# Five fallible calls propagate ParseError to one application boundary.
+# A reporter runs when explicitly asked and for an error left unhandled.
+
+word report-error(problem: Error) -> Unit
+    print("Reported " + error.code(problem))
+
+word parse-retries(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+
+word decode-settings(raw: String) -> Result<Int, ParseError>
+    ok(parse-retries(text.trim(raw)) try)
+
+word configure-job(raw: String) -> Result<Int, ParseError>
+    ok(decode-settings(raw) try)
+
+word prepare-job(raw: String) -> Result<Int, ParseError>
+    ok(configure-job(raw) try)
+
+word run-job(raw: String) -> Result<Int, ParseError>
+    ok(prepare-job(raw) try)
+
+error.set-reporter(report-error)
+
+let retries = run-job("abc") catch problem
+    print("Handled " + error.code(problem))
+    error.report(problem)
+    print("The retry count must be a decimal integer; using 3.")
+    3
+
+print(retries)

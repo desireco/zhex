@@ -16,6 +16,7 @@ func TestExamples(t *testing.T) {
 		wantErr           string
 	}{
 		{name: "composition", want: "32\n"},
+		{name: "recovery", want: "Handled text-to-int\nReported text-to-int\nThe retry count must be a decimal integer; using 3.\n3\n"},
 		{name: "hello", input: "Ada\n", want: "Your name: Hello, Ada!\n"},
 		{name: "hello", input: "\n", want: "Your name: Hello, !\n"},
 		{name: "hello", input: " Ada \r\n", want: "Your name: Hello,  Ada !\n"},
