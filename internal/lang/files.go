@@ -12,16 +12,28 @@ import (
 func openFile(pos position, path string) (*fileValue, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, errorAt(pos, CodeFileOpen, "cannot open %q: %v", path, err)
+		return nil, fileOpenError(pos, path, err)
 	}
 	return &fileValue{path: path, handle: f, reader: bufio.NewReader(f)}, nil
+}
+
+func fileOpenError(pos position, path string, cause error) error {
+	reason := "other"
+	if os.IsNotExist(cause) {
+		reason = "not-found"
+	} else if os.IsPermission(cause) {
+		reason = "permission-denied"
+	}
+	d := errorAt(pos, CodeFileOpen, "cannot open %q: %v", path, cause).(*diagnostic)
+	d.details = map[string]string{"path": path, "reason": reason}
+	return d
 }
 
 // readFile reads the whole file, validating UTF-8 at the boundary.
 func readFile(pos position, path string) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return "", errorAt(pos, CodeFileOpen, "cannot open %q: %v", path, err)
+		return "", fileOpenError(pos, path, err)
 	}
 	if !utf8.Valid(content) {
 		return "", errorAt(pos, CodeFileUTF8, "file %q is not valid UTF-8", path)

@@ -28,6 +28,20 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
 	case "ok":
 		return value{result: &inputResult{value: args[0]}}, nil
+	case "error.code":
+		return value{text: string(args[0].fault.(*diagnostic).code)}, nil
+	case "error.message":
+		return value{text: args[0].fault.(*diagnostic).message}, nil
+	case "error.operation":
+		return value{text: args[0].fault.(*diagnostic).operation}, nil
+	case "error.file":
+		return value{text: args[0].fault.(*diagnostic).pos.file}, nil
+	case "error.line":
+		return value{number: int64(args[0].fault.(*diagnostic).pos.line)}, nil
+	case "error.column":
+		return value{number: int64(args[0].fault.(*diagnostic).pos.column)}, nil
+	case "error.detail":
+		return value{text: args[0].fault.(*diagnostic).details[args[1].text]}, nil
 	case "print":
 		text := formatValue(args[0], x.inputType)
 		return value{}, r.write(x.pos, text+"\n")

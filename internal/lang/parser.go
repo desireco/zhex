@@ -93,7 +93,7 @@ func (p *parser) parseUse() use {
 func (p *parser) parseType() valueType {
 	t := p.require("name")
 	switch valueType(t.text) {
-	case intType, boolType, stringType, unitType, bufferType, fileType:
+	case intType, boolType, stringType, unitType, bufferType, fileType, errorType:
 		return valueType(t.text)
 	}
 	panic(errorAt(t.pos, CodeUnknownType, "unknown type %q", t.text))

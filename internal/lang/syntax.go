@@ -20,6 +20,9 @@ type diagnostic struct {
 	line      string
 	spanStart position
 	spanEnd   position
+	operation string
+	details   map[string]string
+	cause     *diagnostic
 }
 
 // Error keeps the first line stable — file:line:column: message — so

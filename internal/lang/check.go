@@ -53,7 +53,7 @@ type checker struct {
 }
 
 var hostWords = []string{
-	"ok", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"ok", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -109,7 +109,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -210,7 +210,7 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 			}
 			if reservedModule(u.name) {
 				return withSpanRange(withHint(errorAt(u.pos, CodeUseReserved, "module name %q is reserved", u.name),
-					"rename the module file — a module cannot be named text, int, buffer, file, or console"), u.pos, u.end)
+					"rename the module file — a module cannot be named text, int, buffer, file, console, or error"), u.pos, u.end)
 			}
 			src, ok := ModuleSource{}, false
 			if resolve != nil {
@@ -630,6 +630,15 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			}
 			params = []valueType{inner}
 			result = c.wordResult
+		case "error.code", "error.message", "error.operation", "error.file":
+			params = []valueType{errorType}
+			result = stringType
+		case "error.line", "error.column":
+			params = []valueType{errorType}
+			result = intType
+		case "error.detail":
+			params = []valueType{errorType, stringType}
+			result = stringType
 		case "print":
 			if len(args) != 1 {
 				return "", withSpan(errorAt(x.pos, CodeArgumentCount, "print requires 1 argument, found %d", len(args)), x)

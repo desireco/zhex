@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"strconv"
 )
 
 type value struct {
@@ -251,7 +252,28 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 
 func (r *runtime) call(x *expression, args []value) (value, error) {
 	if x.word == nil {
-		return r.builtin(x, args)
+		result, err := r.builtin(x, args)
+		if result.result != nil && result.result.err != nil {
+			if d, ok := result.result.err.(*diagnostic); ok && d.operation == "" {
+				d.operation = x.text
+				if d.details == nil {
+					d.details = make(map[string]string)
+				}
+				switch x.text {
+				case "buffer.line", "buffer.set-line":
+					d.details["index"] = strconv.FormatInt(args[1].number, 10)
+					d.details["line-count"] = strconv.Itoa(len(args[0].buffer.lines))
+				case "console.arg":
+					d.details["index"] = strconv.FormatInt(args[0].number, 10)
+					d.details["argument-count"] = strconv.Itoa(len(r.args))
+				case "file.read-all", "file.read-lines", "file.open":
+					d.details["path"] = args[0].text
+				case "file.read-line":
+					d.details["path"] = args[0].file.path
+				}
+			}
+		}
+		return result, err
 	}
 	if r.depth >= 256 {
 		return value{}, errorAt(x.pos, CodeDepthLimit, "word call depth limit of 256 exceeded")

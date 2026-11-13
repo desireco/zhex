@@ -121,3 +121,47 @@ func TestCatchRecoversFailureReturnedByWord(t *testing.T) {
 		t.Fatalf("output = %q", out.String())
 	}
 }
+
+func TestCatchInspectsErrorOriginAndCode(t *testing.T) {
+	source := "let n = text.to-int(\"bad\") catch problem\n    print(error.code(problem))\n    print(error.operation(problem))\n    print(error.file(problem))\n    print(error.line(problem))\n    print(error.column(problem))\n    0\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "text-to-int\ntext.to-int\ntest.zhex\n1\n9\n0\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestFileErrorExposesNormalizedDetails(t *testing.T) {
+	source := "let n = file.read-all(\"/nonexistent-zhex-file\") catch problem\n    print(error.detail(problem, \"reason\"))\n    print(error.detail(problem, \"path\"))\n    \"\"\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "not-found\n/nonexistent-zhex-file\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestErrorDetailsForBufferAndArguments(t *testing.T) {
+	source := "let b = buffer.new()\nlet line = buffer.line(b, 4) catch problem\n    print(error.detail(problem, \"index\"))\n    print(error.detail(problem, \"line-count\"))\n    \"\"\nlet arg = console.arg(2) catch problem\n    print(error.detail(problem, \"index\"))\n    print(error.detail(problem, \"argument-count\"))\n    \"\"\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "4\n0\n2\n0\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestErrorCanBeInspectedByOrdinaryWord(t *testing.T) {
+	source := "word describe(problem: Error) -> String\n    error.code(problem)\nlet n = text.to-int(\"bad\") catch problem\n    print(describe(problem))\n    0\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "text-to-int\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+}
