@@ -418,6 +418,12 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		s.binding, err = env.define(s.pos, s.name, typ, s.kind == "var")
 		if err == nil {
 			s.binding.origin = originOf(s.expr)
+			if typ == errorType && s.expr.binding != nil {
+				s.binding.errorFamily = s.expr.binding.errorFamily
+			}
+			if typ == errorType && s.kind == "var" {
+				return "", errorAt(s.pos, CodeAssignmentType, "Error bindings must be immutable")
+			}
 		}
 		return unitType, err
 	case "assign":
@@ -777,6 +783,14 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			}
 			msg := fmt.Sprintf("argument %d of %s requires type %s, found %s", i+1, x.text, params[i], typ)
 			return "", valueError(x.pos, span, CodeArgumentType, msg, tryHint(typ), operands...)
+		}
+	}
+	inner, isResultReturn := resultInner(result)
+	if x.word != nil && (result == errorType || isResultReturn && inner == errorType) {
+		for i, arg := range x.args {
+			if args[i] == errorType && arg.binding != nil && arg.binding.errorFamily != "" && arg.binding.errorFamily != "Error" {
+				return "", errorAt(x.pos, CodeArgumentType, "convert %s explicitly with error.wrap before returning it as Error", arg.binding.errorFamily)
+			}
 		}
 	}
 	x.typ = result

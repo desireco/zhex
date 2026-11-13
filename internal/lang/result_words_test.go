@@ -211,3 +211,22 @@ func TestErrRequiresMatchingFamilyAndFallibleWord(t *testing.T) {
 		}
 	}
 }
+
+func TestErrorAliasPreservesFamily(t *testing.T) {
+	bad := "word parse() -> Result<Int, Error>\n    let n = text.to-int(\"bad\") catch problem\n        let alias = problem\n        return err(alias)\n    ok(n)\n"
+	if _, err := Compile("test.zhex", bad); err == nil {
+		t.Fatal("alias widened ParseError to Error")
+	}
+	good := "word parse() -> Result<Int, ParseError>\n    let n = text.to-int(\"bad\") catch problem\n        let alias = problem\n        return err(alias)\n    ok(n)\nparse() try\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", good, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "not a signed 64-bit") {
+		t.Fatalf("same-family alias: %v", err)
+	}
+}
+
+func TestErrorIdentityWordCannotWidenConcreteFamily(t *testing.T) {
+	source := "word identity(problem: Error) -> Error\n    problem\nword parse() -> Result<Int, Error>\n    let n = text.to-int(\"bad\") catch problem\n        return err(identity(problem))\n    ok(n)\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("identity word widened concrete error family")
+	}
+}
