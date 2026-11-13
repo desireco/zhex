@@ -168,6 +168,14 @@ summary:focus-visible {
   text-transform: uppercase;
 }
 
+p code,
+li code,
+summary code {
+  font: 650 .85em var(--mono);
+  background: var(--surface);
+  padding: .1em .35em;
+}
+
 h1, h2, h3 {
   margin-top: 0;
   overflow-wrap: normal;
@@ -413,6 +421,10 @@ pre {
 .feature-row p { color: var(--muted); }
 
 .start-section { background: var(--surface); }
+
+.docs-feature { max-width: 920px; margin-top: 2.5rem; }
+.docs-feature h3 { margin-bottom: .4rem; }
+.docs-feature .command-block { margin-top: 1.25rem; }
 
 .command-block {
   max-width: 920px;
