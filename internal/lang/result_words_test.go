@@ -312,3 +312,23 @@ func TestResultWordCanConstructResultInBothBranches(t *testing.T) {
 		t.Fatalf("output = %q", out.String())
 	}
 }
+
+func TestLoopCannotDiscardConstructedResult(t *testing.T) {
+	cases := []string{
+		"word choose() -> Result<Int, Error>\n    for n in range(0, 1)\n        err(error.new(\"lost\", \"lost\"))\n    ok(7)\n",
+		"word choose() -> Result<Int, Error>\n    for line in file.lines(\"x\")\n        ok(1)\n    ok(7)\n",
+	}
+	for _, source := range cases {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("loop discarded Result: %q", source)
+		}
+	}
+}
+
+func TestLoopMayReturnResultFromWord(t *testing.T) {
+	source := "word choose() -> Result<Int, Error>\n    for n in range(0, 1)\n        return ok(n)\n    ok(7)\nprint(choose() try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil || out.String() != "0\n" {
+		t.Fatalf("error %v, output %q", err, out.String())
+	}
+}

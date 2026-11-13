@@ -530,7 +530,10 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
-		_, err = c.block(s.body, inner)
+		bodyType, err := c.block(s.body, inner)
+		if err == nil && isResult(bodyType) {
+			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
+		}
 		return unitType, err
 	case "for-lines":
 		if typ != stringType {
@@ -541,7 +544,10 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
-		_, err = c.block(s.body, inner)
+		bodyType, err := c.block(s.body, inner)
+		if err == nil && isResult(bodyType) {
+			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
+		}
 		return unitType, err
 	case "flow":
 		if isResult(typ) {
