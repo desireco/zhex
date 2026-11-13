@@ -19,6 +19,7 @@ The first language milestone runs real programs with checked types and console i
 
 Make everyday experiments quicker, then build a useful text utility. This is the proposed order; each step needs working examples and tests.
 
+- Errors: point at the failing line with a caret, suggest the fix for common mistakes, tag each diagnostic with a stable code, and emit machine-readable output for agents.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
 - REPL: enter multi-line words, keep definitions between entries, inspect values and signatures, and recover from errors.
