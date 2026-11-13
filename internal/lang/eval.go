@@ -12,6 +12,7 @@ type value struct {
 	boolean bool
 	text    string
 	result  *inputResult
+	fault   error
 	buffer  *bufferValue
 	file    *fileValue
 }
@@ -204,6 +205,18 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			return value{}, &propagation{cause: v.result.err}
 		}
 		return v.result.value, nil
+	case "catch":
+		v, err := r.expression(x.left, env)
+		if err != nil {
+			return value{}, err
+		}
+		if v.result.err == nil {
+			return v.result.value, nil
+		}
+		if x.binding != nil {
+			env[x.binding] = value{fault: v.result.err}
+		}
+		return r.block(x.handler, env)
 	case "unary":
 		v, err := r.expression(x.left, env)
 		if err != nil {

@@ -170,6 +170,8 @@ func formatValue(v value, typ valueType) string {
 		return v.text
 	case unitType:
 		return ""
+	case errorType:
+		return v.fault.Error()
 	case bufferType:
 		return fmt.Sprintf("buffer(%d lines)", len(v.buffer.lines))
 	case fileType:

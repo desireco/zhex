@@ -523,6 +523,30 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", withSpan(errorAt(x.pos, CodeTryInput, "try propagates %s; enclosing word must return the same error type", resultFamily(inner)), x)
 		}
 		typ = unwrapped
+	case "catch":
+		result, err := c.expression(x.left, env)
+		if err != nil {
+			return "", err
+		}
+		inner, ok := resultInner(result)
+		if !ok {
+			return "", withSpan(errorAt(x.pos, CodeTryInput, "catch requires a Result, found %s", result), x)
+		}
+		handler := newScope(env)
+		if x.text != "" {
+			x.binding, err = handler.define(x.pos, x.text, errorType, false)
+			if err != nil {
+				return "", err
+			}
+		}
+		fallback, err := c.block(x.handler, handler)
+		if err != nil {
+			return "", err
+		}
+		if fallback != inner {
+			return "", errorAt(x.pos, CodeBranchType, "catch fallback must have type %s, found %s", inner, fallback)
+		}
+		typ = inner
 	case "unary":
 		inner, err := c.expression(x.left, env)
 		if err != nil {

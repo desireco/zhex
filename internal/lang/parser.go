@@ -63,7 +63,7 @@ func (p *parser) require(kind string) token {
 // Reserved reports whether name is a Zhex keyword.
 func Reserved(name string) bool {
 	switch name {
-	case "word", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "and", "or", "not", "true", "false":
+	case "word", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "catch", "and", "or", "not", "true", "false":
 		return true
 	}
 	return false
@@ -174,8 +174,7 @@ func (p *parser) parseStatement() *statement {
 		s.kind = p.take().text
 		s.name = p.name().text
 		p.require("=")
-		s.expr = p.expression(0)
-		p.require("newline")
+		s.expr = p.statementExpression()
 	case p.at("if"):
 		return p.parseIf()
 	case p.accept("for"):
@@ -221,10 +220,24 @@ func (p *parser) parseStatement() *statement {
 		p.require("newline")
 	default:
 		s.kind = "expression"
-		s.expr = p.expression(0)
-		p.require("newline")
+		s.expr = p.statementExpression()
 	}
 	return s
+}
+
+// statementExpression accepts an indented catch as the whole statement value.
+func (p *parser) statementExpression() *expression {
+	x := p.expression(0)
+	if p.at("catch") {
+		t := p.take()
+		name := ""
+		if p.current().kind == "name" {
+			name = p.name().text
+		}
+		return &expression{kind: "catch", pos: t.pos, end: t.end, text: name, left: x, handler: p.block()}
+	}
+	p.require("newline")
+	return x
 }
 
 func (p *parser) parseIf() *statement {

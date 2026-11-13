@@ -182,6 +182,7 @@ const (
 	unitType           valueType = "Unit"
 	bufferType         valueType = "Buffer"
 	fileType           valueType = "File"
+	errorType          valueType = "Error"
 	intResultType      valueType = "Result<Int, InputError>"
 	stringResultType   valueType = "Result<String, InputError>"
 	intParseResultType valueType = "Result<Int, ParseError>"
@@ -244,6 +245,7 @@ type expression struct {
 	inputType   valueType
 	binding     *binding
 	word        *word
+	handler     []*statement
 }
 
 type statement struct {

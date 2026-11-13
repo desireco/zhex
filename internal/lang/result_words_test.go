@@ -76,3 +76,48 @@ func TestTryPropagatesThroughMultipleWordsWithoutChangingOrigin(t *testing.T) {
 		t.Fatalf("unexpected output: %q", output.String())
 	}
 }
+
+func TestCatchRunsFallbackOnlyOnFailure(t *testing.T) {
+	source := "let good = text.to-int(\"12\") catch\n    print(\"unexpected\")\n    0\nlet bad = text.to-int(\"no\") catch problem\n    print(\"using fallback\")\n    3\nprint(good + bad)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "using fallback\n15\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchRejectsMismatchedFallback(t *testing.T) {
+	source := "let n = text.to-int(\"bad\") catch\n    \"wrong\"\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("accepted mismatched catch fallback")
+	}
+}
+
+func TestCatchDoesNotInterceptRuntimeFaultInOperand(t *testing.T) {
+	source := "let n = text.to-int(int.to-string(1 / 0)) catch\n    3\nprint(n)\n"
+	var output bytes.Buffer
+	err := Run("test.zhex", source, strings.NewReader(""), &output)
+	if err == nil || !strings.Contains(err.Error(), "division or remainder by zero") {
+		t.Fatalf("runtime fault lost: %v", err)
+	}
+}
+
+func TestCatchBindingIsLocal(t *testing.T) {
+	source := "let n = text.to-int(\"bad\") catch problem\n    0\nprint(problem)\n"
+	if _, err := Compile("test.zhex", source); err == nil || !strings.Contains(err.Error(), "unknown name") {
+		t.Fatalf("handler binding escaped: %v", err)
+	}
+}
+
+func TestCatchRecoversFailureReturnedByWord(t *testing.T) {
+	source := "word parse(s: String) -> Result<Int, ParseError>\n    ok(text.to-int(s) try)\nlet n = parse(\"bad\") catch problem\n    7\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+}
