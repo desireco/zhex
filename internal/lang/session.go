@@ -120,7 +120,7 @@ func (s *Session) Enter(source string) (string, error) {
 	r := runtime{input: s.input, output: s.output, trace: s.trace}
 	v, err := r.block(p.body, s.frame)
 	if err != nil {
-		return "", annotateSource(err, sources)
+		return "", annotateSource(unwrapPropagation(err), sources)
 	}
 	s.words, s.modules, s.uses, s.sources = words, modules, uses, sources
 	s.scope = env

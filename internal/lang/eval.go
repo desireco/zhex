@@ -33,6 +33,17 @@ type inputResult struct {
 	err   error
 }
 
+// propagation crosses nested blocks but is caught by the current word or runner.
+type propagation struct{ cause error }
+
+func (p *propagation) Error() string { return p.cause.Error() }
+func unwrapPropagation(err error) error {
+	if p, ok := err.(*propagation); ok {
+		return p.cause
+	}
+	return err
+}
+
 type frame map[*binding]value
 
 type runtime struct {
@@ -88,7 +99,7 @@ func (p *Program) RunWithArgs(input io.Reader, output, trace io.Writer, args []s
 	}
 	r := runtime{input: reader, output: output, trace: trace, args: args}
 	_, err := r.block(p.body, make(frame))
-	return annotateSource(err, p.sources)
+	return annotateSource(unwrapPropagation(err), p.sources)
 }
 
 func (r *runtime) block(body []*statement, env frame) (value, error) {
@@ -190,7 +201,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			return value{}, err
 		}
 		if v.result.err != nil {
-			return value{}, v.result.err
+			return value{}, &propagation{cause: v.result.err}
 		}
 		return v.result.value, nil
 	case "unary":
@@ -241,6 +252,10 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		r.traceBinding(p.pos, p.binding, args[i])
 	}
 	result, err := r.block(x.word.body, env)
+	if propagated, ok := err.(*propagation); ok {
+		result = value{result: &inputResult{err: propagated.cause}}
+		err = nil
+	}
 	if err != nil {
 		return value{}, err
 	}

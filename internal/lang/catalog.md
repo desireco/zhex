@@ -80,7 +80,7 @@ The branches of an `if` end in different types. Make every branch produce the sa
 The bounds of `range(start, end)` must both be `Int`; the path of `file.lines(path)` must be `String`.
 
 ## try-input
-Postfix `try` needs a `Result` value to unwrap. Results come from `read-line`, `text.to-int`, `console.arg`, and the buffer and file operations that can fail.
+Postfix `try` needs a `Result` value to unwrap. Results come from fallible words and operations. Inside a word, propagation requires a declared Result with the same error type.
 
 ## unary-type
 The unary operator (`-`, `not`) received the wrong type. `-` needs `Int`; `not` needs `Bool`.

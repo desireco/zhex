@@ -519,6 +519,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if !ok {
 			return "", withSpan(errorAt(x.pos, CodeTryInput, "try requires a Result, found %s", inner), x)
 		}
+		if c.wordResult != "" && (!isResult(c.wordResult) || resultFamily(inner) != resultFamily(c.wordResult)) {
+			return "", withSpan(errorAt(x.pos, CodeTryInput, "try propagates %s; enclosing word must return the same error type", resultFamily(inner)), x)
+		}
 		typ = unwrapped
 	case "unary":
 		inner, err := c.expression(x.left, env)

@@ -88,16 +88,17 @@ func TestBufferRejectedByPrintAndEquality(t *testing.T) {
 // TestBufferTypePositions covers Buffer in word signatures and try unwrapping
 // buffer.line to String and buffer.set-line to Unit.
 func TestBufferTypePositions(t *testing.T) {
-	source := "word first(b: Buffer) -> String\n" +
-		"    buffer.line(b, 0) try\n" +
+	source := "word first(b: Buffer) -> Result<String, BufferError>\n" +
+		"    ok(buffer.line(b, 0) try)\n" +
 		"word fresh() -> Buffer\n" +
 		"    buffer.new()\n" +
-		"word seed(b: Buffer) -> Unit\n" +
-		"    buffer.set-line(b, 0, \"set\") try\n" +
+		"word seed(b: Buffer) -> Result<Unit, BufferError>\n" +
+		"    let done = buffer.set-line(b, 0, \"set\") try\n" +
+		"    ok(done)\n" +
 		"let b = fresh()\n" +
 		"buffer.add-line(b, \"line\")\n" +
-		"seed(b)\n" +
-		"print(first(b))\n"
+		"seed(b) try\n" +
+		"print(first(b) try)\n"
 	var out strings.Builder
 	if err := Run("types.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)

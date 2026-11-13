@@ -130,6 +130,14 @@ func resultInner(t valueType) (valueType, bool) {
 	return valueType(inner), true
 }
 
+func resultFamily(t valueType) string {
+	_, family, ok := strings.Cut(string(t), ", ")
+	if !ok {
+		return ""
+	}
+	return strings.TrimSuffix(family, ">")
+}
+
 // originOf reports the word a value's binding was defined from, for
 // provenance narration.
 func originOf(x *expression) string {

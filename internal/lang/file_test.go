@@ -151,12 +151,12 @@ func TestFileExplicitLayer(t *testing.T) {
 	// File in word signatures; try unwraps file.open to File and
 	// file.read-line to String. The close also keeps this test from
 	// abandoning an fd that would blur TestFileLinesGuaranteedClose.
-	out, err = runFile(t, "word opener(p: String) -> File\n"+
-		"    file.open(p) try\n"+
-		"word first-line(f: File) -> String\n"+
-		"    file.read-line(f) try\n"+
-		"let f = opener(\""+path+"\")\n"+
-		"print(first-line(f))\n"+
+	out, err = runFile(t, "word opener(p: String) -> Result<File, FileError>\n"+
+		"    ok(file.open(p) try)\n"+
+		"word first-line(f: File) -> Result<String, FileError>\n"+
+		"    ok(file.read-line(f) try)\n"+
+		"let f = opener(\""+path+"\") try\n"+
+		"print(first-line(f) try)\n"+
 		"file.close(f)\n")
 	if err != nil {
 		t.Fatal(err)
