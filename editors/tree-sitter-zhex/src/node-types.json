@@ -38,7 +38,19 @@
             "named": true
           },
           {
+            "type": "index_assignment",
+            "named": true
+          },
+          {
+            "type": "index_expression",
+            "named": true
+          },
+          {
             "type": "integer",
+            "named": true
+          },
+          {
+            "type": "list_literal",
             "named": true
           },
           {
@@ -149,7 +161,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -210,7 +234,19 @@
             "named": true
           },
           {
+            "type": "index_assignment",
+            "named": true
+          },
+          {
+            "type": "index_expression",
+            "named": true
+          },
+          {
             "type": "integer",
+            "named": true
+          },
+          {
+            "type": "list_literal",
             "named": true
           },
           {
@@ -231,6 +267,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -278,7 +324,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -329,7 +387,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -380,7 +450,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -436,7 +518,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -456,6 +550,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "field_definition",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -487,7 +607,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -522,6 +654,16 @@
             "named": true
           }
         ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
       }
     },
     "children": {
@@ -549,7 +691,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -600,7 +754,208 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "try_expression",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "index_assignment",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binary_expression",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "call_expression",
+          "named": true
+        },
+        {
+          "type": "catch_expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
+          "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "try_expression",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "index_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binary_expression",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "call_expression",
+          "named": true
+        },
+        {
+          "type": "catch_expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
+          "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "try_expression",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "list_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "binary_expression",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "call_expression",
+          "named": true
+        },
+        {
+          "type": "catch_expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
+          "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -677,7 +1032,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -697,6 +1064,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "record_definition",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -747,7 +1130,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -799,6 +1194,10 @@
           "named": true
         },
         {
+          "type": "field_definition",
+          "named": true
+        },
+        {
           "type": "flow_header",
           "named": true
         },
@@ -808,6 +1207,10 @@
         },
         {
           "type": "if_header",
+          "named": true
+        },
+        {
+          "type": "record_definition",
           "named": true
         },
         {
@@ -869,7 +1272,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -894,7 +1309,21 @@
   {
     "type": "type",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "type",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "unary_expression",
@@ -925,7 +1354,19 @@
           "named": true
         },
         {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
           "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
           "named": true
         },
         {
@@ -1080,6 +1521,10 @@
     "named": false
   },
   {
+    "type": "Array",
+    "named": false
+  },
+  {
     "type": "Bool",
     "named": false
   },
@@ -1112,6 +1557,10 @@
     "named": false
   },
   {
+    "type": "List",
+    "named": false
+  },
+  {
     "type": "ParseError",
     "named": false
   },
@@ -1125,6 +1574,14 @@
   },
   {
     "type": "Unit",
+    "named": false
+  },
+  {
+    "type": "[",
+    "named": false
+  },
+  {
+    "type": "]",
     "named": false
   },
   {
@@ -1201,6 +1658,10 @@
     "named": false
   },
   {
+    "type": "record",
+    "named": false
+  },
+  {
     "type": "return",
     "named": false
   },
@@ -1210,6 +1671,10 @@
   },
   {
     "type": "try",
+    "named": false
+  },
+  {
+    "type": "type",
     "named": false
   },
   {
