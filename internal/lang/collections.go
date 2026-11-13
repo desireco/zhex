@@ -28,14 +28,14 @@ func listWrite(pos position, list *listValue, index int64, item value) value {
 
 func arrayShape(pos position, dims *listValue, operation string) ([]int64, int, value) {
 	if len(dims.items) < 2 || len(dims.items) > 32 {
-		return nil, 0, failedCollection(pos, CodeArrayRank, operation, "array rank must be between 2 and 32", nil)
+		return nil, 0, failedCollection(pos, CodeArrayRank, operation, "array rank must be between 2 and 32", map[string]string{"rank": strconv.Itoa(len(dims.items)), "min_rank": "2", "max_rank": "32"})
 	}
 	shape := make([]int64, len(dims.items))
 	zero := false
 	for i, v := range dims.items {
 		shape[i] = v.number
 		if v.number < 0 {
-			return nil, 0, failedCollection(pos, CodeArrayShape, operation, "array extents cannot be negative", nil)
+			return nil, 0, failedCollection(pos, CodeArrayShape, operation, "array extents cannot be negative", map[string]string{"axis": strconv.Itoa(i), "extent": strconv.FormatInt(v.number, 10)})
 		}
 		zero = zero || v.number == 0
 	}
@@ -45,7 +45,7 @@ func arrayShape(pos position, dims *listValue, operation string) ([]int64, int, 
 	count := int64(1)
 	for _, n := range shape {
 		if n > maxCollectionElements/count {
-			return nil, 0, failedCollection(pos, CodeCollectionLimit, operation, "array exceeds element limit", nil)
+			return nil, 0, failedCollection(pos, CodeCollectionLimit, operation, "array exceeds element limit", map[string]string{"limit": strconv.Itoa(maxCollectionElements)})
 		}
 		count *= n
 	}
@@ -71,12 +71,12 @@ func arrayIndex(pos position, a *arrayValue, indices []int64, item value, write 
 		}
 	}
 	if len(indices) != len(a.shape) {
-		return failedCollection(pos, CodeArrayRank, operation, "array index has the wrong rank", nil)
+		return failedCollection(pos, CodeArrayRank, operation, "array index has the wrong rank", map[string]string{"rank": strconv.Itoa(len(indices)), "expected_rank": strconv.Itoa(len(a.shape))})
 	}
 	offset := int64(0)
 	for i, n := range indices {
 		if n < 0 || n >= a.shape[i] {
-			return failedCollection(pos, CodeArrayRange, operation, "array coordinate is out of range", nil)
+			return failedCollection(pos, CodeArrayRange, operation, "array coordinate is out of range", map[string]string{"axis": strconv.Itoa(i), "index": strconv.FormatInt(n, 10), "extent": strconv.FormatInt(a.shape[i], 10)})
 		}
 		offset = offset*a.shape[i] + n
 	}
@@ -95,7 +95,7 @@ func arrayResize(pos position, a *arrayValue, dims *listValue, fill value) value
 		return failure
 	}
 	if len(shape) != len(a.shape) {
-		return failedCollection(pos, CodeArrayRank, "array.resize", "array resize cannot change rank", nil)
+		return failedCollection(pos, CodeArrayRank, "array.resize", "array resize cannot change rank", map[string]string{"rank": strconv.Itoa(len(shape)), "expected_rank": strconv.Itoa(len(a.shape))})
 	}
 	items := make([]value, count)
 	for i := range items {
