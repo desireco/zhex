@@ -31,28 +31,29 @@ const (
 	CodeExpectedExpression  Code = "expected-expression"
 	CodeFlowStep            Code = "flow-step"
 
-	CodeUnknownName    Code = "unknown-name"
-	CodeDuplicateName  Code = "duplicate-name"
-	CodeDuplicateWord  Code = "duplicate-word"
-	CodeWordResult     Code = "word-result"
-	CodeImmutableName  Code = "immutable-name"
-	CodeAssignmentType Code = "assignment-type"
-	CodeConditionType  Code = "condition-type"
-	CodeBranchType     Code = "branch-type"
-	CodeRangeType      Code = "range-type"
-	CodeTryInput       Code = "try-input"
-	CodeUnaryType      Code = "unary-type"
-	CodeOperandTypes   Code = "operand-types"
-	CodeBoolOperand    Code = "bool-operand"
-	CodeCompareType    Code = "compare-type"
-	CodeOrderingType   Code = "ordering-type"
-	CodeAdditionType   Code = "addition-type"
-	CodeArithmeticType Code = "arithmetic-type"
-	CodeArgumentCount  Code = "argument-count"
-	CodeArgumentType   Code = "argument-type"
-	CodeUnknownWord    Code = "unknown-word"
-	CodePrintType      Code = "print-type"
-	CodeRangeContext   Code = "range-context"
+	CodeUnknownName     Code = "unknown-name"
+	CodeDuplicateName   Code = "duplicate-name"
+	CodeDuplicateWord   Code = "duplicate-word"
+	CodeWordResult      Code = "word-result"
+	CodeImmutableName   Code = "immutable-name"
+	CodeAssignmentType  Code = "assignment-type"
+	CodeConditionType   Code = "condition-type"
+	CodeBranchType      Code = "branch-type"
+	CodeRangeType       Code = "range-type"
+	CodeTryInput        Code = "try-input"
+	CodeUnhandledResult Code = "unhandled-result"
+	CodeUnaryType       Code = "unary-type"
+	CodeOperandTypes    Code = "operand-types"
+	CodeBoolOperand     Code = "bool-operand"
+	CodeCompareType     Code = "compare-type"
+	CodeOrderingType    Code = "ordering-type"
+	CodeAdditionType    Code = "addition-type"
+	CodeArithmeticType  Code = "arithmetic-type"
+	CodeArgumentCount   Code = "argument-count"
+	CodeArgumentType    Code = "argument-type"
+	CodeUnknownWord     Code = "unknown-word"
+	CodePrintType       Code = "print-type"
+	CodeRangeContext    Code = "range-context"
 
 	CodeUseMissing  Code = "use-missing"
 	CodeUseCycle    Code = "use-cycle"
@@ -83,7 +84,7 @@ var diagnosticCodes = []Code{
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,
 	CodeIntegerLiteralRange, CodeExpectedExpression, CodeFlowStep,
 	CodeUnknownName, CodeDuplicateName, CodeDuplicateWord, CodeWordResult, CodeImmutableName, CodeAssignmentType,
-	CodeConditionType, CodeBranchType, CodeRangeType, CodeTryInput, CodeUnaryType, CodeOperandTypes, CodeBoolOperand,
+	CodeConditionType, CodeBranchType, CodeRangeType, CodeTryInput, CodeUnhandledResult, CodeUnaryType, CodeOperandTypes, CodeBoolOperand,
 	CodeCompareType, CodeOrderingType, CodeAdditionType, CodeArithmeticType, CodeArgumentCount, CodeArgumentType,
 	CodeUnknownWord, CodePrintType, CodeRangeContext,
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,

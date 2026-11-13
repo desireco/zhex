@@ -180,13 +180,15 @@ func TestSessionRuntimeErrorKeepsSession(t *testing.T) {
 	}
 }
 
-func TestSessionResultEchoDoesNotPanic(t *testing.T) {
+func TestSessionRequiresHandlingResultInSameEntry(t *testing.T) {
 	session := NewSession(strings.NewReader("Ada\n"), io.Discard, nil, nil)
-	if echo, err := session.Enter("read-line(\"\")"); err != nil || echo != "ok(\"Ada\")" {
-		t.Fatalf("echo %q, error %v", echo, err)
+	if _, err := session.Enter("read-line(\"\")"); err == nil {
+		t.Fatal("bare Result accepted")
 	}
-	empty := NewSession(strings.NewReader(""), io.Discard, nil, nil)
-	if echo, err := empty.Enter("read-line(\"\")"); err != nil || !strings.HasPrefix(echo, "err(") {
+	if _, err := session.Enter("let pending = read-line(\"\")"); err == nil {
+		t.Fatal("unhandled Result persisted")
+	}
+	if echo, err := session.Enter("let pending = read-line(\"\")\nlet name = pending try\nname\n"); err != nil || echo != "Ada" {
 		t.Fatalf("echo %q, error %v", echo, err)
 	}
 }

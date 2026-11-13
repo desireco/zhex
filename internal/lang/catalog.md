@@ -5,6 +5,9 @@ diagnostic is always `file:line:column: message`; the source excerpt, caret,
 and `hint:` line are additive detail. Machine readers use
 `zhex run <file> --report=json`.
 
+## unhandled-result
+Handle or propagate each Result with `catch` or `try`. An immutable stored Result must be handled by the immediately following statement in the same block.
+
 ## error-no-cause
 `error.cause` was called for an Error without a cause. Check `error.has-cause` first or handle the Result.
 

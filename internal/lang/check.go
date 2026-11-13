@@ -50,6 +50,7 @@ type checker struct {
 	uses       []string
 	module     string // the module being checked; "" for the entry file and the REPL
 	wordResult valueType
+	consuming  *binding
 }
 
 var hostWords = []string{
@@ -410,12 +411,45 @@ func blockReturnsConcreteError(body []*statement) bool {
 
 func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 	typ := unitType
-	for _, s := range body {
+	var pending *binding
+	for i, s := range body {
+		if pending != nil {
+			x := s.expr
+			if (s.kind != "let" && s.kind != "expression") || x == nil || (x.kind != "try" && x.kind != "catch") || x.left == nil || x.left.kind != "name" || x.left.text != pending.name {
+				return "", withHint(errorAt(s.pos, CodeUnhandledResult, "stored Result %q must be handled by the next statement", pending.name), "use the Result directly with try or catch")
+			}
+			c.consuming = pending
+		}
 		var err error
 		typ, err = c.statement(s, env)
+		c.consuming = nil
 		if err != nil {
 			return "", err
 		}
+		if pending != nil {
+			pending = nil
+		}
+		if s.kind == "let" || s.kind == "var" {
+			if isResult(s.binding.typ) {
+				if s.kind != "let" || s.expr.kind != "call" || s.expr.text == "ok" || s.expr.text == "err" {
+					return "", errorAt(s.pos, CodeUnhandledResult, "a stored Result must be an immutable fallible call")
+				}
+				pending = s.binding
+			}
+		}
+		if s.kind == "return" && isResult(s.expr.typ) && (s.expr.kind != "call" || s.expr.text != "ok" && s.expr.text != "err") {
+			return "", errorAt(s.pos, CodeUnhandledResult, "return must construct a Result with ok or err")
+		}
+		if isResult(typ) {
+			constructor := s.kind == "expression" && s.expr.kind == "call" && (s.expr.text == "ok" || s.expr.text == "err")
+			flowConstructor := s.kind == "flow" && len(s.steps) > 0 && s.steps[len(s.steps)-1].text == "ok"
+			if i != len(body)-1 || !isResult(c.wordResult) || !(constructor || flowConstructor) {
+				return "", withHint(errorAt(s.pos, CodeUnhandledResult, "Result must be handled or propagated"), "use try or catch")
+			}
+		}
+	}
+	if pending != nil {
+		return "", errorAt(body[len(body)-1].pos, CodeUnhandledResult, "stored Result %q must be handled by the next statement", pending.name)
 	}
 	return typ, nil
 }
@@ -510,6 +544,9 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		_, err = c.block(s.body, inner)
 		return unitType, err
 	case "flow":
+		if isResult(typ) {
+			return "", errorAt(s.pos, CodeUnhandledResult, "flow seed Result must be handled with try or catch")
+		}
 		for index, step := range s.steps {
 			if typ == errorType {
 				w, _ := c.resolveWord(step.text)
@@ -564,6 +601,12 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), nameHint(x.text, append(env.names(), c.wordNames()...))), x)
 		}
 		typ = x.binding.typ
+		if isResult(typ) {
+			if x.binding != c.consuming || x.binding.consumed {
+				return "", errorAt(x.pos, CodeUnhandledResult, "stored Result %q can only be handled once by the next statement", x.text)
+			}
+			x.binding.consumed = true
+		}
 	case "call":
 		args := make([]valueType, len(x.args))
 		for i, arg := range x.args {

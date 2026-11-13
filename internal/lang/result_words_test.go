@@ -275,3 +275,29 @@ func TestCatchFallbackCannotWidenConcreteError(t *testing.T) {
 		t.Fatal("catch fallback widened ParseError to Error")
 	}
 }
+
+func TestResultsMustBeHandledImmediately(t *testing.T) {
+	invalid := []string{
+		"text.to-int(\"1\")\n",
+		"let p = text.to-int(\"1\")\n",
+		"var p = text.to-int(\"1\")\nlet n = p try\n",
+		"let p = text.to-int(\"1\")\nprint(1)\nlet n = p try\n",
+		"let p = text.to-int(\"1\")\nprint(p try)\n",
+		"let p = text.to-int(\"1\")\nlet q = p\n",
+		"let p = text.to-int(\"1\")\nif true\n    p try\n",
+		"let p = text.to-int(\"1\")\nlet n = p try\nlet m = p try\n",
+		"let p = text.to-int(\"bad\")\np catch\n    p try\n",
+		"word bad() -> Result<Int, ParseError>\n    text.to-int(\"1\")\n",
+		"word bad() -> Result<Int, ParseError>\n    return text.to-int(\"1\")\n",
+	}
+	for _, source := range invalid {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("accepted unchecked Result: %q", source)
+		}
+	}
+	valid := "let p = text.to-int(\"1\")\nlet n = p try\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", valid, strings.NewReader(""), &out); err != nil || out.String() != "1\n" {
+		t.Fatalf("valid stored Result: %v, %q", err, out.String())
+	}
+}

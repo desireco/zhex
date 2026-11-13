@@ -47,7 +47,7 @@ func TestConsoleArgs(t *testing.T) {
 	// A bare console.arg Result keeps earning the try hint.
 	var out2 strings.Builder
 	err = RunWithArgs("bad.zhex", "let a = console.arg(0)\nprint(a)\n", strings.NewReader(""), &out2, nil, []string{"alpha"})
-	if err == nil || !strings.Contains(err.Error(), "print does not support type Result<String, InputError>") || !strings.Contains(err.Error(), "add postfix try") {
+	if err == nil || !strings.Contains(err.Error(), "stored Result") || !strings.Contains(err.Error(), "try or catch") {
 		t.Fatalf("wrong diagnostic: %v", err)
 	}
 }

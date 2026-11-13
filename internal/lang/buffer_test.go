@@ -14,7 +14,7 @@ func TestBufferRoundTrip(t *testing.T) {
 		"buffer.add-line(b, \"two\")\n" +
 		"print(buffer.line-count(b))\n" +
 		"print(buffer.line(b, 0) try)\n" +
-		"buffer.set-line(b, 1, \"TWO\")\n" +
+		"buffer.set-line(b, 1, \"TWO\") try\n" +
 		"print(buffer.line(b, 1) try)\n" +
 		"print(buffer.to-text(b))\n"
 	var out strings.Builder

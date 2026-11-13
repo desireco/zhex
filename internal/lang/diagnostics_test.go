@@ -40,7 +40,7 @@ func TestDiagnosticsSuggestCloseNamesAndWords(t *testing.T) {
 }
 
 func TestDiagnosticsSuggestTryForResultOperands(t *testing.T) {
-	got := runError(t, "let n = text.to-int(\"1\") try\nlet m = text.to-int(\"2\")\nprint(n + m)\n")
+	got := runError(t, "let n = text.to-int(\"1\") try\nprint(n + text.to-int(\"2\"))\n")
 	if !strings.Contains(got, "incompatible operand types Int and Result<Int, ParseError>") {
 		t.Fatalf("wrong diagnostic: %q", got)
 	}
@@ -113,18 +113,10 @@ func TestProvenanceNarration(t *testing.T) {
 		source string
 		prefix string
 	}{
-		{"result operand narrated first", "let n = text.to-int(\"1\") try\nlet m = text.to-int(\"2\")\nprint(n + m)\n",
-			`bad.zhex:3:9: operator "+" has incompatible operand types Int and Result<Int, ParseError>; m comes from text.to-int`},
-		{"condition", "let line = read-line(\"x\")\nif line\n    print(1)\n",
-			`bad.zhex:2:4: condition must have type Bool, found Result<String, InputError>; line comes from read-line`},
-		{"print", "let line = read-line(\"x\")\nprint(line)\n",
-			`bad.zhex:2:1: print does not support type Result<String, InputError>; line comes from read-line`},
 		{"word result", "word double(n: Int) -> Int\n    n + n\nlet d = double(2)\nprint(d + \"a\")\n",
 			`bad.zhex:4:9: operator "+" has incompatible operand types Int and String; d comes from double`},
-		{"assignment", "let m = text.to-int(\"2\")\nvar a = 1\na = m\n",
-			`bad.zhex:3:1: assignment type Result<Int, ParseError> does not match Int; m comes from text.to-int`},
-		{"argument", "let m = text.to-int(\"2\")\nprint(int.to-string(m))\n",
-			`bad.zhex:2:7: argument 1 of int.to-string requires type Int, found Result<Int, ParseError>; m comes from text.to-int`},
+		{"assignment", "let m = text.length(\"text\")\nvar a = \"hi\"\na = m\n", `bad.zhex:3:1: assignment type Int does not match String; m comes from text.length`},
+		{"argument", "let m = text.length(\"text\")\nprint(text.upper(m))\n", `bad.zhex:2:7: argument 1 of text.upper requires type String, found Int; m comes from text.length`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

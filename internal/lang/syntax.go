@@ -202,6 +202,7 @@ type binding struct {
 	name        string
 	typ         valueType
 	mutable     bool
+	consumed    bool   // a stored Result can be handled only once
 	errorFamily string // concrete Result error family for a catch binding
 	origin      string // defining word for provenance narration, e.g. read-line
 }
