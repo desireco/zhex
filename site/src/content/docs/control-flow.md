@@ -40,7 +40,7 @@ This prints `10`. The loop itself has type `Unit`; it does not produce a collect
 
 ## Stream a file's lines
 
-The other loop form is `for line in file.lines(path)`. It reads one UTF-8 line at a time and binds each chomped line as an immutable `String`:
+The other built-in loop forms are `for line in file.lines(path)` and collection iteration. The file form reads one UTF-8 line at a time and binds each chomped line as an immutable `String`:
 
 ```zhex
 for line in file.lines("examples/text-stats-sample.txt")
@@ -50,5 +50,7 @@ for line in file.lines("examples/text-stats-sample.txt")
 Run that program from the repository root so the sample path resolves.
 
 The loop closes the file when it finishes, including when the body fails. An empty file runs no iterations. A final line without a newline still runs. See [files](files.html) for line ending and failure details.
+
+Lists and arrays can also be traversed with `for value in collection`; see [collection iteration](iteration.html) for index and coordinate bindings, traversal order, and mutation rules.
 
 Loops and branches can contain calls and flows. See [words and flows](words-and-flows.html) and [values](values.html) for the related type and scope rules.

@@ -14,7 +14,7 @@ word parse-count(raw: String) -> Result<Int, ParseError>
 
 `ok(value)` constructs the success case. `err(error)` constructs the failure case inside a fallible word. The supported error families are `InputError`, `ParseError`, `FileError`, `BufferError`, and the common `Error` family. User-defined error types are not part of the language.
 
-The built-ins that return results are `read-line`, `text.to-int`, `console.arg`, `file.read-all`, `file.read-lines`, `file.open`, `file.read-line`, `buffer.line`, `buffer.set-line`, and `error.cause`. See [console](console.html), [files](files.html), and [buffers](buffers.html) for their success types and failure cases.
+The built-ins that return results include `read-line`, `text.to-int`, `console.arg`, file and buffer operations, `error.cause`, and checked list/array operations. See [console](console.html), [files](files.html), [buffers](buffers.html), and [lists and arrays](collections.html) for their success types and failure cases.
 
 ## Propagate with `try`
 
@@ -84,7 +84,7 @@ print(count)
 
 The Result binding is immutable and cannot be aliased, assigned to a mutable variable, passed to another word, or handled conditionally or in a later block. The next statement must be exactly `pending try` or `pending catch ...`, either as a standalone expression or as the entire right-hand side of a new `let`. For example, `print(pending try)` is rejected. For shorter code, put `try` or `catch` directly on the call. A REPL entry follows the same rule.
 
-Error families do not widen implicitly. A caught concrete-family error cannot be returned as the `Error` payload of `Result<T, Error>` directly, as an `ok(...)` value, or through a helper that returns that Error value. Use `error.wrap(code, message, cause)` to convert it while preserving the cause. Passing the caught error to an inspection helper whose `Error` parameter and result are unrelated to returning that error is allowed. Error bindings are immutable.
+Error families do not widen implicitly. A caught concrete-family error cannot be passed to a user-defined word that accepts `Error`, returned as the `Error` payload of `Result<T, Error>`, stored in an `Error` field/collection, or returned through an aggregate helper. Use `error.wrap(code, message, cause)` to convert it while preserving the cause. Pass the wrapped value directly in a named call; a flow cannot pass an Error value through a user-defined step, even when wrapped. Built-in `error.*` accessors, `error.report`, and `error.wrap` accept the caught error directly. Error bindings are immutable.
 
 The [error guide](diagnostics.html) documents error inspection, causes, and the optional reporter.
 
@@ -104,5 +104,12 @@ The built-in operations that return results are:
 | `buffer.line(buffer, i)` | `Result<String, BufferError>` | Index is outside the buffer's lines. |
 | `buffer.set-line(buffer, i, line)` | `Result<Unit, BufferError>` | Index is outside the buffer's lines. |
 | `error.cause(error)` | `Result<Error, Error>` | The error has no cause (`error-no-cause`). |
+| `list.append(list, value)` | `Result<Unit, Error>` | The collection is being iterated (`collection-iterating`) or the size limit is exceeded (`collection-limit`). |
+| `list[index]` | `Result<T, Error>` | Index is outside the list (`list-range`). |
+| `(list[index] = value)` | `Result<Unit, Error>` | Invalid index or an active traversal prevents mutation. |
+| `array.new(dimensions, fill)` | `Result<Array<T>, Error>` | Invalid rank/shape, or the element limit is exceeded. |
+| `array.resize(array, dimensions, fill)` | `Result<Unit, Error>` | Invalid shape, limit exceeded, or an active traversal prevents mutation. |
+| `array[i, j, ...]` | `Result<T, Error>` | Coordinates are outside the array (`array-range`). |
+| `(array[i, j, ...] = value)` | `Result<Unit, Error>` | Invalid coordinates or an active traversal prevents mutation. |
 
 See the [diagnostic guide](diagnostics.html) for structured error fields and the reporter, and the [error catalog](../errors.html) for stable diagnostic codes.

@@ -7,6 +7,8 @@ These source files run in the Go interpreter and are validated by its test suite
 | File | Input | Result after the prompt | Purpose |
 | --- | --- | --- | --- |
 | [composition.zhex](../examples/composition.zhex) | None | `32` | Typed words, inferred locals, flow composition. |
+| [records.zhex](../examples/records.zhex) | None | `Ada, age 36` | A nominal record declaration, a positional constructor, typed binding, field reads, and a word that accepts the record. |
+| [collections.zhex](../examples/collections.zhex) | None | List indices and array coordinates, each append reports `collection-iterating`, then `6`, `7`, `12` after resize | Shared list mutation and indexing, dual-binding traversal, row-major array access, pre-mutation guards, overlap-preserving resize, and fill values. |
 | [hello.zhex](../examples/hello.zhex) | `Ada` | `Hello, Ada!` | Read a whole line, build a string, print it. |
 | [fizzbuzz.zhex](../examples/fizzbuzz.zhex) | `15` | The sequence below | Remainders, ordered conditions, bounded iteration, formatting. |
 | [fibonacci.zhex](../examples/fibonacci.zhex) | `10` | `55` | Explicit local mutation and iterative computation. |
@@ -39,6 +41,28 @@ Fizz
 FizzBuzz
 ```
 
+The collections example also prints the zero-based list index with each name, reports the guarded append, then visits the 2×3 array in row-major coordinate order before showing preserved and new values after resize:
+
+```text
+3
+Grace
+0: Ada
+collection-iterating
+1: Grace
+collection-iterating
+2: Lin
+collection-iterating
+0,0: 1
+0,1: 2
+0,2: 3
+1,0: 4
+1,1: 5
+1,2: 6
+6
+7
+12
+```
+
 ## Input and output
 
 | Operation | Contract |
@@ -57,6 +81,8 @@ Run the examples:
 
 ```sh
 go run ./cmd/zhex run examples/hello.zhex
+go run ./cmd/zhex run examples/records.zhex
+go run ./cmd/zhex run examples/collections.zhex
 go run ./cmd/zhex run examples/fizzbuzz.zhex
 go run ./cmd/zhex run examples/fibonacci.zhex
 go run ./cmd/zhex run examples/factorial.zhex

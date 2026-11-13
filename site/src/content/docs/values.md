@@ -5,7 +5,7 @@ section: Language
 order: 20
 ---
 
-Every expression has a checked type. Local binding types are inferred from their initial value; word parameter and result types are written explicitly. Zhex has no implicit conversions.
+Every expression has a checked type. Local binding types are inferred from their initial value unless an explicit `let name: Type = value` or `var name: Type = value` annotation is supplied. Word parameter and result types are written explicitly. Zhex has no implicit conversions.
 
 ## Types
 
@@ -18,6 +18,8 @@ Every expression has a checked type. Local binding types are inferred from their
 | `Buffer` | A mutable sequence of string lines. See [buffers](buffers.html). |
 | `File` | An open file handle. See [files](files.html). |
 | Result values | Selected built-ins return either a success value or a failure. A word may declare `Result<T, E>` as its result type; the supported built-in error families are listed in [results](results.html). Results cannot be used as ordinary values and must be handled immediately with `try` or `catch`. User-defined error types are not supported. |
+| Records | Nominal named types with typed, immutable fields. They cannot be compared or printed directly. See [records](records.html). |
+| `List<T>` / `Array<T>` | Homogeneous, shared mutable collections. They cannot be compared or printed directly. See [lists and arrays](collections.html). |
 
 `Buffer` and `File` are resource values. They are not copied when a name is bound, cannot be compared with `==` or `!=`, and are not accepted by `print`.
 

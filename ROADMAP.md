@@ -19,6 +19,7 @@ The first language milestone runs real programs with checked types and console i
 - Insight: `zhex run --trace` streams JSONL step events — word calls, bindings, flow steps, returns — so people and agents can watch a program run; the event vocabulary is documented in llms.txt.
 - REPL: `zhex repl` keeps words and values across entries, enters multi-line words ended by a blank line, echoes expression values, redefines words with a note, lists signatures with `words`, recovers from errors, and traces with `--trace`.
 - Vocabulary: rich text work ships — twelve `text` words, `Buffer` and `File` types with chomped-line buffers, guaranteed-close `file.lines` loops, and program arguments via `console.arg`.
+- Rich values: explicit binding annotations, nominal record types, homogeneous shared `List<T>` and shaped `Array<T>` collections, checked indexing/resizing, and list/array traversal with position bindings and pre-mutation guards.
 - Text utility: `text-stats` reads a file two ways — whole-buffer counts and a streamed uppercased echo — with program arguments, streamed lines, and guaranteed close, all through the new vocabulary (#28) — and becomes the workload for measurements (#4).
 - Measurements: the interpreter runs text-stats at 8-9 ms per pass with stable allocation profiles by mode (docs/measurements.md); readability review recommends a line-filter tool as the next application, with number-to-text ceremony flagged for a future language story.
 - Modules: `use math` loads sibling files, words are importable unless underscore-private, calls are qualified, cycles and reserved names diagnose with paths, and the REPL adopts modules per session — with a two-file corpus example and docs sections to match.
@@ -34,7 +35,7 @@ Grow the language's reach: a dedicated domain and funding. This is the proposed 
 
 These are directions to explore. Their order and implementation remain open, and there are no delivery dates yet.
 
-- Rich values: collections, records, dates, times, durations, and user-defined error types with readable operations and formatting.
+- Rich values: additional named-type forms such as choices and aliases, maps, dates, times, durations, and user-defined error types with readable operations and formatting.
 - Compiled execution: evaluate a native backend, including C as a possible target, and measure composition, text processing, and allocation behavior.
 - WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output.
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.
