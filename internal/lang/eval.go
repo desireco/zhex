@@ -393,8 +393,11 @@ func (r *runtime) report(err error, outcome string, boundary position) {
 		func() { defer func() { _ = recover() }(); _, _ = r.call(r.reporter, []value{{fault: d}}) }()
 	}
 	if r.hostReporter != nil {
-		event := ErrorReport{SchemaVersion: 1, OccurrenceID: occurrence.id, Timestamp: time.Now().UTC(), Outcome: outcome, Error: snapshot(d, r.includeSensitive), Boundary: location(boundary, r.includeSensitive), Correlation: r.correlation}
-		func() { defer func() { _ = recover() }(); _ = r.hostReporter(event) }()
+		func() {
+			defer func() { _ = recover() }()
+			event := ErrorReport{SchemaVersion: 1, OccurrenceID: occurrence.id, Timestamp: time.Now().UTC(), Outcome: outcome, Error: snapshot(d, r.includeSensitive, 1), Boundary: location(boundary, r.includeSensitive), Correlation: r.correlation}
+			_ = r.hostReporter(event)
+		}()
 	}
 }
 

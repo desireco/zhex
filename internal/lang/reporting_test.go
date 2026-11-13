@@ -153,3 +153,24 @@ func TestHostReporterIncludesRuntimeOperation(t *testing.T) {
 		}
 	}
 }
+
+func TestHostReportBoundsCauseSnapshots(t *testing.T) {
+	source := "word nested(n: Int) -> Result<Int, Error>\n    if n == 0\n        return err(error.new(\"base\", \"base\"))\n    let value = nested(n - 1) catch problem\n        return err(error.wrap(\"wrap\", \"wrap\", problem))\n    ok(value)\nnested(40) try\n"
+	p, err := Compile("test.zhex", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event ErrorReport
+	err = p.RunWithOptions(strings.NewReader(""), io.Discard, RunOptions{Reporter: func(e ErrorReport) error { event = e; return nil }})
+	if err == nil || !strings.Contains(err.Error(), "wrap") {
+		t.Fatalf("original error = %v", err)
+	}
+	node, count := &event.Error, 1
+	for node.Cause != nil {
+		node = node.Cause
+		count++
+	}
+	if count != 32 || !node.CauseTruncated {
+		t.Fatalf("cause depth %d, truncated %v", count, node.CauseTruncated)
+	}
+}

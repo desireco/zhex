@@ -25,12 +25,13 @@ type SourceLocation struct {
 
 // ErrorSnapshot contains a report-safe copy of an error and its causes.
 type ErrorSnapshot struct {
-	Code      string            `json:"code"`
-	Operation string            `json:"operation"`
-	Origin    SourceLocation    `json:"origin"`
-	Message   string            `json:"message,omitempty"`
-	Details   map[string]string `json:"details,omitempty"`
-	Cause     *ErrorSnapshot    `json:"cause,omitempty"`
+	Code           string            `json:"code"`
+	Operation      string            `json:"operation"`
+	Origin         SourceLocation    `json:"origin"`
+	Message        string            `json:"message,omitempty"`
+	Details        map[string]string `json:"details,omitempty"`
+	Cause          *ErrorSnapshot    `json:"cause,omitempty"`
+	CauseTruncated bool              `json:"cause_truncated,omitempty"`
 }
 
 // ErrorReport is the versioned envelope delivered to an optional host reporter.
@@ -54,7 +55,7 @@ func location(pos position, sensitive bool) SourceLocation {
 	return result
 }
 
-func snapshot(d *diagnostic, sensitive bool) ErrorSnapshot {
+func snapshot(d *diagnostic, sensitive bool, depth int) ErrorSnapshot {
 	result := ErrorSnapshot{Code: string(d.code), Operation: d.operation, Origin: location(d.pos, sensitive)}
 	if sensitive {
 		result.Message = d.message
@@ -66,8 +67,12 @@ func snapshot(d *diagnostic, sensitive bool) ErrorSnapshot {
 		}
 	}
 	if d.cause != nil {
-		cause := snapshot(d.cause, sensitive)
-		result.Cause = &cause
+		if depth >= 32 {
+			result.CauseTruncated = true
+		} else {
+			cause := snapshot(d.cause, sensitive, depth+1)
+			result.Cause = &cause
+		}
 	}
 	return result
 }
