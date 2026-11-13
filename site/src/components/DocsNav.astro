@@ -1,0 +1,8 @@
+---
+const { entries, current, base } = Astro.props;
+const groups = ['Start', 'Language', 'Standard library', 'Tools'];
+---
+<nav class="docs-nav" aria-label="Documentation navigation">
+  {groups.map(group => <section><h2>{group}</h2><ul>{entries.filter(e => e.data.section === group).map(e => <li><a href={`${base}/docs/${e.id}.html`} aria-current={e.id === current ? 'page' : undefined}>{e.data.title}</a></li>)}</ul></section>)}
+  <a href={`${base}/errors.html`}>Diagnostic catalog</a>
+</nav>
