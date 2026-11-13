@@ -181,4 +181,4 @@ Start with the [ten examples and expected results](syntax-examples.md), then con
 go test ./...
 ```
 
-The [test catalog](tests.md) explains which tests cover each feature. Collections, rich domain types, resource scopes, and native compilation are not part of the current interpreter.
+The [test catalog](tests.md) explains which tests cover each feature. Additional named-type forms such as choices and aliases, maps, temporal values, resource scopes, and native compilation remain future work.

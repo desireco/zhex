@@ -69,6 +69,9 @@ Definitions and values persist across entries. A blank line submits a multi-line
 
 - [Syntax](syntax.html): indentation, names, comments, and expressions.
 - [Values and operators](values.html): types, bindings, scope, and arithmetic.
+- [Records and named types](records.html): define a nominal record and read its typed fields.
+- [Lists and arrays](collections.html): build homogeneous collections, access elements, and change shared storage.
 - [Control flow](control-flow.html): conditions and loops.
+- [Collection iteration](iteration.html): traverse lists and arrays with optional index or coordinate bindings.
 - [Examples](../examples.html): complete programs with real input and output.
 - [Language contract](https://github.com/desireco/zhex/blob/main/docs/initial-language.md): detailed current semantics.
