@@ -251,6 +251,7 @@ type expression struct {
 	binding     *binding
 	word        *word
 	handler     []*statement
+	propagate   bool
 }
 
 type statement struct {

@@ -326,6 +326,9 @@ func (c *checker) checkWords(words []*word) error {
 		if err != nil {
 			return err
 		}
+		if result == errorType && blockReturnsConcreteError(w.body) {
+			return errorAt(w.pos, CodeWordResult, "convert the concrete error explicitly with error.wrap before returning Error")
+		}
 		if result != w.result && result != neverType {
 			return errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
 		}
@@ -387,6 +390,22 @@ func (c *checker) used(name string) bool {
 		}
 	}
 	return false
+}
+
+// An Error-valued continuation must not erase a concrete catch family.
+func blockReturnsConcreteError(body []*statement) bool {
+	if len(body) == 0 {
+		return false
+	}
+	last := body[len(body)-1]
+	if last.kind == "if" {
+		return blockReturnsConcreteError(last.body) || blockReturnsConcreteError(last.otherwise)
+	}
+	if last.kind != "expression" || last.expr == nil {
+		return false
+	}
+	b := last.expr.binding
+	return b != nil && b.errorFamily != "" && b.errorFamily != "Error"
 }
 
 func (c *checker) block(body []*statement, env *scope) (valueType, error) {
@@ -491,10 +510,38 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		_, err = c.block(s.body, inner)
 		return unitType, err
 	case "flow":
-		for _, step := range s.steps {
+		for index, step := range s.steps {
+			if typ == errorType {
+				w, _ := c.resolveWord(step.text)
+				if w != nil {
+					inner, isResult := resultInner(w.result)
+					if w.result == errorType || isResult && inner == errorType {
+						return "", errorAt(step.pos, CodeArgumentType, "convert concrete errors explicitly before passing them through an Error-valued flow step")
+					}
+				}
+			}
+			if step.text == "err" || step.text == "ok" && typ == errorType {
+				return "", errorAt(step.pos, CodeArgumentType, "construct Error Results with a direct call")
+			}
 			typ, err = c.call(step, []valueType{typ})
 			if err != nil {
 				return "", err
+			}
+			inner, fallible := resultInner(typ)
+			if fallible && step.text == "ok" && index == len(s.steps)-1 && typ == c.wordResult && !step.propagate {
+				continue
+			}
+			if fallible && !step.propagate {
+				return "", withHint(errorAt(step.pos, CodeTryInput, "fallible flow step %s requires try", step.text), "add postfix try to propagate the failure")
+			}
+			if !fallible && step.propagate {
+				return "", errorAt(step.pos, CodeTryInput, "try requires a Result, found %s", typ)
+			}
+			if fallible {
+				if c.wordResult != "" && (!isResult(c.wordResult) || resultFamily(typ) != resultFamily(c.wordResult)) {
+					return "", errorAt(step.pos, CodeTryInput, "try propagates %s; enclosing word must return the same error type", resultFamily(typ))
+				}
+				typ = inner
 			}
 		}
 		return typ, nil
@@ -560,6 +607,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		fallback, err := c.block(x.handler, handler)
 		if err != nil {
 			return "", err
+		}
+		if fallback == errorType && blockReturnsConcreteError(x.handler) {
+			return "", errorAt(x.pos, CodeBranchType, "convert the concrete error explicitly with error.wrap before using it as Error")
 		}
 		if fallback != inner && fallback != neverType {
 			return "", errorAt(x.pos, CodeBranchType, "catch fallback must have type %s, found %s", inner, fallback)
@@ -648,6 +698,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			}
 			params = []valueType{inner}
 			result = c.wordResult
+			if inner == errorType && len(x.args) == 1 && x.args[0].binding != nil && x.args[0].binding.errorFamily != "" && x.args[0].binding.errorFamily != "Error" {
+				return "", errorAt(x.pos, CodeArgumentType, "convert %s explicitly with error.wrap before returning it as Error", x.args[0].binding.errorFamily)
+			}
 		case "err":
 			if !isResult(c.wordResult) {
 				return "", errorAt(x.pos, CodeWordResult, "err requires a Result-returning word")

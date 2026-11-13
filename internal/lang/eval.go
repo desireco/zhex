@@ -177,6 +177,12 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			if err != nil {
 				return value{}, err
 			}
+			if step.propagate {
+				if v.result.err != nil {
+					return value{}, &propagation{cause: v.result.err}
+				}
+				v = v.result.value
+			}
 		}
 		return v, nil
 	}

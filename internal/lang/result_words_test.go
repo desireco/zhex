@@ -230,3 +230,48 @@ func TestErrorIdentityWordCannotWidenConcreteFamily(t *testing.T) {
 		t.Fatal("identity word widened concrete error family")
 	}
 }
+
+func TestFallibleFlowRequiresTryAndPropagates(t *testing.T) {
+	source := "word parse(s: String) -> Result<Int, ParseError>\n    ok(text.to-int(s) try)\nflow \"42\"\n    parse try\n    print\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "42\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+	bad := strings.Replace(source, "    parse try\n", "    parse\n", 1)
+	if _, err := Compile("test.zhex", bad); err == nil {
+		t.Fatal("accepted bare fallible flow step")
+	}
+	source = strings.Replace(source, `flow "42"`, `flow "bad"`, 1)
+	out.Reset()
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "not a signed 64-bit") || out.Len() != 0 {
+		t.Fatalf("flow failure: %v, output %q", err, out.String())
+	}
+}
+
+func TestFallibleFlowInsideFallibleWord(t *testing.T) {
+	source := "word parse(s: String) -> Result<Int, ParseError>\n    ok(text.to-int(s) try)\nword pipeline(s: String) -> Result<Int, ParseError>\n    flow s\n        parse try\n        ok\nprint(pipeline(\"12\") try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "12\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestOkCannotWidenConcreteErrorFamily(t *testing.T) {
+	source := "word extract() -> Result<Error, Error>\n    let n = text.to-int(\"bad\") catch problem\n        return ok(problem)\n    ok(error.new(\"unused\", \"unused\"))\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("ok widened ParseError to Error")
+	}
+}
+
+func TestCatchFallbackCannotWidenConcreteError(t *testing.T) {
+	source := "word fail() -> Result<Error, Error>\n    let n = text.to-int(\"bad\") catch problem\n        let x = error.cause(error.new(\"e\", \"e\")) catch missing\n            problem\n        return ok(x)\n    ok(error.new(\"e\", \"e\"))\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("catch fallback widened ParseError to Error")
+	}
+}
