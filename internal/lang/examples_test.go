@@ -66,7 +66,7 @@ func TestInputFailures(t *testing.T) {
 	for _, input := range []string{"", "\n", "  \n", "abc\n", "1.5\n", "9223372036854775808\n", "-9223372036854775809\n", "\xff\n"} {
 		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
 			var out bytes.Buffer
-			err := Run("input.zhex", "let n = console.read-int(\"Number: \") try\nprint(n)\n", strings.NewReader(input), &out)
+			err := Run("input.zhex", "let n = text.to-int(read-line(\"Number: \") try) try\nprint(n)\n", strings.NewReader(input), &out)
 			if err == nil || !strings.Contains(err.Error(), "input.zhex:1:") {
 				t.Fatalf("expected input diagnostic, got %v", err)
 			}

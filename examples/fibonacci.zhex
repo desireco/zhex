@@ -12,7 +12,8 @@ word fibonacci(n: Int) -> Int
 
         current
 
-let index = console.read-int("Fibonacci index (0..92): ") try
+let index-line = read-line("Fibonacci index (0..92): ") try
+let index = text.to-int(index-line) try
 
 if index < 0 or index > 92
     print("Enter an index from 0 to 92.")

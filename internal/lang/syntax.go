@@ -85,12 +85,13 @@ func withHint(err error, hint string) error {
 type valueType string
 
 const (
-	intType          valueType = "Int"
-	boolType         valueType = "Bool"
-	stringType       valueType = "String"
-	unitType         valueType = "Unit"
-	intResultType    valueType = "Result<Int, InputError>"
-	stringResultType valueType = "Result<String, InputError>"
+	intType            valueType = "Int"
+	boolType           valueType = "Bool"
+	stringType         valueType = "String"
+	unitType           valueType = "Unit"
+	intResultType      valueType = "Result<Int, InputError>"
+	stringResultType   valueType = "Result<String, InputError>"
+	intParseResultType valueType = "Result<Int, ParseError>"
 )
 
 type binding struct {

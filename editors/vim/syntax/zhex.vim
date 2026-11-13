@@ -14,7 +14,7 @@ syntax keyword zhexKeyword let var if elif else for in flow try
 syntax keyword zhexType Int Bool String Unit
 syntax keyword zhexBoolean true false
 syntax keyword zhexOperator and or not
-syntax keyword zhexBuiltin print range int.to-string text.reverse console.read-line console.read-int
+syntax keyword zhexBuiltin print range int.to-string text.reverse text.to-int read-line
 syntax match zhexNumber /\%([A-Za-z0-9_.]\)\@<!\d\+\%([A-Za-z0-9_.]\)\@!/
 syntax match zhexOperator /->\|==\|!=\|<=\|>=\|[-+*\/%<>=]/
 syntax match zhexDelimiter /[(),:]/

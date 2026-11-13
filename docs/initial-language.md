@@ -30,9 +30,9 @@ Call a word with `name(arguments)`. A `flow expression` block contains one word 
 
 ## Standard operations and console input
 
-The initial predeclared operations are `print`, `int.to-string`, `text.reverse`, `console.read-line`, and `console.read-int`. `print` accepts one `Int`, `Bool`, or `String`, writes it followed by a newline, and returns `Unit`. Boolean text is `true` or `false`. `int.to-string` takes an integer. `text.reverse` takes a string and reverses Unicode code points without normalization.
+The initial predeclared operations are `print`, `int.to-string`, `text.reverse`, `read-line`, and `text.to-int`. `print` accepts one `Int`, `Bool`, or `String`, writes it followed by a newline, and returns `Unit`. Boolean text is `true` or `false`. `int.to-string` takes an integer. `text.reverse` takes a string and reverses Unicode code points without normalization. The naming rule is: a dot says which type owns the verb — nothing else is dotted; the core operations are bare words.
 
-Both console reads take a string prompt and return a built-in input result: `Result<String, InputError>` or `Result<Int, InputError>`. Postfix `try` unwraps success and propagates failure. Results cannot be printed, compared, or used as plain values. General user-defined result types and recovery are deferred.
+`read-line(prompt)` takes a string prompt and returns `Result<String, InputError>` from one line of standard input. `text.to-int(text)` is the inverse of `int.to-string`: it parses a signed 64-bit decimal, trimming surrounding whitespace, and returns `Result<Int, ParseError>`. Postfix `try` unwraps success and propagates failure. Results cannot be printed, compared, or used as plain values. General user-defined result types and recovery are deferred.
 
 The [example guide](syntax-examples.md) defines line endings, integer parsing, EOF, invalid UTF-8, prompts, and supported input domains. Prompts are written and flushed before reading. Redirected input is supported. Runtime input/output errors include source locations and exit nonzero; previous output remains visible. The interpreter checks the whole program, including unused word bodies, before any input or output occurs.
 

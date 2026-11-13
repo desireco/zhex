@@ -14,9 +14,9 @@ func TestRunCommand(t *testing.T) {
 		name, source, input, output, diagnostic string
 		code                                    int
 	}{
-		{"interactive", "let name = console.read-line(\"Name: \") try\nprint(name)\n", "Ada\n", "Name: Ada\n", "", 0},
+		{"interactive", "let name = read-line(\"Name: \") try\nprint(name)\n", "Ada\n", "Name: Ada\n", "", 0},
 		{"static error", "print(1)\nmissing(2)\n", "", "", "unknown word", 1},
-		{"input error", "let n = console.read-int(\"N: \") try\nprint(n)\n", "abc\n", "N: ", "decimal integer", 1},
+		{"input error", "let n = text.to-int(read-line(\"N: \") try) try\nprint(n)\n", "abc\n", "N: ", "decimal integer", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "program.zhex")
@@ -41,7 +41,7 @@ func TestRunCommandReportsJSON(t *testing.T) {
 	}{
 		{"checker error", "print(a-b)\n", "", "", "unknown-name"},
 		{"runtime error", "print(1 / 0)\n", "", "", "division-zero"},
-		{"input error", "let n = console.read-int(\"N: \") try\nprint(n)\n", "abc\n", "N: ", "console-int"},
+		{"input error", "let n = text.to-int(\"abc\") try\nprint(n)\n", "", "", "text-to-int"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "program.zhex")

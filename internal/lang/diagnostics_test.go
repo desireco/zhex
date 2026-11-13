@@ -37,8 +37,8 @@ func TestDiagnosticsSuggestCloseNamesAndWords(t *testing.T) {
 }
 
 func TestDiagnosticsSuggestTryForResultOperands(t *testing.T) {
-	got := runError(t, "let n = console.read-int(\"N: \") try\nlet m = console.read-int(\"M: \")\nprint(n + m)\n")
-	if !strings.Contains(got, "incompatible operand types Int and Result<Int, InputError>") {
+	got := runError(t, "let n = text.to-int(\"1\") try\nlet m = text.to-int(\"2\")\nprint(n + m)\n")
+	if !strings.Contains(got, "incompatible operand types Int and Result<Int, ParseError>") {
 		t.Fatalf("wrong diagnostic: %q", got)
 	}
 	if !strings.Contains(got, "add postfix try") {

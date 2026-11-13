@@ -23,7 +23,7 @@
       }
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:console\\.read-line|console\\.read-int|int\\.to-string|text\\.reverse|print|range)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:int\\.to-string|text\\.reverse|text\\.to-int|read-line|print|range)(?![A-Za-z0-9_.-])",
       "name": "support.function.builtin.zhex"
     },
     {

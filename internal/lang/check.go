@@ -36,7 +36,7 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 
 type checker struct{ words map[string]*word }
 
-var hostWords = []string{"print", "int.to-string", "text.reverse", "console.read-int", "console.read-line", "range"}
+var hostWords = []string{"print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range"}
 
 // HostWord reports whether name is a word provided by the host, not the program.
 func HostWord(name string) bool {
@@ -202,7 +202,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", err
 		}
 		switch inner {
-		case intResultType:
+		case intResultType, intParseResultType:
 			typ = intType
 		case stringResultType:
 			typ = stringType
@@ -291,10 +291,10 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "text.reverse":
 			params = []valueType{stringType}
 			result = stringType
-		case "console.read-int":
+		case "text.to-int":
 			params = []valueType{stringType}
-			result = intResultType
-		case "console.read-line":
+			result = intParseResultType
+		case "read-line":
 			params = []valueType{stringType}
 			result = stringResultType
 		case "range":

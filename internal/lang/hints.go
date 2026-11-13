@@ -65,12 +65,12 @@ func editDistance(a, b string) int {
 	return prev[len(b)]
 }
 
-// tryHint explains the most common type mistake: a console-read Result
-// reaching a position that needs a plain value.
+// tryHint explains the most common type mistake: a read-line or text.to-int
+// Result reaching a position that needs a plain value.
 func tryHint(types ...valueType) string {
 	for _, typ := range types {
-		if typ == intResultType || typ == stringResultType {
-			return `console reads return a Result; add postfix try to unwrap it, as in console.read-int("N: ") try`
+		if typ == intResultType || typ == intParseResultType || typ == stringResultType {
+			return `read-line and text.to-int return a Result; add postfix try to unwrap it, as in text.to-int("N: ") try`
 		}
 	}
 	return ""

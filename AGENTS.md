@@ -22,9 +22,9 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 - Branching: `if`, optional `elif`, optional `else`. Conditions must be `Bool`; branch result types must match.
 - Loops: `for n in range(start, end)` — exclusive end, empty when `start >= end`; `range` exists only in this loop syntax.
 - Flows: `flow <expression>` evaluates the expression, then passes its value through one single-argument word per line; each word receives the previous result, and the last result is the flow's result. The seed can be any expression — `flow gcd(a, b)` starts from a computed value.
-- Input: `console.read-line(prompt)` and `console.read-int(prompt)` return results that can fail. Postfix `try` unwraps success and propagates failure — input failure exits nonzero with a diagnostic.
-- Standard operations: `print`, `range`, `int.to-string`, `text.reverse`, `console.read-line`, `console.read-int`.
-- Names: ASCII letters, digits, underscores, plus hyphenated segments (`is-palindrome`). Dots qualify operation names (`int.to-string`). Gotcha: `a-b` is a single name — write `a - b` for subtraction.
+- Input: `read-line(prompt)` returns `Result<String, InputError>` and `text.to-int(text)` returns `Result<Int, ParseError>`. Postfix `try` unwraps success and propagates failure — input failure exits nonzero with a diagnostic.
+- Standard operations: `print`, `range`, `int.to-string`, `text.reverse`, `read-line`, `text.to-int`.
+- Names: ASCII letters, digits, underscores, plus hyphenated segments (`is-palindrome`). Dots qualify operation names (`int.to-string`); a dot says which type owns the verb — nothing else is dotted. Gotcha: `a-b` is a single name — write `a - b` for subtraction.
 
 Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seeded with a computed call, `times-table` shows bounded loops and string building — and on the website's docs page (desireco.github.io/zhex/docs.html).
 
@@ -33,7 +33,7 @@ Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seed
 The checker validates the whole program before anything runs and reports `file:line:column` diagnostics, so nothing partial executes. Each diagnostic prints the source line with a caret and, where a known fix exists, a `hint:` line; the first line stays stable for scripts and agents. The two mistakes the compiler now hints itself:
 
 - `unknown name "a-b"` — hyphenated names are single names; write `a - b` with spaces for subtraction.
-- `... does not support type Result<String, InputError>` (or any `Result` in a plain value position) — a console-read result needs postfix `try` to unwrap it (`let n = console.read-int("N: ") try`).
+- `... does not support type Result<String, InputError>` (or any `Result` in a plain value position) — a read result needs postfix `try` to unwrap it (`let line = read-line("N: ") try`).
 
 Typos get did-you-mean suggestions drawn from the visible names and words. Every diagnostic carries a stable code, cataloged on the site's errors page; `zhex run <file> --report=json` emits the machine-readable report `{code, severity, file, line, column, message, hint}` for agents and tools. The diagnostic contract and phased plan (spans, provenance, tracing, replay) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
 

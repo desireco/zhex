@@ -7,8 +7,10 @@ word gcd(a: Int, b: Int) -> Int
     else
         gcd(b, a % b)
 
-let a = console.read-int("First number: ") try
-let b = console.read-int("Second number: ") try
+let a-line = read-line("First number: ") try
+let a = text.to-int(a-line) try
+let b-line = read-line("Second number: ") try
+let b = text.to-int(b-line) try
 
 if a < 0 or b < 0
     print("Enter two nonnegative integers.")

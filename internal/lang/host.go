@@ -37,7 +37,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			runes[i], runes[j] = runes[j], runes[i]
 		}
 		return value{text: string(runes)}, nil
-	case "console.read-int", "console.read-line":
+	case "read-line":
 		if err := r.write(x.pos, args[0].text); err != nil {
 			return value{}, err
 		}
@@ -52,15 +52,13 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		if !utf8.ValidString(line) {
 			return value{result: &inputResult{err: errorAt(x.pos, CodeConsoleUTF8, "console input is not valid UTF-8")}}, nil
 		}
-		v := value{text: line}
-		if x.text == "console.read-int" {
-			number, err := strconv.ParseInt(strings.TrimSpace(line), 10, 64)
-			if err != nil {
-				return value{result: &inputResult{err: errorAt(x.pos, CodeConsoleInt, "expected a signed 64-bit decimal integer")}}, nil
-			}
-			v = value{number: number}
+		return value{result: &inputResult{value: value{text: line}}}, nil
+	case "text.to-int":
+		number, err := strconv.ParseInt(strings.TrimSpace(args[0].text), 10, 64)
+		if err != nil {
+			return value{result: &inputResult{err: errorAt(x.pos, CodeTextToInt, "%q is not a signed 64-bit decimal integer", args[0].text)}}, nil
 		}
-		return value{result: &inputResult{value: v}}, nil
+		return value{result: &inputResult{value: value{number: number}}}, nil
 	}
 	return value{}, errorAt(x.pos, CodeUnsupportedCode, "unknown built-in operation %q", x.text)
 }

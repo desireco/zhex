@@ -40,7 +40,7 @@
       {{range .Catalog}}
       <div class="docs-feature" id="{{.Code}}">
         <h3><code>{{.Code}}</code></h3>
-        <p>{{.Text}}</p>
+        <p>{{.Text | codeChips}}</p>
       </div>
       {{end}}
     </section>

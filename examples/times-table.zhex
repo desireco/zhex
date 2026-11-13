@@ -1,7 +1,8 @@
 # Print the times table for one number, from 1 to 10.
 # A bounded loop that builds each line from integers.
 
-let n = console.read-int("Table for: ") try
+let n-line = read-line("Table for: ") try
+let n = text.to-int(n-line) try
 
 if n < 1 or n > 12
     print("Enter a number from 1 to 12.")

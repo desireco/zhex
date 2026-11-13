@@ -22,8 +22,11 @@ func TestLanguageFeatures(t *testing.T) {
 		{"multiple arguments", "word add(a: Int, b: Int) -> Int\n    a + b\nprint(add(2, 3))\n", "", "5\n"},
 		{"calls equal flows", "word square(n: Int) -> Int\n    n * n\nprint(square(4))\nflow 4\n    square\n    print\n", "", "16\n16\n"},
 		{"recursive result", "word count(n: Int) -> Int\n    if n == 0\n        0\n    else\n        count(n - 1) + 1\nprint(count(5))\n", "", "5\n"},
-		{"signed input", "let a = console.read-int(\"\") try\nlet b = console.read-int(\"\") try\nprint(a + b)\n", " +12 \n-2", "10\n"},
-		{"result binding", "let pending = console.read-line(\"\")\nlet line = pending try\nprint(line)\n", "hello\n", "hello\n"},
+		{"signed input", "let a = text.to-int(read-line(\"\") try) try\nlet b = text.to-int(read-line(\"\") try) try\nprint(a + b)\n", " +12 \n-2", "10\n"},
+		{"text.to-int", "print(text.to-int(\"  42  \") try)\nprint(text.to-int(\"-7\") try)\n", "", "42\n-7\n"},
+		{"parse result binding", "let pending = text.to-int(\"9\")\nprint(pending try)\n", "", "9\n"},
+		{"flow seed from read", "flow read-line(\"\") try\n    print\n", "hi\n", "hi\n"},
+		{"result binding", "let pending = read-line(\"\")\nlet line = pending try\nprint(line)\n", "hello\n", "hello\n"},
 		{"comments and blank lines", "# hello\n\nif true\n\n    # inside\n    print(1) # trailing\n", "", "1\n"},
 	}
 	for _, tc := range cases {
@@ -60,7 +63,7 @@ func TestRejectedPrograms(t *testing.T) {
 		{"unknown type", "word x(n: Float) -> Int\n    1\n", "unknown type"},
 		{"flow type", "flow \"wrong\"\n    int.to-string\n    print\n", "Int"},
 		{"flow arity", "word add(a: Int, b: Int) -> Int\n    a + b\nflow 1\n    add\n", "argument"},
-		{"try required", "let n = console.read-int(\"prompt\")\nprint(n + 1)\n", "type"},
+		{"try required", "let n = text.to-int(\"x\")\nprint(n + 1)\n", "type"},
 		{"invalid try", "let n = 1 try\n", "try"},
 		{"bad range", "for n in range(\"a\", 2)\n    print(n)\n", "Int"},
 		{"range as value", "let x = range(0, 2)\n", "range"},

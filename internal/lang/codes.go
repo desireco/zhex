@@ -60,7 +60,7 @@ const (
 	CodeConsoleOutput   Code = "console-output"
 	CodeConsoleInput    Code = "console-input"
 	CodeConsoleUTF8     Code = "console-utf8"
-	CodeConsoleInt      Code = "console-int"
+	CodeTextToInt       Code = "text-to-int"
 )
 
 var diagnosticCodes = []Code{
@@ -72,7 +72,7 @@ var diagnosticCodes = []Code{
 	CodeCompareType, CodeOrderingType, CodeAdditionType, CodeArithmeticType, CodeArgumentCount, CodeArgumentType,
 	CodeUnknownWord, CodePrintType, CodeRangeContext,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
-	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeConsoleInt,
+	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt,
 }
 
 //go:embed catalog.md

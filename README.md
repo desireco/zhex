@@ -15,7 +15,8 @@ word square(n: Int) -> Int
     let result = n * n
     result
 
-let number = console.read-int("Number: ") try
+let line = read-line("Number: ") try
+let number = text.to-int(line) try
 
 flow number
     square

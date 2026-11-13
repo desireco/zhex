@@ -6,19 +6,19 @@ and `hint:` line are additive detail. Machine readers use
 `zhex run <file> --report=json`.
 
 ## source-utf8
-The file is not valid UTF-8. Re-save the file as UTF-8; Zhex source has no other encoding.
+The file is not valid UTF-8. Re-save it as UTF-8; Zhex source has no other encoding.
 
 ## tab-character
 A tab appeared outside a string. Indentation is four spaces per level; replace tabs with spaces.
 
 ## indentation
-An indentation level is not a multiple of four spaces, or indents more than one new level at a time. Each block indents exactly four spaces from its parent.
+A line's indent is not a multiple of four spaces, or it opens more than one level at once. Each block indents exactly four spaces from its parent.
 
 ## unterminated-string
 A string literal has no closing quote before the end of the line. Close it on the same line; strings do not continue across newlines.
 
 ## string-escape
-A string contains an invalid escape or invalid UTF-8. Use the supported escapes; check `strconv`-style quoting in the language reference.
+A string contains an escape Zhex does not support, or invalid UTF-8. Strings are double-quoted and use Go-style escapes like `\n` and `\"`.
 
 ## unexpected-character
 A character cannot start any token. Check for stray punctuation or a non-ASCII symbol; names are ASCII letters, digits, underscores, and hyphenated segments.
@@ -27,7 +27,7 @@ A character cannot start any token. Check for stray punctuation or a non-ASCII s
 The parser expected a specific token and found something else. The message names both; fix the line to match the expected grammar.
 
 ## expected-name
-A keyword appears where a name is required. Names cannot be `word`, `let`, `var`, `if`, and the other keywords; choose another name.
+A keyword appears where a name is required. `word`, `let`, `var`, `if`, and the other keywords are reserved; choose a name that is not one of them.
 
 ## unknown-type
 A type name is not one of `Int`, `Bool`, `String`, or `Unit`. Check the spelling; there are no user-defined types yet.
@@ -48,10 +48,10 @@ An integer literal is outside the signed 64-bit range. Keep literals within ±92
 A token cannot start an expression where one is required.
 
 ## flow-step
-A `flow` block needs at least one step word. Add the word(s) that receive the seed value, one per line.
+A `flow` block needs at least one step word. Write one word per line; the first receives the seed value.
 
 ## unknown-name
-No binding or word has this name. The hint suggests the closest known name; remember that hyphens join one identifier — for subtraction write `a - b` with spaces.
+No binding or word has this name. The hint suggests the closest known one; if the name contains a hyphen, that hyphen is part of the name — subtraction is written `a - b` with spaces.
 
 ## duplicate-name
 This name is already defined in the same scope. Choose a fresh name; shadowing is not allowed.
@@ -63,7 +63,7 @@ A word with this name already exists, or it collides with a host word. Rename on
 The word's final statement produces a different type than its declared result. Make the last statement's type match the signature, or fix the signature.
 
 ## immutable-name
-Assignment to a name defined with `let`. Declare it with `var` to allow updates.
+A name defined with `let` cannot be reassigned. Declare it with `var` to allow updates.
 
 ## assignment-type
 The new value's type differs from the variable's type. There are no implicit conversions; convert explicitly (for example `int.to-string`).
@@ -72,31 +72,31 @@ The new value's type differs from the variable's type. There are no implicit con
 An `if` condition must be `Bool`. Comparisons return `Bool`; integers and strings do not.
 
 ## branch-type
-The branches of an `if` produce different types. Every branch must end in the same type.
+The branches of an `if` end in different types. Make every branch produce the same type.
 
 ## range-type
 The bounds of `range(start, end)` must both be `Int`.
 
 ## try-input
-Postfix `try` needs a `Result` value to unwrap. It follows a console read or another result-producing word.
+Postfix `try` needs a `Result` value to unwrap. It follows a `read-line` or `text.to-int` call — the only operations that return a `Result`.
 
 ## unary-type
 The unary operator (`-`, `not`) received the wrong type. `-` needs `Int`; `not` needs `Bool`.
 
 ## operand-types
-A binary operator got two different operand types. If one side is a `Result`, add postfix `try` to unwrap it first.
+A binary operator got two different operand types. If one side is a `Result`, add postfix `try` to unwrap it.
 
 ## bool-operand
 `and`/`or` need `Bool` on both sides. Comparisons produce `Bool`; integers do not.
 
 ## compare-type
-Equality comparison needs matching `Int`, `Bool`, or `String` values. If one side is a `Result`, add postfix `try`.
+Equality comparison needs matching `Int`, `Bool`, or `String` values. If one side is a `Result`, add postfix `try` to unwrap it.
 
 ## ordering-type
 Ordering comparison (`< <= > >=`) needs `Int` operands.
 
 ## addition-type
-`+` adds two `Int`s or concatenates two `String`s — never one of each. Convert explicitly if you meant concatenation.
+`+` adds two `Int`s or concatenates two `String`s — never one of each. If you meant concatenation, convert with `int.to-string` first.
 
 ## arithmetic-type
 `- * / %` need `Int` operands.
@@ -123,19 +123,19 @@ An arithmetic result does not fit in a signed 64-bit integer. Overflow is an err
 Division or remainder by zero. Guard the divisor with a condition first.
 
 ## depth-limit
-Word recursion passed the runtime depth limit of 256. Reconsider the recursion; an iterative form with `var` and `for` avoids the limit.
+Word recursion passed the runtime depth limit of 256. Rewrite the recursion as a loop with `var` and `for`; loops have no depth limit.
 
 ## unsupported-code
-An internal invariant failed: the checker approved something the evaluator cannot run. This is a bug in the implementation — please report the program.
+An internal invariant failed: the checker approved something the evaluator cannot run. This is a bug in Zhex, not in your program — please report the program that triggered it.
 
 ## console-output
 Writing to the output stream failed. Check that the output is writable (closed pipes fail this way).
 
 ## console-input
-Reading a line from the input stream failed. With `try`, this propagates and exits; check that input is available.
+Reading a line from the input stream failed, usually because the input ended. The failure propagates through `try` and exits the program; check that input is available.
 
 ## console-utf8
-The line read from the console is not valid UTF-8. Re-enter it as UTF-8 text.
+The line read from the input stream is not valid UTF-8. Zhex reads UTF-8 text; supply the input as UTF-8.
 
-## console-int
-The line read by `console.read-int` is not a signed 64-bit decimal integer. Enter digits only, optionally signed.
+## text-to-int
+The text given to `text.to-int` is not a signed 64-bit decimal integer. It accepts only digits, with an optional sign; surrounding whitespace is ignored.

@@ -422,7 +422,7 @@ pre {
 
 .start-section { background: var(--surface); }
 
-.docs-feature { max-width: 920px; margin-top: 2.5rem; }
+.docs-feature { max-width: 920px; margin-top: 2.5rem; scroll-margin-top: 2rem; }
 .docs-feature h3 { margin-bottom: .4rem; }
 .docs-feature .command-block { margin-top: 1.25rem; }
 

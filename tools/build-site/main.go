@@ -113,6 +113,24 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 // highlight marks up Zhex source with the design system's token classes.
 // Every token's text and everything between tokens is HTML-escaped; only
 // the spans themselves are added, so the result is safe trusted HTML.
+// codeChips renders backticked spans as <code> chips. Every segment is
+// HTML-escaped and only the code tags are added, so the result is safe
+// trusted HTML.
+func codeChips(text string) template.HTML {
+	parts := strings.Split(text, "`")
+	var out strings.Builder
+	for i, part := range parts {
+		if i%2 == 1 {
+			out.WriteString("<code>")
+		}
+		out.WriteString(html.EscapeString(part))
+		if i%2 == 1 {
+			out.WriteString("</code>")
+		}
+	}
+	return template.HTML(out.String())
+}
+
 func highlight(source string) template.HTML {
 	runes := []rune(source)
 	words := map[string]bool{}
@@ -300,7 +318,7 @@ func build(root, output string) error {
 		return err
 	}
 	for _, name := range []string{"index", "examples", "roadmap", "docs", "errors"} {
-		page, err := template.New(name + ".tmpl").Funcs(template.FuncMap{"highlight": highlight}).ParseFiles(filepath.Join(root, "site", name+".tmpl"))
+		page, err := template.New(name + ".tmpl").Funcs(template.FuncMap{"highlight": highlight, "codeChips": codeChips}).ParseFiles(filepath.Join(root, "site", name+".tmpl"))
 		if err != nil {
 			return fmt.Errorf("parse website template %s: %w", name, err)
 		}

@@ -3,7 +3,7 @@ Typed word and input
 ==================
 word square(n: Int) -> Int
     n * n
-let input = console.read-int("Number: ") try
+let input = text.to-int("42") try
 flow input
     square
     print

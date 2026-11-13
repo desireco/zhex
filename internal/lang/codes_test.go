@@ -106,9 +106,9 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{"integer-overflow", "print(9223372036854775807 + 1)\n", ""},
 		{"division-zero", "print(1 / 0)\n", ""},
 		{"depth-limit", "word spin(n: Int) -> Int\n    spin(n)\nprint(spin(1))\n", ""},
-		{"console-input", "let n = console.read-int(\"N: \") try\nprint(n)\n", ""},
-		{"console-utf8", "let n = console.read-line(\"N: \") try\nprint(n)\n", "\xff\n"},
-		{"console-int", "let n = console.read-int(\"N: \") try\nprint(n)\n", "abc\n"},
+		{"console-input", "let n = read-line(\"N: \") try\nprint(n)\n", ""},
+		{"console-utf8", "let n = read-line(\"N: \") try\nprint(n)\n", "\xff\n"},
+		{"text-to-int", "let n = text.to-int(\"abc\") try\nprint(n)\n", ""},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			err := Run("bad.zhex", tc.source, strings.NewReader(tc.input), &strings.Builder{})

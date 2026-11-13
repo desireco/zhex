@@ -82,14 +82,15 @@ else
 
       <div class="docs-feature">
         <h3>Console input, honestly handled.</h3>
-        <p><code>console.read-line</code> and <code>console.read-int</code> return a result that can fail. Postfix <code>try</code> unwraps success and propagates failure — input never silently becomes zero or an empty string.</p>
-        <div class="command-block"><pre><code>{{`let n = console.read-int("Number: ") try
+        <p><code>read-line</code> and <code>text.to-int</code> return a result that can fail. Postfix <code>try</code> unwraps success and propagates failure — input never silently becomes zero or an empty string.</p>
+        <div class="command-block"><pre><code>{{`let line = read-line("Number: ") try
+let n = text.to-int(line) try
 print(n * n)` | highlight}}</code></pre></div>
       </div>
 
       <div class="docs-feature">
         <h3>Standard operations.</h3>
-        <p>The predeclared words: <code>print</code>, <code>range</code>, <code>int.to-string</code>, <code>text.reverse</code>, <code>console.read-line</code>, and <code>console.read-int</code>. <code>+</code> adds integers and concatenates strings; there are no implicit conversions.</p>
+        <p>The predeclared words: <code>print</code>, <code>range</code>, <code>int.to-string</code>, <code>text.reverse</code>, <code>read-line</code>, and <code>text.to-int</code>. A dot says which type owns the verb — nothing else is dotted; the core operations are bare words. <code>+</code> adds integers and concatenates strings; there are no implicit conversions.</p>
       </div>
 
       <div class="docs-feature">

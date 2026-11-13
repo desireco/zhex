@@ -1,4 +1,4 @@
-# word Int true console.read-line stay inside this comment
+# word Int true read-line stay inside this comment
 word is-palindrome(value: String) -> Bool
     value == text.reverse(value)
 

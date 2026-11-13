@@ -44,7 +44,7 @@ The [greeting source](../examples/hello.zhex) is:
 word greet(name: String) -> String
     "Hello, " + name + "!"
 
-let name = console.read-line("Your name: ") try
+let name = read-line("Your name: ") try
 
 flow name
     greet
@@ -53,22 +53,23 @@ flow name
 
 A **word** is a function. `greet` accepts a `String` and returns a `String`. Its final expression supplies the result. Blocks use four spaces, with no braces or semicolons.
 
-`let` names an immutable value. Its type is inferred: the successful result of `console.read-line` is a string, so `name` is a `String` without another annotation.
+`let` names an immutable value. Its type is inferred: the successful result of `read-line` is a string, so `name` is a `String` without another annotation.
 
 `flow` expresses a sequence of one-argument operations. Here the name goes into `greet`, and the resulting greeting goes into `print`. The checker verifies each connection before execution. You can also call words directly with parentheses, such as `greet(name)`.
 
 ## Read numbers and handle failure
 
-Use `console.read-int` for a signed 64-bit integer:
+Read a line, then parse it with `text.to-int`, the inverse of `int.to-string`:
 
 ```text
-let number = console.read-int("Number: ") try
+let line = read-line("Number: ") try
+let number = text.to-int(line) try
 print(number * number)
 ```
 
-Both input operations return a result that can succeed or fail. Postfix `try` unwraps success and propagates failure to the runner. Invalid numeric text, an out-of-range integer, or end-of-input produces a diagnostic and a nonzero exit status. Input failure never silently becomes zero or an empty string.
+Both operations return a result that can succeed or fail. Postfix `try` unwraps success and propagates failure to the runner. Invalid numeric text, an out-of-range integer, or end-of-input produces a diagnostic and a nonzero exit status. Input failure never silently becomes zero or an empty string.
 
-`console.read-line` preserves spaces and accepts an empty line. `console.read-int` trims surrounding whitespace and requires a decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
+`read-line` preserves spaces and accepts an empty line. `text.to-int` trims surrounding whitespace and requires a signed 64-bit decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
 
 ## Make decisions
 

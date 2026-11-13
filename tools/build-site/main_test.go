@@ -20,7 +20,7 @@ func siteFixture(t *testing.T) string {
 		"ROADMAP.md":                     "# Zhex roadmap\n\nA readable language.\n\n## Done\n\nWorking today.\n\n- Checked words.\n\n## Next\n\nTry it interactively.\n\n- REPL.\n\n## Future\n\nOpen ideas.\n\n- Compilation.\n",
 		"site/roadmap.tmpl":              `<main><p>{{.Roadmap.Intro}}</p>{{range .Roadmap.Sections}}<section><h2>{{.Title}}</h2><p>{{.Summary}}</p><ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul></section>{{end}}<a href="ROADMAP.md">Roadmap source</a></main>`,
 		"site/docs.tmpl":                 "<main><h1>Editors</h1><p>Syntax highlighting for Zhex.</p><a href=\"ROADMAP.md\">Roadmap</a></main>",
-		"site/errors.tmpl":               `<main>{{range .Catalog}}<section><h2 id="{{.Code}}">{{.Code}}</h2><p>{{.Text}}</p></section>{{end}}</main>`,
+		"site/errors.tmpl":               `<main>{{range .Catalog}}<section><h2 id="{{.Code}}">{{.Code}}</h2><p>{{.Text | codeChips}}</p></section>{{end}}</main>`,
 		"site/index.tmpl":                "<main><pre>{{.HeroSource | highlight}}</pre>{{range .Examples}}<article id=\"{{.ID}}\"><h2>{{.Title}}</h2><pre>{{.Source}}</pre><pre>{{.Output}}</pre><a href=\"{{.SourceURL}}\">Source</a></article>{{end}}</main>",
 		"site/examples.tmpl":             "<main>{{range .Examples}}<article id=\"{{.ID}}\"><pre>{{.Source}}</pre><a href=\"{{.SourceURL}}\">Download</a></article>{{end}}</main>",
 		"site/styles.css":                "body { color: black; }",
@@ -187,6 +187,17 @@ func TestBuildReadsExamplesExecutesThemAndEscapesHTML(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(root, "output", file)); err != nil {
 			t.Fatal(err)
 		}
+	}
+	errorsPage, err := os.ReadFile(filepath.Join(root, "output", "errors.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog := string(errorsPage)
+	if !strings.Contains(catalog, "<code>") {
+		t.Fatal("catalog prose did not render code chips")
+	}
+	if strings.Contains(catalog, "`") {
+		t.Fatal("catalog prose still contains raw backticks")
 	}
 }
 

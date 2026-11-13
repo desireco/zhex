@@ -22,7 +22,7 @@ Every diagnostic, present and future, obeys these rules. Breaking one is a bug.
 3. **One diagnostic, two renderings.** A single `diagnostic` value drives the human renderer and the machine emitter; prose and data can never disagree (Elixir 1.15 and rustc's rule).
 4. **Every diagnostic carries a stable code** (`unknown-name`, `result-unwrapping`, …) once Part 5's P1 lands. Codes are kebab-case, never renamed or reused, and documented one anchored section per code on the catalog page.
 5. **Hints are earned, not guessed.** A hint ships only when it names a concrete fix the compiler can vouch for (did-you-mean with a distance threshold, the `try` rule, the hyphen rule). No "maybe try checking X" — speculation is worse than silence.
-6. **Narrate provenance when it is known.** Type mismatches should say where the value came from when the checker knows: "operand is `Result<Int, InputError>` because `m` comes from `console.read-int`". Provenance turns a complaint into a lesson.
+6. **Narrate provenance when it is known.** Type mismatches should say where the value came from when the checker knows: "operand is `Result<Int, ParseError>` because `m` comes from `text.to-int`". Provenance turns a complaint into a lesson.
 7. **The catalog is part of the tool.** Codes link to a docs page per code (Elm's `hints/` + Svelte's warning docs pattern); llms.txt and AGENTS.md point at the catalog so agents can look up guidance.
 8. **Errors never hide behind enhancement.** Suggestions, carets, colors, JSON — all additive and optional. This activates with the first enhancement that changes rendering: any such enhancement ships with its off switch in the same phase (colors will honor `NO_COLOR`). The bare diagnostic is always available.
 

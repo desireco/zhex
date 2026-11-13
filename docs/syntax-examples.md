@@ -37,11 +37,11 @@ FizzBuzz
 
 | Operation | Contract |
 | --- | --- |
-| `console.read-line(prompt)` | Write and flush the prompt, then return `Result<String, InputError>` from one line of standard input. |
-| `console.read-int(prompt)` | Read a line, trim surrounding whitespace, and parse an optional sign followed by decimal digits into a checked 64-bit `Int`; return `Result<Int, InputError>`. |
+| `read-line(prompt)` | Write and flush the prompt, then return `Result<String, InputError>` from one line of standard input. |
+| `text.to-int(text)` | Trim surrounding whitespace and parse an optional sign followed by decimal digits into a checked 64-bit `Int`; return `Result<Int, ParseError>`. |
 | `print(value)` | Write an `Int`, `String`, or `Bool` to standard output followed by a newline; return `Unit`. |
 
-`read-line` removes one trailing LF and an immediately preceding CR, preserving the remaining spaces and text. An empty line is a valid empty string. A nonempty final line without a newline is accepted. EOF before any line content, invalid UTF-8, and I/O failures produce input errors. `read-int` additionally rejects empty/whitespace-only input, malformed integers, and integers outside the supported range.
+`read-line` removes one trailing LF and an immediately preceding CR, preserving the remaining spaces and text. An empty line is a valid empty string. A nonempty final line without a newline is accepted. EOF before any line content, invalid UTF-8, and I/O failures produce input errors. `text.to-int` additionally rejects empty/whitespace-only input, malformed integers, and integers outside the supported range.
 
 In these examples, postfix `try` unwraps a successful input result. Failure propagates to the runner, which writes a source-located diagnostic to standard error and exits nonzero. Earlier runtime output, including a prompt, can remain. This is a narrow initial use of `Result` and propagation; user-defined generic types and recovery syntax are later design work.
 

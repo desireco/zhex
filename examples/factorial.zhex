@@ -6,7 +6,8 @@ word factorial(n: Int) -> Int
 
     product
 
-let number = console.read-int("Factorial of (0..20): ") try
+let number-line = read-line("Factorial of (0..20): ") try
+let number = text.to-int(number-line) try
 
 if number < 0 or number > 20
     print("Enter a number from 0 to 20.")
