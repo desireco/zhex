@@ -471,6 +471,9 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		}
 		return neverType, nil
 	case "let", "var":
+		if s.annotation != "" && s.annotation != typ {
+			return "", withSpan(errorAt(s.pos, CodeAssignmentType, "binding %s has type %s; declared %s", s.name, typ, s.annotation), s.expr)
+		}
 		s.binding, err = env.define(s.pos, s.name, typ, s.kind == "var")
 		if err == nil {
 			s.binding.origin = originOf(s.expr)

@@ -75,6 +75,7 @@ The word's final statement produces a different type than its declared result. M
 A name defined with `let` cannot be reassigned. Declare it with `var` to allow updates.
 
 ## assignment-type
+A binding annotation must match its value's type.
 The new value's type differs from the variable's type. There are no implicit conversions; convert explicitly (for example `int.to-string`).
 When the checker can trace the value to the word that produced it, the message says where it comes from.
 

@@ -260,6 +260,7 @@ type statement struct {
 	kind            string
 	pos             position
 	name            string
+	annotation      valueType
 	expr, end       *expression
 	body, otherwise []*statement
 	steps           []*expression

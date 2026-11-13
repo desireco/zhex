@@ -173,6 +173,9 @@ func (p *parser) parseStatement() *statement {
 	case p.at("let") || p.at("var"):
 		s.kind = p.take().text
 		s.name = p.name().text
+		if p.accept(":") {
+			s.annotation = p.parseType()
+		}
 		p.require("=")
 		s.expr = p.statementExpression()
 	case p.accept("return"):
