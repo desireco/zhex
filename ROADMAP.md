@@ -13,12 +13,12 @@ The first language milestone runs real programs with checked types and console i
 - Website: an editorial redesign with a new logo, syntax-highlighted examples, and a published design system with a concept archive.
 - Licensing: the repository is public and published under the MIT license.
 - Editors: syntax highlighting for Vim/Neovim, VS Code, and Zed, with installation and usage documented on the website's docs page.
+- Agents: AGENTS.md, an llms.txt site index, and agent-readable examples make Zhex easy for humans to review and AI agents to write.
 
 ## Next
 
 Make everyday experiments quicker, then build a useful text utility. This is the proposed order; each step needs working examples and tests.
 
-- Agent support: make Zhex easy for humans to review and AI agents to write, with AGENTS.md, llms.txt, and agent-readable examples.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
 - REPL: enter multi-line words, keep definitions between entries, inspect values and signatures, and recover from errors.
