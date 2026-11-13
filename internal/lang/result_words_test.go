@@ -156,7 +156,7 @@ func TestErrorDetailsForBufferAndArguments(t *testing.T) {
 }
 
 func TestErrorCanBeInspectedByOrdinaryWord(t *testing.T) {
-	source := "word describe(problem: Error) -> String\n    error.code(problem)\nlet n = text.to-int(\"bad\") catch problem\n    print(describe(problem))\n    0\n"
+	source := "word describe(problem: Error) -> String\n    error.code(problem)\nlet n = text.to-int(\"bad\") catch problem\n    print(describe(error.wrap(\"text-to-int\", \"converted\", problem)))\n    0\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)

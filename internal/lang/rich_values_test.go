@@ -408,3 +408,29 @@ func TestCollectionLoopTypeAndScopeChecks(t *testing.T) {
 		}
 	}
 }
+
+func TestCaughtErrorsCannotBeLaunderedThroughUserWords(t *testing.T) {
+	source := "word collect(problem: Error) -> List<Error>\n    [problem]\nlet n = text.to-int(\"bad\") catch problem\n    let errors = collect(problem)\n    0\n"
+	if _, err := Compile("test.zhex", source); err == nil || !strings.Contains(err.Error(), "error.wrap") {
+		t.Fatalf("accepted concrete error laundering: %v", err)
+	}
+	safe := "word collect(problem: Error) -> List<Error>\n    [problem]\nlet n = text.to-int(\"bad\") catch problem\n    let errors = collect(error.wrap(\"converted\", \"converted\", problem))\n    print(list.length(errors))\n    0\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", safe, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestArrayErrorDetailsAndOrigin(t *testing.T) {
+	source := "let grid = array.new([2, 3], 0) try\nlet x = grid[1, 7] catch problem\n    print(error.operation(problem))\n    print(error.detail(problem, \"axis\"))\n    print(error.detail(problem, \"index\"))\n    print(error.detail(problem, \"extent\"))\n    print(error.line(problem))\n    0\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "array.index\n1\n7\n3\n2\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}

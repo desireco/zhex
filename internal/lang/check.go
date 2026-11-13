@@ -831,10 +831,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			if typ == errorType {
 				w, _ := c.resolveWord(step.text)
 				if w != nil {
-					inner, isResult := resultInner(w.result)
-					if w.result == errorType || isResult && inner == errorType {
-						return "", errorAt(step.pos, CodeArgumentType, "convert concrete errors explicitly before passing them through an Error-valued flow step")
-					}
+					return "", errorAt(step.pos, CodeArgumentType, "convert errors explicitly with error.wrap before passing them to a user word")
 				}
 			}
 			if step.text == "err" || step.text == "ok" && typ == errorType {
@@ -1405,11 +1402,10 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			return "", valueError(x.pos, span, CodeArgumentType, msg, tryHint(typ), operands...)
 		}
 	}
-	inner, isResultReturn := resultInner(result)
-	if x.word != nil && (result == errorType || isResultReturn && inner == errorType) {
+	if x.word != nil {
 		for i, arg := range x.args {
 			if args[i] == errorType && arg.binding != nil && arg.binding.errorFamily != "" && arg.binding.errorFamily != "Error" {
-				return "", errorAt(x.pos, CodeArgumentType, "convert %s explicitly with error.wrap before returning it as Error", arg.binding.errorFamily)
+				return "", errorAt(x.pos, CodeArgumentType, "convert %s explicitly with error.wrap before passing it to a user word", arg.binding.errorFamily)
 			}
 		}
 	}
