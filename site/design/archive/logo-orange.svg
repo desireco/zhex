@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Zhex orange logo</title>
+  <desc id="desc">Zhex wordmark: a prominent modular Z and prompt chevron for a language of small words and big ideas.</desc>
+  <rect width="1200" height="360" fill="#F6F3EC"/>
+  <g transform="translate(62 42)">
+    <path d="M30 54H264L42 246H276" fill="none" stroke="#1D1B19" stroke-width="48" stroke-linecap="square" stroke-linejoin="bevel"/>
+    <rect x="304" y="108" width="96" height="96" fill="#FF5A2A"/>
+    <path d="M333 132L370 156L333 180" fill="none" stroke="#1D1B19" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter"/>
+    <text x="420" y="239" fill="#1D1B19" font-family="Avenir Next, Trebuchet MS, sans-serif" font-size="174" font-weight="700" letter-spacing="-9">hex</text>
+  </g>
+</svg>

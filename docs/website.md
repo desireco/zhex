@@ -15,7 +15,7 @@ go run ./tools/build-site
 python3 -m http.server 8000 --directory _site
 ```
 
-Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, a public copy of `ROADMAP.md`, styles, the logo and icon, and public downloads under `examples/`.
+Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, a public copy of `ROADMAP.md`, styles, the logo and icon, and public downloads under `examples/`. The static `site/design/` tree is copied verbatim to `design/`, so the [design system](design/design-system.html) and the concept archive ship with the site; its pages participate in the same local-link validation as the generated ones.
 
 ## Keep examples accurate
 

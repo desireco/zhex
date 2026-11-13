@@ -234,12 +234,39 @@ func loadExamples(root string) (pageData, error) {
 	return data, nil
 }
 
+// Pages under site/design (the design system and the concept archive) are
+// static documents: they are copied verbatim into design/ in the output.
+func loadDesignFiles(root string, files map[string][]byte) error {
+	base := filepath.Join(root, "site", "design")
+	return filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(base, path)
+		if err != nil {
+			return err
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read design asset %s: %w", rel, err)
+		}
+		files["design/"+filepath.ToSlash(rel)] = content
+		return nil
+	})
+}
+
 func build(root, output string) error {
 	data, err := loadExamples(root)
 	if err != nil {
 		return err
 	}
 	files := map[string][]byte{".nojekyll": {}}
+	if err := loadDesignFiles(root, files); err != nil {
+		return err
+	}
 	roadmap, err := os.ReadFile(filepath.Join(root, "ROADMAP.md"))
 	if err != nil {
 		return fmt.Errorf("read roadmap: %w", err)

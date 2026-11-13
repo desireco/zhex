@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200" role="img" aria-labelledby="title desc">
+  <title id="title">Zhex logo system in three color schemes</title>
+  <desc id="desc">A comparison sheet showing the Zhex logo and its small words, big ideas motto in three palettes.</desc>
+  <rect width="1600" height="1200" fill="#E9ECE8"/>
+
+  <text x="96" y="108" fill="#171A18" font-family="Avenir Next, Trebuchet MS, sans-serif" font-size="72" font-weight="800" letter-spacing="-4">Zhex logo system</text>
+  <text x="100" y="166" fill="#5B625D" font-family="SFMono-Regular, Consolas, monospace" font-size="22" letter-spacing="2">SMALL WORDS  →  CLEAR FLOW  →  BIG IDEAS</text>
+
+  <g transform="translate(80 230)">
+    <rect width="1440" height="250" fill="#F1F4ED"/>
+    <text x="42" y="56" fill="#4F805F" font-family="SFMono-Regular, Consolas, monospace" font-size="18" font-weight="700" letter-spacing="2">01 / REFINED GREEN</text>
+    <g transform="translate(278 20) scale(.68)">
+      <path d="M30 54H264L42 246H276" fill="none" stroke="#173D30" stroke-width="48" stroke-linecap="square" stroke-linejoin="bevel"/>
+      <rect x="304" y="108" width="96" height="96" fill="#C8E879"/>
+      <path d="M333 132L370 156L333 180" fill="none" stroke="#173D30" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter"/>
+      <text x="420" y="239" fill="#173D30" font-family="Avenir Next, Trebuchet MS, sans-serif" font-size="174" font-weight="700" letter-spacing="-9">hex</text>
+    </g>
+    <g transform="translate(1245 42)">
+      <rect width="166" height="166" fill="#173D30"/>
+      <path d="M31 38H105L35 99H109" fill="none" stroke="#F1F4ED" stroke-width="18" stroke-linecap="square" stroke-linejoin="bevel"/>
+      <rect x="113" y="70" width="34" height="34" fill="#C8E879"/>
+      <path d="M124 80L136 87L124 94" fill="none" stroke="#173D30" stroke-width="6"/>
+    </g>
+  </g>
+
+  <g transform="translate(80 510)">
+    <rect width="1440" height="250" fill="#F6F3EC"/>
+    <text x="42" y="56" fill="#DF4217" font-family="SFMono-Regular, Consolas, monospace" font-size="18" font-weight="700" letter-spacing="2">02 / SIGNAL ORANGE</text>
+    <g transform="translate(278 20) scale(.68)">
+      <path d="M30 54H264L42 246H276" fill="none" stroke="#1D1B19" stroke-width="48" stroke-linecap="square" stroke-linejoin="bevel"/>
+      <rect x="304" y="108" width="96" height="96" fill="#FF5A2A"/>
+      <path d="M333 132L370 156L333 180" fill="none" stroke="#1D1B19" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter"/>
+      <text x="420" y="239" fill="#1D1B19" font-family="Avenir Next, Trebuchet MS, sans-serif" font-size="174" font-weight="700" letter-spacing="-9">hex</text>
+    </g>
+    <g transform="translate(1245 42)">
+      <rect width="166" height="166" fill="#1D1B19"/>
+      <path d="M31 38H105L35 99H109" fill="none" stroke="#F6F3EC" stroke-width="18" stroke-linecap="square" stroke-linejoin="bevel"/>
+      <rect x="113" y="70" width="34" height="34" fill="#FF5A2A"/>
+      <path d="M124 80L136 87L124 94" fill="none" stroke="#1D1B19" stroke-width="6"/>
+    </g>
+  </g>
+
+  <g transform="translate(80 790)">
+    <rect width="1440" height="250" fill="#0D1210"/>
+    <text x="42" y="56" fill="#75DA87" font-family="SFMono-Regular, Consolas, monospace" font-size="18" font-weight="700" letter-spacing="2">03 / TERMINAL DARK</text>
+    <g transform="translate(278 20) scale(.68)">
+      <path d="M30 54H264L42 246H276" fill="none" stroke="#E8F0E9" stroke-width="48" stroke-linecap="square" stroke-linejoin="bevel"/>
+      <rect x="304" y="108" width="96" height="96" fill="#75DA87"/>
+      <path d="M333 132L370 156L333 180" fill="none" stroke="#0D1210" stroke-width="18" stroke-linecap="square" stroke-linejoin="miter"/>
+      <text x="420" y="239" fill="#E8F0E9" font-family="Avenir Next, Trebuchet MS, sans-serif" font-size="174" font-weight="700" letter-spacing="-9">hex</text>
+    </g>
+    <g transform="translate(1245 42)">
+      <rect width="166" height="166" fill="#151D19" stroke="#344139" stroke-width="2"/>
+      <path d="M31 38H105L35 99H109" fill="none" stroke="#E8F0E9" stroke-width="18" stroke-linecap="square" stroke-linejoin="bevel"/>
+      <rect x="113" y="70" width="34" height="34" fill="#75DA87"/>
+      <path d="M124 80L136 87L124 94" fill="none" stroke="#0D1210" stroke-width="6"/>
+    </g>
+  </g>
+
+  <line x1="96" y1="1090" x2="1504" y2="1090" stroke="#C4CAC4"/>
+  <text x="100" y="1140" fill="#5B625D" font-family="SFMono-Regular, Consolas, monospace" font-size="18">Small words compose into clear flows. Clear flows express big ideas.</text>
+</svg>
