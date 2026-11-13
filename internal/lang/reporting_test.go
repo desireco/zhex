@@ -141,7 +141,7 @@ func TestHostReporterCanOptIntoSensitiveDetails(t *testing.T) {
 }
 
 func TestHostReporterIncludesRuntimeOperation(t *testing.T) {
-	for _, tc := range []struct{ source, operation string }{{"1 / 0\n", "/"}, {"for line in file.lines(\"/nonexistent-zhex-file\")\n    print(line)\n", "file.lines"}} {
+	for _, tc := range []struct{ source, operation string }{{"1 / 0\n", "/"}, {"console.exit(256)\n", "console.exit"}, {"for line in file.lines(\"/nonexistent-zhex-file\")\n    print(line)\n", "file.lines"}} {
 		p, err := Compile("test.zhex", tc.source)
 		if err != nil {
 			t.Fatal(err)
@@ -172,5 +172,34 @@ func TestHostReportBoundsCauseSnapshots(t *testing.T) {
 	}
 	if count != 32 || !node.CauseTruncated {
 		t.Fatalf("cause depth %d, truncated %v", count, node.CauseTruncated)
+	}
+}
+
+func TestDeliberateExitDoesNotAutomaticallyReport(t *testing.T) {
+	for _, tc := range []struct {
+		source  string
+		reports int
+	}{
+		{"console.exit(0)\n", 0},
+		{"let n = text.to-int(\"bad\") catch problem\n    error.report(problem)\n    console.exit(23)\n", 1},
+	} {
+		p, err := Compile("test.zhex", tc.source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		count := 0
+		err = p.RunWithOptions(strings.NewReader(""), io.Discard, RunOptions{Reporter: func(ErrorReport) error { count++; return nil }})
+		if _, ok := err.(*ExitError); !ok || count != tc.reports {
+			t.Fatalf("exit %v, reports %d", err, count)
+		}
+	}
+}
+
+func TestReporterExitCannotReplaceOriginalFailure(t *testing.T) {
+	source := "word report(problem: Error) -> Unit\n    console.exit(99)\nerror.set-reporter(report)\ntext.to-int(\"bad\") try\n"
+	var out bytes.Buffer
+	err := Run("test.zhex", source, strings.NewReader(""), &out)
+	if err == nil || !strings.Contains(err.Error(), `"bad" is not a signed`) {
+		t.Fatalf("original failure changed: %v", err)
 	}
 }

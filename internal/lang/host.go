@@ -185,6 +185,12 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "file.close":
 		args[0].file.close()
 		return value{}, nil
+	case "console.exit":
+		status := args[0].number
+		if status < 0 || status > 255 {
+			return value{}, errorAt(x.pos, CodeExitStatus, "console.exit status must be between 0 and 255, found %d", status)
+		}
+		return value{}, &ExitError{Status: int(status)}
 	case "console.arg":
 		i := args[0].number
 		if i < 0 || i >= int64(len(r.args)) {

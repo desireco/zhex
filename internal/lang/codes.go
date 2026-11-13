@@ -13,6 +13,7 @@ type Code string
 // this list, the constructors' usage, and catalog.md in sync — the test in
 // codes_test.go fails when they drift.
 const (
+	CodeExitStatus          Code = "console-exit-status"
 	CodeErrorNoCause        Code = "error-no-cause"
 	CodeSourceUTF8          Code = "source-utf8"
 	CodeTabCharacter        Code = "tab-character"
@@ -79,7 +80,7 @@ const (
 )
 
 var diagnosticCodes = []Code{
-	CodeErrorNoCause,
+	CodeErrorNoCause, CodeExitStatus,
 	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeStringEscape, CodeUnexpectedCharacter,
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,
 	CodeIntegerLiteralRange, CodeExpectedExpression, CodeFlowStep,

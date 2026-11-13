@@ -5,6 +5,9 @@ diagnostic is always `file:line:column: message`; the source excerpt, caret,
 and `hint:` line are additive detail. Machine readers use
 `zhex run <file> --report=json`.
 
+## console-exit-status
+`console.exit` requires a status from 0 through 255. Choose a portable exit status in that range.
+
 ## unhandled-result
 Handle or propagate each Result with `catch` or `try`. An immutable stored Result must be handled by the immediately following statement in the same block.
 

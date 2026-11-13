@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -70,6 +71,10 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		})
 	}
 	if err != nil {
+		var exit *lang.ExitError
+		if errors.As(err, &exit) {
+			return exit.Status
+		}
 		if report == "json" {
 			if jsonReport, ok := lang.Report(err); ok {
 				fmt.Fprintln(diagnostics, jsonReport)
@@ -112,15 +117,20 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			}
 		}
 	}
-	enter := func() {
+	enter := func() (int, bool) {
 		echo, err := session.Enter(buffer)
 		if err != nil {
+			var exit *lang.ExitError
+			if errors.As(err, &exit) {
+				return exit.Status, true
+			}
 			fmt.Fprintln(diagnostics, err)
-			return
+			return 0, false
 		}
 		if echo != "" {
 			fmt.Fprintln(output, echo)
 		}
+		return 0, false
 	}
 	for {
 		fmt.Fprint(output, map[bool]string{true: "....> ", false: "zhex> "}[pending])
@@ -137,7 +147,9 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			case lang.IsIncomplete(cerr):
 			default:
 				buffer = line + "\n"
-				enter()
+				if status, exited := enter(); exited {
+					return status
+				}
 			}
 			return 0
 		}
@@ -162,6 +174,8 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 				continue
 			}
 		}
-		enter()
+		if status, exited := enter(); exited {
+			return status
+		}
 	}
 }

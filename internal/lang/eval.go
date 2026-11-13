@@ -2,6 +2,7 @@ package lang
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"math"
 	"os"
@@ -49,6 +50,11 @@ type inputResult struct {
 }
 
 // propagation crosses nested blocks but is caught by the current word or runner.
+// ExitError requests a deliberate program exit; embedders choose how to apply it.
+type ExitError struct{ Status int }
+
+func (e *ExitError) Error() string { return fmt.Sprintf("program requested exit status %d", e.Status) }
+
 type returnValue struct{ result value }
 
 func (r *returnValue) Error() string { return "return" }

@@ -362,6 +362,16 @@ func TestExecutable(t *testing.T) {
 	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
 		t.Fatalf("expected exit 1, got %v", err)
 	}
+	exitSource := filepath.Join(t.TempDir(), "exit.zhex")
+	if err := os.WriteFile(exitSource, []byte("console.exit(23)\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command(path, "run", exitSource)
+	if err = cmd.Run(); err == nil {
+		t.Fatal("expected exit 23")
+	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 23 {
+		t.Fatalf("expected exit 23, got %v", err)
+	}
 	cmd = exec.Command(path, "repl")
 	cmd.Stdin = strings.NewReader("1 + 1\n")
 	output, err = cmd.CombinedOutput()
@@ -440,5 +450,47 @@ func TestReplUseSessionScript(t *testing.T) {
 	if !strings.Contains(diagnostics.String(), `"_wrap" is private to module "math"`) ||
 		!strings.Contains(diagnostics.String(), "hint: remove the leading underscore in math.zhex to export it") {
 		t.Fatalf("stderr %q misses the private-use diagnostic", diagnostics.String())
+	}
+}
+
+func TestConsoleExitReturnsRequestedStatus(t *testing.T) {
+	for _, tc := range []struct {
+		source string
+		status int
+	}{
+		{"console.exit(0)\nprint(\"after\")\n", 0},
+		{"word stop() -> Unit\n    console.exit(23)\nstop()\nprint(\"after\")\n", 23},
+		{"let n = text.to-int(\"bad\") catch problem\n    console.exit(255)\nprint(n)\n", 255},
+	} {
+		path := filepath.Join(t.TempDir(), "exit.zhex")
+		if err := os.WriteFile(path, []byte(tc.source), 0600); err != nil {
+			t.Fatal(err)
+		}
+		var out, diagnostics bytes.Buffer
+		status := run([]string{"run", path, "--report=json"}, strings.NewReader(""), &out, &diagnostics)
+		if status != tc.status || out.Len() != 0 || diagnostics.Len() != 0 {
+			t.Fatalf("status %d, output %q, stderr %q", status, out.String(), diagnostics.String())
+		}
+	}
+}
+
+func TestConsoleExitRejectsInvalidStatus(t *testing.T) {
+	for _, code := range []string{"-1", "256"} {
+		path := filepath.Join(t.TempDir(), "exit.zhex")
+		if err := os.WriteFile(path, []byte("console.exit("+code+")\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		var out, diagnostics bytes.Buffer
+		if status := run([]string{"run", path, "--report=json"}, strings.NewReader(""), &out, &diagnostics); status != 1 || !strings.Contains(diagnostics.String(), `"code":"console-exit-status"`) {
+			t.Fatalf("status %d, stderr %q", status, diagnostics.String())
+		}
+	}
+}
+
+func TestReplConsoleExitReturnsStatus(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	status := run([]string{"repl"}, strings.NewReader("console.exit(42)\nprint(\"after\")\n"), &out, &diagnostics)
+	if status != 42 || strings.Contains(out.String(), "after") || diagnostics.Len() != 0 {
+		t.Fatalf("status %d, output %q, stderr %q", status, out.String(), diagnostics.String())
 	}
 }

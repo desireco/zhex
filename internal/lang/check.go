@@ -60,7 +60,7 @@ var hostWords = []string{
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
 	"file.read-all", "file.read-lines", "file.open", "file.read-line", "file.close", "file.lines",
-	"console.arg", "console.args-count",
+	"console.arg", "console.args-count", "console.exit",
 }
 
 // HostWord reports whether name is a word provided by the host, not the program.
@@ -878,6 +878,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "file.close":
 			params = []valueType{fileType}
 			result = unitType
+		case "console.exit":
+			params = []valueType{intType}
+			result = neverType
 		case "console.arg":
 			params = []valueType{intType}
 			result = stringResultType
