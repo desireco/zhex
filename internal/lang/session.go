@@ -88,9 +88,11 @@ func (s *Session) Enter(source string) (string, error) {
 	// Only this entry's new direct uses adopt; a repeat use is a no-op, and a
 	// module another module imported stays invisible until named directly.
 	var fresh []use
+	seen := make(map[string]bool)
 	for _, u := range p.uses {
-		if !s.usedDirectly(u.name) {
+		if !s.usedDirectly(u.name) && !seen[u.name] {
 			fresh = append(fresh, u)
+			seen[u.name] = true
 		}
 	}
 	modules, err := s.adopt(fresh, words, &redefined, sources)

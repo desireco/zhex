@@ -187,6 +187,10 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 	}
 	var order []*module
 	var stack []string // use names being loaded, for cycle chains
+	var paths []string
+	if importingPath != "" {
+		paths = append(paths, importingPath)
+	}
 	var load func(uses []use, path string) error
 	load = func(uses []use, path string) error {
 		for _, u := range uses {
@@ -214,10 +218,11 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 			if !ok {
 				return missing(u, path)
 			}
-			if src.Path == path {
-				// The module resolved to the importing file itself; the stack
-				// cannot see the entry, so name the self-import here.
-				return withSpanRange(errorAt(u.pos, CodeUseCycle, "module cycle: %s -> %s", path, path), u.pos, u.end)
+			for i, active := range paths {
+				if filepath.Clean(src.Path) == filepath.Clean(active) {
+					chain := append(append([]string{}, paths[i:]...), src.Path)
+					return withSpanRange(errorAt(u.pos, CodeUseCycle, "module cycle: %s", strings.Join(chain, " -> ")), u.pos, u.end)
+				}
 			}
 			sources[src.Path] = src.Source
 			mp, err := parse(src.Path, src.Source)
@@ -242,10 +247,12 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 			}
 			byName[u.name] = m
 			stack = append(stack, u.name)
+			paths = append(paths, src.Path)
 			if err := load(mp.uses, src.Path); err != nil {
 				return err
 			}
 			stack = stack[:len(stack)-1]
+			paths = paths[:len(paths)-1]
 			order = append(order, m) // post-order: dependencies check first
 		}
 		return nil

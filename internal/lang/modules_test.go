@@ -98,6 +98,20 @@ func TestDuplicateUseIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestSessionDuplicateUseInEntryIsIdempotent(t *testing.T) {
+	var out strings.Builder
+	s := NewSession(strings.NewReader(""), &out, nil, mapResolver(map[string]string{"math.zhex": mathModule}))
+	if _, err := s.Enter("use math\nuse math\n"); err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("duplicate use produced output: %q", out.String())
+	}
+	if echo, err := s.Enter("math.gcd(48, 18)\n"); err != nil || echo != "6" {
+		t.Fatalf("adopted word: echo %q, error %v", echo, err)
+	}
+}
+
 func TestUseMissingNamesTheSearchedPath(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -132,6 +146,24 @@ func TestUseCycleSpellsThePath(t *testing.T) {
 	}))
 	if !strings.HasPrefix(got, "b.zhex:1:1: module cycle: a.zhex -> b.zhex -> a.zhex") {
 		t.Fatalf("two-module cycle diagnostic changed: %q", got)
+	}
+}
+
+func TestUseCycleBackToEntry(t *testing.T) {
+	for _, entryPath := range []string{"main.zhex", "./main.zhex"} {
+		for _, indirect := range []bool{false, true} {
+			source := "use main\nprint(1)\n"
+			if indirect {
+				source = "use math\nprint(1)\n"
+			}
+			_, err := CompileModules(entryPath, source, mapResolver(map[string]string{
+				"main.zhex": source,
+				"math.zhex": "use main\n" + mathModule,
+			}))
+			if code, _ := codeOf(t, err); code != "use-cycle" {
+				t.Fatalf("entry %s, indirect %v: wanted use-cycle, got %v", entryPath, indirect, err)
+			}
+		}
 	}
 }
 
