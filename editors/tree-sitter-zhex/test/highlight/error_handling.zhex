@@ -1,0 +1,10 @@
+word parse(problem: Error) -> Result<Int, ParseError>
+# <- keyword
+#                   ^ type
+#                             ^ type
+#                                         ^ type
+    let n = text.to-int("bad") catch problem
+#                              ^ keyword
+        return err(error.wrap("code", "message", problem))
+#       ^ keyword
+#                  ^ function
