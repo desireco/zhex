@@ -7,7 +7,7 @@ Build a readable language from small, composable words. The Go interpreter lets 
 The first language milestone runs real programs with checked types and console input and output.
 
 - Interpreter: typed words, inferred locals, conditions, bounded loops, and checked flows.
-- Working examples: composition, console input, FizzBuzz, Fibonacci, factorial, and palindrome checking.
+- Working examples: composition, console input, FizzBuzz, Fibonacci, factorial, palindrome checking, a recursive GCD, and a times table.
 - Executable specification: tests cover syntax, types, scope, arithmetic boundaries, Unicode, and failure paths.
 - Getting started: documentation, a public examples website, just recipes for development, and local highlighting packages for Vim/Neovim, VS Code, and Zed.
 - Website: an editorial redesign with a new logo, syntax-highlighted examples, and a published design system with a concept archive.

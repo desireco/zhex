@@ -6,7 +6,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 
 - `internal/lang` — the language implementation: `syntax.go`, `lexer.go`, `parser.go`, `check.go`, `eval.go`, `host.go`. Tests in that directory are the executable specification (see `docs/tests.md`).
 - `cmd/zhex` — the CLI: `go run ./cmd/zhex run <file>`.
-- `examples/*.zhex` — validated example corpus (hello, fizzbuzz, fibonacci, factorial, palindrome, composition). The website executes every example at build time; a broken example fails the build.
+- `examples/*.zhex` — validated example corpus (hello, fizzbuzz, fibonacci, gcd, times-table, factorial, palindrome, composition). The website executes every example at build time; a broken example fails the build.
 - `docs/` — the language contract (`initial-language.md`), getting-started guide, and research notes.
 - `site/` + `tools/build-site` — website templates and the Go generator; `site/design/` ships the design system verbatim.
 - `editors/` — syntax highlighting for Vim/Neovim, VS Code, and Zed.
@@ -26,7 +26,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 - Standard operations: `print`, `range`, `int.to-string`, `text.reverse`, `console.read-line`, `console.read-int`.
 - Names: ASCII letters, digits, underscores, plus hyphenated segments (`is-palindrome`). Dots qualify operation names (`int.to-string`). Gotcha: `a-b` is a single name — write `a - b` for subtraction.
 
-Canonical patterns live in `examples/` and on the website's docs page (desireco.github.io/zhex/docs.html).
+Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seeded with a computed call, `times-table` shows bounded loops and string building — and on the website's docs page (desireco.github.io/zhex/docs.html).
 
 ## Reading checker errors
 
