@@ -1,0 +1,3 @@
+Zhex counts words, lines, and characters.
+The café is open!
+bye

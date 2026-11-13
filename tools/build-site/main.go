@@ -218,15 +218,19 @@ func highlight(source string) template.HTML {
 	return template.HTML(out.String())
 }
 
-var exampleSpecs = []struct{ id, title, description, input string }{
-	{"composition", "Composition", "Build larger operations from small typed words.", ""},
-	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n"},
-	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n"},
-	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n"},
-	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n"},
-	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n"},
-	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n"},
-	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n"},
+var exampleSpecs = []struct {
+	id, title, description, input string
+	args                          []string
+}{
+	{"composition", "Composition", "Build larger operations from small typed words.", "", nil},
+	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil},
+	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", nil},
+	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", nil},
+	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", nil},
+	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", nil},
+	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", nil},
+	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", nil},
+	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", []string{"examples/text-stats-sample.txt"}},
 }
 
 func main() {
@@ -253,13 +257,21 @@ func loadExamples(root string) (pageData, error) {
 			return pageData{}, fmt.Errorf("read example %s: %w", filename, err)
 		}
 		var output bytes.Buffer
-		if err := lang.Run(filename, string(source), strings.NewReader(spec.input), &output); err != nil {
+		runArgs := make([]string, len(spec.args))
+		for i, arg := range spec.args {
+			runArgs[i] = filepath.Join(root, arg)
+		}
+		if err := lang.RunWithArgs(filename, string(source), strings.NewReader(spec.input), &output, nil, runArgs); err != nil {
 			return pageData{}, fmt.Errorf("run website example %s: %w", filename, err)
+		}
+		command := "zhex run examples/" + filename
+		for _, arg := range spec.args {
+			command += " " + arg
 		}
 		data.Examples = append(data.Examples, Example{
 			ID: spec.id, Title: spec.title, Description: spec.description,
 			Source: string(source), Input: strings.TrimSuffix(spec.input, "\n"), Output: output.String(),
-			Command:   "zhex run examples/" + filename,
+			Command:   command,
 			SourceURL: "examples/" + filename,
 		})
 		if spec.id == "hello" {

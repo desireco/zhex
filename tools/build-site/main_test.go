@@ -31,6 +31,9 @@ func siteFixture(t *testing.T) string {
 	}
 	for _, spec := range exampleSpecs {
 		files["examples/"+spec.id+".zhex"] = "print(\"<script>alert(1)</script>\")\n"
+		for _, arg := range spec.args {
+			files[arg] = "fixture text\n"
+		}
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0644); err != nil {
@@ -255,8 +258,9 @@ func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n"}
-	if len(data.Examples) != 8 {
+	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n", "text-stats": "3 lines  11 words  64 chars\n"}
+	wantCommand := map[string]string{"text-stats": "zhex run examples/text-stats.zhex examples/text-stats-sample.txt"}
+	if len(data.Examples) != 9 {
 		t.Fatalf("got %d examples", len(data.Examples))
 	}
 	for _, example := range data.Examples {
@@ -267,7 +271,11 @@ func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 		if example.Source != string(source) {
 			t.Fatalf("source drifted for %s", example.ID)
 		}
-		if example.Command != "zhex run examples/"+example.ID+".zhex" {
+		if expected := wantCommand[example.ID]; expected != "" {
+			if example.Command != expected {
+				t.Fatalf("user-facing run command for %s is %q", example.ID, example.Command)
+			}
+		} else if example.Command != "zhex run examples/"+example.ID+".zhex" {
 			t.Fatalf("user-facing run command for %s is %q", example.ID, example.Command)
 		}
 		if output, ok := want[example.ID]; ok && example.Output != output {

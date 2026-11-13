@@ -31,7 +31,7 @@
     </section>
 
     <div class="programs">
-    {{range .Examples}}{{if or (eq .ID "hello") (eq .ID "fizzbuzz") (eq .ID "fibonacci") (eq .ID "palindrome") (eq .ID "gcd") (eq .ID "times-table")}}
+    {{range .Examples}}{{if or (eq .ID "hello") (eq .ID "fizzbuzz") (eq .ID "fibonacci") (eq .ID "palindrome") (eq .ID "gcd") (eq .ID "times-table") (eq .ID "text-stats")}}
       <details class="program" id="{{.ID}}"{{if eq .ID "hello"}} open{{end}}>
         <summary><span><strong>{{.Title}}</strong><span>{{.Description}}</span></span><span class="expand-mark" aria-hidden="true">+</span></summary>
         <div class="program-body">

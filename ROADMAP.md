@@ -19,16 +19,16 @@ The first language milestone runs real programs with checked types and console i
 - Insight: `zhex run --trace` streams JSONL step events — word calls, bindings, flow steps, returns — so people and agents can watch a program run; the event vocabulary is documented in llms.txt.
 - REPL: `zhex repl` keeps words and values across entries, enters multi-line words ended by a blank line, echoes expression values, redefines words with a note, lists signatures with `words`, recovers from errors, and traces with `--trace`.
 - Vocabulary: rich text work ships — twelve `text` words, `Buffer` and `File` types with chomped-line buffers, guaranteed-close `file.lines` loops, and program arguments via `console.arg`.
+- Text utility: `text-stats` reads a file two ways — whole-buffer counts and a streamed uppercased echo — with program arguments, streamed lines, and guaranteed close, all through the new vocabulary (#28) — and becomes the workload for measurements (#4).
 
 ## Next
 
-Make everyday experiments quicker, then build a useful text utility. This is the proposed order; each step needs working examples and tests.
+Make everyday experiments quicker, then measure the shipped text utility and keep growing the language's reach. This is the proposed order; each step needs working examples and tests.
 
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
 - Modules: explicit imports, public words, qualified names, and useful errors across files.
-- Text utility: accept command-line arguments, stream a file, and close resources on success and failure.
-- Measurements: record execution time and allocations for that utility, then review readability and choose the next application.
+- Measurements: record execution time and allocations for the text utility, then review readability and choose the next application.
 
 ## Future
 
