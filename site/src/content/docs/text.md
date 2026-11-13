@@ -5,14 +5,14 @@ section: Standard library
 order: 70
 ---
 
-Zhex validates strings as UTF-8. Text length, reversal, indexing, and slicing use Unicode code points rather than bytes. In the signatures below, `Result<T, E>` describes a built-in return value; programs cannot write this type in a word signature or define new result types.
+Zhex validates strings as UTF-8. Text length, reversal, indexing, and slicing use Unicode code points rather than bytes. In the signatures below, `Result<T, E>` describes a built-in return value. Programs can declare `Result<T, E>` as a fallible word's result type; user-defined error types are not supported.
 
 ## Formatting and parsing
 
 | Signature | Behavior |
 | --- | --- |
 | `int.to-string(Int) -> String` | Convert an integer to signed decimal text. |
-| `text.to-int(String) -> Result<Int, ParseError>` | On success, parse trimmed signed 64-bit decimal text; use `try` to unwrap it. |
+| `text.to-int(String) -> Result<Int, ParseError>` | On success, parse trimmed signed 64-bit decimal text; use `try` to propagate failure or `catch` to recover. |
 
 There is no implicit conversion between `Int` and `String`.
 

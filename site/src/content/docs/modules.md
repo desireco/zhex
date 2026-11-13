@@ -61,7 +61,7 @@ The leading underscore is the visibility rule; there is no separate export decla
 
 ## Resolution and errors
 
-`use` is allowed only at file top level. Repeating the same import is a no-op. A missing sibling file reports the searched path. Import cycles are errors, and the module names `text`, `int`, `buffer`, `file`, and `console` are reserved for built-in operations. An imported file with top-level statements is rejected.
+`use` is allowed only at file top level. Repeating the same import is a no-op. A missing sibling file reports the searched path. Import cycles are errors, and the module names `text`, `int`, `buffer`, `file`, `console`, and `error` are reserved for built-in operations. An imported file with top-level statements is rejected.
 
 All imported modules and the entry file are checked before execution. Module errors point to the module's own source. The two-file [modules example](../examples.html#modules/main) shows a complete program.
 

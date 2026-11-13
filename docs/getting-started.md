@@ -87,19 +87,23 @@ A **word** is a function. `greet` accepts a `String` and returns a `String`. Its
 
 `flow` expresses a sequence of one-argument operations. Here the name goes into `greet`, and the resulting greeting goes into `print`. The checker verifies each connection before execution. You can also call words directly with parentheses, such as `greet(name)`.
 
-## Read numbers and handle failure
+## Read numbers and choose a fallback
 
-Read a line, then parse it with `text.to-int`, the inverse of `int.to-string`:
+Read a line, then parse it with `text.to-int`, the inverse of `int.to-string`. This program uses `try` for input failure and handles malformed numeric text with `catch`:
 
-```text
+```zhex
 let line = read-line("Number: ") try
-let number = text.to-int(line) try
+let number = text.to-int(line) catch problem
+    print("Invalid integer: " + error.code(problem))
+    0
 print(number * number)
 ```
 
-Both operations return a result that can succeed or fail. Postfix `try` unwraps success and propagates failure to the runner. Invalid numeric text, an out-of-range integer, or end-of-input produces a diagnostic and a nonzero exit status. Input failure never silently becomes zero or an empty string.
+`read-line` returns a Result; `try` unwraps a successful line or propagates an input error to the caller. Here, invalid numeric text or an out-of-range integer is caught, its stable code is inspected, and the program substitutes `0`. The handler is lazy: it runs only when parsing fails.
 
 `read-line` preserves spaces and accepts an empty line. `text.to-int` trims surrounding whitespace and requires a signed 64-bit decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
+
+If one word calls another fallible word, declare a compatible `Result` return and add `try` at the call site. The [Results and error handling guide](../site/src/content/docs/results.md) shows multi-level propagation, structured errors, and the optional reporter.
 
 ## Make decisions
 

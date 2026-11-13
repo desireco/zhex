@@ -14,8 +14,8 @@ The first language milestone runs real programs with checked types and console i
 - Licensing: the repository is public and published under the MIT license.
 - Editors: syntax highlighting for Vim/Neovim, VS Code, and Zed, with installation and usage documented on the website's docs page.
 - Agents: AGENTS.md, an llms.txt site index, and agent-readable examples make Zhex easy for humans to review and AI agents to write.
-- Errors: every diagnostic points at the failing line with a caret, suggests the fix for common mistakes, offers did-you-mean for typos, carries a stable code cataloged on the site, and reports as JSON for agents via `--report=json`; carets underline the whole expression, and type mismatches narrate where mismatched values come from; researched from Elixir, Ruby, Swift, and Elm.
-- Input: reads are bare `read-line` for text and `text.to-int` parses a string into an integer symmetric with `int.to-string`, both returning failing results unwrapped with postfix `try`.
+- Errors: built-in diagnostics point at the source, carry stable cataloged codes, and can report as JSON; fallible words declare `Result<T, E>`, propagate matching failures through `try`, or recover lazily with `catch`. Results cannot be silently discarded. Structured Error values expose code, origin, details, and causes; a named reporter can observe explicit handled reports and each unhandled terminal failure without external delivery by default. `console.exit` provides deliberate statuses from 0 to 255; `console.fail` writes a message to stderr and exits with status 1. Both close active `file.lines` streams on termination.
+- Input: `read-line`, `text.to-int`, file, buffer, and argument reads return explicit Results. Callers choose a fallback with `catch`, propagate through compatible fallible words with `try`, or let the program boundary report an unhandled failure.
 - Insight: `zhex run --trace` streams JSONL step events — word calls, bindings, flow steps, returns — so people and agents can watch a program run; the event vocabulary is documented in llms.txt.
 - REPL: `zhex repl` keeps words and values across entries, enters multi-line words ended by a blank line, echoes expression values, redefines words with a note, lists signatures with `words`, recovers from errors, and traces with `--trace`.
 - Vocabulary: rich text work ships — twelve `text` words, `Buffer` and `File` types with chomped-line buffers, guaranteed-close `file.lines` loops, and program arguments via `console.arg`.
@@ -34,7 +34,7 @@ Grow the language's reach: a dedicated domain and funding. This is the proposed 
 
 These are directions to explore. Their order and implementation remain open, and there are no delivery dates yet.
 
-- Rich values: collections, records, dates, times, durations, and explicit error types with readable operations and formatting.
+- Rich values: collections, records, dates, times, durations, and user-defined error types with readable operations and formatting.
 - Compiled execution: evaluate a native backend, including C as a possible target, and measure composition, text processing, and allocation behavior.
 - WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output.
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.

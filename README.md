@@ -73,6 +73,8 @@ go build -o bin/zhex ./cmd/zhex
 | [GCD](examples/gcd.zhex) | Euclid's algorithm by recursion, seeded into a flow. |
 | [Times table](examples/times-table.zhex) | A bounded loop building strings from integers. |
 | [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [Error recovery](examples/recovery.zhex) | Propagate a parse failure through several words, choose a fallback, inspect its code, and report the handled occurrence. |
+| [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
 | [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library, calls its words qualified, and keeps one helper underscore-private. |
 
 The [example guide](docs/syntax-examples.md) records expected output and edge cases. The [language contract](docs/initial-language.md) defines the current rules.

@@ -17,7 +17,7 @@ Every expression has a checked type. Local binding types are inferred from their
 | `Unit` | The result of statements such as assignment, loops, and `print`. |
 | `Buffer` | A mutable sequence of string lines. See [buffers](buffers.html). |
 | `File` | An open file handle. See [files](files.html). |
-| Result values | Selected built-ins return either a success value or a failure. These built-in result families must be unwrapped with `try`; they cannot be used as ordinary values. `Result<T, E>` is descriptive notation here, not a type you can write in a signature or define yourself. See [results](results.html). |
+| Result values | Selected built-ins return either a success value or a failure. A word may declare `Result<T, E>` as its result type; the supported built-in error families are listed in [results](results.html). Results cannot be used as ordinary values and must be handled immediately with `try` or `catch`. User-defined error types are not supported. |
 
 `Buffer` and `File` are resource values. They are not copied when a name is bound, cannot be compared with `==` or `!=`, and are not accepted by `print`.
 

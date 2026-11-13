@@ -93,6 +93,10 @@ An out-of-range status is a source-located `console-exit-status` runtime failure
 
 The host receives a typed `ExitError` carrying Status, allowing an embedder to apply termination policy without killing its process. The CLI translates it to the requested status without text or JSON diagnostics. This deliberate control outcome is distinct from both a failed Result and a runtime fault.
 
+`console.fail(message: String)` is the message-bearing form of deliberate termination: it writes the message with one appended newline to the configured diagnostics writer, then requests status 1. It never returns, works as any typed catch fallback, uses the same interpreter unwinding/cleanup as exit, and does not automatically invoke an error reporter. It is a built-in operation, not a macro.
+
+Diagnostics are passed through `RunOptions.Diagnostics` and corresponding CLI/REPL setup; the interpreter does not write directly to the process's stderr. An absent host diagnostics writer discards the message. The CLI supplies its configured stderr writer. A reporter invoking fail cannot override the original outcome. An explicit report before fail remains an explicit application decision.
+
 ### Verification and incremental delivery
 
 Terra owns focused incremental implementation commits on main and all staging/pushing. Luna owns public/repository docs and runnable examples. Sol owns this contract and independent semantic review. The project card remains In Progress throughout active implementation.

@@ -1,6 +1,6 @@
 # Initial Zhex examples
 
-These source files run in the Go interpreter and are validated by its test suite. They exercise readable composition, named values, conditions, loops, and console input/output. The [initial language contract](initial-language.md) defines their syntax and semantics.
+These source files run in the Go interpreter and are validated by its test suite. They exercise readable composition, named values, conditions, loops, console input/output, and explicit error handling. The [initial language contract](initial-language.md) defines their syntax and semantics.
 
 ## Example programs
 
@@ -15,6 +15,8 @@ These source files run in the Go interpreter and are validated by its test suite
 | [gcd.zhex](../examples/gcd.zhex) | `48`, `18` | `6` | Euclid's algorithm by recursion and a flow seeded with a computed call. |
 | [times-table.zhex](../examples/times-table.zhex) | `7` | `7 x 1 = 7` through `7 x 10 = 70` | A bounded loop building each line from integers and strings. |
 | [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [recovery.zhex](../examples/recovery.zhex) | None | `Handled text-to-int`, `Reported text-to-int`, the fallback message, then `3` | Five layers of matching `ParseError` propagation, one top-level `catch`, error-code inspection, and explicit reporting of the handled error. |
+| [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
 | [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
 
 Each result line ends with a newline. The interactive programs print a prompt before reading. For FizzBuzz with input `15`, the result lines are:
@@ -47,7 +49,7 @@ FizzBuzz
 
 `read-line` removes one trailing LF and an immediately preceding CR, preserving the remaining spaces and text. An empty line is a valid empty string. A nonempty final line without a newline is accepted. EOF before any line content, invalid UTF-8, and I/O failures produce input errors. `text.to-int` additionally rejects empty/whitespace-only input, malformed integers, and integers outside the supported range.
 
-In these examples, postfix `try` unwraps a successful input result. Failure propagates to the runner, which writes a source-located diagnostic to standard error and exits nonzero. Earlier runtime output, including a prompt, can remain. This is a narrow initial use of `Result` and propagation; user-defined generic types and recovery syntax are later design work.
+The interactive examples use postfix `try` to propagate failed input to the program boundary; the runner writes a source-located diagnostic and exits nonzero. Earlier runtime output, including a prompt, can remain. `recovery.zhex` instead declares fallible words with `Result<Int, ParseError>`, propagates through each call with `try`, and handles the failure once with `catch`. Its reporter runs only because the handler explicitly calls `error.report(problem)`.
 
 All names and types are checked before the program runs, so an unknown word or incompatible flow produces no prompt and consumes no input. Output failures should likewise produce controlled runtime errors. Input comes from standard input in both interactive terminals and redirected streams; file execution and the REPL must share that input stream without losing buffered data.
 
@@ -62,15 +64,17 @@ go run ./cmd/zhex run examples/palindrome.zhex
 go run ./cmd/zhex run examples/gcd.zhex
 go run ./cmd/zhex run examples/times-table.zhex
 go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
+go run ./cmd/zhex run examples/recovery.zhex
+printf '0\n' | go run ./cmd/zhex run examples/exit-status.zhex
 go run ./cmd/zhex run examples/modules/main.zhex
 ```
 
 ## Syntax exercised by the examples
 
-- Named word parameters and result types are explicit; local types and flow intermediate types are inferred.
+- Named word parameters and result types are explicit; fallible words can declare `Result<T, E>`, while local types and flow intermediate types are inferred.
 - `let` binds an immutable local. `var` explicitly permits reassignment within lexical scope; assignment preserves its type. Naming a value does not dictate its eventual machine representation.
 - Blocks use indentation. A word's final expression supplies its result; an `if` used as a value has compatible branch result types. Statement branches in these top-level programs return `Unit`.
-- Calls use parentheses. Qualified names such as `text.reverse` and `math.gcd` name the type or module that owns the verb; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
+- Calls use parentheses. Qualify type- and module-owned operations such as `text.reverse`, `math.gcd`, and `error.code`; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
 - `+` supports integer addition or string concatenation with matching operand types; no automatic integer-to-string conversion occurs. `%` is integer remainder. `==` compares same-typed values by value. `or` combines booleans with short-circuit evaluation.
 - `range(start, end)` is an ascending integer iteration with an exclusive end. When `start >= end`, it performs no iterations. It should not require materializing a list of all integers.
 - `int.to-string` returns decimal text. `text.reverse` reverses a valid string by Unicode code points. These standard operations are predeclared.
@@ -92,10 +96,10 @@ go run ./cmd/zhex run examples/modules/main.zhex
 | Factorial | Negative or above `20` | Print the supported-range message and skip the calculation. |
 | Palindrome | `racecar`, `abba`, `été`, or an empty line | Print `Palindrome`. |
 | Palindrome | `hello` or `Racecar` | Print `Not a palindrome`. |
-| Numeric input | `abc`, `1.5`, empty line, or out-of-range integer | Report an input error and exit nonzero. |
+| Numeric input in existing examples | `abc`, `1.5`, empty line, or out-of-range integer | The example uses top-level `try`, so the runner reports an input error and exits nonzero. |
 | Any input | EOF before any content | Report an input error and exit nonzero; never silently substitute zero or an empty string. |
 
-Supported-range messages are successful program branches and exit normally; malformed input is a runtime error. Fibonacci uses `F(0) = 0` and `F(1) = 1`. The example runner bounds avoid signed 64-bit overflow; the arithmetic operations must still detect overflow independently. The mathematical helper words assume the documented input domain and are guarded by their callers here.
+Supported-range messages are successful program branches and exit normally; malformed input is a Result failure. In programs that use top-level `try`, it becomes a runtime diagnostic. A `catch` handler can instead recover a same-typed value, inspect `error.code`, and optionally call a registered reporter with `error.report`. Fibonacci uses `F(0) = 0` and `F(1) = 1`. The example runner bounds avoid signed 64-bit overflow; the arithmetic operations must still detect overflow independently. The mathematical helper words assume the documented input domain and are guarded by their callers here.
 
 Palindrome comparison is exact, including case, punctuation, spaces, and Unicode normalization. Code-point reversal does not group combining sequences into visual characters. Case folding, normalization, and grapheme-aware operations can be added as explicit text-library features later.
 

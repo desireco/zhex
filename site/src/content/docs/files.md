@@ -14,7 +14,7 @@ File operations read UTF-8 text. Choose a whole-file operation when the full con
 | `file.read-all(String) -> Result<String, FileError>` | On success, the file contents. |
 | `file.read-lines(String) -> Result<Buffer, FileError>` | On success, a buffer containing chomped lines. |
 
-Both operations return a result, so use postfix `try` to unwrap success:
+Both operations return a result. Use postfix `try` to propagate a failure or `catch` to recover from one:
 
 ```zhex
 let content = file.read-all("examples/text-stats-sample.txt") try
@@ -31,7 +31,7 @@ Run that program from the repository root so the sample path resolves.
 | `file.read-line(File) -> Result<String, FileError>` | On success, return the next line. End of file is a failure. |
 | `file.close(File) -> Unit` | Close the file. Calling it more than once is safe. |
 
-`Result<T, E>` describes these built-in return values; it cannot be written in a word signature.
+These signatures show built-in return values. A program word may declare `Result<T, E>` as its result type; see [results and error handling](results.html).
 
 An open `File` is a resource: it cannot be printed or compared. Close a file after you finish reading. Reading from a closed file fails.
 
@@ -48,6 +48,6 @@ The `file.lines` form is available only as the source of a `for` loop.
 
 Line reading removes one trailing line feed (`LF`) and removes an immediately preceding carriage return (`CR`) with it. A bare final `CR` without `LF` is retained. A final nonempty line without a newline is still read. An empty file produces no lines in a loop.
 
-Opening or reading can fail, and invalid UTF-8 is rejected. Whole-file open failures use `file-open`; streaming read failures and end-of-file use `file-read`; invalid text uses `file-utf8`. Add `try` to result-returning calls to report a source-located runtime diagnostic.
+Opening or reading can fail, and invalid UTF-8 is rejected. Whole-file open failures use `file-open`; streaming read failures and end-of-file use `file-read`; invalid text uses `file-utf8`. Add `try` to propagate a failure or `catch` to handle it locally. See [results and error handling](results.html).
 
 See the [text-stats example](../examples.html#text-stats), which counts a whole file or streams its lines depending on the supplied arguments.

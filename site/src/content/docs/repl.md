@@ -29,7 +29,7 @@ Only a missing indented block continues an entry. Parentheses and incomplete exp
 
 ## Results and errors
 
-A bare expression echoes its value. A `Result` expression without `try` is shown as `ok("value")` or `err("message")`; `Unit` has no visible value. `let` and `print` entries do not echo a result.
+A bare ordinary expression echoes its value; `Unit` has no visible value. A bare `Result` is rejected and must be handled with `try` or `catch` in the same entry. `let` and `print` entries do not echo a result.
 
 Checker and runtime errors print an annotated diagnostic, and the session remains open. A checker error adopts none of the entry's definitions or values. If a runtime error occurs, effects that already happened in that entry remain.
 

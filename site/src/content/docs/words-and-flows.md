@@ -37,7 +37,7 @@ print(greeting)
 
 ## Compose a flow
 
-A `flow` evaluates its seed expression, then passes the current value to each single-argument word on the next indented lines. Each step's input type must match the preceding value; the flow result is the final step's result.
+A `flow` evaluates its seed expression, then passes the current value to each single-argument word on the next indented lines. Each step's input type must match the preceding value; the flow result is the final step's result. A fallible step must be marked `try`, just like a direct call.
 
 ```zhex
 word square(n: Int) -> Int
@@ -66,5 +66,18 @@ flow gcd(48, 18)
 ```
 
 The seed call is evaluated first and its result goes to `print`. A flow step is a word name, not a call with arguments. Use a direct call when an operation needs multiple explicit arguments.
+
+For a fallible step, add `try` after the word name:
+
+```zhex
+word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+
+flow "42"
+    parse try
+    print
+```
+
+The step unwraps the success value and propagates its matching error to the enclosing fallible word or the program boundary. A bare `parse` step is rejected because it would discard a possible failure. See [results and error handling](results.html) for word signatures, propagation, and recovery.
 
 See [modules](modules.html) for qualified word calls and [control flow](control-flow.html) for using flows inside loops.
