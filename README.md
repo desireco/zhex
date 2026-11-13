@@ -112,3 +112,7 @@ just serve
 - [Getting started](docs/getting-started.md)
 - [Language goals](docs/language-goals.md) and [first milestone](docs/first-milestone.md)
 - [Earlier design notes](docs/design-notes.md) and [reference material](docs/reference/)
+
+## License
+
+MIT — see [LICENSE](LICENSE). Copyright © 2026 Dakic OnLine LLC (Zeljko Dakic).

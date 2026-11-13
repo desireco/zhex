@@ -4,7 +4,7 @@
   "description": "Syntax highlighting for the Zhex programming language.",
   "version": "0.0.1",
   "publisher": "desireco",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },

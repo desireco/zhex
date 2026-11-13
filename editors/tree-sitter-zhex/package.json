@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "Editor syntax grammar for Zhex",
+  "license": "MIT",
   "scripts": {
     "generate": "tree-sitter generate --abi 14",
     "test": "tree-sitter test"
