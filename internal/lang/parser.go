@@ -93,10 +93,17 @@ func (p *parser) parseUse() use {
 }
 
 func (p *parser) parseType() valueType {
+	p.depth++
+	defer func() { p.depth-- }()
+	if p.depth > 256 {
+		panic(errorAt(p.current().pos, CodeNestingLimit, "syntax nesting limit exceeded"))
+	}
 	t := p.require("name")
-	switch valueType(t.text) {
-	case intType, boolType, stringType, unitType, bufferType, fileType, errorType:
-		return valueType(t.text)
+	if t.text == "List" || t.text == "Array" {
+		p.require("<")
+		inner := p.parseType()
+		p.require(">")
+		return valueType(t.text + "<" + string(inner) + ">")
 	}
 	return valueType(t.text)
 }
@@ -376,6 +383,19 @@ func (p *parser) number(t token) *expression {
 
 func (p *parser) primary() *expression {
 	t := p.current()
+	if p.accept("[") {
+		x := &expression{kind: "list", pos: t.pos}
+		if !p.at("]") {
+			for {
+				x.args = append(x.args, p.expression(0))
+				if !p.accept(",") {
+					break
+				}
+			}
+		}
+		x.end = p.require("]").end
+		return x
+	}
 	if p.accept("(") {
 		x := p.expression(0)
 		p.require(")")

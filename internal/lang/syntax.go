@@ -142,6 +142,17 @@ func resultFamily(t valueType) string {
 	return strings.TrimSuffix(family, ">")
 }
 
+func collectionInner(typ valueType) (string, valueType, bool) {
+	text := string(typ)
+	for _, kind := range []string{"List", "Array"} {
+		prefix := kind + "<"
+		if strings.HasPrefix(text, prefix) && strings.HasSuffix(text, ">") {
+			return kind, valueType(text[len(prefix) : len(text)-1]), true
+		}
+	}
+	return "", "", false
+}
+
 // originOf reports the word a value's binding was defined from, for
 // provenance narration.
 func originOf(x *expression) string {

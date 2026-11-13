@@ -19,6 +19,12 @@ type value struct {
 	buffer  *bufferValue
 	file    *fileValue
 	record  *recordValue
+	list    *listValue
+}
+
+type listValue struct {
+	items  []value
+	active int
 }
 
 type recordValue struct {
@@ -253,6 +259,16 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 
 func (r *runtime) expression(x *expression, env frame) (value, error) {
 	switch x.kind {
+	case "list":
+		items := make([]value, len(x.args))
+		for i, item := range x.args {
+			var err error
+			items[i], err = r.expression(item, env)
+			if err != nil {
+				return value{}, err
+			}
+		}
+		return value{list: &listValue{items: items}}, nil
 	case "int":
 		return value{number: x.number}, nil
 	case "bool":

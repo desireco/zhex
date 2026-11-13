@@ -45,19 +45,21 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 // per file; modules stays for the whole compile. session.go builds the same
 // view from the REPL's accumulated words and modules.
 type checker struct {
-	words      map[string]*word
-	records    map[string]*recordType
-	allRecords map[string]*recordType
-	modules    map[string]*module
-	uses       []string
-	module     string // the module being checked; "" for the entry file and the REPL
-	wordResult valueType
-	consuming  *binding
-	blockDepth int
+	words         map[string]*word
+	records       map[string]*recordType
+	allRecords    map[string]*recordType
+	modules       map[string]*module
+	uses          []string
+	module        string // the module being checked; "" for the entry file and the REPL
+	wordResult    valueType
+	consuming     *binding
+	blockDepth    int
+	expected      valueType
+	blockExpected valueType
 }
 
 var hostWords = []string{
-	"ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -81,6 +83,9 @@ func HostWord(name string) bool {
 func (c *checker) wordNames() []string {
 	names := append([]string{}, hostWords...)
 	for name := range c.words {
+		names = append(names, name)
+	}
+	for name := range c.records {
 		names = append(names, name)
 	}
 	for _, use := range c.uses {
@@ -114,7 +119,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -223,7 +228,7 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 			}
 			if reservedModule(u.name) {
 				return withSpanRange(withHint(errorAt(u.pos, CodeUseReserved, "module name %q is reserved", u.name),
-					"rename the module file — a module cannot be named text, int, buffer, file, console, or error"), u.pos, u.end)
+					"rename the module file — a module cannot be named text, int, buffer, file, console, error, list, or array"), u.pos, u.end)
 			}
 			src, ok := ModuleSource{}, false
 			if resolve != nil {
@@ -358,8 +363,16 @@ func (c *checker) privateRecord(name string) (*recordType, *module) {
 }
 
 func (c *checker) typeError(pos position, typ valueType) error {
-	if inner, ok := resultInner(typ); ok {
-		typ = inner
+	for {
+		if inner, ok := resultInner(typ); ok {
+			typ = inner
+			continue
+		}
+		if _, inner, ok := collectionInner(typ); ok {
+			typ = inner
+			continue
+		}
+		break
 	}
 	if record, module := c.privateRecord(string(typ)); record != nil {
 		return withHint(errorAt(pos, CodePrivateUse, "%q is private to module %q", record.name, module.name), fmt.Sprintf("remove the leading underscore in %s to export it", module.path))
@@ -368,6 +381,13 @@ func (c *checker) typeError(pos position, typ valueType) error {
 }
 
 func (c *checker) normalizeType(typ valueType) (valueType, bool) {
+	if kind, inner, ok := collectionInner(typ); ok {
+		normalized, found := c.normalizeType(inner)
+		if !found || isResult(normalized) {
+			return "", false
+		}
+		return valueType(kind + "<" + string(normalized) + ">"), true
+	}
 	if inner, ok := resultInner(typ); ok {
 		normalized, found := c.normalizeType(inner)
 		if !found {
@@ -387,6 +407,9 @@ func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 func (c *checker) validType(typ valueType) bool { _, ok := c.normalizeType(typ); return ok }
 
 func privateTypeInModule(typ valueType, module string) bool {
+	if _, inner, ok := collectionInner(typ); ok {
+		return privateTypeInModule(inner, module)
+	}
 	if inner, ok := resultInner(typ); ok {
 		return privateTypeInModule(inner, module)
 	}
@@ -404,7 +427,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		c.allRecords = make(map[string]*recordType)
 	}
 	for _, record := range records {
-		if strings.Contains(record.name, ".") || c.records[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
+		if record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.records[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
 			return errorAt(record.pos, CodeDuplicateName, "type %q is invalid or already defined", record.name)
 		}
 		c.records[record.name], c.records[record.id()], c.allRecords[record.id()] = record, record, record
@@ -438,7 +461,15 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 		active[record.id()] = true
 		for _, field := range record.fields {
-			if dep := c.allRecords[string(field.typ)]; dep != nil {
+			typ := field.typ
+			for {
+				_, inner, ok := collectionInner(typ)
+				if !ok {
+					break
+				}
+				typ = inner
+			}
+			if dep := c.allRecords[string(typ)]; dep != nil {
 				if err := visit(dep); err != nil {
 					return err
 				}
@@ -493,6 +524,7 @@ func (c *checker) checkWords(words []*word) error {
 	}
 	for _, w := range words {
 		c.wordResult = w.result
+		c.blockExpected = w.result
 		env := newScope(nil)
 		for i := range w.params {
 			param := &w.params[i]
@@ -514,6 +546,7 @@ func (c *checker) checkWords(words []*word) error {
 		}
 	}
 	c.wordResult = ""
+	c.blockExpected = ""
 	return nil
 }
 
@@ -594,6 +627,12 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 	typ := unitType
 	var pending *binding
 	for i, s := range body {
+		previous := c.expected
+		if i == len(body)-1 && s.kind == "expression" {
+			c.expected = c.blockExpected
+		} else {
+			c.expected = ""
+		}
 		if pending != nil {
 			x := s.expr
 			if (s.kind != "let" && s.kind != "expression") || x == nil || (x.kind != "try" && x.kind != "catch") || x.left == nil || x.left.kind != "name" || x.left.text != pending.name {
@@ -603,6 +642,7 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 		}
 		var err error
 		typ, err = c.statement(s, env)
+		c.expected = previous
 		c.consuming = nil
 		if err != nil {
 			return "", err
@@ -643,7 +683,11 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		}
 		s.annotation = typ
 	}
-	typ, err := c.expression(s.expr, env)
+	expected := s.annotation
+	if expected == "" {
+		expected = c.expected
+	}
+	typ, err := c.expressionExpected(s.expr, env, expected)
 	if err != nil {
 		return "", err
 	}
@@ -783,9 +827,42 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 	return "", errorAt(s.pos, CodeUnsupportedCode, "unsupported statement %q", s.kind)
 }
 
+func (c *checker) expressionExpected(x *expression, env *scope, expected valueType) (valueType, error) {
+	previous := c.expected
+	c.expected = expected
+	defer func() { c.expected = previous }()
+	return c.expression(x, env)
+}
+
 func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	var typ valueType
 	switch x.kind {
+	case "list":
+		kind, element, contextual := collectionInner(c.expected)
+		if !contextual || kind != "List" {
+			element = ""
+		}
+		if len(x.args) == 0 && element == "" {
+			return "", errorAt(x.pos, CodeArgumentType, "empty list requires an expected List type")
+		}
+		for _, item := range x.args {
+			itemType, err := c.expressionExpected(item, env, element)
+			if err != nil {
+				return "", err
+			}
+			if isResult(itemType) {
+				return "", errorAt(item.pos, CodeUnhandledResult, "a Result cannot be stored in a list")
+			}
+			if itemType == errorType && item.binding != nil && item.binding.errorFamily != "" && item.binding.errorFamily != "Error" {
+				return "", errorAt(item.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+			}
+			if element == "" {
+				element = itemType
+			} else if itemType != element {
+				return "", errorAt(item.pos, CodeArgumentType, "list element has type %s; expected %s", itemType, element)
+			}
+		}
+		typ = valueType("List<" + string(element) + ">")
 	case "int":
 		typ = intType
 	case "bool":
@@ -846,10 +923,30 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			x.word, x.typ = w, unitType
 			return unitType, nil
 		}
+		var params []valueType
+		if w, _ := c.resolveWord(x.text); w != nil {
+			for _, param := range w.params {
+				params = append(params, param.typ)
+			}
+		}
+		if record := c.records[x.text]; record != nil {
+			for _, field := range record.fields {
+				params = append(params, field.typ)
+			}
+		}
+		if x.text == "ok" {
+			if inner, ok := resultInner(c.wordResult); ok {
+				params = []valueType{inner}
+			}
+		}
 		args := make([]valueType, len(x.args))
 		for i, arg := range x.args {
+			expected := valueType("")
+			if i < len(params) {
+				expected = params[i]
+			}
 			var err error
-			args[i], err = c.expression(arg, env)
+			args[i], err = c.expressionExpected(arg, env, expected)
 			if err != nil {
 				return "", err
 			}
@@ -885,7 +982,10 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			}
 			x.binding.errorFamily = resultFamily(result)
 		}
+		oldExpected := c.blockExpected
+		c.blockExpected = inner
 		fallback, err := c.block(x.handler, handler)
+		c.blockExpected = oldExpected
 		if err != nil {
 			return "", err
 		}
@@ -986,6 +1086,21 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	} else {
 		switch x.text {
+		case "list.new":
+			kind, _, ok := collectionInner(c.expected)
+			if !ok || kind != "List" {
+				return "", errorAt(x.pos, CodeArgumentType, "list.new requires an expected List type")
+			}
+			result = c.expected
+		case "list.length":
+			if len(args) != 1 {
+				return "", errorAt(x.pos, CodeArgumentCount, "list.length requires 1 argument, found %d", len(args))
+			}
+			kind, _, ok := collectionInner(args[0])
+			if !ok || kind != "List" {
+				return "", errorAt(x.pos, CodeArgumentType, "list.length requires a List")
+			}
+			params, result = args, intType
 		case "ok":
 			inner, ok := resultInner(c.wordResult)
 			if !ok {

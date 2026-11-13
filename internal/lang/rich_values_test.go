@@ -184,3 +184,72 @@ func TestPrivateRecordsRemainUsableInsideModule(t *testing.T) {
 		t.Fatalf("error %v output %q", err, out.String())
 	}
 }
+
+func TestTypedListLiteralsAndEmptyLists(t *testing.T) {
+	source := "let nums: List<Int> = [1, 2, 3]\nlet empty: List<String> = []\nlet other: List<Int> = list.new()\nlet nested: List<List<Int>> = [[1], [2, 3]]\nprint(list.length(nums))\nprint(list.length(empty))\nprint(list.length(other))\nprint(list.length(nested))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "3\n0\n0\n2\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestListTypesRejectInvalidLiterals(t *testing.T) {
+	for _, source := range []string{
+		"let x = []\n", "let x = list.new()\n", "let x = [1, \"two\"]\n", "let x: List<String> = [1]\n", "let x: List<Missing> = []\n", "let x = [text.to-int(\"1\")]\n",
+	} {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("accepted invalid list: %q", source)
+		}
+	}
+}
+
+func TestNestedTypeDepthIsBounded(t *testing.T) {
+	typ := strings.Repeat("List<", 260) + "Int" + strings.Repeat(">", 260)
+	if _, err := Compile("test.zhex", "let x: "+typ+" = []\n"); err == nil || !strings.Contains(err.Error(), "nesting limit") {
+		t.Fatalf("missing nesting limit: %v", err)
+	}
+}
+
+func TestListExpectedTypesFlowIntoCallsAndReturns(t *testing.T) {
+	source := "type Bag = record\n    items: List<Int>\nword empty() -> List<Int>\n    []\nword size(items: List<Int>) -> Int\n    list.length(items)\nlet bag = Bag([])\nprint(list.length(bag.items))\nprint(size(list.new()))\nprint(list.length(empty()))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "0\n0\n0\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestRecordsCannotRecurThroughCollections(t *testing.T) {
+	for _, source := range []string{"type Tree = record\n    children: List<Tree>\n", "type A = record\n    b: Array<B>\ntype B = record\n    a: List<A>\n"} {
+		if _, err := Compile("test.zhex", source); err == nil || !strings.Contains(err.Error(), "recursive") {
+			t.Errorf("recursive type accepted: %v", err)
+		}
+	}
+}
+
+func TestListCannotHideConcreteError(t *testing.T) {
+	source := "let n = text.to-int(\"bad\") catch problem\n    let errors: List<Error> = [problem]\n    0\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("list erased concrete error family")
+	}
+}
+
+func TestGenericTypeNamesCannotBeDeclaredAsRecords(t *testing.T) {
+	for _, name := range []string{"List", "Array", "Result", "InputError", "ParseError", "FileError", "BufferError"} {
+		if _, err := Compile("test.zhex", "type "+name+" = record\n    n: Int\n"); err == nil {
+			t.Errorf("accepted reserved type %s", name)
+		}
+	}
+}
+
+func TestRecordConstructorTypoGetsSuggestion(t *testing.T) {
+	source := "type Customer = record\n    name: String\nlet c = Custmer(\"Ada\")\n"
+	if _, err := Compile("test.zhex", source); err == nil || !strings.Contains(err.Error(), `did you mean "Customer"`) {
+		t.Fatalf("missing constructor suggestion: %v", err)
+	}
+}

@@ -26,6 +26,10 @@ func (r *runtime) write(pos position, text string) error {
 
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
+	case "list.new":
+		return value{list: &listValue{}}, nil
+	case "list.length":
+		return value{number: int64(len(args[0].list.items))}, nil
 	case "ok":
 		return value{result: &inputResult{value: args[0]}}, nil
 	case "err":
@@ -222,6 +226,9 @@ func formatValue(v value, typ valueType) string {
 		return fmt.Sprintf("buffer(%d lines)", len(v.buffer.lines))
 	case fileType:
 		return fmt.Sprintf("file(%q)", v.file.path)
+	}
+	if v.list != nil {
+		return fmt.Sprintf("list(%d elements)", len(v.list.items))
 	}
 	if v.record != nil {
 		return fmt.Sprintf("record(%s)", v.record.name)
