@@ -59,6 +59,7 @@ File every new ticket into the board's **Inbox** bucket with no status — never
 ## Verifying work
 
 - `just test` must pass for any change — it covers the interpreter, examples, and website build; `go vet ./...` must be clean.
+- `just bench` measures the interpreter with allocation counts; results and method live in `docs/measurements.md`.
 - Tests are the language definition: extend them test-first when changing behavior, and keep `ROADMAP.md`'s Done/Next/Future shape (the website generator validates it).
 - Run a program with `go run ./cmd/zhex run examples/hello.zhex`; build the website with `just site`. User-facing surfaces (website pages, llms.txt) show the canonical `zhex run examples/<file>.zhex` form instead — the interpreter binary is built once with `just build`, and the Go toolchain is an implementation detail, not part of the language's public story.
 - Commits are focused and conventional (`feat:`, `fix:`, `docs:`, `chore:`), made on `main`.

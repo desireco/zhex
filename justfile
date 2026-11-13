@@ -14,6 +14,10 @@ test-race:
 check:
     go vet ./...
 
+# Benchmark the interpreter with allocation counts.
+bench:
+    go test -bench=. -benchmem -benchtime=2s ./internal/lang/
+
 # Build the interpreter in bin/zhex.
 build:
     go build -o bin/zhex ./cmd/zhex
