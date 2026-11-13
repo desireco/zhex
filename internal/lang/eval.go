@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"time"
 )
 
 type value struct {
@@ -30,11 +31,14 @@ type fileValue struct {
 	closed bool
 }
 
-type errorOccurrence struct{ reported bool }
+type errorOccurrence struct {
+	reported bool
+	id       string
+}
 
 func ensureOccurrence(d *diagnostic) *errorOccurrence {
 	if d.occurrence == nil {
-		d.occurrence = &errorOccurrence{}
+		d.occurrence = newOccurrence()
 	}
 	return d.occurrence
 }
@@ -49,7 +53,10 @@ type returnValue struct{ result value }
 
 func (r *returnValue) Error() string { return "return" }
 
-type propagation struct{ cause error }
+type propagation struct {
+	cause    error
+	boundary position
+}
 
 func (p *propagation) Error() string { return p.cause.Error() }
 func unwrapPropagation(err error) error {
@@ -62,13 +69,16 @@ func unwrapPropagation(err error) error {
 type frame map[*binding]value
 
 type runtime struct {
-	input     *bufio.Reader
-	output    io.Writer
-	trace     io.Writer // nil disables the JSONL step-event stream
-	depth     int
-	args      []string
-	reporter  *expression
-	reporting bool
+	input            *bufio.Reader
+	output           io.Writer
+	trace            io.Writer // nil disables the JSONL step-event stream
+	depth            int
+	args             []string
+	reporter         *expression
+	reporting        bool
+	hostReporter     func(ErrorReport) error
+	includeSensitive bool
+	correlation      string
 }
 
 // Run checks a file before executing it against the supplied console streams.
@@ -110,15 +120,24 @@ func (p *Program) RunWithTrace(input io.Reader, output, trace io.Writer) error {
 
 // RunWithArgs executes like RunWithTrace with the program's arguments.
 func (p *Program) RunWithArgs(input io.Reader, output, trace io.Writer, args []string) error {
+	return p.RunWithOptions(input, output, RunOptions{Trace: trace, Args: args})
+}
+
+// RunWithOptions executes a checked program with optional host reporting.
+func (p *Program) RunWithOptions(input io.Reader, output io.Writer, options RunOptions) error {
 	reader, ok := input.(*bufio.Reader)
 	if !ok {
 		reader = bufio.NewReader(input)
 	}
-	r := runtime{input: reader, output: output, trace: trace, args: args}
+	r := runtime{input: reader, output: output, trace: options.Trace, args: options.Args, hostReporter: options.Reporter, includeSensitive: options.IncludeSensitive, correlation: options.Correlation}
 	_, err := r.block(p.body, make(frame))
+	boundary := position{}
+	if propagated, ok := err.(*propagation); ok {
+		boundary = propagated.boundary
+	}
 	err = unwrapPropagation(err)
 	if err != nil {
-		r.report(err, "unhandled", position{})
+		r.report(err, "unhandled", boundary)
 	}
 	return annotateSource(err, p.sources)
 }
@@ -168,12 +187,19 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 	case "for-lines":
 		f, err := openFile(s.pos, v.text)
 		if err != nil {
+			if d, ok := err.(*diagnostic); ok {
+				d.operation = "file.lines"
+			}
 			return value{}, err
 		}
 		defer f.close()
 		for {
 			line, ok, err := f.nextLine(s.pos)
 			if err != nil {
+				if d, ok := err.(*diagnostic); ok {
+					d.operation = "file.lines"
+					d.details = map[string]string{"path": v.text}
+				}
 				return value{}, err
 			}
 			if !ok {
@@ -194,7 +220,7 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			}
 			if step.propagate {
 				if v.result.err != nil {
-					return value{}, &propagation{cause: v.result.err}
+					return value{}, &propagation{cause: v.result.err, boundary: step.pos}
 				}
 				v = v.result.value
 			}
@@ -234,7 +260,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			return value{}, err
 		}
 		if v.result.err != nil {
-			return value{}, &propagation{cause: v.result.err}
+			return value{}, &propagation{cause: v.result.err, boundary: x.pos}
 		}
 		return v.result.value, nil
 	case "catch":
@@ -258,7 +284,9 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			return value{boolean: !v.boolean}, nil
 		}
 		if v.number == math.MinInt64 {
-			return value{}, errorAt(x.pos, CodeIntegerOverflow, "integer overflow")
+			d := errorAt(x.pos, CodeIntegerOverflow, "integer overflow").(*diagnostic)
+			d.operation = x.text
+			return value{}, d
 		}
 		return value{number: -v.number}, nil
 	case "binary":
@@ -276,7 +304,11 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 		if err != nil {
 			return value{}, err
 		}
-		return binary(x, left, right)
+		v, err := binary(x, left, right)
+		if d, ok := err.(*diagnostic); ok && d.operation == "" {
+			d.operation = x.text
+		}
+		return v, err
 	}
 	return value{}, errorAt(x.pos, CodeUnsupportedCode, "unsupported expression")
 }
@@ -284,6 +316,9 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 func (r *runtime) call(x *expression, args []value) (value, error) {
 	if x.word == nil {
 		result, err := r.builtin(x, args)
+		if d, ok := err.(*diagnostic); ok && d.operation == "" {
+			d.operation = x.text
+		}
 		if d, ok := result.fault.(*diagnostic); ok {
 			ensureOccurrence(d)
 		}
@@ -311,7 +346,9 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		return result, err
 	}
 	if r.depth >= 256 {
-		return value{}, errorAt(x.pos, CodeDepthLimit, "word call depth limit of 256 exceeded")
+		d := errorAt(x.pos, CodeDepthLimit, "word call depth limit of 256 exceeded").(*diagnostic)
+		d.operation = qualifiedName(x)
+		return value{}, d
 	}
 	r.depth++
 	defer func() { r.depth-- }()
@@ -339,7 +376,7 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 // report runs only at an explicit handled report or the terminal boundary.
 func (r *runtime) report(err error, outcome string, boundary position) {
 	d, ok := err.(*diagnostic)
-	if !ok || r.reporting || r.reporter == nil {
+	if !ok || r.reporting || (r.reporter == nil && r.hostReporter == nil) {
 		return
 	}
 	occurrence := ensureOccurrence(d)
@@ -348,8 +385,17 @@ func (r *runtime) report(err error, outcome string, boundary position) {
 	}
 	occurrence.reported = true
 	r.reporting = true
-	defer func() { r.reporting = false; _ = recover() }()
-	_, _ = r.call(r.reporter, []value{{fault: d}})
+	defer func() { r.reporting = false }()
+	if boundary.line == 0 {
+		boundary = d.pos
+	}
+	if r.reporter != nil {
+		func() { defer func() { _ = recover() }(); _, _ = r.call(r.reporter, []value{{fault: d}}) }()
+	}
+	if r.hostReporter != nil {
+		event := ErrorReport{SchemaVersion: 1, OccurrenceID: occurrence.id, Timestamp: time.Now().UTC(), Outcome: outcome, Error: snapshot(d, r.includeSensitive), Boundary: location(boundary, r.includeSensitive), Correlation: r.correlation}
+		func() { defer func() { _ = recover() }(); _ = r.hostReporter(event) }()
+	}
 }
 
 func binary(x *expression, a, b value) (value, error) {
