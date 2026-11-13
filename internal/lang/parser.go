@@ -366,6 +366,20 @@ func (p *parser) unary() *expression {
 		return u
 	}
 	x := p.primary()
+	for p.at("[") {
+		t := p.take()
+		index := &expression{kind: "index", pos: t.pos, left: x}
+		if !p.at("]") {
+			for {
+				index.args = append(index.args, p.expression(0))
+				if !p.accept(",") {
+					break
+				}
+			}
+		}
+		index.end = p.require("]").end
+		x = p.checkDepth(index)
+	}
 	for p.at("try") {
 		t := p.take()
 		x = p.checkDepth(&expression{kind: "try", pos: t.pos, end: t.end, left: x})
@@ -398,6 +412,14 @@ func (p *parser) primary() *expression {
 	}
 	if p.accept("(") {
 		x := p.expression(0)
+		if p.accept("=") {
+			if x.kind != "index" {
+				panic(errorAt(x.pos, CodeExpectedExpression, "indexed assignment requires a collection index"))
+			}
+			right := p.expression(0)
+			end := p.require(")")
+			return p.checkDepth(&expression{kind: "index-write", pos: x.pos, end: end.end, left: x, right: right})
+		}
 		p.require(")")
 		return x
 	}

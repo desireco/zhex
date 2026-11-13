@@ -2,6 +2,7 @@ package lang
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -251,5 +252,77 @@ func TestRecordConstructorTypoGetsSuggestion(t *testing.T) {
 	source := "type Customer = record\n    name: String\nlet c = Custmer(\"Ada\")\n"
 	if _, err := Compile("test.zhex", source); err == nil || !strings.Contains(err.Error(), `did you mean "Customer"`) {
 		t.Fatalf("missing constructor suggestion: %v", err)
+	}
+}
+
+func TestListAppendIndexAndAliasing(t *testing.T) {
+	source := "let items: List<Int> = [1, 2]\nlet alias = items\nlist.append(alias, 3) try\n(items[1] = 9) try\nprint(list.length(items))\nprint(alias[1] try)\nprint(items[2] try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "3\n9\n3\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestListFailuresAreCheckedAndAtomic(t *testing.T) {
+	source := "let items = [1, 2]\n(items[5] = 9) catch problem\n    print(error.code(problem))\n    print(error.detail(problem, \"index\"))\nlet n = items[-1] catch problem\n    print(error.code(problem))\n    0\nprint(items[1] try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "list-range\n5\nlist-range\n2\n" {
+		t.Fatalf("output %q", out.String())
+	}
+	for _, bad := range []string{"let x = [1]\nx[0]\n", "let x = [1]\n(x[0] = \"bad\") try\n", "let x = [1]\nlist.append(x, \"bad\") try\n", "let x = [1]\nprint(x[true] try)\n"} {
+		if _, err := Compile("test.zhex", bad); err == nil {
+			t.Errorf("accepted invalid list operation %q", bad)
+		}
+	}
+}
+
+func TestListNestedMutationAndContext(t *testing.T) {
+	source := "let rows: List<List<Int>> = []\nlist.append(rows, []) try\nlet first = rows[0] try\nlist.append(first, 7) try\nlet row = rows[0] try\nprint(row[0] try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestRecordTypeGraphDepthIsBounded(t *testing.T) {
+	var source strings.Builder
+	for i := 0; i < 260; i++ {
+		fmt.Fprintf(&source, "type T%d = record\n    next: T%d\n", i, i+1)
+	}
+	source.WriteString("type T260 = record\n    value: Int\n")
+	if _, err := Compile("test.zhex", source.String()); err == nil || !strings.Contains(err.Error(), "nesting limit") {
+		t.Fatalf("missing type graph limit: %v", err)
+	}
+	source.Reset()
+	source.WriteString("type T260 = record\n    value: Int\n")
+	for i := 259; i >= 0; i-- {
+		fmt.Fprintf(&source, "type T%d = record\n    next: T%d\n", i, i+1)
+	}
+	if _, err := Compile("test.zhex", source.String()); err == nil || !strings.Contains(err.Error(), "nesting limit") {
+		t.Fatalf("missing reversed type graph limit: %v", err)
+	}
+}
+
+func TestListLimitsAndActiveGuardLeaveDataUnchanged(t *testing.T) {
+	full := &listValue{items: make([]value, maxCollectionElements)}
+	r := runtime{}
+	call := &expression{text: "list.append", pos: position{file: "test.zhex", line: 1, column: 1}}
+	result, err := r.builtin(call, []value{{list: full}, {number: 1}})
+	if err != nil || result.result == nil || result.result.err == nil || result.result.err.(*diagnostic).code != CodeCollectionLimit || len(full.items) != maxCollectionElements {
+		t.Fatalf("limit failure: %v %+v", err, result)
+	}
+	active := &listValue{items: []value{{number: 2}}, active: 1}
+	result = listWrite(call.pos, active, 0, value{number: 9})
+	if result.result.err == nil || result.result.err.(*diagnostic).code != CodeCollectionIterating || active.items[0].number != 2 {
+		t.Fatal("iteration guard changed list")
 	}
 }

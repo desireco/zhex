@@ -28,6 +28,15 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
 	case "list.new":
 		return value{list: &listValue{}}, nil
+	case "list.append":
+		if args[0].list.active > 0 {
+			return failedCollection(x.pos, CodeCollectionIterating, "list.append", "collection is being iterated", nil), nil
+		}
+		if len(args[0].list.items) >= maxCollectionElements {
+			return failedCollection(x.pos, CodeCollectionLimit, "list.append", "list exceeds element limit", nil), nil
+		}
+		args[0].list.items = append(args[0].list.items, args[1])
+		return value{result: &inputResult{}}, nil
 	case "list.length":
 		return value{number: int64(len(args[0].list.items))}, nil
 	case "ok":

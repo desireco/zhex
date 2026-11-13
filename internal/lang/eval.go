@@ -22,6 +22,8 @@ type value struct {
 	list    *listValue
 }
 
+const maxCollectionElements = 1000000
+
 type listValue struct {
 	items  []value
 	active int
@@ -269,6 +271,30 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			}
 		}
 		return value{list: &listValue{items: items}}, nil
+	case "index":
+		receiver, err := r.expression(x.left, env)
+		if err != nil {
+			return value{}, err
+		}
+		index, err := r.expression(x.args[0], env)
+		if err != nil {
+			return value{}, err
+		}
+		return listRead(x.pos, receiver.list, index.number), nil
+	case "index-write":
+		receiver, err := r.expression(x.left.left, env)
+		if err != nil {
+			return value{}, err
+		}
+		index, err := r.expression(x.left.args[0], env)
+		if err != nil {
+			return value{}, err
+		}
+		item, err := r.expression(x.right, env)
+		if err != nil {
+			return value{}, err
+		}
+		return listWrite(x.pos, receiver.list, index.number, item), nil
 	case "int":
 		return value{number: x.number}, nil
 	case "bool":

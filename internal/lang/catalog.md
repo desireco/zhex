@@ -5,6 +5,15 @@ diagnostic is always `file:line:column: message`; the source excerpt, caret,
 and `hint:` line are additive detail. Machine readers use
 `zhex run <file> --report=json`.
 
+## list-range
+The list index is negative or outside its current length. Use a valid zero-based index.
+
+## collection-limit
+A collection would exceed the runtime limit of 1,000,000 elements. Reduce its size.
+
+## collection-iterating
+An active iteration prevents mutation of the traversed collection. Mutate a different collection or wait until traversal finishes.
+
 ## console-exit-status
 `console.exit` requires a status from 0 through 255. Choose a portable exit status in that range.
 

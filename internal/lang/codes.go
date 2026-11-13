@@ -13,6 +13,9 @@ type Code string
 // this list, the constructors' usage, and catalog.md in sync — the test in
 // codes_test.go fails when they drift.
 const (
+	CodeListRange           Code = "list-range"
+	CodeCollectionLimit     Code = "collection-limit"
+	CodeCollectionIterating Code = "collection-iterating"
 	CodeExitStatus          Code = "console-exit-status"
 	CodeErrorNoCause        Code = "error-no-cause"
 	CodeSourceUTF8          Code = "source-utf8"
@@ -80,7 +83,7 @@ const (
 )
 
 var diagnosticCodes = []Code{
-	CodeErrorNoCause, CodeExitStatus,
+	CodeErrorNoCause, CodeExitStatus, CodeListRange, CodeCollectionLimit, CodeCollectionIterating,
 	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeStringEscape, CodeUnexpectedCharacter,
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,
 	CodeIntegerLiteralRange, CodeExpectedExpression, CodeFlowStep,

@@ -86,6 +86,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{"error-no-cause", "word fail() -> Result<Int, Error>\n    return err(error.new(\"domain\", \"message\"))\nlet n = fail() catch problem\n    let cause = error.cause(problem) try\n    0\n", "", nil, nil},
 		{"unhandled-result", "text.to-int(\"1\")\n", "", nil, nil},
 		{"console-exit-status", "console.exit(256)\n", "", nil, nil},
+		{"list-range", "let items = [1]\nitems[3] try\n", "", nil, nil},
 		{"source-utf8", "\xff print(1)\n", "", nil, nil},
 		{"tab-character", "\tprint(1)\n", "", nil, nil},
 		{"indentation", "     print(1)\n", "", nil, nil},

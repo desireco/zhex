@@ -59,7 +59,7 @@ type checker struct {
 }
 
 var hostWords = []string{
-	"list.new", "list.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "list.append", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -450,16 +450,23 @@ func (c *checker) registerRecords(records []*recordType) error {
 			}
 		}
 	}
-	active, done := map[string]bool{}, map[string]bool{}
-	var visit func(*recordType) error
-	visit = func(record *recordType) error {
+	active, done := map[string]bool{}, map[string]int{}
+	var visit func(*recordType, int) error
+	visit = func(record *recordType, depth int) error {
+		if depth > 256 {
+			return errorAt(record.pos, CodeNestingLimit, "type nesting limit exceeded")
+		}
 		if active[record.id()] {
 			return errorAt(record.pos, CodeUnknownType, "recursive record type %q is not supported", record.id())
 		}
-		if done[record.id()] {
+		if height := done[record.id()]; height > 0 {
+			if depth+height-1 > 256 {
+				return errorAt(record.pos, CodeNestingLimit, "type nesting limit exceeded")
+			}
 			return nil
 		}
 		active[record.id()] = true
+		height := 1
 		for _, field := range record.fields {
 			typ := field.typ
 			for {
@@ -470,17 +477,20 @@ func (c *checker) registerRecords(records []*recordType) error {
 				typ = inner
 			}
 			if dep := c.allRecords[string(typ)]; dep != nil {
-				if err := visit(dep); err != nil {
+				if err := visit(dep, depth+1); err != nil {
 					return err
+				}
+				if candidate := 1 + done[dep.id()]; candidate > height {
+					height = candidate
 				}
 			}
 		}
 		delete(active, record.id())
-		done[record.id()] = true
+		done[record.id()] = height
 		return nil
 	}
 	for _, record := range records {
-		if err := visit(record); err != nil {
+		if err := visit(record, 1); err != nil {
 			return err
 		}
 	}
@@ -652,7 +662,7 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 		}
 		if s.kind == "let" || s.kind == "var" {
 			if isResult(s.binding.typ) {
-				if s.kind != "let" || s.expr.kind != "call" || s.expr.text == "ok" || s.expr.text == "err" {
+				if s.kind != "let" || (s.expr.kind != "call" && s.expr.kind != "index" && s.expr.kind != "index-write") || s.expr.text == "ok" || s.expr.text == "err" {
 					return "", errorAt(s.pos, CodeUnhandledResult, "a stored Result must be an immutable fallible call")
 				}
 				pending = s.binding
@@ -838,6 +848,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	var typ valueType
 	switch x.kind {
 	case "list":
+		if len(x.args) > maxCollectionElements {
+			return "", errorAt(x.pos, CodeCollectionLimit, "list exceeds %d elements", maxCollectionElements)
+		}
 		kind, element, contextual := collectionInner(c.expected)
 		if !contextual || kind != "List" {
 			element = ""
@@ -863,6 +876,43 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			}
 		}
 		typ = valueType("List<" + string(element) + ">")
+	case "index":
+		receiver, err := c.expressionExpected(x.left, env, "")
+		if err != nil {
+			return "", err
+		}
+		kind, element, ok := collectionInner(receiver)
+		if !ok || kind != "List" {
+			return "", errorAt(x.pos, CodeArgumentType, "indexing requires a List")
+		}
+		if len(x.args) != 1 {
+			return "", errorAt(x.pos, CodeArgumentCount, "List indexing requires one index")
+		}
+		index, err := c.expressionExpected(x.args[0], env, intType)
+		if err != nil {
+			return "", err
+		}
+		if index != intType {
+			return "", errorAt(x.args[0].pos, CodeArgumentType, "index must have type Int")
+		}
+		typ = valueType("Result<" + string(element) + ", Error>")
+	case "index-write":
+		indexed, err := c.expressionExpected(x.left, env, "")
+		if err != nil {
+			return "", err
+		}
+		inner, _ := resultInner(indexed)
+		valueType, err := c.expressionExpected(x.right, env, inner)
+		if err != nil {
+			return "", err
+		}
+		if valueType != inner {
+			return "", errorAt(x.right.pos, CodeArgumentType, "list write requires %s, found %s", inner, valueType)
+		}
+		if valueType == errorType && x.right.binding != nil && x.right.binding.errorFamily != "" && x.right.binding.errorFamily != "Error" {
+			return "", errorAt(x.right.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+		}
+		typ = valueTypeResultUnitError
 	case "int":
 		typ = intType
 	case "bool":
@@ -944,6 +994,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			expected := valueType("")
 			if i < len(params) {
 				expected = params[i]
+			}
+			if x.text == "list.append" && i == 1 && len(args) > 0 {
+				_, expected, _ = collectionInner(args[0])
 			}
 			var err error
 			args[i], err = c.expressionExpected(arg, env, expected)
@@ -1092,6 +1145,18 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				return "", errorAt(x.pos, CodeArgumentType, "list.new requires an expected List type")
 			}
 			result = c.expected
+		case "list.append":
+			if len(args) != 2 {
+				return "", errorAt(x.pos, CodeArgumentCount, "list.append requires 2 arguments, found %d", len(args))
+			}
+			kind, inner, ok := collectionInner(args[0])
+			if !ok || kind != "List" || args[1] != inner {
+				return "", errorAt(x.pos, CodeArgumentType, "list.append requires a List and a matching element")
+			}
+			if args[1] == errorType && x.args[1].binding != nil && x.args[1].binding.errorFamily != "" && x.args[1].binding.errorFamily != "Error" {
+				return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+			}
+			params, result = args, valueTypeResultUnitError
 		case "list.length":
 			if len(args) != 1 {
 				return "", errorAt(x.pos, CodeArgumentCount, "list.length requires 1 argument, found %d", len(args))
