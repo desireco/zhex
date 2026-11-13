@@ -19,6 +19,8 @@ Make everyday experiments quicker, then build a useful text utility. This is the
 - Licensing: publish the repository under the MIT license; license and package notices are in place.
 - Editors: syntax highlighting for Vim/Neovim, VS Code, and Zed; publish installation and usage documentation on the website.
 - Agent support: document the language for LLM coding agents with AGENTS.md, llms.txt, and agent-readable examples.
+- Domain: buy a dedicated domain for the language and point it at the published site.
+- Website platform: rebuild the site on Astro, replacing the Go site builder.
 - REPL: enter multi-line words, keep definitions between entries, inspect values and signatures, and recover from errors.
 - Modules: explicit imports, public words, qualified names, and useful errors across files.
 - Text utility: accept command-line arguments, stream a file, and close resources on success and failure.
@@ -33,4 +35,3 @@ These are directions to explore. Their order and implementation remain open, and
 - WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output.
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.
 - Development tools: formatting, language-server support, and published editor packages as the syntax settles.
-- Website platform: switch the site generator from the Go builder to Astro as the site's needs grow.
