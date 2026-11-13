@@ -24,6 +24,7 @@ func siteFixture(t *testing.T) string {
 		"site/examples.tmpl":             "<main>{{range .Examples}}<article id=\"{{.ID}}\"><pre>{{.Source}}</pre><a href=\"{{.SourceURL}}\">Download</a></article>{{end}}</main>",
 		"site/styles.css":                "body { color: black; }",
 		"site/favicon.svg":               "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>",
+		"site/llms.txt":                  "llms guide",
 		"site/logo.svg":                  "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>",
 		"site/design/design-system.html": "<a href=\"../index.html\">Website</a>",
 	}
@@ -147,7 +148,7 @@ func TestBuildReadsExamplesExecutesThemAndEscapesHTML(t *testing.T) {
 			t.Fatalf("missing example %s", spec.id)
 		}
 	}
-	for _, file := range []string{".nojekyll", "styles.css", "favicon.svg", "logo.svg", "examples.html", "docs.html", "examples/hello.zhex", "examples/fizzbuzz.zhex"} {
+	for _, file := range []string{".nojekyll", "styles.css", "favicon.svg", "logo.svg", "llms.txt", "examples.html", "docs.html", "examples/hello.zhex", "examples/fizzbuzz.zhex"} {
 		if _, err := os.Stat(filepath.Join(root, "output", file)); err != nil {
 			t.Fatal(err)
 		}

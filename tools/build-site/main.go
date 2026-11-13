@@ -287,7 +287,7 @@ func build(root, output string) error {
 		}
 		files[name+".html"] = html.Bytes()
 	}
-	for _, asset := range []string{"styles.css", "favicon.svg", "logo.svg"} {
+	for _, asset := range []string{"styles.css", "favicon.svg", "logo.svg", "llms.txt"} {
 		content, err := os.ReadFile(filepath.Join(root, "site", asset))
 		if err != nil {
 			return fmt.Errorf("read website asset %s: %w", asset, err)

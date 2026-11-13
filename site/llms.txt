@@ -1,0 +1,16 @@
+# Zhex
+
+> Zhex is a Forth-inspired programming language built on small words and big ideas: compact code with visible flow, meaningful names, and checked types, executed by a working Go interpreter. Every program is checked — names, types, and word connections — before any of it runs.
+
+## Docs
+
+- [Docs](https://desireco.github.io/zhex/docs.html): the language on one page — typed words, named values, flows, decisions, bounded loops, and console input with `try`, each with a highlighted sample.
+- [Examples](https://desireco.github.io/zhex/examples.html): runnable programs with source, sample input, and real output — the source and output on the page are produced by the actual interpreter.
+- [Roadmap](https://desireco.github.io/zhex/roadmap.html): what is done, what is next, and what is future, mirrored by a public project board.
+
+## Reference
+
+- [Language contract](https://github.com/desireco/zhex/blob/main/docs/initial-language.md): the authoritative syntax and semantics the interpreter enforces.
+- [Agent guide](https://github.com/desireco/zhex/blob/main/AGENTS.md): rules for writing correct Zhex and verifying changes with the executable test suite.
+- [Example sources](https://desireco.github.io/zhex/examples/hello.zhex): downloadable `.zhex` files — swap the filename for fizzbuzz, fibonacci, factorial, palindrome, or composition.
+- [Project board](https://github.com/users/desireco/projects/8): the backlog and delivered work as issues on a public Kanban board.
