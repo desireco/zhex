@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"html"
 	"html/template"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"zhex/internal/lang"
 )
@@ -79,6 +82,107 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 	return roadmap, nil
 }
 
+var zhexKeywords = map[string]bool{
+	"word": true, "let": true, "var": true, "if": true, "elif": true, "else": true,
+	"for": true, "in": true, "flow": true, "try": true, "and": true, "or": true,
+	"not": true, "true": true, "false": true,
+}
+
+var zhexHostWords = map[string]bool{
+	"print": true, "range": true, "int.to-string": true, "text.reverse": true,
+	"console.read-line": true, "console.read-int": true,
+}
+
+// highlight marks up Zhex source with the design system's token classes.
+// Every token's text and everything between tokens is HTML-escaped; only
+// the spans themselves are added, so the result is safe trusted HTML.
+func highlight(source string) template.HTML {
+	runes := []rune(source)
+	words := map[string]bool{}
+	var out strings.Builder
+	writeToken := func(class, text string) {
+		out.WriteString(`<span class="` + class + `">` + html.EscapeString(text) + `</span>`)
+	}
+	identAt := func(i int) (string, int, bool) {
+		if i >= len(runes) || !unicode.IsLetter(runes[i]) {
+			return "", i, false
+		}
+		j := i + 1
+		for j < len(runes) && (runes[j] == '-' || runes[j] == '.' || unicode.IsLetter(runes[j]) || unicode.IsDigit(runes[j])) {
+			j++
+		}
+		return string(runes[i:j]), j, true
+	}
+	skipBlank := func(i int) int {
+		for i < len(runes) && (runes[i] == ' ' || runes[i] == '\t') {
+			i++
+		}
+		return i
+	}
+	for i := 0; i < len(runes); {
+		r := runes[i]
+		switch {
+		case r == '#':
+			j := i
+			for j < len(runes) && runes[j] != '\n' {
+				j++
+			}
+			writeToken("tok-comment", string(runes[i:j]))
+			i = j
+		case r == '"':
+			j := i + 1
+			for j < len(runes) && runes[j] != '"' && runes[j] != '\n' {
+				j++
+				if runes[j-1] == '\\' {
+					j++
+				}
+			}
+			if j < len(runes) && runes[j] == '"' {
+				j++
+			}
+			writeToken("tok-string", string(runes[i:j]))
+			i = j
+		case unicode.IsDigit(r):
+			j := i + 1
+			for j < len(runes) && unicode.IsDigit(runes[j]) {
+				j++
+			}
+			writeToken("tok-number", string(runes[i:j]))
+			i = j
+		case unicode.IsLetter(r):
+			text, j, _ := identAt(i)
+			switch {
+			case text == "flow":
+				writeToken("tok-flow", text)
+			case zhexKeywords[text]:
+				writeToken("tok-keyword", text)
+				if text == "word" {
+					if name, _, ok := identAt(skipBlank(j)); ok {
+						words[name] = true
+					}
+				}
+			case strings.ContainsRune(text, '.') || zhexHostWords[text]:
+				writeToken("tok-function", text)
+			default:
+				if k := skipBlank(j); k < len(runes) && runes[k] == '(' {
+					writeToken("tok-function", text)
+				} else if words[text] {
+					writeToken("tok-function", text)
+				} else if head, _ := utf8.DecodeRuneInString(text); unicode.IsUpper(head) {
+					writeToken("tok-type", text)
+				} else {
+					writeToken("tok-variable", text)
+				}
+			}
+			i = j
+		default:
+			out.WriteString(html.EscapeString(string(r)))
+			i++
+		}
+	}
+	return template.HTML(out.String())
+}
+
 var exampleSpecs = []struct{ id, title, description, input string }{
 	{"composition", "Composition", "Build larger operations from small typed words.", ""},
 	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n"},
@@ -146,7 +250,7 @@ func build(root, output string) error {
 	}
 	files["ROADMAP.md"] = roadmap
 	for _, name := range []string{"index", "examples", "roadmap"} {
-		page, err := template.ParseFiles(filepath.Join(root, "site", name+".tmpl"))
+		page, err := template.New(name + ".tmpl").Funcs(template.FuncMap{"highlight": highlight}).ParseFiles(filepath.Join(root, "site", name+".tmpl"))
 		if err != nil {
 			return fmt.Errorf("parse website template %s: %w", name, err)
 		}
@@ -156,7 +260,7 @@ func build(root, output string) error {
 		}
 		files[name+".html"] = html.Bytes()
 	}
-	for _, asset := range []string{"styles.css", "favicon.svg"} {
+	for _, asset := range []string{"styles.css", "favicon.svg", "logo.svg"} {
 		content, err := os.ReadFile(filepath.Join(root, "site", asset))
 		if err != nil {
 			return fmt.Errorf("read website asset %s: %w", asset, err)

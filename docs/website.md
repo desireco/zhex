@@ -1,10 +1,10 @@
 # Zhex website and GitHub Pages
 
-The website introduces Zhex and shows runnable examples. Its source is three HTML templates, CSS, and an SVG icon in `site/`; no JavaScript or package installation is required.
+The website introduces Zhex and shows runnable examples. Its source is three HTML templates, CSS, and brand SVG assets in `site/`; no JavaScript framework or package installation is required.
 
 The GitHub Pages address is [desireco.github.io/zhex](https://desireco.github.io/zhex/). The repository is configured to publish through GitHub Actions. A successful deployment appears in the repository's [Pages workflow](https://github.com/desireco/zhex/actions/workflows/pages.yml).
 
-The design uses warm ivory, forest green, a small lime accent, large type, and short explanations. The landing page introduces four examples and offers a local getting-started path. The examples page uses native disclosure elements; on narrow screens, content forms one column and only code scrolls horizontally. Code is the subject, so no decorative imagery or external font dependencies are needed.
+The design follows the Zhex design system: warm ivory paper, ink-black structural type, and a restrained signal orange that marks actions and emphasis. The landing page leads with one promise, shows a real console session, and introduces four examples; the examples page uses native disclosure elements; on narrow screens, content forms one column and only code scrolls horizontally. Code is the subject, so no decorative imagery or external font dependencies are needed.
 
 ## Build and preview
 
@@ -15,13 +15,13 @@ go run ./tools/build-site
 python3 -m http.server 8000 --directory _site
 ```
 
-Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, a public copy of `ROADMAP.md`, styles, the icon, and public downloads under `examples/`.
+Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, a public copy of `ROADMAP.md`, styles, the logo and icon, and public downloads under `examples/`.
 
 ## Keep examples accurate
 
 The build reads the actual `.zhex` files in `examples/` and executes them through the Go interpreter using fixed sample input. Both the displayed source and output therefore come from the working implementation. A broken example fails the website build. Example metadata and sample input are declared in `tools/build-site/main.go`.
 
-Both templates receive `HeroSource`, `HeroInput`, `HeroOutput`, and `Examples`. Each example has `ID`, `Title`, `Description`, `Source`, `Input`, `Output`, `Command`, and `SourceURL`. Source links point to the copied public `.zhex` files. Example content is escaped by Go's `html/template`; it must not be converted to trusted HTML.
+Both templates receive `HeroSource`, `HeroInput`, `HeroOutput`, and `Examples`. Each example has `ID`, `Title`, `Description`, `Source`, `Input`, `Output`, `Command`, and `SourceURL`. Source links point to the copied public `.zhex` files. The generator escapes every character of the displayed source and then adds design-system token spans, so templates render sources with the `highlight` pipeline function; sample input and output remain escaped plain text.
 
 Run `go test ./...` and `go vet ./...` after changes. Generator tests check source/output consistency, HTML escaping, required assets, local links and anchors, and failure behavior. The browser interface is a static presentation of examples, not an in-browser interpreter.
 

@@ -19,10 +19,11 @@ func siteFixture(t *testing.T) string {
 	files := map[string]string{
 		"ROADMAP.md":         "# Zhex roadmap\n\nA readable language.\n\n## Done\n\nWorking today.\n\n- Checked words.\n\n## Next\n\nTry it interactively.\n\n- REPL.\n\n## Future\n\nOpen ideas.\n\n- Compilation.\n",
 		"site/roadmap.tmpl":  `<main><p>{{.Roadmap.Intro}}</p>{{range .Roadmap.Sections}}<section><h2>{{.Title}}</h2><p>{{.Summary}}</p><ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul></section>{{end}}<a href="ROADMAP.md">Roadmap source</a></main>`,
-		"site/index.tmpl":    "<main><pre>{{.HeroSource}}</pre>{{range .Examples}}<article id=\"{{.ID}}\"><h2>{{.Title}}</h2><pre>{{.Source}}</pre><pre>{{.Output}}</pre><a href=\"{{.SourceURL}}\">Source</a></article>{{end}}</main>",
+		"site/index.tmpl":    "<main><pre>{{.HeroSource | highlight}}</pre>{{range .Examples}}<article id=\"{{.ID}}\"><h2>{{.Title}}</h2><pre>{{.Source}}</pre><pre>{{.Output}}</pre><a href=\"{{.SourceURL}}\">Source</a></article>{{end}}</main>",
 		"site/examples.tmpl": "<main>{{range .Examples}}<article id=\"{{.ID}}\"><pre>{{.Source}}</pre><a href=\"{{.SourceURL}}\">Download</a></article>{{end}}</main>",
 		"site/styles.css":    "body { color: black; }",
 		"site/favicon.svg":   "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>",
+		"site/logo.svg":      "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>",
 	}
 	for _, spec := range exampleSpecs {
 		files["examples/"+spec.id+".zhex"] = "print(\"<script>alert(1)</script>\")\n"
@@ -33,6 +34,29 @@ func siteFixture(t *testing.T) string {
 		}
 	}
 	return root
+}
+
+func TestHighlightMarksUpZhexSourceWithTokenClasses(t *testing.T) {
+	source := "# show <n>\nword greet(name: String) -> String\nlet n = 15\nif n > 0\n    print(\"hi <b>\")\nflow n\n    greet\n"
+	got := string(highlight(source))
+	for _, want := range []string{
+		`<span class="tok-comment"># show &lt;n&gt;</span>`,
+		`<span class="tok-keyword">word</span> <span class="tok-function">greet</span>(`,
+		`<span class="tok-variable">name</span>: <span class="tok-type">String</span>`,
+		`-&gt; <span class="tok-type">String</span>`,
+		`<span class="tok-keyword">let</span> <span class="tok-variable">n</span> = <span class="tok-number">15</span>`,
+		`<span class="tok-keyword">if</span>`,
+		`<span class="tok-function">print</span>(<span class="tok-string">&#34;hi &lt;b&gt;&#34;</span>)`,
+		`<span class="tok-flow">flow</span> <span class="tok-variable">n</span>`,
+		`<span class="tok-function">greet</span>`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("highlight output misses %q; got %s", want, got)
+		}
+	}
+	if strings.Contains(got, "<n>") || strings.Contains(got, `"hi`) {
+		t.Fatalf("highlight output is not fully escaped: %s", got)
+	}
 }
 
 func TestRoadmapPageUsesMarkdownSource(t *testing.T) {
@@ -96,7 +120,7 @@ func TestBuildReadsExamplesExecutesThemAndEscapesHTML(t *testing.T) {
 			t.Fatalf("missing example %s", spec.id)
 		}
 	}
-	for _, file := range []string{".nojekyll", "styles.css", "favicon.svg", "examples.html", "examples/hello.zhex", "examples/fizzbuzz.zhex"} {
+	for _, file := range []string{".nojekyll", "styles.css", "favicon.svg", "logo.svg", "examples.html", "examples/hello.zhex", "examples/fizzbuzz.zhex"} {
 		if _, err := os.Stat(filepath.Join(root, "output", file)); err != nil {
 			t.Fatal(err)
 		}

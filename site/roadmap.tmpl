@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="What works in Zhex today, the next milestones, and future language plans.">
-  <meta name="theme-color" content="#153c32">
+  <meta name="description" content="What works in Zhex today, what comes next, and the language's longer-term direction.">
+  <meta name="theme-color" content="#f6f3ec">
   <title>Roadmap — Zhex</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -12,19 +12,40 @@
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header wrap">
-    <a class="wordmark" href="./" aria-label="Zhex home"><img src="favicon.svg" width="34" height="34" alt="">Zhex</a>
-    <nav aria-label="Main navigation"><a href="examples.html">Examples</a><a href="./#start">Get started</a><a href="roadmap.html" aria-current="page">Roadmap</a><a href="https://github.com/desireco/zhex">GitHub <span aria-hidden="true">↗</span></a></nav>
+    <a class="brand" href="./" aria-label="Zhex home"><img class="brand-logo" src="logo.svg" width="168" height="50" alt=""></a>
+    <nav aria-label="Main navigation">
+      <a href="examples.html">Examples</a>
+      <a href="./#start">Get started</a>
+      <a href="roadmap.html" aria-current="page">Roadmap</a>
+      <a href="https://github.com/desireco/zhex">GitHub ↗</a>
+    </nav>
   </header>
-  <main id="main" class="wrap">
-    <section class="examples-intro"><p class="eyebrow">The plan</p><h1>Where Zhex goes next.</h1><p class="lede">{{.Roadmap.Intro}}</p></section>
+
+  <main id="main">
+    <section class="page-intro wrap">
+      <p class="eyebrow">The plan</p>
+      <h1>Where Zhex goes next.</h1>
+      <p class="lede">{{.Roadmap.Intro}}</p>
+    </section>
+
     {{range .Roadmap.Sections}}
-    <section class="roadmap-stage section" aria-labelledby="stage-{{.Title}}">
-      <div><p class="eyebrow">{{.Title}}</p><h2 id="stage-{{.Title}}">{{if eq .Title "Done"}}A working foundation.{{else if eq .Title "Next"}}Make it useful day to day.{{else}}Room to grow.{{end}}</h2><p class="aside">{{.Summary}}</p></div>
-      <ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
+    <section class="section roadmap-section{{if eq .Title "Done"}} done{{else if eq .Title "Next"}} next{{end}}" aria-labelledby="stage-{{.Title}}">
+      <div class="wrap roadmap-stage">
+        <div><p class="eyebrow">{{.Title}}</p><h2 id="stage-{{.Title}}">{{if eq .Title "Done"}}A working foundation.{{else if eq .Title "Next"}}Make it useful day to day.{{else}}Room to grow.{{end}}</h2><p class="aside">{{.Summary}}</p></div>
+        <ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
+      </div>
     </section>
     {{end}}
-    <p class="roadmap-source"><a href="ROADMAP.md">Read the roadmap file</a> · <a href="examples.html">Try the current examples</a></p>
+
+    <p class="roadmap-source wrap"><a href="ROADMAP.md">View the roadmap source</a> · <a href="examples.html">Try the current examples →</a></p>
   </main>
-  <footer class="site-footer wrap"><a class="wordmark" href="./">Zhex</a><p>An experimental Forth-inspired language.</p><a href="https://github.com/desireco/zhex/blob/main/docs/initial-language.md">Language reference <span aria-hidden="true">↗</span></a></footer>
+
+  <footer class="site-footer wrap">
+    <a class="brand" href="./" aria-label="Zhex home"><img class="brand-logo" src="logo.svg" width="138" height="41" alt=""></a>
+    <p>Small words. Big ideas.</p>
+    <nav class="footer-links" aria-label="Footer navigation">
+      <a href="https://github.com/desireco/zhex/blob/main/docs/initial-language.md">Language reference ↗</a>
+    </nav>
+  </footer>
 </body>
 </html>
