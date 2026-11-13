@@ -10,7 +10,7 @@ The first language milestone runs real programs with checked types and console i
 - Working examples: composition, console input, FizzBuzz, Fibonacci, factorial, palindrome checking, a recursive GCD, and a times table.
 - Executable specification: tests cover syntax, types, scope, arithmetic boundaries, Unicode, and failure paths.
 - Getting started: documentation, a public examples website, just recipes for development, and local highlighting packages for Vim/Neovim, VS Code, and Zed.
-- Website: an editorial redesign with a new logo, syntax-highlighted examples, and a published design system with a concept archive.
+- Website: Astro-powered topic documentation and an editorial redesign with a new logo, syntax-highlighted examples, and a published design system with a concept archive.
 - Licensing: the repository is public and published under the MIT license.
 - Editors: syntax highlighting for Vim/Neovim, VS Code, and Zed, with installation and usage documented on the website's docs page.
 - Agents: AGENTS.md, an llms.txt site index, and agent-readable examples make Zhex easy for humans to review and AI agents to write.
@@ -25,10 +25,9 @@ The first language milestone runs real programs with checked types and console i
 
 ## Next
 
-Grow the language's reach: a dedicated domain, the Astro site, and funding. This is the proposed order; each step needs working examples and tests.
+Grow the language's reach: a dedicated domain and funding. This is the proposed order; each step needs working examples and tests.
 
 - Domain: buy a dedicated domain for the language and point it at the published site.
-- Website platform: rebuild the site on Astro, replacing the Go site builder.
 - Funding: enable GitHub Sponsors or Open Collective with a sponsor section on the site, and pursue the researched grant and visibility channels (#26).
 
 ## Future
@@ -41,3 +40,4 @@ These are directions to explore. Their order and implementation remain open, and
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.
 - Development tools: formatting, language-server support, and published editor packages as the syntax settles.
 - Development insight: record-and-replay runs, debug-adapter support, and agent tools, so people and AI agents can see and debug what a program is doing (see docs/diagnostics-plan.md).
+- Module growth: exposure lists, import renames, subfolder paths, and computed module constants, composing on the simple use-and-underscore design when each earns its place.

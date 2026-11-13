@@ -8,7 +8,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 - `cmd/zhex` — the CLI: `go run ./cmd/zhex run <file>`.
 - `examples/*.zhex` — validated example corpus (hello, fizzbuzz, fibonacci, gcd, times-table, factorial, palindrome, composition, text-stats, and the two-file program under `modules/`). The website executes every example at build time; a broken example fails the build.
 - `docs/` — the language contract (`initial-language.md`), getting-started guide, and research notes.
-- `site/` + `tools/build-site` — website templates and the Go generator; `site/design/` ships the design system verbatim.
+- `site/` + `tools/site-data` — Astro pages and build-time executable example data; `site/design/` ships the design system verbatim.
 - `editors/` — syntax highlighting for Vim/Neovim, VS Code, and Zed.
 - `ROADMAP.md` and the public project board (github.com/users/desireco/projects/8) track the same work; keep them in sync.
 

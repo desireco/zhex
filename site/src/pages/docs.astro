@@ -1,0 +1,12 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+const entries = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+const groups = [['Start', 'setup-title'], ['Language', 'features-title'], ['Standard library', 'library-title'], ['Tools', 'tools-title']];
+---
+<Base title="Docs — Zhex" description="Learn Zhex, from your first program to the language reference." current="docs">
+  <main id="main" class="wrap docs-index"><section class="page-intro"><p class="eyebrow">Documentation</p><h1>Learn Zhex.</h1><p class="lede">Start with a program, then explore the language and its tools.</p></section>
+  {groups.map(([group, id]) => <section class="section" aria-labelledby={id}><div class="section-heading"><h2 id={id}>{group}</h2></div><div class="feature-list">{entries.filter(e => e.data.section === group).map(e => <a class="feature-row" href={`docs/${e.id}.html`}><h3 id={e.id === "modules" ? "modules-title" : e.id === "editors" ? "editors-title" : undefined}>{e.data.title}</h3><p>{e.data.description}</p></a>)}</div></section>)}
+  <section class="section" aria-labelledby="errors-title"><h2 id="errors-title">Diagnostic catalog</h2><p>Find every stable diagnostic code and its meaning.</p><a href="errors.html">Browse errors →</a></section>
+  </main>
+</Base>

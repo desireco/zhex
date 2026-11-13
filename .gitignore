@@ -6,3 +6,6 @@
 /editors/tree-sitter-zhex/*.so
 /editors/tree-sitter-zhex/*.wasm
 /.zcode/
+/site/node_modules/
+/site/.astro/
+/site/data.json

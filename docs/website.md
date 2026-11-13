@@ -1,39 +1,27 @@
 # Zhex website and GitHub Pages
 
-The website introduces Zhex and shows runnable examples. Its source is four HTML templates, CSS, and brand SVG assets in `site/`; no JavaScript framework or package installation is required.
-
-The GitHub Pages address is [desireco.github.io/zhex](https://desireco.github.io/zhex/). The repository is configured to publish through GitHub Actions. A successful deployment appears in the repository's [Pages workflow](https://github.com/desireco/zhex/actions/workflows/pages.yml).
-
-The design follows the Zhex design system: warm ivory paper, ink-black structural type, and a restrained signal orange that marks actions and emphasis. The landing page leads with one promise, shows a real console session, and introduces four examples; the examples page uses native disclosure elements; on narrow screens, content forms one column and only code scrolls horizontally. Code is the subject, so no decorative imagery or external font dependencies are needed.
+The website introduces Zhex, runs its examples at build time, and organizes language documentation into topic pages. Astro pages, layouts, styles, assets, and Markdown content live under `site/`; the Go helper in `tools/site-data` runs the actual interpreter and prepares the data Astro renders. The [published site](https://desireco.github.io/zhex/) is deployed by the [Pages workflow](https://github.com/desireco/zhex/actions/workflows/pages.yml).
 
 ## Build and preview
 
-From the repository root:
+Install Go, Node 22.23.4 or newer (or Node 24), and the locked site dependencies, then build or preview from the repository root:
 
 ```sh
-go run ./tools/build-site
-python3 -m http.server 8000 --directory _site
+npm ci --prefix site
+just site
+just serve
 ```
 
-Open [localhost:8000](http://localhost:8000/). The generator accepts `-out directory` to select a different output directory. `_site/` is generated content; edit source files instead. The build produces `index.html`, `examples.html`, `roadmap.html`, `docs.html`, a public copy of `ROADMAP.md`, styles, the logo and icon, and public downloads under `examples/`. The docs page summarizes the language's features and documents the local editor packages for Vim/Neovim, VS Code, and Zed; keep it consistent with `docs/initial-language.md` and `docs/editors.md`. The static `site/design/` tree is copied verbatim to `design/`, so the [design system](design/design-system.html) and the concept archive ship with the site; its pages participate in the same local-link validation as the generated ones.
+Open [localhost:8000/zhex/](http://127.0.0.1:8000/zhex/). `_site/` and `site/data.json` are generated; edit sources instead. `just test` runs Go tests and the complete website build. `go vet ./...` checks Go source.
 
-## Keep examples accurate
+The Astro configuration sets the `/zhex` Pages base and emits stable `.html` URLs. `site/src/content/docs/` holds topic pages with `title`, `description`, `section`, and `order` frontmatter. Keep them consistent with `docs/initial-language.md`, `docs/getting-started.md`, and `docs/editors.md`. The legacy docs anchors and `/errors.html` catalog anchors remain available. `site/design/` ships verbatim, along with the example sources, roadmap, manifesto, and `llms.txt`.
 
-The build reads the actual `.zhex` files in `examples/` and executes them through the Go interpreter using fixed sample input. Both the displayed source and output therefore come from the working implementation. A broken example fails the website build. Example metadata and sample input are declared in `tools/build-site/main.go`.
+## Build-time checks
 
-Both templates receive `HeroSource`, `HeroInput`, `HeroOutput`, and `Examples`. Each example has `ID`, `Title`, `Description`, `Source`, `Input`, `Output`, `Command`, and `SourceURL`. Source links point to the copied public `.zhex` files. The generator escapes every character of the displayed source and then adds design-system token spans, so templates render sources with the `highlight` pipeline function; sample input and output remain escaped plain text.
+The data helper executes every program in `examples/` with fixed input and arguments, including the two-file module example. It reads the source and output from the interpreter, highlights escaped source, validates the roadmap and manifesto, and reads the interpreter's diagnostic catalog. A broken program fails the build. Example metadata is in `tools/site-data/main.go`. After Astro builds, `site/scripts/finish.mjs` copies public assets and checks local links and anchors, and `site/scripts/verify.mjs` checks rendered examples, downloads, and compatibility anchors. The site is static; it does not execute Zhex in the browser.
 
-Run `go test ./...` and `go vet ./...` after changes. Generator tests check source/output consistency, HTML escaping, required assets, local links and anchors, and failure behavior. The browser interface is a static presentation of examples, not an in-browser interpreter.
+The root `ROADMAP.md` uses a title, an introductory paragraph, and Done, Next, and Future sections with single-line bullets. The data helper rejects missing sections and unsupported paragraph markup. Keep it aligned with the [project board](https://github.com/users/desireco/projects/8).
 
 ## Publishing
 
-The [Pages workflow](../.github/workflows/pages.yml) tests and builds the site on pull requests. Pushes to `main` and manual workflow runs from `main` also upload the static artifact and deploy it to the `github-pages` environment. Action versions are pinned to verified commit SHAs. The build job has read-only repository permissions; only the deployment job receives Pages and identity-token write permissions.
-
-In repository **Settings → Pages**, the build source must be **GitHub Actions**. No branch containing generated files is needed. Deployment publishes only `_site/`, including the nine downloadable example programs, rather than the repository's internal planning documents or interpreter source tree. The repository is public, so clone commands and repository links work for everyone alongside the published Pages site and its example downloads.
-
-
-To update or roll back the site, push the intended source revision to `main` and let the workflow publish it. The workflow status and deployment URL are the source of truth for whether a version is live.
-
-## Keep the roadmap current
-
-Edit the root `ROADMAP.md` to update both the repository roadmap and the public roadmap page. It uses a title, an introductory paragraph, and three sections: Done, Next, and Future. Each section has a short summary and at most eight single-line bullets. Use plain text inside paragraphs and bullets; the site escapes it as text. The generator rejects missing sections and unsupported paragraph markup. Keep delivery dates out until they are agreed, and move work to Done only when implementation and validation are complete. The roadmap page links to the public [project board](https://github.com/users/desireco/projects/8), which tracks the same items as issues; keep the two in sync when work starts, ships, or changes order.
+The Pages workflow installs locked npm dependencies, tests Go, builds the site, and uploads `_site/`. Pull requests build without publishing; pushes to `main` and manual runs on `main` deploy to the `github-pages` environment. Only the deploy job receives Pages and identity-token write permissions. Repository Settings → Pages must use GitHub Actions as its source. Check the workflow and deployment URL after pushing; roll back by pushing the intended source revision and letting the workflow publish it.

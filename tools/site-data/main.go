@@ -2,14 +2,12 @@ package main
 
 import (
 	"bytes"
-	"flag"
+	"encoding/json"
 	"fmt"
 	"html"
 	"html/template"
-	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -20,6 +18,7 @@ import (
 type Example struct {
 	ID, Title, Description string
 	Source, Input, Output  string
+	Highlighted            string
 	Command, SourceURL     string
 	// File labels the entry source's code block; Modules stacks labeled
 	// library files under it when the example spans several files.
@@ -30,6 +29,7 @@ type Example struct {
 // ExampleModule is one labeled secondary source beside the entry file.
 type ExampleModule struct {
 	File, Source, URL string
+	Highlighted       string
 }
 
 type pageData struct {
@@ -247,17 +247,35 @@ var exampleSpecs = []struct {
 }
 
 func main() {
-	output := flag.String("out", "_site", "directory for the generated static website")
-	flag.Parse()
-	if flag.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "usage: go run ./tools/build-site [-out directory]")
-		os.Exit(2)
+	data, err := loadExamples(".")
+	if err == nil {
+		data.Roadmap, err = readRoadmap("ROADMAP.md")
 	}
-	if err := build(".", *output); err != nil {
+	if err == nil {
+		var source []byte
+		source, err = os.ReadFile("docs/manifesto.md")
+		if err == nil {
+			data.Manifesto, err = loadManifesto(source)
+		}
+	}
+	if err == nil {
+		data.Catalog, err = loadCatalog()
+	}
+	if err == nil {
+		err = json.NewEncoder(os.Stdout).Encode(data)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Printf("Built Zhex website in %s\n", *output)
+}
+
+func readRoadmap(path string) (Roadmap, error) {
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return Roadmap{}, err
+	}
+	return loadRoadmap(source)
 }
 
 func loadExamples(root string) (pageData, error) {
@@ -293,7 +311,7 @@ func loadExamples(root string) (pageData, error) {
 		}
 		example := Example{
 			ID: spec.id, Title: spec.title, Description: spec.description,
-			Source: string(source), Input: strings.TrimSuffix(spec.input, "\n"), Output: output.String(),
+			Source: string(source), Highlighted: string(highlight(string(source))), Input: strings.TrimSuffix(spec.input, "\n"), Output: output.String(),
 			Command:   command,
 			SourceURL: "examples/" + filename,
 			File:      filepath.Base(filename),
@@ -304,7 +322,7 @@ func loadExamples(root string) (pageData, error) {
 				return pageData{}, fmt.Errorf("read example %s: %w", file, err)
 			}
 			url := filepath.ToSlash(filepath.Join("examples", filepath.Dir(filename), file))
-			example.Modules = append(example.Modules, ExampleModule{File: file, Source: string(moduleSource), URL: url})
+			example.Modules = append(example.Modules, ExampleModule{File: file, Source: string(moduleSource), URL: url, Highlighted: string(highlight(string(moduleSource)))})
 		}
 		data.Examples = append(data.Examples, example)
 		if spec.id == "hello" {
@@ -314,174 +332,4 @@ func loadExamples(root string) (pageData, error) {
 		}
 	}
 	return data, nil
-}
-
-// Pages under site/design (the design system and the concept archive) are
-// static documents: they are copied verbatim into design/ in the output.
-func loadDesignFiles(root string, files map[string][]byte) error {
-	base := filepath.Join(root, "site", "design")
-	return filepath.WalkDir(base, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		rel, err := filepath.Rel(base, path)
-		if err != nil {
-			return err
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read design asset %s: %w", rel, err)
-		}
-		files["design/"+filepath.ToSlash(rel)] = content
-		return nil
-	})
-}
-
-// navLinks is the single source of truth for the header navigation; every
-// page injects it, so a new page edits this list instead of six templates.
-var navLinks = []struct{ page, href, label string }{
-	{"manifesto", "manifesto.html", "Manifesto"},
-	{"examples", "examples.html", "Examples"},
-	{"docs", "docs.html", "Docs"},
-	{"", "./#start", "Get started"},
-	{"roadmap", "roadmap.html", "Roadmap"},
-	{"", "https://github.com/desireco/zhex", "GitHub ↗"},
-}
-
-func navHTML(current string) template.HTML {
-	var links []string
-	for _, link := range navLinks {
-		attr := ""
-		if link.page == current {
-			attr = ` aria-current="page"`
-		}
-		href := link.href
-		if current == "index" && strings.HasPrefix(href, "./#") {
-			href = href[2:] // the hero anchor lives on this page
-		}
-		links = append(links, fmt.Sprintf(`<a href="%s"%s>%s</a>`, href, attr, link.label))
-	}
-	return template.HTML(strings.Join(links, "\n      "))
-}
-
-func build(root, output string) error {
-	data, err := loadExamples(root)
-	if err != nil {
-		return err
-	}
-	files := map[string][]byte{".nojekyll": {}}
-	if err := loadDesignFiles(root, files); err != nil {
-		return err
-	}
-	roadmap, err := os.ReadFile(filepath.Join(root, "ROADMAP.md"))
-	if err != nil {
-		return fmt.Errorf("read roadmap: %w", err)
-	}
-	data.Roadmap, err = loadRoadmap(roadmap)
-	if err != nil {
-		return err
-	}
-	files["ROADMAP.md"] = roadmap
-	manifesto, err := os.ReadFile(filepath.Join(root, "docs", "manifesto.md"))
-	if err != nil {
-		return fmt.Errorf("read manifesto: %w", err)
-	}
-	data.Manifesto, err = loadManifesto(manifesto)
-	if err != nil {
-		return err
-	}
-	files["manifesto.md"] = manifesto
-	data.Catalog, err = loadCatalog()
-	if err != nil {
-		return err
-	}
-	for _, name := range []string{"index", "examples", "roadmap", "docs", "errors", "manifesto"} {
-		page, err := template.New(name + ".tmpl").Funcs(template.FuncMap{"highlight": highlight, "codeChips": codeChips}).ParseFiles(filepath.Join(root, "site", name+".tmpl"))
-		if err != nil {
-			return fmt.Errorf("parse website template %s: %w", name, err)
-		}
-		var html bytes.Buffer
-		data.Nav = navHTML(name)
-		if err := page.Execute(&html, data); err != nil {
-			return fmt.Errorf("render website %s: %w", name, err)
-		}
-		files[name+".html"] = html.Bytes()
-	}
-	for _, asset := range []string{"styles.css", "favicon.svg", "logo.svg", "llms.txt"} {
-		content, err := os.ReadFile(filepath.Join(root, "site", asset))
-		if err != nil {
-			return fmt.Errorf("read website asset %s: %w", asset, err)
-		}
-		files[asset] = content
-	}
-	for _, example := range data.Examples {
-		files[example.SourceURL] = []byte(example.Source)
-		for _, module := range example.Modules {
-			files[module.URL] = []byte(module.Source)
-		}
-	}
-	if err := validateLinks(files); err != nil {
-		return err
-	}
-	if !filepath.IsAbs(output) {
-		output = filepath.Join(root, output)
-	}
-	if output == filepath.Clean(root) {
-		return fmt.Errorf("output directory must not be the repository root")
-	}
-	if err := os.RemoveAll(output); err != nil {
-		return fmt.Errorf("clear website output: %w", err)
-	}
-	if err := os.MkdirAll(output, 0755); err != nil {
-		return fmt.Errorf("create website output: %w", err)
-	}
-	for name, content := range files {
-		if err := os.MkdirAll(filepath.Dir(filepath.Join(output, name)), 0755); err != nil {
-			return fmt.Errorf("create website directory: %w", err)
-		}
-		if err := os.WriteFile(filepath.Join(output, name), content, 0644); err != nil {
-			return fmt.Errorf("write website file %s: %w", name, err)
-		}
-	}
-	return nil
-}
-
-var linkPattern = regexp.MustCompile(`(?:href|src)=["']([^"']+)["']`)
-
-func validateLinks(files map[string][]byte) error {
-	for name, content := range files {
-		if !strings.HasSuffix(name, ".html") {
-			continue
-		}
-		for _, match := range linkPattern.FindAllSubmatch(content, -1) {
-			target, err := url.Parse(string(match[1]))
-			if err != nil {
-				return fmt.Errorf("invalid link in %s: %w", name, err)
-			}
-			if target.IsAbs() || target.Host != "" {
-				continue
-			}
-			if strings.HasPrefix(target.Path, "/") {
-				return fmt.Errorf("local link must be relative to the Pages project in %s: %s", name, target)
-			}
-			path := name
-			if target.Path != "" {
-				path = filepath.ToSlash(filepath.Clean(filepath.Join(filepath.Dir(name), target.Path)))
-				if strings.HasSuffix(target.Path, "/") {
-					path = filepath.ToSlash(filepath.Join(path, "index.html"))
-				}
-			}
-			linked, ok := files[path]
-			if !ok {
-				return fmt.Errorf("broken local link in %s: %s", name, target)
-			}
-			if target.Fragment != "" && !bytes.Contains(linked, []byte(`id="`+target.Fragment+`"`)) && !bytes.Contains(linked, []byte(`id='`+target.Fragment+`'`)) {
-				return fmt.Errorf("missing anchor in %s: %s", name, target)
-			}
-		}
-	}
-	return nil
 }

@@ -5,6 +5,7 @@ default:
 # Run interpreter and website tests.
 test:
     go test ./...
+    npm --prefix site run build
 
 # Run tests with Go's race detector.
 test-race:
@@ -28,7 +29,7 @@ run $example='hello':
 
 # Build the website from the working examples and roadmap.
 site:
-    go run ./tools/build-site
+    npm --prefix site run build
 
 # Prepare the local Zed language extension.
 zed-prepare:
@@ -38,6 +39,6 @@ zed-prepare:
 vim-install:
     sh editors/vim/install.sh
 
-# Build and preview the website at http://127.0.0.1:8000.
+# Build and preview the website at http://127.0.0.1:8000/zhex/.
 serve $port='8000': site
-    python3 -m http.server "$port" --bind 127.0.0.1 --directory _site
+    npm --prefix site run preview -- --host 127.0.0.1 --port "$port"

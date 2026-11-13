@@ -1,0 +1,10 @@
+---
+import Base from '../layouts/Base.astro';
+import data from '../../data.json';
+---
+<Base title="Manifesto — Zhex" description="Why Zhex exists." current="manifesto">
+  <main id="main" class="wrap">
+    <section class="page-intro"><p class="eyebrow">Manifesto</p><h1>{data.Manifesto.Title}</h1>{data.Manifesto.Intro.map(p => <p class="lede">{p}</p>)}<p class="aside">Read the <a href="manifesto.md">Markdown source</a> or the <a href="https://github.com/desireco/zhex/blob/main/docs/language-goals.md">language goals and acceptance criteria</a>.</p></section>
+    <section class="section" aria-label="The intentions behind Zhex">{data.Manifesto.Sections.map(s => <div class="docs-feature"><h2>{s.Title}</h2>{s.Paragraphs.map(p => <p>{p}</p>)}</div>)}</section>
+  </main>
+</Base>

@@ -24,12 +24,20 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Test interpreter and website generator
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install site dependencies
+        run: npm ci --prefix site
+      - name: Test interpreter and site data
         run: go test ./...
       - name: Check Go source
         run: go vet ./...
       - name: Build website from executable examples
-        run: go run ./tools/build-site
+        run: npm --prefix site run build
       - name: Upload GitHub Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4

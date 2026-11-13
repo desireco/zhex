@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import data from '../../data.json';
+---
+<Base title="Errors — Zhex" description="Every Zhex diagnostic code with its meaning and fix." current="docs">
+  <main id="main" class="wrap">
+    <section class="page-intro"><p class="eyebrow">Diagnostics</p><h1>Every error,<br />by name.</h1><p class="lede">Each diagnostic carries a stable code. The first line is always <code>file:line:column: message</code>; the source excerpt, caret, and <code>hint:</code> are additive detail.</p><p class="aside">Machine readers: <code>zhex run file.zhex --report=json</code> emits <code>{'{code, severity, file, line, column, message, hint}'}</code>, plus optional <code>span_start_column</code>/<code>span_end_column</code> for checker diagnostics with a span. The contract lives in <a href="https://github.com/desireco/zhex/blob/main/docs/diagnostics-plan.md">docs/diagnostics-plan.md</a>.</p></section>
+    <section class="section" aria-labelledby="catalog-title"><div class="section-heading"><div><p class="eyebrow">The catalog</p><h2 id="catalog-title">What it means, how to fix it.</h2></div><p class="intro">Codes are stable: never renamed, never reused. The catalog comes from the interpreter's own definitions.</p></div>
+    {data.Catalog.map(entry => <div class="docs-feature" id={entry.Code}><h3><code>{entry.Code}</code></h3><p>{entry.Text.split('`').map((part, i) => i % 2 ? <code>{part}</code> : part)}</p></div>)}
+    </section>
+  </main>
+</Base>

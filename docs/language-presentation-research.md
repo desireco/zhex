@@ -23,7 +23,7 @@ Mirth limitation: the Codeberg repository and candidate standalone sites could n
 
 ## Recommendations for Zhex
 
-These are proposals based on the survey and the current [landing page source](../site/index.tmpl), [README](../README.md), and [roadmap](../ROADMAP.md).
+These are proposals based on the survey and the current [landing page source](../site/src/pages/index.astro), [README](../README.md), and [roadmap](../ROADMAP.md).
 
 1. **Keep the first screen focused on readable composition.** Retain the short headline, one sentence, and a complete example. Explain that a word is a function and that a flow passes its result onward. Lead with behavior a visitor can inspect; leave the ancestry and design research one link away.
 2. **Make access clear at the action.** While the repository is private, make reading examples the main public action. Put the repository-access requirement beside any local-run link. A future public binary download would need an explicit release and distribution decision. A browser playground can follow the WASM milestone once compilation and host I/O work.

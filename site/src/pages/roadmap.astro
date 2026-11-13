@@ -1,0 +1,25 @@
+---
+import Base from "../layouts/Base.astro";
+import data from "../../data.json";
+---
+<Base title="Roadmap — Zhex" description="What works today and where Zhex goes next." current="roadmap">
+  <main id="main">
+    <section class="page-intro wrap">
+      <p class="eyebrow">The plan</p>
+      <h1>Where Zhex goes next.</h1>
+      <p class="lede">{data.Roadmap.Intro}</p>
+    </section>
+
+    {data.Roadmap.Sections.map(section => (
+    <section class={`section roadmap-section ${section.Title === "Done" ? "done" : section.Title === "Next" ? "next" : ""}`} aria-labelledby={`stage-${section.Title}`}>
+      <div class="wrap roadmap-stage">
+        <div><p class="eyebrow">{section.Title}</p><h2 id={`stage-${section.Title}`}>{section.Title === "Done" ? "A working foundation." : section.Title === "Next" ? "Make it useful day to day." : "Room to grow."}</h2><p class="aside">{section.Summary}</p></div>
+        <ul>{section.Items.map(item => <li>{item}</li>)}</ul>
+      </div>
+    </section>
+    ))}
+
+    <p class="roadmap-source wrap"><a href="https://github.com/users/desireco/projects/8">Follow the project board ↗</a> · <a href="ROADMAP.md">View the roadmap source</a> · <a href="examples.html">Try the current examples →</a></p>
+  </main>
+
+</Base>

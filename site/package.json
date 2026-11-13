@@ -1,0 +1,16 @@
+{
+  "name": "zhex-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd .. && go run ./tools/site-data > site/data.json && cd site && astro build && node scripts/finish.mjs && node scripts/verify.mjs",
+    "dev": "cd .. && go run ./tools/site-data > site/data.json && cd site && astro dev",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "7.4.12"
+  },
+  "engines": {
+    "node": ">=22.23.4"
+  }
+}
