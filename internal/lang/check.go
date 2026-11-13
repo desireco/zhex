@@ -66,33 +66,41 @@ func Compile(file, source string) (*Program, error) {
 	}
 	p.source = source
 	c := checker{words: make(map[string]*word)}
+	if _, err = c.checkProgram(p, newScope(nil)); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// checkProgram type-checks a parsed program against the caller's words and
+// top-level scope, returning the top level's result type. Word bodies never
+// see the top-level scope.
+func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
 	for _, w := range p.words {
 		if c.words[w.name] != nil || HostWord(w.name) {
-			return nil, errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
+			return "", errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
 		}
 		c.words[w.name] = w
 	}
 	for _, w := range p.words {
 		env := newScope(nil)
+		var err error
 		for i := range w.params {
 			param := &w.params[i]
 			param.binding, err = env.define(param.pos, param.name, param.typ, false)
 			if err != nil {
-				return nil, err
+				return "", err
 			}
 		}
 		result, err := c.block(w.body, env)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		if result != w.result {
-			return nil, errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
+			return "", errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
 		}
 	}
-	if _, err = c.block(p.body, newScope(nil)); err != nil {
-		return nil, err
-	}
-	return p, nil
+	return c.block(p.body, top)
 }
 
 func (c *checker) block(body []*statement, env *scope) (valueType, error) {

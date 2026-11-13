@@ -64,7 +64,7 @@ Use these systems as design references, as discussed in the [implementation surv
 
 ## First implementation
 
-The first interpreter will be written in Go. Console input and output are part of the first milestone, using interactive greeting, FizzBuzz, Fibonacci, factorial, and palindrome examples alongside checked composition. It should then grow toward a REPL, explicit modules, and enough text/file support to build a useful command-line tool.
+The first interpreter will be written in Go. Console input and output are part of the first milestone, using interactive greeting, FizzBuzz, Fibonacci, factorial, and palindrome examples alongside checked composition. It now includes a REPL (`zhex repl`), and should next grow toward explicit modules and enough text/file support to build a useful command-line tool.
 
 Keep parsing, semantic checking, execution, and host operations separate so later compilation can reuse the language definition and frontend. Prefer the smallest working representation; a second backend or a general virtual machine is not required to establish those boundaries.
 

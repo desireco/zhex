@@ -4,7 +4,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 
 ## Repository map
 
-- `internal/lang` — the language implementation: `syntax.go`, `lexer.go`, `parser.go`, `check.go`, `eval.go`, `host.go`. Tests in that directory are the executable specification (see `docs/tests.md`).
+- `internal/lang` — the language implementation: `syntax.go`, `lexer.go`, `parser.go`, `check.go`, `eval.go`, `host.go`, `session.go`. Tests in that directory are the executable specification (see `docs/tests.md`).
 - `cmd/zhex` — the CLI: `go run ./cmd/zhex run <file>`.
 - `examples/*.zhex` — validated example corpus (hello, fizzbuzz, fibonacci, gcd, times-table, factorial, palindrome, composition). The website executes every example at build time; a broken example fails the build.
 - `docs/` — the language contract (`initial-language.md`), getting-started guide, and research notes.
@@ -25,6 +25,8 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 - Input: `read-line(prompt)` returns `Result<String, InputError>` and `text.to-int(text)` returns `Result<Int, ParseError>`. Postfix `try` unwraps success and propagates failure — input failure exits nonzero with a diagnostic.
 - Standard operations: `print`, `range`, `int.to-string`, `text.reverse`, `read-line`, `text.to-int`.
 - Names: ASCII letters, digits, underscores, plus hyphenated segments (`is-palindrome`). Dots qualify operation names (`int.to-string`); a dot says which type owns the verb — nothing else is dotted. Gotcha: `a-b` is a single name — write `a - b` for subtraction.
+
+REPL sessions: `zhex repl [--trace]` keeps words and values across entries. A blank line ends a multi-line entry — only a missing indented block continues, so statements never span lines. Redefining a word replaces it and prints `redefined <name>`; `let` shadows silently. `words` lists signatures, and bare expressions echo their value (`ok("...")`/`err("...")` for Results). Errors print the annotated diagnostic and the session survives; a runtime error keeps the entry's earlier effects. Ctrl-D exits 0, a final line without its newline still runs, and the `words` command shadows a user binding of that name.
 
 Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seeded with a computed call, `times-table` shows bounded loops and string building — and on the website's docs page (desireco.github.io/zhex/docs.html).
 

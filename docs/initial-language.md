@@ -38,6 +38,6 @@ The [example guide](syntax-examples.md) defines line endings, integer parsing, E
 
 ## Commands and validation
 
-Run `go run ./cmd/zhex run examples/fibonacci.zhex`, or build with `go build -o bin/zhex ./cmd/zhex` and run `./bin/zhex run examples/fibonacci.zhex`. The runner requires a source file; `repl` is later work.
+Run `go run ./cmd/zhex run examples/fibonacci.zhex`, or build with `go build -o bin/zhex ./cmd/zhex` and run `./bin/zhex run examples/fibonacci.zhex`. The runner requires a source file; `zhex repl [--trace]` instead starts an interactive session whose words and values persist across entries — a blank line ends a multi-line entry, bare expressions echo their value, errors print a diagnostic without ending the session, and `words` lists signatures.
 
 Run `go test ./...` for the executable language cases and CLI tests. Run `go vet ./...` for Go checks. The [test catalog](tests.md) maps syntax and behavior to those tests. Modules, collections, rich domain types, resource scopes, and native compilation remain later work.

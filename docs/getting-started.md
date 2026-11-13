@@ -34,7 +34,37 @@ go build -o bin/zhex ./cmd/zhex
 ./bin/zhex run examples/hello.zhex
 ```
 
-The command currently runs files. An interactive language REPL is planned.
+## Try it interactively
+
+The interpreter also has a REPL that checks and runs each entry as you type it:
+
+```sh
+go run ./cmd/zhex repl
+```
+
+Words and values persist across entries. A word header starts a multi-line entry, marked by the `....> ` continuation prompt, and a blank line submits it:
+
+```text
+Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.
+zhex> word greet(name: String) -> String
+....>     "Hello, " + name + "!"
+....>
+zhex> greet("Ada")
+Hello, Ada!
+zhex> word greet(name: String) -> String
+....>     "Hi, " + name + "!"
+....>
+redefined greet
+zhex> greet("Grace")
+Hi, Grace!
+zhex> let name = read-line("Name: ") try
+Name: Linus
+zhex> greet(name)
+Hi, Linus!
+zhex> [Ctrl-D]
+```
+
+The lines after the `zhex> ` and `....> ` prompts are your input, as is `Linus` at the `Name:` prompt; `[Ctrl-D]` is the keypress that ends the session with exit status 0. Redefining a word replaces it and prints `redefined greet`. An entry that is a bare expression echoes its value, which is how `greet("Ada")` shows its greeting; `let` and `print` entries produce no echo. Statements never span lines — only a missing indented body continues an entry, and a blank line ends it. Errors print their diagnostic and the session survives, `words` lists the signatures defined so far, and `--trace` streams the same step events as `zhex run --trace`.
 
 ## Read the greeting
 

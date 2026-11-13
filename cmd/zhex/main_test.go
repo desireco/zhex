@@ -161,14 +161,125 @@ func TestRunCommandRejectsMalformedTraceFlag(t *testing.T) {
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 {
 			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
 		}
-		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace]\n" {
+		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] | zhex repl [--trace]\n" {
 			t.Fatalf("usage %q", diagnostics.String())
 		}
 	}
 }
 
+func TestReplSessionScript(t *testing.T) {
+	script := strings.Join([]string{
+		"word greet(name: String) -> String",
+		"    \"Hello, \" + name + \"!\"",
+		"",
+		"greet(\"Ada\")",
+		"word greet(name: String) -> String",
+		"    \"Hi, \" + name + \"!\"",
+		"",
+		"greet(\"Grace\")",
+		"let bad = missing(1)",
+		"let who = read-line(\"Name: \") try",
+		"Linus",
+		"greet(who)",
+	}, "\n") + "\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	for _, want := range []string{
+		"Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.\n",
+		"....> ",
+		"Hello, Ada!\n",
+		"redefined greet\n",
+		"Hi, Grace!\n",
+		"Name: ",
+		"Hi, Linus!\n",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("stdout %q misses %q", out.String(), want)
+		}
+	}
+	// Exactly one diagnostic — "Linus" was consumed by the entry's read-line, not the loop.
+	if n := strings.Count(diagnostics.String(), "repl:"); n != 1 || !strings.Contains(diagnostics.String(), "unknown word") || strings.Contains(diagnostics.String(), "Linus") {
+		t.Fatalf("stderr %q", diagnostics.String())
+	}
+}
+
+func TestReplEchoesSingleLines(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader("1 + 1\n"), &out, &diagnostics)
+	if code != 0 || !strings.Contains(out.String(), "zhex> ") || !strings.Contains(out.String(), "2\n") {
+		t.Fatalf("code %d, stdout %q", code, out.String())
+	}
+	if diagnostics.Len() != 0 {
+		t.Fatalf("unexpected stderr %q", diagnostics.String())
+	}
+}
+
+func TestReplInvalidEntryKeepsSession(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader("missing(1)\n1 + 1\n"), &out, &diagnostics)
+	if code != 0 || !strings.Contains(diagnostics.String(), "unknown word") || !strings.Contains(out.String(), "2\n") {
+		t.Fatalf("code %d, stdout %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+}
+
+func TestReplWordsCommand(t *testing.T) {
+	script := "words\nword double(n: Int) -> Int\n    n + n\n\nwords\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	for _, want := range []string{"no words defined\n", "double(n: Int) -> Int\n"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("stdout %q misses %q", out.String(), want)
+		}
+	}
+}
+
+func TestReplEofDuringContinuationExits(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader("word f() -> Int\n    1\n"), &out, &diagnostics)
+	if code != 0 || !strings.Contains(out.String(), "....> ") || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stdout %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+}
+
+func TestReplTrace(t *testing.T) {
+	script := "word double(n: Int) -> Int\n    n + n\n\ndouble(21)\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl", "--trace"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 || !strings.Contains(out.String(), "42\n") {
+		t.Fatalf("code %d, stdout %q", code, out.String())
+	}
+	for _, want := range []string{`{"event":"word-call","word":"double"`, `"file":"repl"`} {
+		if !strings.Contains(diagnostics.String(), want) {
+			t.Fatalf("stderr %q misses %q", diagnostics.String(), want)
+		}
+	}
+}
+
+func TestReplFinalLineWithoutNewline(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader("1 + 1"), &out, &diagnostics)
+	if code != 0 || !strings.Contains(out.String(), "2\n") || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stdout %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+}
+
+func TestReplRejectsArguments(t *testing.T) {
+	for _, args := range [][]string{{"repl", "extra"}, {"repl", "--report=json"}} {
+		var out, diagnostics bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || !strings.Contains(diagnostics.String(), "usage:") {
+			t.Fatalf("args %v: code %d, stderr %q", args, code, diagnostics.String())
+		}
+	}
+}
+
 func TestCommandUsage(t *testing.T) {
-	for _, args := range [][]string{nil, {"run"}, {"repl"}, {"run", "a", "b"}} {
+	for _, args := range [][]string{nil, {"run"}, {"rep"}, {"run", "a", "b"}} {
 		var out, diagnostics bytes.Buffer
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || !strings.Contains(diagnostics.String(), "usage:") {
 			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
@@ -197,5 +308,11 @@ func TestExecutable(t *testing.T) {
 	err = cmd.Run()
 	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 {
 		t.Fatalf("expected exit 1, got %v", err)
+	}
+	cmd = exec.Command(path, "repl")
+	cmd.Stdin = strings.NewReader("1 + 1\n")
+	output, err = cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(output), "2") {
+		t.Fatalf("repl: output %q, error %v", output, err)
 	}
 }

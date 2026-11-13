@@ -17,6 +17,7 @@ The first language milestone runs real programs with checked types and console i
 - Errors: every diagnostic points at the failing line with a caret, suggests the fix for common mistakes, offers did-you-mean for typos, carries a stable code cataloged on the site, and reports as JSON for agents via `--report=json`; carets underline the whole expression, and type mismatches narrate where mismatched values come from; researched from Elixir, Ruby, Swift, and Elm.
 - Input: reads are bare `read-line` for text and `text.to-int` parses a string into an integer symmetric with `int.to-string`, both returning failing results unwrapped with postfix `try`.
 - Insight: `zhex run --trace` streams JSONL step events — word calls, bindings, flow steps, returns — so people and agents can watch a program run; the event vocabulary is documented in llms.txt.
+- REPL: `zhex repl` keeps words and values across entries, enters multi-line words ended by a blank line, echoes expression values, redefines words with a note, lists signatures with `words`, recovers from errors, and traces with `--trace`.
 
 ## Next
 
@@ -24,7 +25,6 @@ Make everyday experiments quicker, then build a useful text utility. This is the
 
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
-- REPL: enter multi-line words, keep definitions between entries, inspect values and signatures, and recover from errors.
 - Modules: explicit imports, public words, qualified names, and useful errors across files.
 - Text utility: accept command-line arguments, stream a file, and close resources on success and failure.
 - Measurements: record execution time and allocations for that utility, then review readability and choose the next application.

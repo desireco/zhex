@@ -25,7 +25,8 @@ Run an individual area with `go test ./internal/lang -run TestExamples` or `go t
 | Tests in [limits_test.go](../internal/lang/limits_test.go) | Syntax/call depth limits and fresh execution state for a compiled program. |
 | `TestCheckedArithmeticAgainstIntegerMath` in [arithmetic_test.go](../internal/lang/arithmetic_test.go) | Checked 64-bit arithmetic agrees with arbitrary-precision reference mathematics across boundary and deterministic randomized inputs. |
 | `FuzzCompile` in [fuzz_test.go](../internal/lang/fuzz_test.go) | Malformed source produces diagnostics rather than unexpected parser/checker panics. Default tests run the seed corpus; a timed fuzz run explores mutations. |
-| Tests in [main_test.go](../cmd/zhex/main_test.go) | Actual CLI behavior, usage errors, missing files, stdout/stderr separation, executable invocation, and exit codes. |
+| Tests in [session_test.go](../internal/lang/session_test.go) | REPL entry boundaries (only a missing indented block continues), persistence of words and values across entries, word redefinition with a note, rollback after a check error, effects kept after a runtime error, and the shared buffered reader. |
+| Tests in [main_test.go](../cmd/zhex/main_test.go) | Actual CLI behavior, usage errors, missing files, stdout/stderr separation, executable invocation, exit codes, and `zhex repl` sessions (scripted entries, `words`, `--trace` events, EOF and final-line handling). |
 
 `TestArithmetic` and `TestInvalidProgramHasNoEffects` in [run_test.go](../internal/lang/run_test.go) preserve the first execution slice and the check-before-effects rule.
 
