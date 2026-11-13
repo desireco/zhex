@@ -111,5 +111,4 @@ just serve
 
 - [Getting started](docs/getting-started.md)
 - [Language goals](docs/language-goals.md) and [first milestone](docs/first-milestone.md)
-- [Implementation plan](tasks/plan.md) and [task checklist](tasks/todo.md)
 - [Earlier design notes](docs/design-notes.md) and [reference material](docs/reference/)

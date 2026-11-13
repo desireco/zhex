@@ -71,6 +71,6 @@ The performance direction is to let future compiled code represent suitable valu
 
 ## Scope
 
-Tasks 1–5 are complete in the [interpreter plan](../tasks/plan.md). A REPL, user-written modules, rich domain types, file resources, native compilation, and application frameworks follow in later milestones. Their extension points should remain clear, but their implementations are not needed to finish this goal.
+Tasks 1–5 are complete. A REPL, user-written modules, rich domain types, file resources, native compilation, and application frameworks follow in later milestones. Their extension points should remain clear, but their implementations are not needed to finish this goal.
 
 The next planned work is the REPL and explicit module support. The current interpreter uses separate parser, checker, evaluator, and console-operation files in `internal/lang` so these can grow without adding a package boundary for every component.

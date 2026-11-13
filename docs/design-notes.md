@@ -2,7 +2,7 @@
 
 Captured from **Make Forth Great Again**, November 5–7, 2026. These notes preserve the direction of exploration; recommendations remain subject to design and measurement.
 
-Current direction: Go has been selected for the first interpreter. See the [language goals](language-goals.md) and [interpreter plan](../tasks/plan.md) for the current scope. The implementation-language question below records the earlier discussion; memory, concurrency, and backend proposals remain open.
+Current direction: Go has been selected for the first interpreter. See the [language goals](language-goals.md) for the current scope. The implementation-language question below records the earlier discussion; memory, concurrency, and backend proposals remain open.
 
 ## Goals
 

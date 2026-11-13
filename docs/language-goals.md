@@ -79,4 +79,4 @@ Actors, zero-copy transfer, a custom reference-counted heap, graphics frameworks
 5. Resource cleanup and failure behavior are demonstrated in executable examples.
 6. Performance claims name a workload, implementation, machine, and measurement method.
 
-The immediate goal is the [first milestone](first-milestone.md): execute readable checked composition from a file. The broader sequence is in the [Go interpreter plan](../tasks/plan.md). Earlier [design notes](design-notes.md) preserve candidate memory and concurrency ideas; those proposals remain open until specified and tested.
+The immediate goal is the [first milestone](first-milestone.md): execute readable checked composition from a file. Earlier [design notes](design-notes.md) preserve candidate memory and concurrency ideas; those proposals remain open until specified and tested.
