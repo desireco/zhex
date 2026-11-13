@@ -35,7 +35,7 @@ The checker validates the whole program before anything runs and reports `file:l
 - `unknown name "a-b"` — hyphenated names are single names; write `a - b` with spaces for subtraction.
 - `... does not support type Result<String, InputError>` (or any `Result` in a plain value position) — a console-read result needs postfix `try` to unwrap it (`let n = console.read-int("N: ") try`).
 
-Typos get did-you-mean suggestions drawn from the visible names and words. The diagnostic contract and phased plan (stable codes, catalog, machine-readable output, dev-mode insight) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
+Typos get did-you-mean suggestions drawn from the visible names and words. Every diagnostic carries a stable code, cataloged on the site's errors page; `zhex run <file> --report=json` emits the machine-readable report `{code, severity, file, line, column, message, hint}` for agents and tools. The diagnostic contract and phased plan (spans, provenance, tracing, replay) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
 
 To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking happens before execution, so a clean run means types and names resolved.
 

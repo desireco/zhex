@@ -14,11 +14,11 @@ func (r *runtime) write(pos position, text string) error {
 		err = io.ErrShortWrite
 	}
 	if err != nil {
-		return errorAt(pos, "console output failed: %v", err)
+		return errorAt(pos, CodeConsoleOutput, "console output failed: %v", err)
 	}
 	if flusher, ok := r.output.(interface{ Flush() error }); ok {
 		if err := flusher.Flush(); err != nil {
-			return errorAt(pos, "console output failed: %v", err)
+			return errorAt(pos, CodeConsoleOutput, "console output failed: %v", err)
 		}
 	}
 	return nil
@@ -43,26 +43,26 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		line, err := r.input.ReadString('\n')
 		if err != nil && (err != io.EOF || len(line) == 0) {
-			return value{result: &inputResult{err: errorAt(x.pos, "console input failed: %v", err)}}, nil
+			return value{result: &inputResult{err: errorAt(x.pos, CodeConsoleInput, "console input failed: %v", err)}}, nil
 		}
 		if strings.HasSuffix(line, "\n") {
 			line = strings.TrimSuffix(line, "\n")
 			line = strings.TrimSuffix(line, "\r")
 		}
 		if !utf8.ValidString(line) {
-			return value{result: &inputResult{err: errorAt(x.pos, "console input is not valid UTF-8")}}, nil
+			return value{result: &inputResult{err: errorAt(x.pos, CodeConsoleUTF8, "console input is not valid UTF-8")}}, nil
 		}
 		v := value{text: line}
 		if x.text == "console.read-int" {
 			number, err := strconv.ParseInt(strings.TrimSpace(line), 10, 64)
 			if err != nil {
-				return value{result: &inputResult{err: errorAt(x.pos, "expected a signed 64-bit decimal integer")}}, nil
+				return value{result: &inputResult{err: errorAt(x.pos, CodeConsoleInt, "expected a signed 64-bit decimal integer")}}, nil
 			}
 			v = value{number: number}
 		}
 		return value{result: &inputResult{value: v}}, nil
 	}
-	return value{}, errorAt(x.pos, "unknown built-in operation %q", x.text)
+	return value{}, errorAt(x.pos, CodeUnsupportedCode, "unknown built-in operation %q", x.text)
 }
 
 func formatValue(v value, typ valueType) string {

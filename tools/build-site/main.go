@@ -29,6 +29,31 @@ type pageData struct {
 	HeroOutput string
 	Examples   []Example
 	Roadmap    Roadmap
+	Catalog    []CatalogEntry
+}
+
+// CatalogEntry is one stable diagnostic code with its catalog prose; the
+// source of truth is the embedded catalog in internal/lang.
+type CatalogEntry struct {
+	Code, Text string
+}
+
+// loadCatalog splits the language's catalog markdown into one entry per
+// "## code" section, skipping the intro that precedes the first section.
+func loadCatalog() ([]CatalogEntry, error) {
+	sections := strings.Split(strings.TrimSpace(lang.CatalogMarkdown()), "\n## ")
+	var entries []CatalogEntry
+	for i, section := range sections {
+		if i == 0 {
+			continue
+		}
+		code, text, _ := strings.Cut(section, "\n")
+		entries = append(entries, CatalogEntry{strings.TrimSpace(code), strings.TrimSpace(text)})
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("diagnostic catalog has no sections")
+	}
+	return entries, nil
 }
 
 type Roadmap struct {
@@ -270,7 +295,11 @@ func build(root, output string) error {
 		return err
 	}
 	files["ROADMAP.md"] = roadmap
-	for _, name := range []string{"index", "examples", "roadmap", "docs"} {
+	data.Catalog, err = loadCatalog()
+	if err != nil {
+		return err
+	}
+	for _, name := range []string{"index", "examples", "roadmap", "docs", "errors"} {
 		page, err := template.New(name + ".tmpl").Funcs(template.FuncMap{"highlight": highlight}).ParseFiles(filepath.Join(root, "site", name+".tmpl"))
 		if err != nil {
 			return fmt.Errorf("parse website template %s: %w", name, err)

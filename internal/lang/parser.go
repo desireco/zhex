@@ -50,7 +50,7 @@ func (p *parser) accept(kind string) bool {
 }
 func (p *parser) require(kind string) token {
 	if !p.at(kind) {
-		panic(errorAt(p.current().pos, "expected %s, found %q", kind, p.current().text))
+		panic(errorAt(p.current().pos, CodeExpectedToken, "expected %s, found %q", kind, p.current().text))
 	}
 	return p.take()
 }
@@ -67,7 +67,7 @@ func Reserved(name string) bool {
 func (p *parser) name() token {
 	t := p.require("name")
 	if Reserved(t.text) {
-		panic(errorAt(t.pos, "expected a name, found keyword %q", t.text))
+		panic(errorAt(t.pos, CodeExpectedName, "expected a name, found keyword %q", t.text))
 	}
 	return t
 }
@@ -78,7 +78,7 @@ func (p *parser) parseType() valueType {
 	case intType, boolType, stringType, unitType:
 		return valueType(t.text)
 	}
-	panic(errorAt(t.pos, "unknown type %q", t.text))
+	panic(errorAt(t.pos, CodeUnknownType, "unknown type %q", t.text))
 }
 
 func (p *parser) parseWord() *word {
@@ -106,13 +106,13 @@ func (p *parser) parseWord() *word {
 func (p *parser) block() []*statement {
 	p.require("newline")
 	if !p.at("indent") {
-		panic(errorAt(p.current().pos, "expected an indented block"))
+		panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented block"))
 	}
 	p.take()
 	p.depth++
 	defer func() { p.depth-- }()
 	if p.depth > 256 {
-		panic(errorAt(p.current().pos, "syntax nesting limit exceeded"))
+		panic(errorAt(p.current().pos, CodeNestingLimit, "syntax nesting limit exceeded"))
 	}
 	var body []*statement
 	for !p.at("dedent") && !p.at("eof") {
@@ -120,7 +120,7 @@ func (p *parser) block() []*statement {
 	}
 	p.require("dedent")
 	if len(body) == 0 {
-		panic(errorAt(p.current().pos, "expected a nonempty indented block"))
+		panic(errorAt(p.current().pos, CodeEmptyBlock, "expected a nonempty indented block"))
 	}
 	return body
 }
@@ -153,7 +153,7 @@ func (p *parser) parseStatement() *statement {
 		s.expr = p.expression(0)
 		p.require("newline")
 		if !p.at("indent") {
-			panic(errorAt(p.current().pos, "expected an indented flow"))
+			panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented flow"))
 		}
 		p.take()
 		for !p.at("dedent") && !p.at("eof") {
@@ -163,7 +163,7 @@ func (p *parser) parseStatement() *statement {
 		}
 		p.require("dedent")
 		if len(s.steps) == 0 {
-			panic(errorAt(s.pos, "flow requires a step"))
+			panic(errorAt(s.pos, CodeFlowStep, "flow requires a step"))
 		}
 	case t.kind == "name" && !Reserved(t.text) && p.tokens[p.index+1].kind == "=":
 		s.kind = "assign"
@@ -183,7 +183,7 @@ func (p *parser) parseIf() *statement {
 	p.depth++
 	defer func() { p.depth-- }()
 	if p.depth > 256 {
-		panic(errorAt(p.current().pos, "syntax nesting limit exceeded"))
+		panic(errorAt(p.current().pos, CodeNestingLimit, "syntax nesting limit exceeded"))
 	}
 	t := p.take()
 	s := &statement{kind: "if", pos: t.pos, expr: p.expression(0)}
@@ -218,7 +218,7 @@ func (p *parser) expression(minimum int) *expression {
 	p.depth++
 	defer func() { p.depth-- }()
 	if p.depth > 256 {
-		panic(errorAt(p.current().pos, "syntax nesting limit exceeded"))
+		panic(errorAt(p.current().pos, CodeNestingLimit, "syntax nesting limit exceeded"))
 	}
 	left := p.checkDepth(p.unary())
 	for {
@@ -243,7 +243,7 @@ func (p *parser) checkDepth(x *expression) *expression {
 	}
 	x.depth = depth + 1
 	if x.depth > 256 {
-		panic(errorAt(x.pos, "syntax nesting limit exceeded"))
+		panic(errorAt(x.pos, CodeNestingLimit, "syntax nesting limit exceeded"))
 	}
 	return x
 }
@@ -271,7 +271,7 @@ func (p *parser) unary() *expression {
 func (p *parser) number(t token) *expression {
 	n, err := strconv.ParseInt(t.text, 10, 64)
 	if err != nil {
-		panic(errorAt(t.pos, "integer literal is outside the signed 64-bit range"))
+		panic(errorAt(t.pos, CodeIntegerLiteralRange, "integer literal is outside the signed 64-bit range"))
 	}
 	return &expression{kind: "int", number: n, pos: t.pos}
 }
@@ -312,5 +312,5 @@ func (p *parser) primary() *expression {
 		}
 		return x
 	}
-	panic(errorAt(t.pos, "expected an expression, found %q", t.text))
+	panic(errorAt(t.pos, CodeExpectedExpression, "expected an expression, found %q", t.text))
 }

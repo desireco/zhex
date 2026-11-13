@@ -35,6 +35,26 @@ func TestRunCommand(t *testing.T) {
 	}
 }
 
+func TestRunCommandReportsJSON(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	if err := os.WriteFile(path, []byte("print(a-b)\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"run", path, "--report=json"}, strings.NewReader(""), &out, &diagnostics)
+	if code != 1 || out.Len() != 0 {
+		t.Fatalf("code %d, output %q", code, out.String())
+	}
+	for _, want := range []string{`"code":"unknown-name"`, `"severity":"error"`, `"file":"`, `"line":1`, `"column":7`, `"hint":`} {
+		if !strings.Contains(diagnostics.String(), want) {
+			t.Fatalf("stderr %q misses %s", diagnostics.String(), want)
+		}
+	}
+	if strings.Count(strings.TrimSuffix(diagnostics.String(), "\n"), "\n") != 0 {
+		t.Fatalf("JSON report must be a single line: %q", diagnostics.String())
+	}
+}
+
 func TestCommandUsage(t *testing.T) {
 	for _, args := range [][]string{nil, {"run"}, {"repl"}, {"run", "a", "b"}} {
 		var out, diagnostics bytes.Buffer

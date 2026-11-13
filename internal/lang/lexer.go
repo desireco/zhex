@@ -18,7 +18,7 @@ func lex(file, source string) ([]token, error) {
 	for lineIndex, line := range lines {
 		pos := position{file, lineIndex + 1, 1}
 		if !utf8.ValidString(line) {
-			return nil, errorAt(pos, "source must be valid UTF-8")
+			return nil, errorAt(pos, CodeSourceUTF8, "source must be valid UTF-8")
 		}
 		line = strings.TrimSuffix(line, "\r")
 		runes := []rune(line)
@@ -27,13 +27,13 @@ func lex(file, source string) ([]token, error) {
 			i++
 		}
 		if i < len(runes) && runes[i] == '\t' {
-			return nil, errorAt(position{file, lineIndex + 1, i + 1}, "tabs are not allowed outside strings")
+			return nil, errorAt(position{file, lineIndex + 1, i + 1}, CodeTabCharacter, "tabs are not allowed outside strings")
 		}
 		if i == len(runes) || runes[i] == '#' {
 			continue
 		}
 		if i%4 != 0 || i > indent+4 {
-			return nil, errorAt(pos, "indentation must use four spaces per level")
+			return nil, errorAt(pos, CodeIndentation, "indentation must use four spaces per level")
 		}
 		if i > indent {
 			tokens = append(tokens, token{"indent", "", pos})
@@ -53,7 +53,7 @@ func lex(file, source string) ([]token, error) {
 				break
 			}
 			if c == '\t' {
-				return nil, errorAt(pos, "tabs are not allowed outside strings")
+				return nil, errorAt(pos, CodeTabCharacter, "tabs are not allowed outside strings")
 			}
 			start := i
 			if nameStart(c) {
@@ -89,12 +89,12 @@ func lex(file, source string) ([]token, error) {
 					i++
 				}
 				if i >= len(runes) {
-					return nil, errorAt(pos, "unterminated string")
+					return nil, errorAt(pos, CodeUnterminatedString, "unterminated string")
 				}
 				i++
 				decoded, err := strconv.Unquote(string(runes[start:i]))
 				if err != nil || !utf8.ValidString(decoded) {
-					return nil, errorAt(pos, "invalid string escape or UTF-8")
+					return nil, errorAt(pos, CodeStringEscape, "invalid string escape or UTF-8")
 				}
 				tokens = append(tokens, token{"string", decoded, pos})
 				continue
@@ -112,7 +112,7 @@ func lex(file, source string) ([]token, error) {
 				i++
 				continue
 			}
-			return nil, errorAt(pos, "unexpected character %q", c)
+			return nil, errorAt(pos, CodeUnexpectedCharacter, "unexpected character %q", c)
 		}
 		tokens = append(tokens, token{"newline", "", position{file, lineIndex + 1, len(runes) + 1}})
 	}

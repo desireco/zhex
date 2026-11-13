@@ -7,6 +7,7 @@
 - [Docs](https://desireco.github.io/zhex/docs.html): the language on one page — typed words, named values, flows, decisions, bounded loops, and console input with `try`, each with a highlighted sample.
 - [Examples](https://desireco.github.io/zhex/examples.html): runnable programs with source, sample input, and real output — the source and output on the page are produced by the actual interpreter.
 - [Roadmap](https://desireco.github.io/zhex/roadmap.html): what is done, what is next, and what is future, mirrored by a public project board.
+- [Error catalog](https://desireco.github.io/zhex/errors.html): every diagnostic code with its meaning and fix. Diagnostics print `file:line:column: message` plus an excerpt, caret, and `hint:` line; `zhex run file.zhex --report=json` emits the machine-readable report `{code, severity, file, line, column, message, hint}`.
 
 ## Reference
 

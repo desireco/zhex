@@ -134,7 +134,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			return value{boolean: !v.boolean}, nil
 		}
 		if v.number == math.MinInt64 {
-			return value{}, errorAt(x.pos, "integer overflow")
+			return value{}, errorAt(x.pos, CodeIntegerOverflow, "integer overflow")
 		}
 		return value{number: -v.number}, nil
 	case "binary":
@@ -154,7 +154,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 		}
 		return binary(x, left, right)
 	}
-	return value{}, errorAt(x.pos, "unsupported expression")
+	return value{}, errorAt(x.pos, CodeUnsupportedCode, "unsupported expression")
 }
 
 func (r *runtime) call(x *expression, args []value) (value, error) {
@@ -162,7 +162,7 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		return r.builtin(x, args)
 	}
 	if r.depth >= 256 {
-		return value{}, errorAt(x.pos, "word call depth limit of 256 exceeded")
+		return value{}, errorAt(x.pos, CodeDepthLimit, "word call depth limit of 256 exceeded")
 	}
 	r.depth++
 	defer func() { r.depth-- }()
@@ -218,13 +218,13 @@ func binary(x *expression, a, b value) (value, error) {
 		overflow = a.number != 0 && (a.number == -1 && b.number == math.MinInt64 || n/a.number != b.number)
 	case "/", "%":
 		if b.number == 0 {
-			return value{}, errorAt(x.pos, "division or remainder by zero")
+			return value{}, errorAt(x.pos, CodeDivisionZero, "division or remainder by zero")
 		}
 		if a.number == math.MinInt64 && b.number == -1 {
 			if x.text == "%" {
 				return value{number: 0}, nil
 			}
-			return value{}, errorAt(x.pos, "integer overflow")
+			return value{}, errorAt(x.pos, CodeIntegerOverflow, "integer overflow")
 		}
 		if x.text == "/" {
 			n = a.number / b.number
@@ -233,7 +233,7 @@ func binary(x *expression, a, b value) (value, error) {
 		}
 	}
 	if overflow {
-		return value{}, errorAt(x.pos, "integer overflow")
+		return value{}, errorAt(x.pos, CodeIntegerOverflow, "integer overflow")
 	}
 	return value{number: n}, nil
 }

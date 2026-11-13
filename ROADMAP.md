@@ -14,13 +14,13 @@ The first language milestone runs real programs with checked types and console i
 - Licensing: the repository is public and published under the MIT license.
 - Editors: syntax highlighting for Vim/Neovim, VS Code, and Zed, with installation and usage documented on the website's docs page.
 - Agents: AGENTS.md, an llms.txt site index, and agent-readable examples make Zhex easy for humans to review and AI agents to write.
-- Errors: every diagnostic points at the failing line with a caret, suggests the fix for common mistakes, and offers did-you-mean for typos, based on research into Elixir, Ruby, Swift, and Elm.
+- Errors: every diagnostic points at the failing line with a caret, suggests the fix for common mistakes, offers did-you-mean for typos, carries a stable code cataloged on the site, and reports as JSON for agents via `--report=json`; researched from Elixir, Ruby, Swift, and Elm.
 
 ## Next
 
 Make everyday experiments quicker, then build a useful text utility. This is the proposed order; each step needs working examples and tests.
 
-- Errors: tag every diagnostic with a stable code, publish a documented catalog, and emit machine-readable output for agents; then widen carets to spans and narrate where values come from.
+- Errors: widen carets to whole-expression spans and narrate where mismatched values come from.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
 - REPL: enter multi-line words, keep definitions between entries, inspect values and signatures, and recover from errors.

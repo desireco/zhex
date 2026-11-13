@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -11,10 +12,12 @@ type position struct {
 }
 
 type diagnostic struct {
-	pos     position
-	message string
-	hint    string
-	line    string
+	pos      position
+	code     Code
+	severity string
+	message  string
+	hint     string
+	line     string
 }
 
 // Error keeps the first line stable — file:line:column: message — so
@@ -31,8 +34,32 @@ func (d *diagnostic) Error() string {
 	return out
 }
 
-func errorAt(pos position, format string, args ...any) error {
-	return &diagnostic{pos: pos, message: fmt.Sprintf(format, args...)}
+func errorAt(pos position, code Code, format string, args ...any) error {
+	return &diagnostic{pos: pos, code: code, severity: "error", message: fmt.Sprintf(format, args...)}
+}
+
+// Report renders err as the machine-readable diagnostic report — one JSON
+// object per run, per the contract in docs/diagnostics-plan.md. ok is false
+// when err did not come from this package.
+func Report(err error) (string, bool) {
+	d, ok := err.(*diagnostic)
+	if !ok {
+		return "", false
+	}
+	report := struct {
+		Code     string `json:"code"`
+		Severity string `json:"severity"`
+		File     string `json:"file"`
+		Line     int    `json:"line"`
+		Column   int    `json:"column"`
+		Message  string `json:"message"`
+		Hint     string `json:"hint"`
+	}{string(d.code), d.severity, d.pos.file, d.pos.line, d.pos.column, d.message, d.hint}
+	out, err := json.Marshal(report)
+	if err != nil {
+		return "", false
+	}
+	return string(out), true
 }
 
 // annotate attaches the source line so Error can point at the mistake.
