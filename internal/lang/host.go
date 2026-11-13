@@ -26,6 +26,20 @@ func (r *runtime) write(pos position, text string) error {
 
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
+	case "array.new":
+		return arrayNew(x.pos, args[0].list, args[1]), nil
+	case "array.resize":
+		return arrayResize(x.pos, args[0].array, args[1].list, args[2]), nil
+	case "array.shape":
+		items := make([]value, len(args[0].array.shape))
+		for i, n := range args[0].array.shape {
+			items[i] = value{number: n}
+		}
+		return value{list: &listValue{items: items}}, nil
+	case "array.rank":
+		return value{number: int64(len(args[0].array.shape))}, nil
+	case "array.length":
+		return value{number: int64(len(args[0].array.items))}, nil
 	case "list.new":
 		return value{list: &listValue{}}, nil
 	case "list.append":
@@ -235,6 +249,9 @@ func formatValue(v value, typ valueType) string {
 		return fmt.Sprintf("buffer(%d lines)", len(v.buffer.lines))
 	case fileType:
 		return fmt.Sprintf("file(%q)", v.file.path)
+	}
+	if v.array != nil {
+		return fmt.Sprintf("array(%d elements)", len(v.array.items))
 	}
 	if v.list != nil {
 		return fmt.Sprintf("list(%d elements)", len(v.list.items))

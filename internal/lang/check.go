@@ -59,7 +59,7 @@ type checker struct {
 }
 
 var hostWords = []string{
-	"list.new", "list.length", "list.append", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "list.append", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -882,18 +882,20 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", err
 		}
 		kind, element, ok := collectionInner(receiver)
-		if !ok || kind != "List" {
-			return "", errorAt(x.pos, CodeArgumentType, "indexing requires a List")
+		if !ok {
+			return "", errorAt(x.pos, CodeArgumentType, "indexing requires a List or Array")
 		}
-		if len(x.args) != 1 {
+		if kind == "List" && len(x.args) != 1 {
 			return "", errorAt(x.pos, CodeArgumentCount, "List indexing requires one index")
 		}
-		index, err := c.expressionExpected(x.args[0], env, intType)
-		if err != nil {
-			return "", err
-		}
-		if index != intType {
-			return "", errorAt(x.args[0].pos, CodeArgumentType, "index must have type Int")
+		for _, arg := range x.args {
+			index, err := c.expressionExpected(arg, env, intType)
+			if err != nil {
+				return "", err
+			}
+			if index != intType {
+				return "", errorAt(arg.pos, CodeArgumentType, "index must have type Int")
+			}
 		}
 		typ = valueType("Result<" + string(element) + ", Error>")
 	case "index-write":
@@ -994,6 +996,18 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			expected := valueType("")
 			if i < len(params) {
 				expected = params[i]
+			}
+			if (x.text == "array.new" && i == 0) || (x.text == "array.resize" && i == 1) {
+				expected = "List<Int>"
+			}
+			if x.text == "array.resize" && i == 2 && len(args) > 0 {
+				_, expected, _ = collectionInner(args[0])
+			}
+			if x.text == "array.new" && i == 1 {
+				kind, inner, ok := collectionInner(c.expected)
+				if ok && kind == "Array" {
+					expected = inner
+				}
 			}
 			if x.text == "list.append" && i == 1 && len(args) > 0 {
 				_, expected, _ = collectionInner(args[0])
@@ -1139,6 +1153,46 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	} else {
 		switch x.text {
+		case "array.new", "array.resize", "array.shape", "array.rank", "array.length":
+			count := 1
+			if x.text == "array.new" {
+				count = 2
+			}
+			if x.text == "array.resize" {
+				count = 3
+			}
+			if len(args) != count {
+				return "", errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments", x.text, count)
+			}
+			if x.text == "array.new" {
+				if args[0] != "List<Int>" || isResult(args[1]) {
+					return "", errorAt(x.pos, CodeArgumentType, "array.new requires dimensions and a value")
+				}
+				if args[1] == errorType && x.args[1].binding != nil && x.args[1].binding.errorFamily != "" && x.args[1].binding.errorFamily != "Error" {
+					return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+				}
+				result = valueType("Result<Array<" + string(args[1]) + ">, Error>")
+			} else {
+				kind, inner, ok := collectionInner(args[0])
+				if !ok || kind != "Array" {
+					return "", errorAt(x.pos, CodeArgumentType, "%s requires an Array", x.text)
+				}
+				switch x.text {
+				case "array.resize":
+					if args[1] != "List<Int>" || args[2] != inner {
+						return "", errorAt(x.pos, CodeArgumentType, "array.resize requires dimensions and matching fill")
+					}
+					if args[2] == errorType && x.args[2].binding != nil && x.args[2].binding.errorFamily != "" && x.args[2].binding.errorFamily != "Error" {
+						return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+					}
+					result = valueTypeResultUnitError
+				case "array.shape":
+					result = "List<Int>"
+				default:
+					result = intType
+				}
+			}
+			params = args
 		case "list.new":
 			kind, _, ok := collectionInner(c.expected)
 			if !ok || kind != "List" {

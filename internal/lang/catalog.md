@@ -205,3 +205,15 @@ A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the fil
 
 ## argument-missing
 `console.arg` received an index outside the program's command-line arguments. The message names the index and how many arguments were given; the failure lives inside the `Result` and surfaces through `try`. Check the index against `console.args-count()`.
+
+## array-range
+
+An array coordinate is outside its dimension.
+
+## array-rank
+
+An array shape or index has the wrong rank.
+
+## array-shape
+
+An array extent is negative.

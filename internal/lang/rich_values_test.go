@@ -326,3 +326,44 @@ func TestListLimitsAndActiveGuardLeaveDataUnchanged(t *testing.T) {
 		t.Fatal("iteration guard changed list")
 	}
 }
+
+func TestArrayResizePreservesCoordinates(t *testing.T) {
+	source := "let grid = array.new([2, 3], 0) try\n(grid[0, 0] = 1) try\n(grid[0, 1] = 2) try\n(grid[1, 0] = 4) try\n(grid[1, 1] = 5) try\narray.resize(grid, [3, 2], 9) try\nprint(grid[0, 0] try)\nprint(grid[0, 1] try)\nprint(grid[1, 0] try)\nprint(grid[1, 1] try)\nprint(grid[2, 0] try)\nprint(array.rank(grid))\nprint(array.length(grid))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n2\n4\n5\n9\n2\n6\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestArrayFailuresAndZeroShapes(t *testing.T) {
+	source := "let grid = array.new([2, 2], 7) try\n(grid[9, 0] = 1) catch problem\n    print(error.code(problem))\narray.resize(grid, [3], 0) catch problem\n    print(error.code(problem))\nprint(grid[0, 0] try)\nlet empty = array.new([9223372036854775807, 0], 1) try\nprint(array.length(empty))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "array-range\narray-rank\n7\n0\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestArrayThreeDimensionalResizeAndFreshShape(t *testing.T) {
+	source := "let grid = array.new([2, 2, 2], 0) try\n(grid[1, 0, 1] = 8) try\narray.resize(grid, [2, 3, 3], 9) try\nprint(grid[1, 0, 1] try)\nprint(grid[1, 1, 2] try)\nlet shape = array.shape(grid)\n(shape[0] = 7) try\nprint(array.rank(grid))\nlet actual = array.shape(grid)\nprint(actual[0] try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "8\n9\n3\n2\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestArrayRejectsBadTypesAndRequiresHandling(t *testing.T) {
+	for _, src := range []string{"array.new([2, 2], 0)\n", "let a = array.new([2, 2], 0) try\n(a[0, 0] = true) try\n", "let a = array.new([2, 2], 0) try\nprint(a[true, 0] try)\n", "let a = array.new([2, 2], 0) try\narray.resize(a, [2, 2], true) try\n"} {
+		if _, err := Compile("test.zhex", src); err == nil {
+			t.Errorf("accepted %q", src)
+		}
+	}
+}
