@@ -777,8 +777,8 @@ pre {
 .docs-toc ul { margin: .75rem 0 1.5rem; }
 .docs-toc + * { margin-top: 1.5rem; }
 .docs-article { max-width: 76ch; line-height: 1.7; }
-.docs-article h2 { margin-top: 2.5rem; }
-.docs-article h3 { margin-top: 1.8rem; }
+.docs-article h2 { margin-top: 2.5rem; font-size: clamp(1.6rem, 3vw, 2rem); }
+.docs-article h3 { margin-top: 1.8rem; font-size: 1.35rem; }
 .docs-article pre { overflow-x: auto; padding: 1.25rem; background: #1c2420; color: #f6f3ec; }
 .docs-article :not(pre) > code { overflow-wrap: anywhere; }
 
