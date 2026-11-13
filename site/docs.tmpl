@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Zhex language features — words, flows, checked types — and setup guides for syntax highlighting in Vim and Neovim, VS Code, and Zed.">
+  <meta name="description" content="Zhex language features — words, flows, checked types, modules — plus setup for running the interpreter and syntax highlighting in Vim/Neovim, VS Code, and Zed.">
   <meta name="theme-color" content="#f6f3ec">
   <title>Docs — Zhex</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -14,11 +14,7 @@
   <header class="site-header wrap">
     <a class="brand" href="./" aria-label="Zhex home"><img class="brand-logo" src="logo.svg" width="168" height="50" alt=""></a>
     <nav aria-label="Main navigation">
-      <a href="examples.html">Examples</a>
-      <a href="docs.html" aria-current="page">Docs</a>
-      <a href="./#start">Get started</a>
-      <a href="roadmap.html">Roadmap</a>
-      <a href="https://github.com/desireco/zhex">GitHub ↗</a>
+      {{.Nav}}
     </nav>
   </header>
 
@@ -26,8 +22,8 @@
     <section class="page-intro">
       <p class="eyebrow">Documentation</p>
       <h1>The language,<br>on one page.</h1>
-      <p class="lede">Zhex's features — and the editor tooling around them — with setup guides for syntax highlighting.</p>
-      <p class="aside">This page summarizes what works today. The full contract lives in the repository at <a href="https://github.com/desireco/zhex/blob/main/docs/initial-language.md">docs/initial-language.md</a>.</p>
+      <p class="lede">Zhex's features — and the tooling around them — with setup for running the interpreter and syntax highlighting.</p>
+      <p class="aside">This page summarizes what works today. The full contract lives in the repository at <a href="https://github.com/desireco/zhex/blob/main/docs/initial-language.md">docs/initial-language.md</a>; the <a href="manifesto.html">manifesto</a> records the intentions behind the language.</p>
     </section>
 
     <section class="section" aria-labelledby="features-title">
@@ -96,7 +92,7 @@ print(n * n)` | highlight}}</code></pre></div>
 
       <div class="docs-feature">
         <h3>Standard operations.</h3>
-        <p>The predeclared words: <code>print</code>, <code>range</code>, <code>int.to-string</code>, <code>read-line</code>, and the dotted families. Text: <code>text.length</code>, <code>text.line-count</code>, <code>text.word-count</code>, <code>text.upper</code>, <code>text.lower</code>, <code>text.trim</code>, <code>text.contains</code>, <code>text.index-of</code>, <code>text.slice</code>, <code>text.replace</code>, <code>text.reverse</code>, <code>text.to-int</code>. Lines build in a <code>Buffer</code> (<code>buffer.new</code>, <code>buffer.add-line</code>, <code>buffer.line-count</code>, <code>buffer.line</code>, <code>buffer.set-line</code>, <code>buffer.to-text</code>), files read whole or streamed (<code>file.read-all</code>, <code>file.read-lines</code>, <code>file.open</code>, <code>file.read-line</code>, <code>file.close</code>), and program arguments arrive via <code>console.arg</code> and <code>console.args-count</code>. A dot says which type owns the verb — nothing else is dotted; the core operations are bare words. <code>+</code> adds integers and concatenates strings; there are no implicit conversions.</p>
+        <p>The predeclared words: <code>print</code>, <code>range</code>, <code>int.to-string</code>, <code>read-line</code>, and the dotted families. Text: <code>text.length</code>, <code>text.line-count</code>, <code>text.word-count</code>, <code>text.upper</code>, <code>text.lower</code>, <code>text.trim</code>, <code>text.contains</code>, <code>text.index-of</code>, <code>text.slice</code>, <code>text.replace</code>, <code>text.reverse</code>, <code>text.to-int</code>. Lines build in a <code>Buffer</code> (<code>buffer.new</code>, <code>buffer.add-line</code>, <code>buffer.line-count</code>, <code>buffer.line</code>, <code>buffer.set-line</code>, <code>buffer.to-text</code>), files read whole or streamed (<code>file.read-all</code>, <code>file.read-lines</code>, <code>file.open</code>, <code>file.read-line</code>, <code>file.close</code>), and program arguments arrive via <code>console.arg</code> and <code>console.args-count</code>. A dot names the type or module that owns the verb — nothing else is dotted; the core operations are bare words. <code>+</code> adds integers and concatenates strings; there are no implicit conversions.</p>
       </div>
 
       <div class="docs-feature">
@@ -116,6 +112,102 @@ greet(name: String) -> String` | highlight}}</code></pre></div>
         <h3>Study working programs.</h3>
         <p>The examples page renders each program with real input and output. <a href="examples.html#gcd">GCD</a> shows recursion and a flow seeded with a computed call; the <a href="examples.html#times-table">times table</a> shows a bounded loop building strings from integers.</p>
       </div>
+    </section>
+
+    <section class="section" aria-labelledby="modules-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Modules</p><h2 id="modules-title">One program, many files.</h2></div>
+        <p class="intro">A program splits across files. <code>use math</code> imports the sibling <code>math.zhex</code> beside the importing file — the REPL resolves against the working directory and adopts the module for the session — and every loaded module checks before the file that imports it.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Importable by default, called qualified.</h3>
+        <p>A module's words are importable unless their names start with an underscore. From the importing file you call them qualified — <code>math.gcd(a, b)</code>, or a flow step like <code>math.abs</code> — while inside their own file they call each other bare.</p>
+        <div class="program-code">
+          <div class="code-label"><span>main.zhex</span></div>
+          <pre><code>{{`if a <= 0 or b <= 0
+    print("Enter two positive integers.")
+else
+    flow a - b
+        math.abs
+        print
+    print(math.gcd(a, b))
+    print(math.lcm(a, b))` | highlight}}</code></pre>
+          <div class="code-label"><span>math.zhex</span></div>
+          <pre><code>{{`word lcm(a: Int, b: Int) -> Int
+    _normalize(a * b) / gcd(a, b)
+
+word _normalize(n: Int) -> Int
+    abs(n)` | highlight}}</code></pre>
+        </div>
+        <p class="access-note">Both snippets are exact fragments of the two-file <a href="examples.html#modules/main">modules example</a>: the guard and else branch of <code>main.zhex</code> — the full program reads two numbers with <code>read-line</code> first — and the privacy pair from <code>math.zhex</code>. In the REPL, <code>words</code> lists an adopted module's signatures qualified.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>The underscore keeps a word private.</h3>
+        <p>A leading underscore makes a word private to its own file: callable inside its module, never suggested outside it, and reached from another file only as a checked error — hint included:</p>
+        <div class="command-block"><pre><code>main.zhex:4:7: "_normalize" is private to module "math"
+    print(math._normalize(5))
+          ^^^^^^^^^^^^^^^^^^
+hint: remove the leading underscore in math.zhex to export it</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Checked like the rest of the program.</h3>
+        <p>Imported files declare words only — top-level statements are a <code>module-body</code> error pointing into the module file. A module that cannot be loaded fails <code>use-missing</code> naming the searched path, an import cycle fails <code>use-cycle</code> spelling the files in the cycle, and a module named <code>text</code>, <code>int</code>, <code>buffer</code>, <code>file</code>, or <code>console</code> fails <code>use-reserved</code> — those prefixes belong to the standard operations. Module errors annotate the module's own source, at check time and at runtime.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="errors-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Diagnostics</p><h2 id="errors-title">Errors that name the fix.</h2></div>
+        <p class="intro">Nothing runs until the whole program checks — modules included. Every diagnostic reads the same way, and every one carries a stable code cataloged on the errors page.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>How to read one.</h3>
+        <p>The first line is stable — <code>file:line:column: message</code> — then the source line with a caret underlining the whole failing expression, and, where the compiler knows the fix, a <code>hint:</code> line that names an action. The message states the problem as fact; type mismatches even narrate where a value came from:</p>
+        <div class="command-block"><pre><code>fail.zhex:2:1: print does not support type Result&lt;String, InputError&gt;; line comes from read-line
+    print(line)
+          ^^^^
+hint: this value is a Result; add postfix try to unwrap it, as in text.to-int("N: ") try</code></pre></div>
+        <p class="access-note">Every code is cataloged with its fix on the <a href="errors.html">errors page</a>; <code>zhex run &lt;file&gt; --report=json</code> hands agents <code>{code, severity, file, line, column, message, hint}</code>.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="setup-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Setup</p><h2 id="setup-title">Run it yourself.</h2></div>
+        <p class="intro">Build the interpreter once, then run programs from your terminal — the same commands behind every example above. Building needs Go 1.23 or newer and <a href="https://just.systems/man/en/">just</a>.</p>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Install.</h3>
+        <p>Clone the public repository — it carries the interpreter, the examples, and these pages.</p>
+        <div class="command-block"><pre><code>git clone https://github.com/desireco/zhex.git
+cd zhex</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Build.</h3>
+        <p>One command compiles the <code>zhex</code> binary; repeat after pulling changes.</p>
+        <div class="command-block"><pre><code>just build</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>Run.</h3>
+        <p>Point the binary at any program — single files, or a directory entry whose modules load as siblings.</p>
+        <div class="command-block"><pre><code>./bin/zhex run examples/hello.zhex
+./bin/zhex run examples/modules/main.zhex</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
+        <h3>REPL.</h3>
+        <p>Check and run entries interactively; words, values, and adopted modules persist across entries.</p>
+        <div class="command-block"><pre><code>./bin/zhex repl</code></pre></div>
+      </div>
+
+      <p class="access-note">The full walkthrough — input piping, exit codes, reading files — lives in the repository's <a href="https://github.com/desireco/zhex/blob/main/docs/getting-started.md">getting-started guide</a>.</p>
     </section>
 
     <section class="section" aria-labelledby="editors-title">

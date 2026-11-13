@@ -127,6 +127,24 @@ When the checker can trace the value to the word that produced it, the message s
 ## range-context
 `range` and `file.lines` exist only inside a `for` loop header — `for n in range(start, end)` and `for line in file.lines(path)`. They cannot be called elsewhere.
 
+## use-missing
+A `use` names a module that could not be loaded. The message names the module and the searched path — the sibling `<name>.zhex` next to the importing file. Create that file or fix the module name in the `use`.
+
+## use-cycle
+Modules import each other in a circle; the message spells the files in the cycle. A circle has no first file to check, so one `use` in the cycle must be removed.
+
+## use-reserved
+A module is named `text`, `int`, `buffer`, `file`, or `console`. Those prefixes belong to the standard operations, so a module cannot take any of them. Rename the module file.
+
+## use-location
+A `use` appears inside a word body or another block. `use` is a top-level statement; move it to the top level of the file.
+
+## module-body
+An imported file contains top-level statements. Imported files declare words only; move the statements into the file you run.
+
+## private-use
+A call names a word whose name starts with an underscore. Underscore words are module-private — callable only inside their own module's file — while words without the underscore are importable. Remove the leading underscore in the module's file to export the word.
+
 ## integer-overflow
 An arithmetic result does not fit in a signed 64-bit integer. Overflow is an error in Zhex, not a wraparound; keep intermediate values in range.
 

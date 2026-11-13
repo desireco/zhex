@@ -1,6 +1,9 @@
 package lang
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 type parser struct {
 	tokens       []token
@@ -28,6 +31,8 @@ func parse(file, source string) (program *Program, err error) {
 	for !p.at("eof") {
 		if p.at("word") {
 			program.words = append(program.words, p.parseWord())
+		} else if p.at("use") && p.depth == 0 {
+			program.uses = append(program.uses, p.parseUse())
 		} else {
 			program.body = append(program.body, p.parseStatement())
 		}
@@ -58,7 +63,7 @@ func (p *parser) require(kind string) token {
 // Reserved reports whether name is a Zhex keyword.
 func Reserved(name string) bool {
 	switch name {
-	case "word", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "and", "or", "not", "true", "false":
+	case "word", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "and", "or", "not", "true", "false":
 		return true
 	}
 	return false
@@ -70,6 +75,19 @@ func (p *parser) name() token {
 		panic(errorAt(t.pos, CodeExpectedName, "expected a name, found keyword %q", t.text))
 	}
 	return t
+}
+
+// parseUse reads a top-level import: use math. Module names are simple —
+// the dot belongs to qualified calls, not to use.
+func (p *parser) parseUse() use {
+	t := p.take()
+	n := p.name()
+	if strings.Contains(n.text, ".") {
+		panic(withHint(errorAt(n.pos, CodeExpectedName, "expected a module name, found %q", n.text),
+			"module names cannot contain dots; use the module's name, as in use math"))
+	}
+	p.require("newline")
+	return use{name: n.text, pos: t.pos, end: n.end}
 }
 
 func (p *parser) parseType() valueType {
@@ -127,6 +145,14 @@ func (p *parser) block() []*statement {
 
 func (p *parser) parseStatement() *statement {
 	t := p.current()
+	if p.at("use") {
+		err := withHint(errorAt(t.pos, CodeUseLocation, "use is only allowed at the top level"),
+			"move the use statement to the top level of the file")
+		if next := p.tokens[p.index+1]; next.kind == "name" {
+			err = withSpanRange(err, t.pos, next.end)
+		}
+		panic(err)
+	}
 	s := &statement{pos: t.pos}
 	switch {
 	case p.at("let") || p.at("var"):

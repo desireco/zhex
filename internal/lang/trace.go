@@ -48,7 +48,7 @@ func (r *runtime) traceWordCall(x *expression, args []value) {
 		}
 		rendered[i] = formatValue(a, typ)
 	}
-	r.emit(wordCallEvent{Event: "word-call", Word: x.text, File: x.pos.file, Line: x.pos.line, Args: rendered})
+	r.emit(wordCallEvent{Event: "word-call", Word: qualifiedName(x), File: x.pos.file, Line: x.pos.line, Args: rendered})
 }
 
 func (r *runtime) traceBinding(pos position, b *binding, v value) {
@@ -80,14 +80,27 @@ func (r *runtime) traceFlowStep(x *expression, v value) {
 	if r.trace == nil {
 		return
 	}
-	r.emit(valueEvent{Event: "flow-step", Word: x.text, Value: formatValue(v, x.inputType), File: x.pos.file, Line: x.pos.line})
+	r.emit(valueEvent{Event: "flow-step", Word: qualifiedName(x), Value: formatValue(v, x.inputType), File: x.pos.file, Line: x.pos.line})
 }
 
 func (r *runtime) traceWordReturn(w *word, v value) {
 	if r.trace == nil {
 		return
 	}
-	r.emit(valueEvent{Event: "word-return", Word: w.name, Value: formatValue(v, w.result), File: w.pos.file, Line: w.pos.line})
+	name := w.name
+	if w.module != "" {
+		name = w.module + "." + w.name
+	}
+	r.emit(valueEvent{Event: "word-return", Word: name, Value: formatValue(v, w.result), File: w.pos.file, Line: w.pos.line})
+}
+
+// qualifiedName names a call for the event stream: a module's word carries
+// its module prefix; everything else keeps the name as written.
+func qualifiedName(x *expression) string {
+	if x.word != nil && x.word.module != "" {
+		return x.word.module + "." + x.word.name
+	}
+	return x.text
 }
 
 // shortcut: trace write errors are dropped — tracing must never fail a run.

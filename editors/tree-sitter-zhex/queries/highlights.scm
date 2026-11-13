@@ -9,9 +9,9 @@
 (escape_sequence) @string.escape
 (comment) @comment
 
-["word" "let" "var" "if" "elif" "for" "in" "flow" "try"] @keyword
+["word" "use" "let" "var" "if" "elif" "for" "in" "flow" "try"] @keyword
 (else_header) @keyword
 ["and" "or" "not" "+" "-" "*" "/" "%" "==" "!=" "<" "<=" ">" ">=" "=" "->"] @operator
 ["(" ")"] @punctuation.bracket
 ["," ":"] @punctuation.delimiter
-"range" @function
+"range" "file.lines" @function

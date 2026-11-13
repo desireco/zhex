@@ -3,7 +3,7 @@ package lang
 import "testing"
 
 func FuzzCompile(f *testing.F) {
-	for _, source := range []string{"", "print(1)\n", "if true\n    print(1)\n", "word square(n: Int) -> Int\n    n * n\n", "let n = text.to-int(\"N: \") try\n", "print(\"\\\"\")\n", "\xff"} {
+	for _, source := range []string{"", "print(1)\n", "if true\n    print(1)\n", "word square(n: Int) -> Int\n    n * n\n", "let n = text.to-int(\"N: \") try\n", "print(\"\\\"\")\n", "\xff", "use math\n", "use math.extra\n", "word f() -> Unit\n    use math\n", "use text\n", "use\n"} {
 		f.Add(source)
 	}
 	f.Fuzz(func(t *testing.T, source string) {

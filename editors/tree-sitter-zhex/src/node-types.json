@@ -645,6 +645,10 @@
           "named": true
         },
         {
+          "type": "use_statement",
+          "named": true
+        },
+        {
           "type": "word_definition",
           "named": true
         }
@@ -763,6 +767,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "use_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -919,6 +939,10 @@
     "named": false
   },
   {
+    "type": "file.lines",
+    "named": false
+  },
+  {
     "type": "flow",
     "named": false
   },
@@ -964,6 +988,10 @@
   },
   {
     "type": "try",
+    "named": false
+  },
+  {
+    "type": "use",
     "named": false
   },
   {

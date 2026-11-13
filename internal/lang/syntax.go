@@ -201,17 +201,26 @@ type parameter struct {
 
 type word struct {
 	name   string
+	module string // owning module's use name; "" in the entry file and the REPL
 	pos    position
 	params []parameter
 	result valueType
 	body   []*statement
 }
 
+// A use directive imports a module: use math.
+type use struct {
+	name string
+	pos  position // the use token
+	end  position // end of the module name, for the caret span
+}
+
 // Program is a checked source file. Syntax, type checking, and execution are separate stages.
 type Program struct {
-	words  []*word
-	body   []*statement
-	source string
+	words   []*word
+	uses    []use
+	body    []*statement
+	sources map[string]string // every file in the program, keyed by path, for annotated errors
 }
 
 type expression struct {

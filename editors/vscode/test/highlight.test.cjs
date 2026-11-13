@@ -30,6 +30,7 @@ test('Zhex TextMate scopes match real syntax', async () => {
     assert.ok(token?.scopes.includes(scope), `${needle}: expected ${scope}, got ${token?.scopes}`);
   }
   expectScope('# word', 2, 'comment.line.number-sign.zhex');
+  expectScope('use math', 0, 'keyword.control.zhex');
   expectScope('word is-palindrome', 0, 'storage.type.function.zhex');
   expectScope('word is-palindrome', 5, 'entity.name.function.zhex');
   expectScope('value: String', 0, 'variable.parameter.zhex');
@@ -54,7 +55,7 @@ test('unterminated strings stop at the end of their line', async () => {
 test('all shipped examples tokenize and language configuration uses current syntax', async () => {
   const grammar = await ready;
   const directory = path.join(root, '../../examples');
-  for (const filename of fs.readdirSync(directory).filter(name => name.endsWith('.zhex'))) {
+  for (const filename of fs.readdirSync(directory, { recursive: true }).filter(name => name.endsWith('.zhex'))) {
     let stack = textmate.INITIAL;
     for (const line of fs.readFileSync(path.join(directory, filename), 'utf8').split('\n')) {
       const result = grammar.tokenizeLine(line, stack); stack = result.ruleStack;

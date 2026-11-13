@@ -15,6 +15,7 @@ These source files run in the Go interpreter and are validated by its test suite
 | [gcd.zhex](../examples/gcd.zhex) | `48`, `18` | `6` | Euclid's algorithm by recursion and a flow seeded with a computed call. |
 | [times-table.zhex](../examples/times-table.zhex) | `7` | `7 x 1 = 7` through `7 x 10 = 70` | A bounded loop building each line from integers and strings. |
 | [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
 
 Each result line ends with a newline. The interactive programs print a prompt before reading. For FizzBuzz with input `15`, the result lines are:
 
@@ -61,6 +62,7 @@ go run ./cmd/zhex run examples/palindrome.zhex
 go run ./cmd/zhex run examples/gcd.zhex
 go run ./cmd/zhex run examples/times-table.zhex
 go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
+go run ./cmd/zhex run examples/modules/main.zhex
 ```
 
 ## Syntax exercised by the examples
@@ -68,10 +70,10 @@ go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
 - Named word parameters and result types are explicit; local types and flow intermediate types are inferred.
 - `let` binds an immutable local. `var` explicitly permits reassignment within lexical scope; assignment preserves its type. Naming a value does not dictate its eventual machine representation.
 - Blocks use indentation. A word's final expression supplies its result; an `if` used as a value has compatible branch result types. Statement branches in these top-level programs return `Unit`.
-- Calls use parentheses. Qualified names such as `text.reverse` identify module operations; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
+- Calls use parentheses. Qualified names such as `text.reverse` and `math.gcd` name the type or module that owns the verb; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
 - `+` supports integer addition or string concatenation with matching operand types; no automatic integer-to-string conversion occurs. `%` is integer remainder. `==` compares same-typed values by value. `or` combines booleans with short-circuit evaluation.
 - `range(start, end)` is an ascending integer iteration with an exclusive end. When `start >= end`, it performs no iterations. It should not require materializing a list of all integers.
-- `int.to-string` returns decimal text. `text.reverse` reverses a valid string by Unicode code points. These standard operations are predeclared for this milestone; user-written modules follow later.
+- `int.to-string` returns decimal text. `text.reverse` reverses a valid string by Unicode code points. These standard operations are predeclared.
 
 `print` uses statically selected built-in overloads rather than requiring a general formatting protocol. Boolean output is `true` or `false`. Broader traits, collections, and polymorphism are not needed for these examples.
 

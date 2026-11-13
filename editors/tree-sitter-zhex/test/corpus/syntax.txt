@@ -111,3 +111,43 @@ print(int.to-string(total))
       (call_expression
         (identifier)
         (identifier)))))
+
+==================
+Use imports a module
+==================
+use math
+
+word helper() -> Unit
+    print(1)
+
+---
+
+(source_file
+  (use_statement
+    (identifier))
+  (word_definition
+    (identifier)
+    (type))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (integer))))
+
+==================
+Loops stream file lines
+==================
+for line in file.lines(path)
+    print(text.upper(line))
+
+---
+
+(source_file
+  (for_header
+    (identifier)
+    (identifier))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (call_expression
+        (identifier)
+        (identifier)))))

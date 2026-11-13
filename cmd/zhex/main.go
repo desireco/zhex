@@ -5,10 +5,21 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"zhex/internal/lang"
 )
+
+// readModule loads a sibling module file — the resolution rule for use.
+func readModule(dir, name string) (lang.ModuleSource, bool) {
+	path := filepath.Join(dir, name+".zhex")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return lang.ModuleSource{}, false
+	}
+	return lang.ModuleSource{Path: path, Source: string(source)}, true
+}
 
 const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace]"
 
@@ -53,7 +64,10 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	source, err := os.ReadFile(file)
 	if err == nil {
-		err = lang.RunWithArgs(file, string(source), input, output, trace, programArgs)
+		dir := filepath.Dir(file)
+		err = lang.RunWithModules(file, string(source), input, output, trace, programArgs, func(name string) (lang.ModuleSource, bool) {
+			return readModule(dir, name)
+		})
 	}
 	if err != nil {
 		if report == "json" {
@@ -84,7 +98,9 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	if !ok {
 		reader = bufio.NewReader(input)
 	}
-	session := lang.NewSession(reader, output, trace)
+	session := lang.NewSession(reader, output, trace, func(name string) (lang.ModuleSource, bool) {
+		return readModule(".", name)
+	})
 	fmt.Fprintln(output, "Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.")
 	buffer, pending := "", false
 	listWords := func() {

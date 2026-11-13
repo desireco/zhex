@@ -6,7 +6,7 @@ This contract defines the first Go interpreter and the executable examples used 
 
 Source is valid UTF-8. Blocks use four spaces per indentation level; tabs outside strings and comments are rejected. Blank lines and `#` comments are ignored. Statements end at a newline; parentheses do not introduce multiline continuation in this version. Syntax nesting and expression-tree depth are limited to 256 to report overly deep source as a language error.
 
-Names use ASCII letters, digits, and underscores, starting with a letter or underscore. Hyphen-separated name segments beginning with a letter or underscore are allowed, as in `is-palindrome`. Dots qualify operation names. Consequently `a-b` is a name, while `a - b` is subtraction: use spaces around subtraction between names. Keywords cannot be binding or word names. Strings use double quotes and Go-style escapes, and must decode to valid UTF-8.
+Names use ASCII letters, digits, and underscores, starting with a letter or underscore. Hyphen-separated name segments beginning with a letter or underscore are allowed, as in `is-palindrome`. Dots qualify names: a dot names the type or module that owns the verb, and a leading underscore marks a word module-private (see Modules). Consequently `a-b` is a name, while `a - b` is subtraction: use spaces around subtraction between names. Keywords cannot be binding or word names; `use` is one of them. Strings use double quotes and Go-style escapes, and must decode to valid UTF-8.
 
 ## Values and expressions
 
@@ -22,6 +22,16 @@ Precedence, from lowest to highest: `or`, `and`, `== !=`, `< <= > >=`, `+ -`, `*
 
 Call a word with `name(arguments)`. A `flow expression` block contains one word name per line; each word receives the previous value as its single argument. Its final result is the flow's result. Calls are resolved and their input/output types checked before execution. Named calls and flow steps use the same operations.
 
+## Modules
+
+A program splits across files. `use math` at the top level of a file imports the module named `math` by loading the sibling `math.zhex` next to the importing file — each file's own imports resolve beside it. A module that cannot be loaded is a `use-missing` error naming the searched path. `use` is a keyword and is allowed only at a file's top level (`use-location`); a repeated `use` of the same module is a no-op.
+
+An imported word is called qualified, as in `math.gcd(a, b)` or a flow step. Inside its own file a module's words call each other bare, and they cannot see the importing file's words. A word whose name starts with an underscore is private to its module: callable only inside its own file, never suggested outside it, and reached from another file only as a `private-use` error. A module's own imports stay private to it — naming a module directly is the only way to see its words — and two modules never collide, even when their words share names. Duplicate word names are detected per file, and an entry file cannot redefine an adopted qualified name.
+
+Module names `text`, `int`, `buffer`, `file`, and `console` are reserved (`use-reserved`); those prefixes belong to the standard operations. An imported file declares words only — top-level statements are a `module-body` error — and import cycles are `use-cycle` errors spelling the files in the cycle. Every loaded module checks before the file that imports it, so dependencies report first, and module errors annotate the module's own source at check time and at runtime.
+
+The REPL resolves `use` against the working directory and adopts each named module for the rest of the session; its qualified words then persist across entries and list under `words`. The two-file [modules example](../examples/modules/main.zhex) shows the shape: `main.zhex` runs the program and `math.zhex` beside it supplies the words, one of them underscore-private.
+
 ## Decisions and iteration
 
 `if condition`, optional `elif condition` blocks, and optional `else` select a branch. Conditions must be `Bool`. Branch result types must match; a missing `else` supplies `Unit`. Each branch has its own lexical scope.
@@ -32,7 +42,7 @@ Call a word with `name(arguments)`. A `flow expression` block contains one word 
 
 ## Standard operations and console input
 
-The initial predeclared operations are `print`, `int.to-string`, `text.reverse`, `read-line`, and `text.to-int`. `print` accepts one `Int`, `Bool`, or `String`, writes it followed by a newline, and returns `Unit`. Boolean text is `true` or `false`. `int.to-string` takes an integer. `text.reverse` takes a string and reverses Unicode code points without normalization. The naming rule is: a dot says which type owns the verb — nothing else is dotted; the core operations are bare words.
+The initial predeclared operations are `print`, `int.to-string`, `text.reverse`, `read-line`, and `text.to-int`. `print` accepts one `Int`, `Bool`, or `String`, writes it followed by a newline, and returns `Unit`. Boolean text is `true` or `false`. `int.to-string` takes an integer. `text.reverse` takes a string and reverses Unicode code points without normalization. The naming rule is: a dot names the type or module that owns the verb — nothing else is dotted; the core operations are bare words.
 
 The `text` words operate on `String` values, Unicode-safe by code point. `text.length` counts code points. `text.line-count` counts lines — empty text is `0`, and a trailing newline does not add a line. `text.word-count` splits on Unicode whitespace. `text.upper` and `text.lower` map case; `text.trim` removes surrounding Unicode whitespace. `text.contains(text, part)` reports whether `part` occurs. `text.index-of(text, part)` returns the code-point position of the first occurrence, or `-1` when absent. `text.slice(text, start, end)` returns the code points from `start` up to `end`; bounds below zero and past the length clamp, and `start >= end` yields the empty string. `text.replace(text, old, new)` rewrites every occurrence of `old` with `new` — literally, not as a pattern; empty `old` is a `replace-empty` error, a bug signal rather than a recoverable case.
 
@@ -48,4 +58,4 @@ The [example guide](syntax-examples.md) defines line endings, integer parsing, E
 
 Run `go run ./cmd/zhex run examples/fibonacci.zhex`, or build with `go build -o bin/zhex ./cmd/zhex` and run `./bin/zhex run examples/fibonacci.zhex`. The runner requires a source file; `zhex repl [--trace]` instead starts an interactive session whose words and values persist across entries — a blank line ends a multi-line entry, bare expressions echo their value, errors print a diagnostic without ending the session, and `words` lists signatures.
 
-Run `go test ./...` for the executable language cases and CLI tests. Run `go vet ./...` for Go checks. The [test catalog](tests.md) maps syntax and behavior to those tests. Modules, collections, rich domain types, resource scopes, and native compilation remain later work.
+Run `go test ./...` for the executable language cases and CLI tests. Run `go vet ./...` for Go checks. The [test catalog](tests.md) maps syntax and behavior to those tests. Collections, rich domain types, resource scopes, and native compilation remain later work.

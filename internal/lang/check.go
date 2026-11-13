@@ -1,6 +1,10 @@
 package lang
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+)
 
 type scope struct {
 	parent   *scope
@@ -36,7 +40,16 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 	return b, nil
 }
 
-type checker struct{ words map[string]*word }
+// checker holds one file's view while checking it: its own words, the
+// modules it uses, and every loaded module. words, uses, and module swap
+// per file; modules stays for the whole compile. session.go builds the same
+// view from the REPL's accumulated words and modules.
+type checker struct {
+	words   map[string]*word
+	modules map[string]*module
+	uses    []string
+	module  string // the module being checked; "" for the entry file and the REPL
+}
 
 var hostWords = []string{
 	"print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
@@ -57,57 +70,313 @@ func HostWord(name string) bool {
 	return false
 }
 
+// wordNames lists the words visible in the current file: the host words,
+// its own words, and its used modules' importable words qualified. The
+// suggestion hints draw from this list.
 func (c *checker) wordNames() []string {
 	names := append([]string{}, hostWords...)
 	for name := range c.words {
 		names = append(names, name)
 	}
+	for _, use := range c.uses {
+		if m := c.modules[use]; m != nil {
+			for _, w := range m.order {
+				if !strings.HasPrefix(w.name, "_") {
+					names = append(names, m.name+"."+w.name)
+				}
+			}
+		}
+	}
 	return names
+}
+
+// ModuleSource is one importable module file: its path, for diagnostics, and
+// its source text.
+type ModuleSource struct {
+	Path   string
+	Source string
+}
+
+// module is one imported file: its use name, its path, and its word table.
+type module struct {
+	name  string
+	path  string
+	words map[string]*word
+	order []*word // source order, so the first broken body reports first
+	uses  []string
+}
+
+// reservedModulePrefixes are the host operations' prefixes; a module named
+// one of them would shadow every qualified host word.
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console"}
+
+func reservedModule(name string) bool {
+	for _, prefix := range reservedModulePrefixes {
+		if name == prefix {
+			return true
+		}
+	}
+	return false
 }
 
 // Compile parses and checks every word before the program can perform any I/O.
 func Compile(file, source string) (*Program, error) {
-	p, err := parse(file, source)
+	return CompileModules(file, source, nil)
+}
+
+// CompileModules compiles a multi-file program: the entry source plus every
+// module its use directives name, loaded through resolve following the
+// sibling <name>.zhex convention. A nil resolve rejects each use with
+// use-missing. The compiler stays free of file I/O; callers own the disk.
+func CompileModules(entryPath, entrySource string, resolve func(name string) (ModuleSource, bool)) (*Program, error) {
+	p, err := parse(entryPath, entrySource)
 	if err != nil {
-		return nil, err
+		return nil, annotateSource(err, map[string]string{entryPath: entrySource})
 	}
-	p.source = source
-	c := checker{words: make(map[string]*word)}
-	if _, err = c.checkProgram(p, newScope(nil)); err != nil {
-		return nil, err
+	sources := map[string]string{entryPath: entrySource}
+	modules, order, err := loadModules(p.uses, nil, entryPath, resolve, useMissing, sources)
+	if err != nil {
+		return nil, annotateSource(err, sources)
 	}
+	c := &checker{words: make(map[string]*word), modules: modules}
+	// Modules check in load order — dependencies first — and the entry last.
+	for _, m := range order {
+		c.module, c.words, c.uses = m.name, m.words, m.uses
+		if err := c.checkAdopted(m.uses); err != nil {
+			return nil, annotateSource(err, sources)
+		}
+		if err := c.checkWords(m.order); err != nil {
+			return nil, annotateSource(err, sources)
+		}
+	}
+	c.module, c.words, c.uses = "", make(map[string]*word), useNames(p)
+	if err = c.register(p.words); err != nil {
+		return nil, annotateSource(err, sources)
+	}
+	if err = c.checkAdopted(useNames(p)); err != nil {
+		return nil, annotateSource(err, sources)
+	}
+	if err = c.checkWords(p.words); err != nil {
+		return nil, annotateSource(err, sources)
+	}
+	if _, err = c.block(p.body, newScope(nil)); err != nil {
+		return nil, annotateSource(err, sources)
+	}
+	p.sources = sources
 	return p, nil
 }
 
-// checkProgram type-checks a parsed program against the caller's words and
-// top-level scope, returning the top level's result type. Word bodies never
-// see the top-level scope.
+func useNames(p *Program) []string {
+	names := make([]string, len(p.uses))
+	for i, u := range p.uses {
+		names[i] = u.name
+	}
+	return names
+}
+
+// loadModules resolves the use graph depth-first, dependencies before the
+// files that use them, and returns the modules in that order — the order
+// they check in. known seeds already-loaded modules, so a repeat use is a
+// no-op; missing builds the use-missing diagnostic for the importing
+// context. sources collects every loaded file's text so a diagnostic can be
+// annotated against the file it points into.
+func loadModules(uses []use, known map[string]*module, importingPath string, resolve func(name string) (ModuleSource, bool), missing func(u use, importingPath string) error, sources map[string]string) (map[string]*module, []*module, error) {
+	byName := make(map[string]*module, len(known))
+	for name, m := range known {
+		byName[name] = m
+	}
+	var order []*module
+	var stack []string // use names being loaded, for cycle chains
+	var load func(uses []use, path string) error
+	load = func(uses []use, path string) error {
+		for _, u := range uses {
+			for i, name := range stack {
+				if name != u.name {
+					continue
+				}
+				chain := make([]string, 0, len(stack)-i+1)
+				for _, n := range stack[i:] {
+					chain = append(chain, byName[n].path)
+				}
+				return withSpanRange(errorAt(u.pos, CodeUseCycle, "module cycle: %s", strings.Join(append(chain, byName[u.name].path), " -> ")), u.pos, u.end)
+			}
+			if byName[u.name] != nil {
+				continue // already loaded; a duplicate use is a no-op
+			}
+			if reservedModule(u.name) {
+				return withSpanRange(withHint(errorAt(u.pos, CodeUseReserved, "module name %q is reserved", u.name),
+					"rename the module file — a module cannot be named text, int, buffer, file, or console"), u.pos, u.end)
+			}
+			src, ok := ModuleSource{}, false
+			if resolve != nil {
+				src, ok = resolve(u.name)
+			}
+			if !ok {
+				return missing(u, path)
+			}
+			if src.Path == path {
+				// The module resolved to the importing file itself; the stack
+				// cannot see the entry, so name the self-import here.
+				return withSpanRange(errorAt(u.pos, CodeUseCycle, "module cycle: %s -> %s", path, path), u.pos, u.end)
+			}
+			sources[src.Path] = src.Source
+			mp, err := parse(src.Path, src.Source)
+			if err != nil {
+				return err
+			}
+			if len(mp.body) > 0 {
+				return withSpanRange(errorAt(mp.body[0].pos, CodeModuleBody,
+					"imported files declare words only; move the statements into the file you run"), mp.body[0].pos, mp.body[0].expr.end)
+			}
+			m := &module{name: u.name, path: src.Path, words: make(map[string]*word)}
+			for _, w := range mp.words {
+				if m.words[w.name] != nil || HostWord(w.name) {
+					return errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
+				}
+				w.module = u.name
+				m.words[w.name] = w
+				m.order = append(m.order, w)
+			}
+			for _, dep := range mp.uses {
+				m.uses = append(m.uses, dep.name)
+			}
+			byName[u.name] = m
+			stack = append(stack, u.name)
+			if err := load(mp.uses, src.Path); err != nil {
+				return err
+			}
+			stack = stack[:len(stack)-1]
+			order = append(order, m) // post-order: dependencies check first
+		}
+		return nil
+	}
+	if err := load(uses, importingPath); err != nil {
+		return nil, nil, err
+	}
+	return byName, order, nil
+}
+
+// useMissing reports a use no resolver could supply; the searched path is the
+// sibling <name>.zhex next to the importing file.
+func useMissing(u use, importingPath string) error {
+	searched := filepath.Join(filepath.Dir(importingPath), u.name+".zhex")
+	return withSpanRange(withHint(errorAt(u.pos, CodeUseMissing, "module %q not found; searched %s", u.name, searched),
+		fmt.Sprintf("create %s next to %s, or fix the module name", searched, importingPath)), u.pos, u.end)
+}
+
+// annotateSource attaches the excerpt from the file a diagnostic points into;
+// Run annotates against the entry source only, so module files carry their own.
+func annotateSource(err error, sources map[string]string) error {
+	if d, ok := err.(*diagnostic); ok {
+		if source, found := sources[d.pos.file]; found {
+			return annotate(err, source)
+		}
+	}
+	return err
+}
+
+// checkProgram type-checks one REPL entry against the session's accumulated
+// words and top-level scope, returning the entry's result type. The session
+// replaces redefined words instead of rejecting them, so adoption collisions
+// were resolved before this runs; word bodies never see the top-level scope.
 func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
-	for _, w := range p.words {
+	if err := c.register(p.words); err != nil {
+		return "", err
+	}
+	if err := c.checkWords(p.words); err != nil {
+		return "", err
+	}
+	return c.block(p.body, top)
+}
+
+// register adds a file's own words to the current view, rejecting
+// duplicates and host collisions.
+func (c *checker) register(words []*word) error {
+	for _, w := range words {
 		if c.words[w.name] != nil || HostWord(w.name) {
-			return "", errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
+			return errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
 		}
 		c.words[w.name] = w
 	}
-	for _, w := range p.words {
+	return nil
+}
+
+// checkWords type-checks word bodies against the current file's view.
+func (c *checker) checkWords(words []*word) error {
+	for _, w := range words {
 		env := newScope(nil)
-		var err error
 		for i := range w.params {
 			param := &w.params[i]
-			param.binding, err = env.define(param.pos, param.name, param.typ, false)
+			binding, err := env.define(param.pos, param.name, param.typ, false)
 			if err != nil {
-				return "", err
+				return err
 			}
+			param.binding = binding
 		}
 		result, err := c.block(w.body, env)
 		if err != nil {
-			return "", err
+			return err
 		}
 		if result != w.result {
-			return "", errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
+			return errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
 		}
 	}
-	return c.block(p.body, top)
+	return nil
+}
+
+// checkAdopted rejects a file's own word that spells a used module's
+// importable word: both would answer to the same qualified name.
+func (c *checker) checkAdopted(uses []string) error {
+	for _, use := range uses {
+		m := c.modules[use]
+		if m == nil {
+			continue
+		}
+		for _, w := range m.order {
+			if strings.HasPrefix(w.name, "_") {
+				continue
+			}
+			if own := c.words[m.name+"."+w.name]; own != nil {
+				return errorAt(own.pos, CodeDuplicateWord, "word %q is already defined", m.name+"."+w.name)
+			}
+		}
+	}
+	return nil
+}
+
+// resolveWord resolves a call name in the current file's view: its own
+// words, bare or as written, then — for a qualified name whose module this
+// file uses — the module's table. A word from another module whose name
+// starts with an underscore comes back with its module for private-use.
+func (c *checker) resolveWord(name string) (*word, *module) {
+	if w := c.words[name]; w != nil {
+		return w, nil
+	}
+	owner, rest, qualified := strings.Cut(name, ".")
+	if !qualified || !c.used(owner) {
+		return nil, nil
+	}
+	m := c.modules[owner]
+	if m == nil {
+		return nil, nil
+	}
+	w := m.words[rest]
+	if w == nil {
+		return nil, nil
+	}
+	if strings.HasPrefix(w.name, "_") && w.module != c.module {
+		return w, m
+	}
+	return w, nil
+}
+
+func (c *checker) used(name string) bool {
+	for _, use := range c.uses {
+		if use == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *checker) block(body []*statement, env *scope) (valueType, error) {
@@ -305,7 +574,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 	var params []valueType
 	var result valueType
-	if w := c.words[x.text]; w != nil {
+	if w, m := c.resolveWord(x.text); w != nil {
+		if m != nil {
+			return "", withHint(withSpan(errorAt(x.pos, CodePrivateUse, "%q is private to module %q", w.name, m.name), x),
+				fmt.Sprintf("remove the leading underscore in %s to export it", m.path))
+		}
 		x.word = w
 		result = w.result
 		for _, p := range w.params {
@@ -396,7 +669,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "range", "file.lines":
 			return "", errorAt(x.pos, CodeRangeContext, "%s is only available in a for loop", x.text)
 		default:
-			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestHint(x.text, c.wordNames())), x)
+			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestWordHint(x.text, c.wordNames())), x)
 		}
 	}
 	if len(args) != len(params) {

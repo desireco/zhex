@@ -46,7 +46,7 @@ jobs:
         working-directory: editors/tree-sitter-zhex
         run: |
           npx --yes --package tree-sitter-cli@0.26.9 -- tree-sitter test --config-path test/config.json
-          npx --yes --package tree-sitter-cli@0.26.9 -- tree-sitter parse --grammar-path . --config-path test/config.json --quiet ../../examples/*.zhex ../testdata/highlighting.zhex
+          npx --yes --package tree-sitter-cli@0.26.9 -- tree-sitter parse --grammar-path . --config-path test/config.json --quiet '../../examples/*.zhex' '../../examples/modules/*.zhex' '../testdata/highlighting.zhex'
           npx --yes --package tree-sitter-cli@0.26.9 -- tree-sitter query --grammar-path . --config-path test/config.json --quiet ../zed/languages/zhex/brackets.scm ../../examples/hello.zhex
           npx --yes --package tree-sitter-cli@0.26.9 -- tree-sitter query --grammar-path . --config-path test/config.json --quiet ../zed/languages/zhex/outline.scm ../../examples/hello.zhex
           cmp queries/highlights.scm ../zed/languages/zhex/highlights.scm

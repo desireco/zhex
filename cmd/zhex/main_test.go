@@ -369,3 +369,76 @@ func TestExecutable(t *testing.T) {
 		t.Fatalf("repl: output %q, error %v", output, err)
 	}
 }
+
+const siblingMathModule = `word gcd(a: Int, b: Int) -> Int
+    if b == 0
+        a
+    else
+        gcd(b, a % b)
+word _wrap(n: Int) -> Int
+    n
+`
+
+func TestRunSiblingModules(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "math.zhex"), []byte(siblingMathModule), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.zhex"), []byte("use math\nprint(math.gcd(54, 18))\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"run", filepath.Join(dir, "main.zhex")}, strings.NewReader(""), &out, &diagnostics)
+	if code != 0 || out.String() != "18\n" || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, output %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+
+	// A missing sibling names the searched path next to the program file.
+	if err := os.WriteFile(filepath.Join(dir, "lonely.zhex"), []byte("use stats\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out2, diagnostics2 bytes.Buffer
+	code = run([]string{"run", filepath.Join(dir, "lonely.zhex")}, strings.NewReader(""), &out2, &diagnostics2)
+	if code != 1 || !strings.Contains(diagnostics2.String(), `module "stats" not found; searched `+filepath.Join(dir, "stats.zhex")) {
+		t.Fatalf("code %d, stderr %q", code, diagnostics2.String())
+	}
+}
+
+func TestReplUseSessionScript(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "math.zhex"), []byte(siblingMathModule), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { os.Chdir(old) }()
+	script := strings.Join([]string{
+		"use math",
+		"math.gcd(54, 18)",
+		"math._wrap(1)",
+		"words",
+		"1 + 1",
+	}, "\n") + "\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	for _, want := range []string{"18\n", "math.gcd(a: Int, b: Int) -> Int\n", "2\n"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("stdout %q misses %q", out.String(), want)
+		}
+	}
+	if strings.Contains(out.String(), "math._wrap") {
+		t.Fatalf("module-private words must not be listed: %q", out.String())
+	}
+	if !strings.Contains(diagnostics.String(), `"_wrap" is private to module "math"`) ||
+		!strings.Contains(diagnostics.String(), "hint: remove the leading underscore in math.zhex to export it") {
+		t.Fatalf("stderr %q misses the private-use diagnostic", diagnostics.String())
+	}
+}

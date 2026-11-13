@@ -27,7 +27,7 @@
       "name": "support.function.builtin.zhex"
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:let|var|if|elif|else|for|in|flow|try)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:use|let|var|if|elif|else|for|in|flow|try)(?![A-Za-z0-9_.-])",
       "name": "keyword.control.zhex"
     },
     {

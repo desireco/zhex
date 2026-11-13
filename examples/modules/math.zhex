@@ -1,0 +1,20 @@
+# A small math library. gcd and lcm share one helper that stays in this
+# file: a leading underscore makes a word module-private.
+
+word abs(n: Int) -> Int
+    if n < 0
+        0 - n
+    else
+        n
+
+word gcd(a: Int, b: Int) -> Int
+    if b == 0
+        a
+    else
+        gcd(b, a % b)
+
+word lcm(a: Int, b: Int) -> Int
+    _normalize(a * b) / gcd(a, b)
+
+word _normalize(n: Int) -> Int
+    abs(n)

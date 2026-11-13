@@ -1,3 +1,5 @@
+use math
+# <- keyword
 word is-palindrome(value: String) -> Bool
 # <- keyword
 #    ^ function

@@ -1,0 +1,18 @@
+# Two files, one program: main imports the math library beside it and
+# composes its words, including a flow step.
+
+use math
+
+let a-line = read-line("First number: ") try
+let a = text.to-int(a-line) try
+let b-line = read-line("Second number: ") try
+let b = text.to-int(b-line) try
+
+if a <= 0 or b <= 0
+    print("Enter two positive integers.")
+else
+    flow a - b
+        math.abs
+        print
+    print(math.gcd(a, b))
+    print(math.lcm(a, b))

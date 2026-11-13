@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,8 @@ func TestExamples(t *testing.T) {
 		{name: "text-stats", args: []string{"../../examples/text-stats-sample.txt", "upper"}, want: "ZHEX COUNTS WORDS, LINES, AND CHARACTERS.\nTHE CAFÉ IS OPEN!\nBYE\n"},
 		{name: "text-stats", wantErr: "argument-missing"},
 		{name: "text-stats", args: []string{"../../examples/no-such-file.txt"}, wantErr: "file-open"},
+		{name: "modules/main", input: "48\n18\n", want: "First number: Second number: 30\n6\n144\n"},
+		{name: "modules/main", input: "0\n5\n", want: "First number: Second number: Enter two positive integers.\n"},
 	}
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%s/%d", tc.name, i), func(t *testing.T) {
@@ -61,8 +64,18 @@ func TestExamples(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// Modules resolve as sibling files next to the program, the
+			// same rule the CLI applies; single-file examples never call it.
+			dir := filepath.Dir(path)
+			resolve := func(name string) (ModuleSource, bool) {
+				source, err := os.ReadFile(filepath.Join(dir, name+".zhex"))
+				if err != nil {
+					return ModuleSource{}, false
+				}
+				return ModuleSource{Path: filepath.Join(dir, name+".zhex"), Source: string(source)}, true
+			}
 			var out bytes.Buffer
-			err = RunWithArgs(path, string(src), strings.NewReader(tc.input), &out, nil, tc.args)
+			err = RunWithModules(path, string(src), strings.NewReader(tc.input), &out, nil, tc.args, resolve)
 			if tc.wantErr != "" {
 				if err == nil {
 					t.Fatalf("wanted %s diagnostic, program succeeded", tc.wantErr)

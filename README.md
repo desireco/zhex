@@ -73,12 +73,13 @@ go build -o bin/zhex ./cmd/zhex
 | [GCD](examples/gcd.zhex) | Euclid's algorithm by recursion, seeded into a flow. |
 | [Times table](examples/times-table.zhex) | A bounded loop building strings from integers. |
 | [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library, calls its words qualified, and keeps one helper underscore-private. |
 
 The [example guide](docs/syntax-examples.md) records expected output and edge cases. The [language contract](docs/initial-language.md) defines the current rules.
 
 ## What works today
 
-The interpreter supports typed word definitions, named parameters, inferred local types, immutable `let` bindings, mutable `var` bindings, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words and values across the session.
+The interpreter supports typed word definitions, named parameters, inferred local types, immutable `let` bindings, mutable `var` bindings, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in. Programs split across files: `use math` imports the sibling `math.zhex`, its words are callable qualified (`math.gcd`), and a leading underscore keeps a word private to its file. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words, values, and adopted modules across the session.
 
 The whole file is checked before execution, including unused word bodies. Static errors do not prompt or consume input. Runtime errors report a source location; integer overflow, division by zero, invalid input, and end-of-input are handled explicitly.
 
@@ -86,7 +87,7 @@ The whole file is checked before execution, including unused word bodies. Static
 
 We want a readable, modular language for command-line tools, games, web applications and servers, HTML/text processing, and database software. High performance is a goal to establish through implementation and measurement.
 
-The current interpreter defines and tests behavior. User-written modules, rich domain types, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md). Further [language presentation research](docs/language-presentation-research.md) explores how to explain the language through readable examples.
+The current interpreter defines and tests behavior. Rich domain types, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md). Further [language presentation research](docs/language-presentation-research.md) explores how to explain the language through readable examples.
 
 ## Tests are part of the language
 

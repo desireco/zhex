@@ -4,7 +4,7 @@
 
 Build a small Go interpreter that runs readable Zhex programs with typed words, inferred locals, composition, decisions, loops, and console input/output. The first examples are a greeting, FizzBuzz, Fibonacci, factorial, and palindrome checking. Invalid programs and invalid input should produce useful source-level errors.
 
-Implemented: the milestone's six programs run through the CLI and the acceptance tests cover their output and failure cases. The example corpus has since grown to nine; [syntax-examples.md](syntax-examples.md) records it.
+Implemented: the milestone's six programs run through the CLI and the acceptance tests cover their output and failure cases. The example corpus has since grown to ten; [syntax-examples.md](syntax-examples.md) records it.
 
 This establishes an executable language foundation: a small syntax, defined behavior, a checker, and an evaluator. It lets us judge readability using working code before extending the language.
 

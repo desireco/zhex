@@ -171,10 +171,10 @@ Identifiers may contain hyphens, as in `is-palindrome`. Put spaces around subtra
 
 ## Explore and validate
 
-Start with the [nine examples and expected results](syntax-examples.md), then consult the [language contract](initial-language.md) for exact rules. Run the executable language tests with:
+Start with the [ten examples and expected results](syntax-examples.md), then consult the [language contract](initial-language.md) for exact rules. Run the executable language tests with:
 
 ```sh
 go test ./...
 ```
 
-The [test catalog](tests.md) explains which tests cover each feature. Modules, collections, rich domain types, resource scopes, and native compilation are not part of the current interpreter.
+The [test catalog](tests.md) explains which tests cover each feature. Collections, rich domain types, resource scopes, and native compilation are not part of the current interpreter.

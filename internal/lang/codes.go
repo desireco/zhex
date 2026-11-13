@@ -53,6 +53,13 @@ const (
 	CodePrintType      Code = "print-type"
 	CodeRangeContext   Code = "range-context"
 
+	CodeUseMissing  Code = "use-missing"
+	CodeUseCycle    Code = "use-cycle"
+	CodeUseReserved Code = "use-reserved"
+	CodeUseLocation Code = "use-location"
+	CodeModuleBody  Code = "module-body"
+	CodePrivateUse  Code = "private-use"
+
 	CodeIntegerOverflow Code = "integer-overflow"
 	CodeDivisionZero    Code = "division-zero"
 	CodeDepthLimit      Code = "depth-limit"
@@ -77,6 +84,7 @@ var diagnosticCodes = []Code{
 	CodeConditionType, CodeBranchType, CodeRangeType, CodeTryInput, CodeUnaryType, CodeOperandTypes, CodeBoolOperand,
 	CodeCompareType, CodeOrderingType, CodeAdditionType, CodeArithmeticType, CodeArgumentCount, CodeArgumentType,
 	CodeUnknownWord, CodePrintType, CodeRangeContext,
+	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileUTF8, CodeArgumentMissing,

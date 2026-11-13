@@ -14,6 +14,23 @@ func suggestHint(name string, candidates []string) string {
 	return ""
 }
 
+// suggestWordHint is suggestHint for word calls, plus one more rule: a bare
+// name may spell a used module's importable word — gcd suggests math.gcd.
+func suggestWordHint(name string, candidates []string) string {
+	if hint := suggestHint(name, candidates); hint != "" {
+		return hint
+	}
+	if strings.Contains(name, ".") {
+		return ""
+	}
+	for _, candidate := range candidates {
+		if _, word, _ := strings.Cut(candidate, "."); word == name {
+			return fmt.Sprintf("did you mean %q?", candidate)
+		}
+	}
+	return ""
+}
+
 // nameHint suggests the likely fix for a failed name lookup: the closest
 // known name, else the hyphenated-name gotcha, since hyphens join one
 // identifier and subtraction needs spaces.

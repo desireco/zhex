@@ -1,6 +1,10 @@
 # word Int true read-line stay inside this comment
+use math
 word is-palindrome(value: String) -> Bool
     value == text.reverse(value)
+
+word _normalize(n: Int) -> Int
+    n
 
 let if-ready = true
 var count = -12

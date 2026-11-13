@@ -21,15 +21,26 @@ type Example struct {
 	ID, Title, Description string
 	Source, Input, Output  string
 	Command, SourceURL     string
+	// File labels the entry source's code block; Modules stacks labeled
+	// library files under it when the example spans several files.
+	File    string
+	Modules []ExampleModule
+}
+
+// ExampleModule is one labeled secondary source beside the entry file.
+type ExampleModule struct {
+	File, Source, URL string
 }
 
 type pageData struct {
+	Manifesto  Manifesto
 	HeroSource string
 	HeroInput  string
 	HeroOutput string
 	Examples   []Example
 	Roadmap    Roadmap
 	Catalog    []CatalogEntry
+	Nav        template.HTML
 }
 
 // CatalogEntry is one stable diagnostic code with its catalog prose; the
@@ -221,16 +232,18 @@ func highlight(source string) template.HTML {
 var exampleSpecs = []struct {
 	id, title, description, input string
 	args                          []string
+	files                         []string // labeled library files beside the entry (a module)
 }{
-	{"composition", "Composition", "Build larger operations from small typed words.", "", nil},
-	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil},
-	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", nil},
-	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", nil},
-	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", nil},
-	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", nil},
-	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", nil},
-	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", nil},
-	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", []string{"examples/text-stats-sample.txt"}},
+	{"composition", "Composition", "Build larger operations from small typed words.", "", nil, nil},
+	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil, nil},
+	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", nil, nil},
+	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", nil, nil},
+	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", nil, nil},
+	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", nil, nil},
+	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", nil, nil},
+	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", nil, nil},
+	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", []string{"examples/text-stats-sample.txt"}, nil},
+	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", nil, []string{"math.zhex"}},
 }
 
 func main() {
@@ -256,24 +269,44 @@ func loadExamples(root string) (pageData, error) {
 		if err != nil {
 			return pageData{}, fmt.Errorf("read example %s: %w", filename, err)
 		}
+		// Modules resolve as sibling files next to the entry, the rule the
+		// interpreter applies; single-file examples never call the resolver.
+		dir := filepath.Dir(path)
+		resolve := func(name string) (lang.ModuleSource, bool) {
+			module, err := os.ReadFile(filepath.Join(dir, name+".zhex"))
+			if err != nil {
+				return lang.ModuleSource{}, false
+			}
+			return lang.ModuleSource{Path: filepath.Join(dir, name+".zhex"), Source: string(module)}, true
+		}
 		var output bytes.Buffer
 		runArgs := make([]string, len(spec.args))
 		for i, arg := range spec.args {
 			runArgs[i] = filepath.Join(root, arg)
 		}
-		if err := lang.RunWithArgs(filename, string(source), strings.NewReader(spec.input), &output, nil, runArgs); err != nil {
+		if err := lang.RunWithModules(filename, string(source), strings.NewReader(spec.input), &output, nil, runArgs, resolve); err != nil {
 			return pageData{}, fmt.Errorf("run website example %s: %w", filename, err)
 		}
 		command := "zhex run examples/" + filename
 		for _, arg := range spec.args {
 			command += " " + arg
 		}
-		data.Examples = append(data.Examples, Example{
+		example := Example{
 			ID: spec.id, Title: spec.title, Description: spec.description,
 			Source: string(source), Input: strings.TrimSuffix(spec.input, "\n"), Output: output.String(),
 			Command:   command,
 			SourceURL: "examples/" + filename,
-		})
+			File:      filepath.Base(filename),
+		}
+		for _, file := range spec.files {
+			moduleSource, err := os.ReadFile(filepath.Join(dir, file))
+			if err != nil {
+				return pageData{}, fmt.Errorf("read example %s: %w", file, err)
+			}
+			url := filepath.ToSlash(filepath.Join("examples", filepath.Dir(filename), file))
+			example.Modules = append(example.Modules, ExampleModule{File: file, Source: string(moduleSource), URL: url})
+		}
+		data.Examples = append(data.Examples, example)
 		if spec.id == "hello" {
 			data.HeroSource = string(source)
 			data.HeroInput = strings.TrimSuffix(spec.input, "\n")
@@ -307,6 +340,33 @@ func loadDesignFiles(root string, files map[string][]byte) error {
 	})
 }
 
+// navLinks is the single source of truth for the header navigation; every
+// page injects it, so a new page edits this list instead of six templates.
+var navLinks = []struct{ page, href, label string }{
+	{"manifesto", "manifesto.html", "Manifesto"},
+	{"examples", "examples.html", "Examples"},
+	{"docs", "docs.html", "Docs"},
+	{"", "./#start", "Get started"},
+	{"roadmap", "roadmap.html", "Roadmap"},
+	{"", "https://github.com/desireco/zhex", "GitHub ↗"},
+}
+
+func navHTML(current string) template.HTML {
+	var links []string
+	for _, link := range navLinks {
+		attr := ""
+		if link.page == current {
+			attr = ` aria-current="page"`
+		}
+		href := link.href
+		if current == "index" && strings.HasPrefix(href, "./#") {
+			href = href[2:] // the hero anchor lives on this page
+		}
+		links = append(links, fmt.Sprintf(`<a href="%s"%s>%s</a>`, href, attr, link.label))
+	}
+	return template.HTML(strings.Join(links, "\n      "))
+}
+
 func build(root, output string) error {
 	data, err := loadExamples(root)
 	if err != nil {
@@ -325,16 +385,26 @@ func build(root, output string) error {
 		return err
 	}
 	files["ROADMAP.md"] = roadmap
+	manifesto, err := os.ReadFile(filepath.Join(root, "docs", "manifesto.md"))
+	if err != nil {
+		return fmt.Errorf("read manifesto: %w", err)
+	}
+	data.Manifesto, err = loadManifesto(manifesto)
+	if err != nil {
+		return err
+	}
+	files["manifesto.md"] = manifesto
 	data.Catalog, err = loadCatalog()
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"index", "examples", "roadmap", "docs", "errors"} {
+	for _, name := range []string{"index", "examples", "roadmap", "docs", "errors", "manifesto"} {
 		page, err := template.New(name + ".tmpl").Funcs(template.FuncMap{"highlight": highlight, "codeChips": codeChips}).ParseFiles(filepath.Join(root, "site", name+".tmpl"))
 		if err != nil {
 			return fmt.Errorf("parse website template %s: %w", name, err)
 		}
 		var html bytes.Buffer
+		data.Nav = navHTML(name)
 		if err := page.Execute(&html, data); err != nil {
 			return fmt.Errorf("render website %s: %w", name, err)
 		}
@@ -349,6 +419,9 @@ func build(root, output string) error {
 	}
 	for _, example := range data.Examples {
 		files[example.SourceURL] = []byte(example.Source)
+		for _, module := range example.Modules {
+			files[module.URL] = []byte(module.Source)
+		}
 	}
 	if err := validateLinks(files); err != nil {
 		return err

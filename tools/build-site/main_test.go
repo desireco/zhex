@@ -11,16 +11,18 @@ import (
 func siteFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, dir := range []string{"site", "site/design", "examples"} {
+	for _, dir := range []string{"site", "site/design", "examples", "docs"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	files := map[string]string{
+		"docs/manifesto.md":              "# Why Zhex exists.\n\nReadable programs.\n\n## Small words\n\nUseful pieces.\n",
 		"ROADMAP.md":                     "# Zhex roadmap\n\nA readable language.\n\n## Done\n\nWorking today.\n\n- Checked words.\n\n## Next\n\nTry it interactively.\n\n- REPL.\n\n## Future\n\nOpen ideas.\n\n- Compilation.\n",
 		"site/roadmap.tmpl":              `<main><p>{{.Roadmap.Intro}}</p>{{range .Roadmap.Sections}}<section><h2>{{.Title}}</h2><p>{{.Summary}}</p><ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul></section>{{end}}<a href="ROADMAP.md">Roadmap source</a></main>`,
 		"site/docs.tmpl":                 "<main><h1>Editors</h1><p>Syntax highlighting for Zhex.</p><a href=\"ROADMAP.md\">Roadmap</a></main>",
 		"site/errors.tmpl":               `<main>{{range .Catalog}}<section><h2 id="{{.Code}}">{{.Code}}</h2><p>{{.Text | codeChips}}</p></section>{{end}}</main>`,
+		"site/manifesto.tmpl":            `<main><h1>{{.Manifesto.Title}}</h1>{{range .Manifesto.Intro}}<p>{{.}}</p>{{end}}{{range .Manifesto.Sections}}<h2>{{.Title}}</h2>{{range .Paragraphs}}<p>{{.}}</p>{{end}}{{end}}<a href="manifesto.md">Source</a></main>`,
 		"site/index.tmpl":                "<main><pre>{{.HeroSource | highlight}}</pre>{{range .Examples}}<article id=\"{{.ID}}\"><h2>{{.Title}}</h2><pre>{{.Source}}</pre><pre>{{.Output}}</pre><a href=\"{{.SourceURL}}\">Source</a></article>{{end}}</main>",
 		"site/examples.tmpl":             "<main>{{range .Examples}}<article id=\"{{.ID}}\"><pre>{{.Source}}</pre><a href=\"{{.SourceURL}}\">Download</a></article>{{end}}</main>",
 		"site/styles.css":                "body { color: black; }",
@@ -31,11 +33,17 @@ func siteFixture(t *testing.T) string {
 	}
 	for _, spec := range exampleSpecs {
 		files["examples/"+spec.id+".zhex"] = "print(\"<script>alert(1)</script>\")\n"
+		for _, file := range spec.files {
+			files[filepath.ToSlash(filepath.Join("examples", filepath.Dir(spec.id), file))] = "word helper() -> Unit\n    print(1)\n"
+		}
 		for _, arg := range spec.args {
 			files[arg] = "fixture text\n"
 		}
 	}
 	for name, content := range files {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0755); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -258,9 +266,9 @@ func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n", "text-stats": "3 lines  11 words  64 chars\n"}
-	wantCommand := map[string]string{"text-stats": "zhex run examples/text-stats.zhex examples/text-stats-sample.txt"}
-	if len(data.Examples) != 9 {
+	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n", "text-stats": "3 lines  11 words  64 chars\n", "modules/main": "First number: Second number: 30\n6\n144\n"}
+	wantCommand := map[string]string{"text-stats": "zhex run examples/text-stats.zhex examples/text-stats-sample.txt", "modules/main": "zhex run examples/modules/main.zhex"}
+	if len(data.Examples) != 10 {
 		t.Fatalf("got %d examples", len(data.Examples))
 	}
 	for _, example := range data.Examples {
@@ -287,5 +295,58 @@ func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 		if example.ID == "hello" && (data.HeroSource != example.Source || data.HeroOutput != example.Output || data.HeroInput != example.Input) {
 			t.Fatal("hero source, input, or output does not match hello example")
 		}
+		if example.ID == "modules/main" {
+			if example.File != "main.zhex" || len(example.Modules) != 1 || example.Modules[0].File != "math.zhex" {
+				t.Fatalf("modules example labels: file %q, modules %+v", example.File, example.Modules)
+			}
+			module, err := os.ReadFile(filepath.Join(root, "examples", "modules", "math.zhex"))
+			if err != nil || example.Modules[0].Source != string(module) {
+				t.Fatalf("module source drifted for %s: %v", example.ID, err)
+			}
+		}
+	}
+}
+
+// TestModulesExampleCardRendersStackedSources pins the multi-file card: the
+// entry file and its module render as labeled stacked sources, the command
+// names the entry path, and both files publish for download.
+func TestModulesExampleCardRendersStackedSources(t *testing.T) {
+	root := siteFixture(t)
+	tmpl := `<main>{{range .Examples}}{{if .Modules}}<article id="{{.ID}}">` +
+		`<span class="file">{{.File}}</span><pre>{{.Source | highlight}}</pre>` +
+		`{{range .Modules}}<span class="file">{{.File}}</span><pre>{{.Source | highlight}}</pre><a href="{{.URL}}">Download</a>{{end}}` +
+		`<pre>{{.Command}}</pre><pre>{{.Output}}</pre></article>{{end}}{{end}}</main>`
+	if err := os.WriteFile(filepath.Join(root, "site", "examples.tmpl"), []byte(tmpl), 0644); err != nil {
+		t.Fatal(err)
+	}
+	main := "use math\n\nprint(math.gcd(54, 18))\n"
+	math := "word gcd(a: Int, b: Int) -> Int\n    if b == 0\n        a\n    else\n        gcd(b, a % b)\n"
+	for name, content := range map[string]string{"examples/modules/main.zhex": main, "examples/modules/math.zhex": math} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := build(root, "output"); err != nil {
+		t.Fatal(err)
+	}
+	page, err := os.ReadFile(filepath.Join(root, "output", "examples.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`<span class="file">main.zhex</span>`,
+		`<span class="file">math.zhex</span>`,
+		`<span class="tok-keyword">use</span>`,
+		`<span class="tok-function">math.gcd</span>`,
+		"zhex run examples/modules/main.zhex",
+		"18\n",
+		`href="examples/modules/math.zhex"`,
+	} {
+		if !strings.Contains(string(page), want) {
+			t.Fatalf("examples card misses %q: %s", want, page)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "output", "examples", "modules", "math.zhex")); err != nil {
+		t.Fatal("module source not published for download")
 	}
 }

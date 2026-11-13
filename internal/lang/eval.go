@@ -57,9 +57,15 @@ func RunWithTrace(file, source string, input io.Reader, output, trace io.Writer)
 // RunWithArgs is RunWithTrace with the program's command-line arguments,
 // readable through console.arg and console.args-count.
 func RunWithArgs(file, source string, input io.Reader, output, trace io.Writer, args []string) error {
-	p, err := Compile(file, source)
+	return RunWithModules(file, source, input, output, trace, args, nil)
+}
+
+// RunWithModules is RunWithArgs for multi-file programs: resolve supplies
+// each use directive's module, following the sibling <name>.zhex convention.
+func RunWithModules(file, source string, input io.Reader, output, trace io.Writer, args []string, resolve func(name string) (ModuleSource, bool)) error {
+	p, err := CompileModules(file, source, resolve)
 	if err != nil {
-		return annotate(err, source)
+		return err // already annotated against the file it points into
 	}
 	return p.RunWithArgs(input, output, trace, args)
 }
@@ -82,7 +88,7 @@ func (p *Program) RunWithArgs(input io.Reader, output, trace io.Writer, args []s
 	}
 	r := runtime{input: reader, output: output, trace: trace, args: args}
 	_, err := r.block(p.body, make(frame))
-	return annotate(err, p.source)
+	return annotateSource(err, p.sources)
 }
 
 func (r *runtime) block(body []*statement, env frame) (value, error) {

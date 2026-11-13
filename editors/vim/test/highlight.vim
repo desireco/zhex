@@ -23,6 +23,7 @@ function! s:Check(needle, offset, expected) abort
 endfunction
 
 call s:Check('# word', 2, 'zhexComment')
+call s:Check('use math', 0, 'zhexKeyword')
 call s:Check('word is-palindrome', 0, 'zhexKeyword')
 call s:Check('word is-palindrome', 5, 'zhexDefinition')
 call s:Check('value: String', 0, 'zhexParameter')

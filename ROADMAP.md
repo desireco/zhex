@@ -21,14 +21,15 @@ The first language milestone runs real programs with checked types and console i
 - Vocabulary: rich text work ships — twelve `text` words, `Buffer` and `File` types with chomped-line buffers, guaranteed-close `file.lines` loops, and program arguments via `console.arg`.
 - Text utility: `text-stats` reads a file two ways — whole-buffer counts and a streamed uppercased echo — with program arguments, streamed lines, and guaranteed close, all through the new vocabulary (#28) — and becomes the workload for measurements (#4).
 - Measurements: the interpreter runs text-stats at 8-9 ms per pass with stable allocation profiles by mode (docs/measurements.md); readability review recommends a line-filter tool as the next application, with number-to-text ceremony flagged for a future language story.
+- Modules: `use math` loads sibling files, words are importable unless underscore-private, calls are qualified, cycles and reserved names diagnose with paths, and the REPL adopts modules per session — with a two-file corpus example and docs sections to match.
 
 ## Next
 
-Grow the language's reach: modules, a dedicated domain, the Astro site, and funding. This is the proposed order; each step needs working examples and tests.
+Grow the language's reach: a dedicated domain, the Astro site, and funding. This is the proposed order; each step needs working examples and tests.
 
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
-- Modules: explicit imports, public words, qualified names, and useful errors across files.
+- Funding: enable GitHub Sponsors or Open Collective with a sponsor section on the site, and pursue the researched grant and visibility channels (#26).
 
 ## Future
 

@@ -14,11 +14,7 @@
   <header class="site-header wrap">
     <a class="brand" href="./" aria-label="Zhex home"><img class="brand-logo" src="logo.svg" width="168" height="50" alt=""></a>
     <nav aria-label="Main navigation">
-      <a href="examples.html" aria-current="page">Examples</a>
-      <a href="docs.html">Docs</a>
-      <a href="./#start">Get started</a>
-      <a href="roadmap.html">Roadmap</a>
-      <a href="https://github.com/desireco/zhex">GitHub ↗</a>
+      {{.Nav}}
     </nav>
   </header>
 
@@ -31,13 +27,15 @@
     </section>
 
     <div class="programs">
-    {{range .Examples}}{{if or (eq .ID "hello") (eq .ID "fizzbuzz") (eq .ID "fibonacci") (eq .ID "palindrome") (eq .ID "gcd") (eq .ID "times-table") (eq .ID "text-stats")}}
+    {{range .Examples}}{{if or (eq .ID "hello") (eq .ID "fizzbuzz") (eq .ID "fibonacci") (eq .ID "palindrome") (eq .ID "gcd") (eq .ID "times-table") (eq .ID "text-stats") (eq .ID "modules/main")}}
       <details class="program" id="{{.ID}}"{{if eq .ID "hello"}} open{{end}}>
         <summary><span><strong>{{.Title}}</strong><span>{{.Description}}</span></span><span class="expand-mark" aria-hidden="true">+</span></summary>
         <div class="program-body">
           <div class="program-code">
-            <div class="code-label"><span>{{.ID}}.zhex</span><a href="{{.SourceURL}}" download>Download source ↓</a></div>
+            <div class="code-label"><span>{{.File}}</span><a href="{{.SourceURL}}" download>Download source ↓</a></div>
             <pre><code>{{.Source | highlight}}</code></pre>
+            {{range .Modules}}<div class="code-label"><span>{{.File}}</span><a href="{{.URL}}" download>Download source ↓</a></div>
+            <pre><code>{{.Source | highlight}}</code></pre>{{end}}
           </div>
           <div class="program-result">
             <h3>Run</h3><pre><code>{{.Command}}</code></pre>
