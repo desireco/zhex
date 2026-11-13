@@ -23,25 +23,37 @@ type frame map[*binding]value
 type runtime struct {
 	input  *bufio.Reader
 	output io.Writer
+	trace  io.Writer // nil disables the JSONL step-event stream
 	depth  int
 }
 
 // Run checks a file before executing it against the supplied console streams.
 func Run(file, source string, input io.Reader, output io.Writer) error {
+	return RunWithTrace(file, source, input, output, nil)
+}
+
+// RunWithTrace is Run with JSONL step events written to trace; nil trace
+// leaves the run identical to Run.
+func RunWithTrace(file, source string, input io.Reader, output, trace io.Writer) error {
 	p, err := Compile(file, source)
 	if err != nil {
 		return annotate(err, source)
 	}
-	return p.Run(input, output)
+	return p.RunWithTrace(input, output, trace)
 }
 
 // Run executes an already checked program with fresh local state.
 func (p *Program) Run(input io.Reader, output io.Writer) error {
+	return p.RunWithTrace(input, output, nil)
+}
+
+// RunWithTrace executes like Run and writes step events to trace when non-nil.
+func (p *Program) RunWithTrace(input io.Reader, output, trace io.Writer) error {
 	reader, ok := input.(*bufio.Reader)
 	if !ok {
 		reader = bufio.NewReader(input)
 	}
-	r := runtime{input: reader, output: output}
+	r := runtime{input: reader, output: output, trace: trace}
 	_, err := r.block(p.body, make(frame))
 	return annotate(err, p.source)
 }
@@ -68,6 +80,7 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 		return v, nil
 	case "let", "var", "assign":
 		env[s.binding] = v
+		r.traceBinding(s.pos, s.binding, v)
 	case "if":
 		if v.boolean {
 			return r.block(s.body, env)
@@ -80,12 +93,14 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 		}
 		for n := v.number; n < end.number; n++ {
 			env[s.binding] = value{number: n}
+			r.traceBinding(s.pos, s.binding, value{number: n})
 			if _, err := r.block(s.body, env); err != nil {
 				return value{}, err
 			}
 		}
 	case "flow":
 		for _, step := range s.steps {
+			r.traceFlowStep(step, v)
 			v, err = r.call(step, []value{v})
 			if err != nil {
 				return value{}, err
@@ -166,11 +181,18 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 	}
 	r.depth++
 	defer func() { r.depth-- }()
+	r.traceWordCall(x, args)
 	env := make(frame, len(x.word.params))
 	for i, p := range x.word.params {
 		env[p.binding] = args[i]
+		r.traceBinding(p.pos, p.binding, args[i])
 	}
-	return r.block(x.word.body, env)
+	result, err := r.block(x.word.body, env)
+	if err != nil {
+		return value{}, err
+	}
+	r.traceWordReturn(x.word, result)
+	return result, nil
 }
 
 func binary(x *expression, a, b value) (value, error) {

@@ -53,7 +53,7 @@ Guardrails: all of this is dev-mode-only flags; default runs keep today's byte-i
 | P0 | Carets, did-you-mean, earned hints | Done (`5bf7afc`, [#18](https://github.com/desireco/zhex/issues/18)) |
 | P1 | Codes + coded constructors, `--report=json`, `errors.html` catalog, llms.txt link. Out of scope: multi-diagnostic collection, any severity beyond `error`, colors. | Done ([#17](https://github.com/desireco/zhex/issues/17)) |
 | P2 | Spans (caret covers the whole expression) + provenance narration in type mismatches. Out of scope: anything runtime. | Done ([#19](https://github.com/desireco/zhex/issues/19)) |
-| P3 | `--trace` JSONL step events | ticket after P2 |
+| P3 | `--trace` JSONL step events | Done ([#20](https://github.com/desireco/zhex/issues/20)) |
 | P4 | Record & replay, then DAP-shaped stepping; MCP surface last | on the roadmap as Future (Development insight) until a phase is picked up |
 
 **Guidance for every future PR touching diagnostics** — the checklist a reviewer applies:

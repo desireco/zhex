@@ -37,6 +37,8 @@ The checker validates the whole program before anything runs and reports `file:l
 
 Typos get did-you-mean suggestions drawn from the visible names and words. Every diagnostic carries a stable code, cataloged on the site's errors page; `zhex run <file> --report=json` emits the machine-readable report `{code, severity, file, line, column, message, hint}` for agents and tools, plus optional additive `span_start_column`/`span_end_column` — present only for checker diagnostics with a span, never for runtime ones. The diagnostic contract and phased plan (spans, provenance, tracing, replay) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
 
+`zhex run <file> --trace` watches a run instead of its failures: it streams JSONL step events to stderr — word calls with rendered arguments, binding writes with values, flow steps, and word returns — before any diagnostic, and combines with `--report=json` (events, then the report). Agents: use it to see what a program did; the event vocabulary is documented in the site's llms.txt, and a binding holding a `Result` renders `ok("inner")` or `err("message")`. Tracing never fails a run, and output without the flag is unchanged.
+
 To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking happens before execution, so a clean run means types and names resolved.
 
 ## Ticket workflow

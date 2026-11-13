@@ -74,6 +74,99 @@ func TestRunCommandRejectsMalformedReportFlag(t *testing.T) {
 	}
 }
 
+func TestRunCommandTrace(t *testing.T) {
+	path := "../../examples/composition.zhex"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"run", path, "--trace"}, strings.NewReader(""), &out, &diagnostics)
+	if code != 0 || out.String() != "32\n" {
+		t.Fatalf("code %d, output %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+	// The full event stream is pinned by TestTraceComposition in internal/lang.
+	lines := strings.Split(strings.TrimSuffix(diagnostics.String(), "\n"), "\n")
+	if len(lines) != 10 {
+		t.Fatalf("expected 10 events, got %d: %q", len(lines), diagnostics.String())
+	}
+	for i, want := range map[int]string{
+		0: `{"event":"flow-step","word":"square","value":"4","file":"` + path + `","line":9}`,
+		9: `{"event":"flow-step","word":"print","value":"32","file":"` + path + `","line":11}`,
+	} {
+		if lines[i] != want {
+			t.Fatalf("event %d is %q, want %q", i, lines[i], want)
+		}
+	}
+
+	// A traced-off run is byte-identical: same stdout, nothing on stderr.
+	var plainOut, plainErr bytes.Buffer
+	if code := run([]string{"run", path}, strings.NewReader(""), &plainOut, &plainErr); code != 0 || plainOut.String() != "32\n" || plainErr.Len() != 0 {
+		t.Fatalf("traced off: code %d, output %q, stderr %q", code, plainOut.String(), plainErr.String())
+	}
+}
+
+func TestRunCommandTraceErrorPath(t *testing.T) {
+	source := "word double(n: Int) -> Int\n    n + n\n\nprint(double(2))\nprint(1 / 0)\n"
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"run", path, "--trace"}, strings.NewReader(""), &out, &diagnostics)
+	if code != 1 || out.String() != "4\n" {
+		t.Fatalf("code %d, output %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+	want := strings.Join([]string{
+		`{"event":"word-call","word":"double","file":"` + path + `","line":4,"args":["2"]}`,
+		`{"event":"binding","name":"n","value":"2","file":"` + path + `","line":1}`,
+		`{"event":"word-return","word":"double","value":"4","file":"` + path + `","line":1}`,
+		path + ":5:9: division or remainder by zero",
+		"    print(1 / 0)",
+		"            ^",
+	}, "\n") + "\n"
+	if diagnostics.String() != want {
+		t.Fatalf("stderr:\n%s\nwant:\n%s", diagnostics.String(), want)
+	}
+}
+
+func TestRunCommandTraceWithJSONReport(t *testing.T) {
+	source := "word double(n: Int) -> Int\n    n + n\n\nprint(double(2))\nprint(1 / 0)\n"
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"run", path, "--trace", "--report=json"}, strings.NewReader(""), &out, &diagnostics)
+	if code != 1 || out.String() != "4\n" {
+		t.Fatalf("code %d, output %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+	lines := strings.Split(strings.TrimSuffix(diagnostics.String(), "\n"), "\n")
+	if len(lines) != 4 {
+		t.Fatalf("stderr must be three events plus the report: %q", diagnostics.String())
+	}
+	for i, want := range []string{
+		`{"event":"word-call","word":"double","file":"` + path + `","line":4,"args":["2"]}`,
+		`{"event":"binding","name":"n","value":"2","file":"` + path + `","line":1}`,
+		`{"event":"word-return","word":"double","value":"4","file":"` + path + `","line":1}`,
+	} {
+		if lines[i] != want {
+			t.Fatalf("line %d is %q, want %q", i, lines[i], want)
+		}
+	}
+	if !strings.Contains(lines[3], `"code":"division-zero"`) || !strings.Contains(lines[3], `"severity":"error"`) {
+		t.Fatalf("report line %q", lines[3])
+	}
+}
+
+func TestRunCommandRejectsMalformedTraceFlag(t *testing.T) {
+	for _, args := range [][]string{{"run", "a.zhex", "--trace=on"}, {"run", "--trace", "--report=xml", "a.zhex"}} {
+		var out, diagnostics bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 {
+			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
+		}
+		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace]\n" {
+			t.Fatalf("usage %q", diagnostics.String())
+		}
+	}
+}
+
 func TestCommandUsage(t *testing.T) {
 	for _, args := range [][]string{nil, {"run"}, {"repl"}, {"run", "a", "b"}} {
 		var out, diagnostics bytes.Buffer

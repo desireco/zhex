@@ -71,6 +71,8 @@ func formatValue(v value, typ valueType) string {
 		return strconv.FormatBool(v.boolean)
 	case stringType:
 		return v.text
+	case unitType:
+		return ""
 	}
 	panic(fmt.Sprintf("unchecked print type %s", typ))
 }

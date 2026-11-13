@@ -16,6 +16,7 @@ The first language milestone runs real programs with checked types and console i
 - Agents: AGENTS.md, an llms.txt site index, and agent-readable examples make Zhex easy for humans to review and AI agents to write.
 - Errors: every diagnostic points at the failing line with a caret, suggests the fix for common mistakes, offers did-you-mean for typos, carries a stable code cataloged on the site, and reports as JSON for agents via `--report=json`; carets underline the whole expression, and type mismatches narrate where mismatched values come from; researched from Elixir, Ruby, Swift, and Elm.
 - Input: reads are bare `read-line` for text and `text.to-int` parses a string into an integer symmetric with `int.to-string`, both returning failing results unwrapped with postfix `try`.
+- Insight: `zhex run --trace` streams JSONL step events — word calls, bindings, flow steps, returns — so people and agents can watch a program run; the event vocabulary is documented in llms.txt.
 
 ## Next
 
@@ -37,4 +38,4 @@ These are directions to explore. Their order and implementation remain open, and
 - WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output.
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.
 - Development tools: formatting, language-server support, and published editor packages as the syntax settles.
-- Development insight: structured tracing, record-and-replay runs, debug-adapter support, and agent tools, so people and AI agents can see and debug what a program is doing (see docs/diagnostics-plan.md).
+- Development insight: record-and-replay runs, debug-adapter support, and agent tools, so people and AI agents can see and debug what a program is doing (see docs/diagnostics-plan.md).
