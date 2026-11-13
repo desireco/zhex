@@ -693,7 +693,6 @@ pre {
   .program-heading h2 { font-size: 1.6rem; }
   .program-heading p { font-size: 15px; line-height: 1.5; }
   .program-body { gap: 1.25rem; padding-inline: .25rem; }
-  .program-result { order: -1; }
   .program-result pre { margin-bottom: 1rem; }
 
   .more-examples p,
