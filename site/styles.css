@@ -368,7 +368,7 @@ pre {
 
 .principles {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   border: 1px solid #57514b;
 }
 
@@ -379,6 +379,7 @@ pre {
 }
 
 .principle:last-child { border-right: 0; }
+.principle:nth-last-child(n+3) { border-bottom: 1px solid #57514b; }
 .principle p { margin: .8rem 0 0; color: #d2cbc2; }
 
 .feature-list { border-top: 1px solid var(--line); }

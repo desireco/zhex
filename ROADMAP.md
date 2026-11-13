@@ -18,7 +18,7 @@ Make everyday experiments quicker, then build a useful text utility. This is the
 
 - Licensing: publish the repository under the MIT license; license and package notices are in place.
 - Editors: syntax highlighting for Vim/Neovim, VS Code, and Zed; publish installation and usage documentation on the website.
-- Agent support: document the language for LLM coding agents with AGENTS.md, llms.txt, and agent-readable examples.
+- Agent support: make Zhex easy for humans to review and AI agents to write, with AGENTS.md, llms.txt, and agent-readable examples.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
 - REPL: enter multi-line words, keep definitions between entries, inspect values and signatures, and recover from errors.
