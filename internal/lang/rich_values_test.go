@@ -466,3 +466,10 @@ func TestCollectionGuardUnwindsAfterFailuresAndExits(t *testing.T) {
 		})
 	}
 }
+
+func TestErrorValuedFlowSuggestsDirectCall(t *testing.T) {
+	source := "word describe(problem: Error) -> String\n    error.code(problem)\nflow error.new(\"x\", \"x\")\n    describe\n"
+	if _, err := Compile("test.zhex", source); err == nil || !strings.Contains(err.Error(), "direct user-word call") {
+		t.Fatalf("missing actionable flow diagnostic: %v", err)
+	}
+}

@@ -831,7 +831,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			if typ == errorType {
 				w, _ := c.resolveWord(step.text)
 				if w != nil {
-					return "", errorAt(step.pos, CodeArgumentType, "convert errors explicitly with error.wrap before passing them to a user word")
+					return "", errorAt(step.pos, CodeArgumentType, "use a direct user-word call instead of an Error-valued flow step")
 				}
 			}
 			if step.text == "err" || step.text == "ok" && typ == errorType {
