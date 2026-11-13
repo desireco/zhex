@@ -340,7 +340,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 
 func (r *runtime) call(x *expression, args []value) (value, error) {
 	if x.record != nil {
-		return value{record: &recordValue{name: x.record.name, fields: args}}, nil
+		return value{record: &recordValue{name: x.record.id(), fields: args}}, nil
 	}
 	if x.word == nil {
 		result, err := r.builtin(x, args)

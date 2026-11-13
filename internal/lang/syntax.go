@@ -225,9 +225,17 @@ type word struct {
 }
 
 type recordType struct {
+	module string
 	name   string
 	pos    position
 	fields []parameter
+}
+
+func (r *recordType) id() string {
+	if r.module == "" {
+		return r.name
+	}
+	return r.module + "." + r.name
 }
 
 // A use directive imports a module: use math.

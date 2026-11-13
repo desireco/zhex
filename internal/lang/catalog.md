@@ -153,7 +153,7 @@ A `use` appears inside a word body or another block. `use` is a top-level statem
 An imported file contains top-level statements. Imported files declare words only; move the statements into the file you run.
 
 ## private-use
-A call names a word whose name starts with an underscore. Underscore words are module-private — callable only inside their own module's file — while words without the underscore are importable. Remove the leading underscore in the module's file to export the word.
+A word or record type beginning with an underscore is private to its module. Public declarations cannot expose a private record type. Make the declaration private or use a public type.
 
 ## integer-overflow
 An arithmetic result does not fit in a signed 64-bit integer. Overflow is an error in Zhex, not a wraparound; keep intermediate values in range.

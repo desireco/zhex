@@ -127,7 +127,20 @@ func (s *Session) Enter(source string) (string, error) {
 	for name, record := range s.records {
 		records[name] = record
 	}
-	c := checker{words: words, records: records, modules: modules, uses: uses}
+	for _, u := range uses {
+		if m := modules[u]; m != nil {
+			for _, record := range m.recordOrder {
+				if !strings.HasPrefix(record.name, "_") {
+					records[record.id()] = record
+				}
+			}
+		}
+	}
+	all := collectRecords(modules)
+	for _, record := range s.records {
+		all[record.id()] = record
+	}
+	c := checker{words: words, records: records, allRecords: all, modules: modules, uses: uses}
 	env := newScope(s.scope)
 	typ, err := c.checkProgram(p, env)
 	if err != nil {
@@ -166,9 +179,13 @@ func (s *Session) adopt(fresh []use, words map[string]*word, redefined *[]string
 	if err != nil {
 		return nil, annotateSource(err, sources)
 	}
-	c := &checker{modules: modules}
+	c := &checker{modules: modules, allRecords: collectRecords(modules)}
 	for _, m := range order {
 		c.module, c.words, c.uses = m.name, m.words, m.uses
+		c.records = c.importedRecords(m.uses)
+		if err := c.registerRecords(m.recordOrder); err != nil {
+			return nil, annotateSource(err, sources)
+		}
 		if err := c.checkAdopted(m.uses); err != nil {
 			return nil, annotateSource(err, sources)
 		}

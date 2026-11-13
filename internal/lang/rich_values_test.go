@@ -88,3 +88,99 @@ func TestReplKeepsRecordDefinitions(t *testing.T) {
 		t.Fatal("adopted invalid record")
 	}
 }
+
+func TestImportedRecordTypesAreNominalAndQualified(t *testing.T) {
+	modules := map[string]ModuleSource{
+		"people": {Path: "people.zhex", Source: "type Customer = record\n    name: String\nword make(n: String) -> Customer\n    Customer(n)\n"},
+		"other":  {Path: "other.zhex", Source: "type Customer = record\n    name: String\n"},
+	}
+	resolve := func(name string) (ModuleSource, bool) { m, ok := modules[name]; return m, ok }
+	source := "use people\nlet a: people.Customer = people.Customer(\"Ada\")\nlet b = people.make(\"Grace\")\nprint(a.name)\nprint(b.name)\n"
+	var out bytes.Buffer
+	if err := RunWithModules("main.zhex", source, strings.NewReader(""), &out, nil, nil, resolve); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "Ada\nGrace\n" {
+		t.Fatalf("output %q", out.String())
+	}
+	bad := "use people\nuse other\nlet a: people.Customer = other.Customer(\"Ada\")\n"
+	if _, err := CompileModules("main.zhex", bad, resolve); err == nil {
+		t.Fatal("accepted different nominal module types")
+	}
+}
+
+func TestImportedPrivateRecordIsInaccessible(t *testing.T) {
+	resolve := func(name string) (ModuleSource, bool) {
+		return ModuleSource{Path: "people.zhex", Source: "type _Secret = record\n    n: Int\n"}, true
+	}
+	for _, source := range []string{"use people\nlet x = people._Secret(1)\n", "use people\nword read(x: people._Secret) -> Int\n    1\n"} {
+		if _, err := CompileModules("main.zhex", source, resolve); err == nil || !strings.Contains(err.Error(), "private") {
+			t.Fatalf("private record diagnostic: %v", err)
+		}
+	}
+}
+
+func TestReplAdoptsImportedRecordTypes(t *testing.T) {
+	resolve := func(name string) (ModuleSource, bool) {
+		return ModuleSource{Path: "people.zhex", Source: "type Customer = record\n    name: String\nword make(n: String) -> Customer\n    Customer(n)\n"}, true
+	}
+	var out bytes.Buffer
+	session := NewSession(strings.NewReader(""), &out, nil, resolve)
+	if _, err := session.Enter("use people\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Enter("let c: people.Customer = people.make(\"Ada\")\n"); err != nil {
+		t.Fatal(err)
+	}
+	if echo, err := session.Enter("c.name\n"); err != nil || echo != "Ada" {
+		t.Fatalf("echo %q, error %v", echo, err)
+	}
+}
+
+func TestRecordTypeVisibilityAndDeclarationCollisions(t *testing.T) {
+	modules := map[string]ModuleSource{
+		"outer": {Path: "outer.zhex", Source: "use inner\nword make() -> inner.Customer\n    inner.Customer(\"Ada\")\n"},
+		"inner": {Path: "inner.zhex", Source: "type Customer = record\n    name: String\n"},
+	}
+	resolve := func(name string) (ModuleSource, bool) { m, ok := modules[name]; return m, ok }
+	var out bytes.Buffer
+	if err := RunWithModules("main.zhex", "use outer\nlet c = outer.make()\nprint(c.name)\n", strings.NewReader(""), &out, nil, nil, resolve); err != nil || out.String() != "Ada\n" {
+		t.Fatalf("error %v output %q", err, out.String())
+	}
+	if _, err := CompileModules("main.zhex", "use outer\nlet c = inner.Customer(\"Ada\")\n", resolve); err == nil {
+		t.Fatal("transitive record became directly visible")
+	}
+	for _, source := range []string{
+		"type C = record\n    x: Int\nword C() -> Int\n    1\n",
+		"type A = record\n    b: B\ntype B = record\n    a: A\n",
+		"type outer.C = record\n    x: Int\n",
+		"type C = record\n    x.y: Int\n",
+	} {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("accepted invalid declaration: %q", source)
+		}
+	}
+}
+
+func TestPublicModuleAPIRejectsPrivateRecordLeaks(t *testing.T) {
+	cases := []string{
+		"type _Secret = record\n    n: Int\nword expose() -> _Secret\n    _Secret(1)\n",
+		"type _Secret = record\n    n: Int\nword expose(x: _Secret) -> Int\n    1\n",
+		"type _Secret = record\n    n: Int\ntype Public = record\n    secret: _Secret\n",
+	}
+	for _, module := range cases {
+		resolve := func(name string) (ModuleSource, bool) { return ModuleSource{Path: "m.zhex", Source: module}, true }
+		if _, err := CompileModules("main.zhex", "use m\n", resolve); err == nil || !strings.Contains(err.Error(), "private") {
+			t.Errorf("public API leaked private type: %v", err)
+		}
+	}
+}
+
+func TestPrivateRecordsRemainUsableInsideModule(t *testing.T) {
+	source := "type _Secret = record\n    n: Int\nword _make() -> _Secret\n    _Secret(7)\nword value() -> Int\n    let s = _make()\n    s.n\n"
+	resolve := func(name string) (ModuleSource, bool) { return ModuleSource{Path: "m.zhex", Source: source}, true }
+	var out bytes.Buffer
+	if err := RunWithModules("main.zhex", "use m\nprint(m.value())\n", strings.NewReader(""), &out, nil, nil, resolve); err != nil || out.String() != "7\n" {
+		t.Fatalf("error %v output %q", err, out.String())
+	}
+}
