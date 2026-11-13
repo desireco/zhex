@@ -140,6 +140,38 @@ func TestTraceResultBinding(t *testing.T) {
 	}
 }
 
+// TestTraceResourceRenderings pins the agent-facing Buffer and File event
+// renderings promised in site/llms.txt: buffer(<n> lines) and file("<path>").
+func TestTraceResourceRenderings(t *testing.T) {
+	path := writeFile(t, "")
+	var out, trace bytes.Buffer
+	src := "word two() -> Buffer\n" +
+		"    let b = buffer.new()\n" +
+		"    buffer.add-line(b, \"one\")\n" +
+		"    buffer.add-line(b, \"two\")\n" +
+		"    b\n" +
+		"\n" +
+		"let b = two()\n" +
+		"let f = file.open(\"" + path + "\") try\n"
+	if err := RunWithTrace("res.zhex", src, strings.NewReader(""), &out, &trace); err != nil {
+		t.Fatal(err)
+	}
+	fileValue, err := json.Marshal("file(\"" + path + "\")")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Join([]string{
+		`{"event":"word-call","word":"two","file":"res.zhex","line":7,"args":[]}`,
+		`{"event":"binding","name":"b","value":"buffer(0 lines)","file":"res.zhex","line":2}`,
+		`{"event":"word-return","word":"two","value":"buffer(2 lines)","file":"res.zhex","line":1}`,
+		`{"event":"binding","name":"b","value":"buffer(2 lines)","file":"res.zhex","line":7}`,
+		`{"event":"binding","name":"f","value":` + string(fileValue) + `,"file":"res.zhex","line":8}`,
+	}, "\n") + "\n"
+	if trace.String() != want {
+		t.Fatalf("trace:\n%s\nwant:\n%s", trace.String(), want)
+	}
+}
+
 func TestTraceUnitValue(t *testing.T) {
 	var out, trace bytes.Buffer
 	src := "word log() -> Unit\n    print(\"hi\")\n\nlog()\n"

@@ -69,7 +69,7 @@ Zed also receives bracket matching and a word-definition outline. The editor gra
 
 ## Verification and maintenance
 
-The same [highlight fixture](../editors/testdata/highlighting.zhex) exercises Vim/Neovim and VS Code. It includes qualified and hyphenated names, keyword-like names such as `if-ready`, string-contained `#` characters, escapes, and subtraction. Tree-sitter has parse cases and highlight assertions, and is checked against all six interpreter examples.
+The same [highlight fixture](../editors/testdata/highlighting.zhex) exercises Vim/Neovim and VS Code. It includes qualified and hyphenated names, keyword-like names such as `if-ready`, string-contained `#` characters, escapes, and subtraction. Tree-sitter has parse cases and highlight assertions, and is checked against all nine interpreter examples.
 
 Run the checks from the repository root:
 

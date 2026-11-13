@@ -239,6 +239,23 @@ func TestReplWordsCommand(t *testing.T) {
 	}
 }
 
+// The words intercept beats a user binding of that name: `words` lists
+// signatures, never the binding's value.
+func TestReplWordsShadowsBinding(t *testing.T) {
+	script := "word double(n: Int) -> Int\n    n + n\n\nlet words = 1\nwords\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	if !strings.Contains(out.String(), "double(n: Int) -> Int\n") {
+		t.Fatalf("stdout %q misses signatures", out.String())
+	}
+	if strings.Contains(out.String(), "1\n") {
+		t.Fatalf("stdout %q echoes the binding, not the signatures", out.String())
+	}
+}
+
 func TestReplEofDuringContinuationExits(t *testing.T) {
 	var out, diagnostics bytes.Buffer
 	code := run([]string{"repl"}, strings.NewReader("word f() -> Int\n    1\n"), &out, &diagnostics)

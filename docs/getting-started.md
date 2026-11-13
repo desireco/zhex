@@ -134,7 +134,7 @@ print(total)
 
 `var` explicitly permits reassignment. The initial value determines its type, and assignments must preserve that type. Use `let` when the value should stay fixed. The iteration variable is immutable and local to the loop.
 
-[Fibonacci](../examples/fibonacci.zhex) and [factorial](../examples/factorial.zhex) use this approach for iterative calculations. Their input bounds avoid overflowing an `Int`; arithmetic still checks overflow independently.
+[Fibonacci](../examples/fibonacci.zhex) and [factorial](../examples/factorial.zhex) use this approach for iterative calculations. Their input bounds avoid overflowing an `Int`; arithmetic still checks overflow independently. [GCD](../examples/gcd.zhex) recurses — a word may call itself — and feeds a computed call into a flow, while the [times table](../examples/times-table.zhex) builds each row of a bounded loop from integers and strings.
 
 ## Try the text example
 
@@ -143,6 +143,23 @@ go run ./cmd/zhex run examples/palindrome.zhex
 ```
 
 Try `racecar`, `hello`, or `été`. The [palindrome source](../examples/palindrome.zhex) compares the input with `text.reverse(input)`. Reversal operates on Unicode code points. The check is exact: case, spaces, punctuation, and normalization are not changed.
+
+## Read a file
+
+`for line in file.lines(path)` streams a file's chomped lines and always closes the file:
+
+```text
+for line in file.lines("examples/text-stats-sample.txt")
+    print(text.upper(line))
+```
+
+Run it and the three sample lines print uppercased. The [text-stats source](../examples/text-stats.zhex) shows both halves of file reading:
+
+```sh
+go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
+```
+
+With one argument it reads the whole file at once and prints `3 lines  11 words  64 chars`; any second argument streams the file uppercased line by line, as in the loop above. The path comes from `console.arg(0) try`, and `console.args-count()` says how many arguments followed `zhex run <file>`.
 
 ## Understand an error
 
@@ -154,7 +171,7 @@ Identifiers may contain hyphens, as in `is-palindrome`. Put spaces around subtra
 
 ## Explore and validate
 
-Start with the [six examples and expected results](syntax-examples.md), then consult the [language contract](initial-language.md) for exact rules. Run the executable language tests with:
+Start with the [nine examples and expected results](syntax-examples.md), then consult the [language contract](initial-language.md) for exact rules. Run the executable language tests with:
 
 ```sh
 go test ./...

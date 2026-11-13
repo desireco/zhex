@@ -6,7 +6,7 @@ Zhex is an experimental **Forth-inspired language** for composing small operatio
 
 The first interpreter is written in Go. It runs real `.zhex` files with console input and output. The language is still taking shape; syntax and APIs may change.
 
-[Website and examples](https://desireco.github.io/zhex/) · [Getting started](docs/getting-started.md) · [Language reference](docs/initial-language.md) · [Roadmap](ROADMAP.md) · [Project board](https://github.com/users/desireco/projects/8)
+[Website and examples](https://desireco.github.io/zhex/) · [Manifesto](docs/manifesto.md) · [Getting started](docs/getting-started.md) · [Language reference](docs/initial-language.md) · [Roadmap](ROADMAP.md) · [Project board](https://github.com/users/desireco/projects/8)
 
 ## What it looks like
 
@@ -44,6 +44,9 @@ go run ./cmd/zhex run examples/fizzbuzz.zhex
 go run ./cmd/zhex run examples/fibonacci.zhex
 go run ./cmd/zhex run examples/factorial.zhex
 go run ./cmd/zhex run examples/palindrome.zhex
+go run ./cmd/zhex run examples/gcd.zhex
+go run ./cmd/zhex run examples/times-table.zhex
+go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
 ```
 
 Build an executable when you want to use it directly:
@@ -67,12 +70,15 @@ go build -o bin/zhex ./cmd/zhex
 | [Fibonacci](examples/fibonacci.zhex) | Explicitly mutable locals and iterative calculation. |
 | [Factorial](examples/factorial.zhex) | Accumulation and integer boundaries. |
 | [Palindrome](examples/palindrome.zhex) | Text input, comparison, and Unicode code-point reversal. |
+| [GCD](examples/gcd.zhex) | Euclid's algorithm by recursion, seeded into a flow. |
+| [Times table](examples/times-table.zhex) | A bounded loop building strings from integers. |
+| [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
 
 The [example guide](docs/syntax-examples.md) records expected output and edge cases. The [language contract](docs/initial-language.md) defines the current rules.
 
 ## What works today
 
-The interpreter supports typed word definitions, named parameters, inferred local types, immutable `let` bindings, mutable `var` bindings, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in.
+The interpreter supports typed word definitions, named parameters, inferred local types, immutable `let` bindings, mutable `var` bindings, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words and values across the session.
 
 The whole file is checked before execution, including unused word bodies. Static errors do not prompt or consume input. Runtime errors report a source location; integer overflow, division by zero, invalid input, and end-of-input are handled explicitly.
 
@@ -110,6 +116,7 @@ just serve
 
 ## Project documents
 
+- [Manifesto](docs/manifesto.md): the intentions behind the language
 - [Getting started](docs/getting-started.md)
 - [Agent guide](AGENTS.md): writing correct Zhex and verifying changes with the test suite
 - [Language goals](docs/language-goals.md) and [first milestone](docs/first-milestone.md)

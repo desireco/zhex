@@ -12,6 +12,9 @@ These source files run in the Go interpreter and are validated by its test suite
 | [fibonacci.zhex](../examples/fibonacci.zhex) | `10` | `55` | Explicit local mutation and iterative computation. |
 | [factorial.zhex](../examples/factorial.zhex) | `5` | `120` | Accumulation, empty loops, integer limits. |
 | [palindrome.zhex](../examples/palindrome.zhex) | `racecar` | `Palindrome` | String input, comparison, and a text-library operation. |
+| [gcd.zhex](../examples/gcd.zhex) | `48`, `18` | `6` | Euclid's algorithm by recursion and a flow seeded with a computed call. |
+| [times-table.zhex](../examples/times-table.zhex) | `7` | `7 x 1 = 7` through `7 x 10 = 70` | A bounded loop building each line from integers and strings. |
+| [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
 
 Each result line ends with a newline. The interactive programs print a prompt before reading. For FizzBuzz with input `15`, the result lines are:
 
@@ -55,6 +58,9 @@ go run ./cmd/zhex run examples/fizzbuzz.zhex
 go run ./cmd/zhex run examples/fibonacci.zhex
 go run ./cmd/zhex run examples/factorial.zhex
 go run ./cmd/zhex run examples/palindrome.zhex
+go run ./cmd/zhex run examples/gcd.zhex
+go run ./cmd/zhex run examples/times-table.zhex
+go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
 ```
 
 ## Syntax exercised by the examples
@@ -93,4 +99,4 @@ Palindrome comparison is exact, including case, punctuation, spaces, and Unicode
 
 ## Later algorithm examples
 
-GCD would exercise Euclid's algorithm and a condition-controlled loop; primality testing would exercise early exits; exponentiation by squaring would exercise logarithmic iteration. Binary search would exercise arrays and indexing. Normalized palindrome checks and word-frequency counting would exercise richer Unicode/text operations and maps. Add these as the corresponding features become concrete.
+GCD has landed — [gcd.zhex](../examples/gcd.zhex) runs Euclid's algorithm by recursion — and [text-stats.zhex](../examples/text-stats.zhex) is the first real application, exercising the file and text vocabulary on a sample document. Primality testing would exercise early exits; exponentiation by squaring would exercise logarithmic iteration. Binary search would exercise arrays and indexing. Normalized palindrome checks and word-frequency counting would exercise richer Unicode/text operations and maps. Add these as the corresponding features become concrete.

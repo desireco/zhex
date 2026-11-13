@@ -12,11 +12,26 @@ go vet ./...
 
 Run an individual area with `go test ./internal/lang -run TestExamples` or `go test ./internal/lang -run TestRejectedPrograms -v`. Tests use only the Go standard library. No network or external service is needed. The CLI process test builds a temporary executable with the installed Go toolchain.
 
+## Coverage matrix
+
+Where each shipped feature family is documented, and which tests pin it. The catalog below names the individual tests.
+
+| Feature | Documented on | Pinned by |
+| --- | --- | --- |
+| Diagnostics — excerpt, caret, hints, suggestions | [AGENTS.md](../AGENTS.md), [diagnostics-plan.md](diagnostics-plan.md), [catalog.md](../internal/lang/catalog.md), [llms.txt](../site/llms.txt), the [site errors page](../site/errors.tmpl) | [diagnostics_test.go](../internal/lang/diagnostics_test.go) |
+| Codes and the JSON report | [AGENTS.md](../AGENTS.md), [diagnostics-plan.md](diagnostics-plan.md), [catalog.md](../internal/lang/catalog.md), [llms.txt](../site/llms.txt), the [site errors page](../site/errors.tmpl) | [codes_test.go](../internal/lang/codes_test.go) |
+| Spans and provenance | [AGENTS.md](../AGENTS.md), [diagnostics-plan.md](diagnostics-plan.md) | [spans_test.go](../internal/lang/spans_test.go), [diagnostics_test.go](../internal/lang/diagnostics_test.go) |
+| Trace events | [AGENTS.md](../AGENTS.md), [diagnostics-plan.md](diagnostics-plan.md), [llms.txt](../site/llms.txt) | [trace_test.go](../internal/lang/trace_test.go) and `TestReplTrace` in [main_test.go](../cmd/zhex/main_test.go) |
+| REPL | [AGENTS.md](../AGENTS.md), [getting-started.md](getting-started.md), [initial-language.md](initial-language.md), the [site docs page](../site/docs.tmpl), [llms.txt](../site/llms.txt), [README.md](../README.md) | [session_test.go](../internal/lang/session_test.go), [main_test.go](../cmd/zhex/main_test.go) |
+| Vocabulary — text, buffer, file, arguments | [AGENTS.md](../AGENTS.md), [initial-language.md](initial-language.md), the [site docs page](../site/docs.tmpl), [llms.txt](../site/llms.txt) | [text_test.go](../internal/lang/text_test.go), [buffer_test.go](../internal/lang/buffer_test.go), [file_test.go](../internal/lang/file_test.go), [args_test.go](../internal/lang/args_test.go) |
+| Example corpus and text-stats | [README.md](../README.md), [getting-started.md](getting-started.md), [syntax-examples.md](syntax-examples.md), the [site examples page](../site/examples.tmpl), [llms.txt](../site/llms.txt) | `TestExamples` in [examples_test.go](../internal/lang/examples_test.go) |
+| Benchmarks | [AGENTS.md](../AGENTS.md), [measurements.md](measurements.md), this catalog | [bench_test.go](../internal/lang/bench_test.go) |
+
 ## Language behavior catalog
 
 | Test | Executable specification |
 | --- | --- |
-| `TestExamples` in [examples_test.go](../internal/lang/examples_test.go) | All six `.zhex` files, console prompts, ordinary inputs, empty lines, final lines without newlines, numeric boundaries, and exact palindrome comparison. |
+| `TestExamples` in [examples_test.go](../internal/lang/examples_test.go) | All nine `.zhex` files, console prompts, ordinary inputs, empty lines, final lines without newlines, numeric boundaries, exact palindrome comparison, GCD recursion with its nonnegative guard, the times-table bounds, and text-stats counts, uppercased streaming, and failure exits. |
 | `TestLanguageFeatures` in [features_test.go](../internal/lang/features_test.go) | Operator precedence, booleans, short-circuit evaluation, minimum integers, strings, mutable loops, empty ranges, lexical shadowing, forward calls, multiple arguments, and input results. |
 | `TestRejectedPrograms` in [features_test.go](../internal/lang/features_test.go) | Unknown names, wrong arity/types, immutable assignment, scope violations, duplicate definitions, incompatible branches/returns, invalid flows, missing `try`, malformed source, and unsupported types. |
 | `TestRuntimeErrors` in [features_test.go](../internal/lang/features_test.go) | Checked arithmetic failures produce language diagnostics instead of silent wrapping or host panics. |
@@ -25,12 +40,17 @@ Run an individual area with `go test ./internal/lang -run TestExamples` or `go t
 | Tests in [limits_test.go](../internal/lang/limits_test.go) | Syntax/call depth limits and fresh execution state for a compiled program. |
 | `TestCheckedArithmeticAgainstIntegerMath` in [arithmetic_test.go](../internal/lang/arithmetic_test.go) | Checked 64-bit arithmetic agrees with arbitrary-precision reference mathematics across boundary and deterministic randomized inputs. |
 | `FuzzCompile` in [fuzz_test.go](../internal/lang/fuzz_test.go) | Malformed source produces diagnostics rather than unexpected parser/checker panics. Default tests run the seed corpus; a timed fuzz run explores mutations. |
+| Tests in [diagnostics_test.go](../internal/lang/diagnostics_test.go) | Diagnostics carry a source excerpt, a caret, and the hyphen-name hint; typos get did-you-mean suggestions; every `Result` type gets a `try` hint and a rendering (the result table); carets span whole failing expressions; type mismatches narrate provenance; and runtime diagnostics show excerpts too. |
+| Tests in [codes_test.go](../internal/lang/codes_test.go) | The code catalog stays a bijection with the interpreter's own definitions, sorted and unique; every raise site pairs with its code; and `--report=json` keeps its pinned shape, with span fields added only when a checker diagnostic has a span. |
+| `TestExpressionsCarryEndPositions` in [spans_test.go](../internal/lang/spans_test.go) | Parsed expressions carry end positions, so a caret can underline the whole failing expression instead of one column. |
+| `TestTrace*` in [trace_test.go](../internal/lang/trace_test.go) | Golden JSONL event streams for composition and GCD; loop, assignment, `Result`, and Unit bindings; Buffer and File renderings (`TestTraceResourceRenderings`) — and the REPL's `"file":"repl"` events, pinned from the CLI by `TestReplTrace` in [main_test.go](../cmd/zhex/main_test.go). |
+| `Benchmark*` with `TestBenchmarksRunRealPrograms` in [bench_test.go](../internal/lang/bench_test.go) | The four benchmarks — text-stats counts, text-stats upper, compiling text-stats, and Fibonacci — time real programs; the guard test fails if a benchmarked program stops running. `just bench` records results in [measurements.md](measurements.md). |
 | Tests in [session_test.go](../internal/lang/session_test.go) | REPL entry boundaries (only a missing indented block continues), persistence of words and values across entries, word redefinition with a note, rollback after a check error, effects kept after a runtime error, and the shared buffered reader. |
 | Tests in [text_test.go](../internal/lang/text_test.go) | The `text` words' semantics — code-point length, indexing, and slicing with clamped bounds, line and word counts, Unicode case and trim, literal all-occurrences `replace` — and the `replace-empty` error with text and JSON agreeing. |
 | Tests in [buffer_test.go](../internal/lang/buffer_test.go) | Buffer round trip, aliasing through `let` (two names, one buffer), `buffer-range` failures inside the `Result`, rejection by `print` (with a `buffer.to-text` hint) and by `==`, and `Buffer` in word signatures. |
 | Tests in [file_test.go](../internal/lang/file_test.go) | Whole-file and streaming reads, chomped lines, idempotent close, read-after-close and end-of-file failures, the `for line in file.lines` loop (empty files, `String` binding composing with `text` words), its loop-only context rule, and the guaranteed close across success, mid-stream, and loop-body failures. |
 | Tests in [args_test.go](../internal/lang/args_test.go) | `console.arg` and `console.args-count` argument forwarding, the `argument-missing` diagnostic naming index and count, and the `try` hint for a bare `console.arg` result. |
-| Tests in [main_test.go](../cmd/zhex/main_test.go) | Actual CLI behavior, usage errors, missing files, stdout/stderr separation, executable invocation, exit codes, and `zhex repl` sessions (scripted entries, `words`, `--trace` events, EOF and final-line handling). |
+| Tests in [main_test.go](../cmd/zhex/main_test.go) | Actual CLI behavior, usage errors, missing files, stdout/stderr separation, executable invocation, exit codes, and `zhex repl` sessions (scripted entries, `words` — including its shadowing of a user binding, `TestReplWordsShadowsBinding` — `--trace` events, EOF and final-line handling). |
 
 `TestArithmetic` and `TestInvalidProgramHasNoEffects` in [run_test.go](../internal/lang/run_test.go) preserve the first execution slice and the check-before-effects rule.
 

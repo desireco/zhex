@@ -100,6 +100,19 @@ print(n * n)` | highlight}}</code></pre></div>
       </div>
 
       <div class="docs-feature">
+        <h3>A REPL, checked entry by entry.</h3>
+        <p><code>zhex repl</code> keeps words and values across entries. A blank line submits a word's body, <code>words</code> lists the signatures defined so far, and errors print their diagnostic without ending the session. With <code>--trace</code>, the same step events as a run stream to stderr.</p>
+        <div class="command-block"><pre><code>{{`zhex repl
+zhex> word greet(name: String) -> String
+....>     "Hello, " + name + "!"
+....>
+zhex> greet("Ada")
+Hello, Ada!
+zhex> words
+greet(name: String) -> String` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
         <h3>Study working programs.</h3>
         <p>The examples page renders each program with real input and output. <a href="examples.html#gcd">GCD</a> shows recursion and a flow seeded with a computed call; the <a href="examples.html#times-table">times table</a> shows a bounded loop building strings from integers.</p>
       </div>

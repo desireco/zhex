@@ -14,6 +14,7 @@
   <header class="site-header wrap">
     <a class="brand" href="./" aria-label="Zhex home"><img class="brand-logo" src="logo.svg" width="168" height="50" alt=""></a>
     <nav aria-label="Main navigation">
+      <a href="manifesto.html">Manifesto</a>
       <a href="examples.html">Examples</a>
       <a href="docs.html">Docs</a>
       <a href="errors.html" aria-current="page">Errors</a>
@@ -28,7 +29,7 @@
       <p class="eyebrow">Diagnostics</p>
       <h1>Every error,<br>by name.</h1>
       <p class="lede">Each diagnostic carries a stable code. The first line is always <code>file:line:column: message</code>; the source excerpt, caret, and <code>hint:</code> are additive detail.</p>
-      <p class="aside">Machine readers: <code>zhex run file.zhex --report=json</code> emits <code>{code, severity, file, line, column, message, hint}</code>. The contract lives in the repository at <a href="https://github.com/desireco/zhex/blob/main/docs/diagnostics-plan.md">docs/diagnostics-plan.md</a>.</p>
+      <p class="aside">Machine readers: <code>zhex run file.zhex --report=json</code> emits <code>{code, severity, file, line, column, message, hint}</code>, plus optional additive <code>span_start_column</code>/<code>span_end_column</code> — present only for checker diagnostics with a span, never for runtime ones. The contract lives in the repository at <a href="https://github.com/desireco/zhex/blob/main/docs/diagnostics-plan.md">docs/diagnostics-plan.md</a>.</p>
     </section>
 
     <section class="section" aria-labelledby="catalog-title">
