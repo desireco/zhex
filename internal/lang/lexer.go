@@ -9,6 +9,7 @@ import (
 type token struct {
 	kind, text string
 	pos        position
+	end        position // exclusive, one past the last rune; unset for indent/dedent/newline/eof
 }
 
 func lex(file, source string) ([]token, error) {
@@ -36,10 +37,10 @@ func lex(file, source string) ([]token, error) {
 			return nil, errorAt(pos, CodeIndentation, "indentation must use four spaces per level")
 		}
 		if i > indent {
-			tokens = append(tokens, token{"indent", "", pos})
+			tokens = append(tokens, token{kind: "indent", pos: pos})
 		}
 		for level := indent; level > i; level -= 4 {
-			tokens = append(tokens, token{"dedent", "", pos})
+			tokens = append(tokens, token{kind: "dedent", pos: pos})
 		}
 		indent = i
 		for i < len(runes) {
@@ -69,7 +70,7 @@ func lex(file, source string) ([]token, error) {
 					}
 					break
 				}
-				tokens = append(tokens, token{"name", string(runes[start:i]), pos})
+				tokens = append(tokens, token{"name", string(runes[start:i]), pos, position{file, lineIndex + 1, i + 1}})
 				continue
 			}
 			if c >= '0' && c <= '9' {
@@ -77,7 +78,7 @@ func lex(file, source string) ([]token, error) {
 				for i < len(runes) && runes[i] >= '0' && runes[i] <= '9' {
 					i++
 				}
-				tokens = append(tokens, token{"number", string(runes[start:i]), pos})
+				tokens = append(tokens, token{"number", string(runes[start:i]), pos, position{file, lineIndex + 1, i + 1}})
 				continue
 			}
 			if c == '"' {
@@ -96,31 +97,33 @@ func lex(file, source string) ([]token, error) {
 				if err != nil || !utf8.ValidString(decoded) {
 					return nil, errorAt(pos, CodeStringEscape, "invalid string escape or UTF-8")
 				}
-				tokens = append(tokens, token{"string", decoded, pos})
+				tokens = append(tokens, token{"string", decoded, pos, position{file, lineIndex + 1, i + 1}})
 				continue
 			}
 			if i+1 < len(runes) {
 				pair := string(runes[i : i+2])
 				if pair == "->" || pair == "==" || pair == "!=" || pair == "<=" || pair == ">=" {
-					tokens = append(tokens, token{pair, pair, pos})
 					i += 2
+					end := position{file, lineIndex + 1, i + 1}
+					tokens = append(tokens, token{kind: pair, text: pair, pos: pos, end: end})
 					continue
 				}
 			}
 			if strings.ContainsRune("()+-*/%<>=:,", c) {
-				tokens = append(tokens, token{string(c), string(c), pos})
 				i++
+				end := position{file, lineIndex + 1, i + 1}
+				tokens = append(tokens, token{kind: string(c), text: string(c), pos: pos, end: end})
 				continue
 			}
 			return nil, errorAt(pos, CodeUnexpectedCharacter, "unexpected character %q", c)
 		}
-		tokens = append(tokens, token{"newline", "", position{file, lineIndex + 1, len(runes) + 1}})
+		tokens = append(tokens, token{kind: "newline", pos: position{file, lineIndex + 1, len(runes) + 1}})
 	}
 	end := position{file, len(lines), 1}
 	for ; indent > 0; indent -= 4 {
-		tokens = append(tokens, token{"dedent", "", end})
+		tokens = append(tokens, token{kind: "dedent", pos: end})
 	}
-	tokens = append(tokens, token{"eof", "", end})
+	tokens = append(tokens, token{kind: "eof", pos: end})
 	return tokens, nil
 }
 

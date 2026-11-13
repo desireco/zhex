@@ -12,12 +12,14 @@ type position struct {
 }
 
 type diagnostic struct {
-	pos      position
-	code     Code
-	severity string
-	message  string
-	hint     string
-	line     string
+	pos       position
+	code      Code
+	severity  string
+	message   string
+	hint      string
+	line      string
+	spanStart position
+	spanEnd   position
 }
 
 // Error keeps the first line stable — file:line:column: message — so
@@ -26,7 +28,18 @@ type diagnostic struct {
 func (d *diagnostic) Error() string {
 	out := fmt.Sprintf("%s:%d:%d: %s", d.pos.file, d.pos.line, d.pos.column, d.message)
 	if d.line != "" {
-		out += "\n    " + d.line + "\n    " + strings.Repeat(" ", d.pos.column-1) + "^"
+		out += "\n    " + d.line + "\n    "
+		indent, width := d.pos.column-1, 1
+		if d.spanStart.column > 0 && d.spanStart.line == d.spanEnd.line && d.spanEnd.column-d.spanStart.column > 1 {
+			indent, width = d.spanStart.column-1, d.spanEnd.column-d.spanStart.column
+		}
+		if indent < 0 {
+			indent = 0
+		}
+		if width < 1 {
+			width = 1
+		}
+		out += strings.Repeat(" ", indent) + strings.Repeat("^", width)
 	}
 	if d.hint != "" {
 		out += "\nhint: " + d.hint
@@ -47,14 +60,16 @@ func Report(err error) (string, bool) {
 		return "", false
 	}
 	report := struct {
-		Code     string `json:"code"`
-		Severity string `json:"severity"`
-		File     string `json:"file"`
-		Line     int    `json:"line"`
-		Column   int    `json:"column"`
-		Message  string `json:"message"`
-		Hint     string `json:"hint"`
-	}{string(d.code), d.severity, d.pos.file, d.pos.line, d.pos.column, d.message, d.hint}
+		Code            string `json:"code"`
+		Severity        string `json:"severity"`
+		File            string `json:"file"`
+		Line            int    `json:"line"`
+		Column          int    `json:"column"`
+		Message         string `json:"message"`
+		Hint            string `json:"hint"`
+		SpanStartColumn int    `json:"span_start_column,omitempty"`
+		SpanEndColumn   int    `json:"span_end_column,omitempty"`
+	}{string(d.code), d.severity, d.pos.file, d.pos.line, d.pos.column, d.message, d.hint, d.spanStart.column, d.spanEnd.column}
 	out, err := json.Marshal(report)
 	if err != nil {
 		return "", false
@@ -82,6 +97,64 @@ func withHint(err error, hint string) error {
 	return err
 }
 
+// withSpanRange attaches a same-line caret span wider than one token; the
+// first line keeps reporting its own position regardless.
+func withSpanRange(err error, start, end position) error {
+	if d, ok := err.(*diagnostic); ok && start.line == end.line && end.column > start.column {
+		d.spanStart, d.spanEnd = start, end
+	}
+	return err
+}
+
+// withSpan spans the whole expression: from the leftmost operand (or the
+// leading operator, for unary) to its end.
+func withSpan(err error, x *expression) error {
+	start := x.pos
+	for left := x.left; left != nil; left = left.left {
+		if left.pos.line < start.line || left.pos.line == start.line && left.pos.column < start.column {
+			start = left.pos
+		}
+	}
+	return withSpanRange(err, start, x.end)
+}
+
+func isResult(t valueType) bool { return strings.HasPrefix(string(t), "Result<") }
+
+// originOf reports the word a value's binding was defined from, for
+// provenance narration.
+func originOf(x *expression) string {
+	switch x.kind {
+	case "call":
+		return x.text
+	case "try":
+		return originOf(x.left)
+	case "name":
+		if x.binding != nil {
+			return x.binding.origin
+		}
+	}
+	return ""
+}
+
+// narrate explains where a mismatched value came from, for the first named
+// operand whose binding has a known origin.
+func narrate(xs ...*expression) string {
+	for _, x := range xs {
+		if x.kind == "name" && x.binding != nil && x.binding.origin != "" {
+			return fmt.Sprintf("%s comes from %s", x.text, x.binding.origin)
+		}
+	}
+	return ""
+}
+
+// narrated appends the provenance clause to a diagnostic message.
+func narrated(msg, narration string) string {
+	if narration != "" {
+		return msg + "; " + narration
+	}
+	return msg
+}
+
 type valueType string
 
 const (
@@ -98,6 +171,7 @@ type binding struct {
 	name    string
 	typ     valueType
 	mutable bool
+	origin  string // defining word for provenance narration, e.g. read-line
 }
 
 type parameter struct {
@@ -125,6 +199,7 @@ type Program struct {
 type expression struct {
 	kind        string
 	pos         position
+	end         position // exclusive, one past the last rune
 	text        string
 	number      int64
 	depth       int

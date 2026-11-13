@@ -30,12 +30,12 @@ Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seed
 
 ## Reading checker errors
 
-The checker validates the whole program before anything runs and reports `file:line:column` diagnostics, so nothing partial executes. Each diagnostic prints the source line with a caret and, where a known fix exists, a `hint:` line; the first line stays stable for scripts and agents. The two mistakes the compiler now hints itself:
+The checker validates the whole program before anything runs and reports `file:line:column` diagnostics, so nothing partial executes. Each diagnostic prints the source line with a caret — the caret underlines the whole failing expression, not one column — and, where a known fix exists, a `hint:` line; the first line stays stable for scripts and agents. Type mismatches narrate where a value came from, e.g. `...found Result<Int, ParseError>; m comes from text.to-int`. The two mistakes the compiler now hints itself:
 
 - `unknown name "a-b"` — hyphenated names are single names; write `a - b` with spaces for subtraction.
 - `... does not support type Result<String, InputError>` (or any `Result` in a plain value position) — a read result needs postfix `try` to unwrap it (`let line = read-line("N: ") try`).
 
-Typos get did-you-mean suggestions drawn from the visible names and words. Every diagnostic carries a stable code, cataloged on the site's errors page; `zhex run <file> --report=json` emits the machine-readable report `{code, severity, file, line, column, message, hint}` for agents and tools. The diagnostic contract and phased plan (spans, provenance, tracing, replay) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
+Typos get did-you-mean suggestions drawn from the visible names and words. Every diagnostic carries a stable code, cataloged on the site's errors page; `zhex run <file> --report=json` emits the machine-readable report `{code, severity, file, line, column, message, hint}` for agents and tools, plus optional additive `span_start_column`/`span_end_column` — present only for checker diagnostics with a span, never for runtime ones. The diagnostic contract and phased plan (spans, provenance, tracing, replay) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
 
 To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking happens before execution, so a clean run means types and names resolved.
 

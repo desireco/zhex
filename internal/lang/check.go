@@ -1,5 +1,7 @@
 package lang
 
+import "fmt"
+
 type scope struct {
 	parent   *scope
 	bindings map[string]*binding
@@ -29,7 +31,7 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 	if s.bindings[name] != nil {
 		return nil, errorAt(pos, CodeDuplicateName, "name %q is already defined in this scope", name)
 	}
-	b := &binding{name, typ, mutable}
+	b := &binding{name: name, typ: typ, mutable: mutable}
 	s.bindings[name] = b
 	return b, nil
 }
@@ -115,6 +117,9 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		return typ, nil
 	case "let", "var":
 		s.binding, err = env.define(s.pos, s.name, typ, s.kind == "var")
+		if err == nil {
+			s.binding.origin = originOf(s.expr)
+		}
 		return unitType, err
 	case "assign":
 		s.binding = env.find(s.name)
@@ -125,12 +130,16 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			return "", errorAt(s.pos, CodeImmutableName, "cannot assign to immutable name %q", s.name)
 		}
 		if typ != s.binding.typ {
-			return "", errorAt(s.pos, CodeAssignmentType, "assignment type %s does not match %s", typ, s.binding.typ)
+			err := errorAt(s.pos, CodeAssignmentType, "%s", narrated(fmt.Sprintf("assignment type %s does not match %s", typ, s.binding.typ), narrate(s.expr)))
+			return "", withSpanRange(err, s.pos, s.expr.end)
 		}
+		// Narration must track the current value, not the defining one.
+		s.binding.origin = originOf(s.expr)
 		return unitType, nil
 	case "if":
 		if typ != boolType {
-			return "", withHint(errorAt(s.expr.pos, CodeConditionType, "condition must have type Bool, found %s", typ), tryHint(typ))
+			err := withHint(errorAt(s.expr.pos, CodeConditionType, "%s", narrated(fmt.Sprintf("condition must have type Bool, found %s", typ), narrate(s.expr))), tryHint(typ))
+			return "", withSpan(err, s.expr)
 		}
 		left, err := c.block(s.body, newScope(env))
 		if err != nil {
@@ -183,7 +192,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	case "name":
 		x.binding = env.find(x.text)
 		if x.binding == nil {
-			return "", withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), nameHint(x.text, append(env.names(), c.wordNames()...)))
+			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), nameHint(x.text, append(env.names(), c.wordNames()...))), x)
 		}
 		typ = x.binding.typ
 	case "call":
@@ -207,7 +216,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		case stringResultType:
 			typ = stringType
 		default:
-			return "", errorAt(x.pos, CodeTryInput, "try requires an input Result, found %s", inner)
+			return "", withSpan(errorAt(x.pos, CodeTryInput, "try requires an input Result, found %s", inner), x)
 		}
 	case "unary":
 		inner, err := c.expression(x.left, env)
@@ -219,7 +228,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			typ = boolType
 		}
 		if inner != typ {
-			return "", withHint(errorAt(x.pos, CodeUnaryType, "operator %q requires type %s, found %s", x.text, typ, inner), tryHint(inner))
+			return "", valueError(x.pos, x, CodeUnaryType, fmt.Sprintf("operator %q requires type %s, found %s", x.text, typ, inner), tryHint(inner), x.left)
 		}
 	case "binary":
 		left, err := c.expression(x.left, env)
@@ -231,31 +240,36 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", err
 		}
 		if left != right {
-			return "", withHint(errorAt(x.pos, CodeOperandTypes, "operator %q has incompatible operand types %s and %s", x.text, left, right), tryHint(left, right))
+			// Narrate the result-typed operand first: it is the surprising one.
+			nLeft, nRight := x.left, x.right
+			if isResult(right) && !isResult(left) {
+				nLeft, nRight = x.right, x.left
+			}
+			return "", valueError(x.pos, x, CodeOperandTypes, fmt.Sprintf("operator %q has incompatible operand types %s and %s", x.text, left, right), tryHint(left, right), nLeft, nRight)
 		}
 		typ = left
 		switch x.text {
 		case "and", "or":
 			if left != boolType {
-				return "", withHint(errorAt(x.pos, CodeBoolOperand, "operator %q requires type Bool", x.text), tryHint(left))
+				return "", valueError(x.pos, x, CodeBoolOperand, fmt.Sprintf("operator %q requires type Bool", x.text), tryHint(left), x.left, x.right)
 			}
 		case "==", "!=":
 			if left != intType && left != stringType && left != boolType {
-				return "", withHint(errorAt(x.pos, CodeCompareType, "cannot compare type %s", left), tryHint(left))
+				return "", valueError(x.pos, x, CodeCompareType, fmt.Sprintf("cannot compare type %s", left), tryHint(left), x.left, x.right)
 			}
 			typ = boolType
 		case "<", "<=", ">", ">=":
 			if left != intType {
-				return "", withHint(errorAt(x.pos, CodeOrderingType, "ordering requires type Int"), tryHint(left))
+				return "", valueError(x.pos, x, CodeOrderingType, "ordering requires type Int", tryHint(left), x.left, x.right)
 			}
 			typ = boolType
 		case "+":
 			if left != intType && left != stringType {
-				return "", withHint(errorAt(x.pos, CodeAdditionType, "addition requires type Int or String"), tryHint(left))
+				return "", valueError(x.pos, x, CodeAdditionType, "addition requires type Int or String", tryHint(left), x.left, x.right)
 			}
 		default:
 			if left != intType {
-				return "", withHint(errorAt(x.pos, CodeArithmeticType, "arithmetic requires type Int"), tryHint(left))
+				return "", valueError(x.pos, x, CodeArithmeticType, "arithmetic requires type Int", tryHint(left), x.left, x.right)
 			}
 		}
 	default:
@@ -278,10 +292,14 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		switch x.text {
 		case "print":
 			if len(args) != 1 {
-				return "", errorAt(x.pos, CodeArgumentCount, "print requires 1 argument, found %d", len(args))
+				return "", withSpan(errorAt(x.pos, CodeArgumentCount, "print requires 1 argument, found %d", len(args)), x)
 			}
 			if args[0] != intType && args[0] != stringType && args[0] != boolType {
-				return "", withHint(errorAt(x.pos, CodePrintType, "print does not support type %s", args[0]), tryHint(args[0]))
+				var span *expression
+				if len(x.args) > 0 {
+					span = x.args[0]
+				}
+				return "", valueError(x.pos, span, CodePrintType, fmt.Sprintf("print does not support type %s", args[0]), tryHint(args[0]), x.args...)
 			}
 			params = args
 			result = unitType
@@ -300,15 +318,22 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "range":
 			return "", errorAt(x.pos, CodeRangeContext, "range is only available in a for loop")
 		default:
-			return "", withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestHint(x.text, c.wordNames()))
+			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestHint(x.text, c.wordNames())), x)
 		}
 	}
 	if len(args) != len(params) {
-		return "", errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments, found %d", x.text, len(params), len(args))
+		return "", withSpan(errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments, found %d", x.text, len(params), len(args)), x)
 	}
 	for i, typ := range args {
 		if typ != params[i] {
-			return "", withHint(errorAt(x.pos, CodeArgumentType, "argument %d of %s requires type %s, found %s", i+1, x.text, params[i], typ), tryHint(typ))
+			var span *expression
+			var operands []*expression
+			if i < len(x.args) {
+				span = x.args[i]
+				operands = x.args[i : i+1]
+			}
+			msg := fmt.Sprintf("argument %d of %s requires type %s, found %s", i+1, x.text, params[i], typ)
+			return "", valueError(x.pos, span, CodeArgumentType, msg, tryHint(typ), operands...)
 		}
 	}
 	x.typ = result
@@ -316,4 +341,16 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		x.inputType = args[0]
 	}
 	return result, nil
+}
+
+// valueError composes the standard value-type mismatch diagnostic: a narrated
+// message, an optional hint, and an optional caret span. The message is
+// runtime-built, so it is never passed to errorAt as a format string; the
+// operands feed the provenance narration.
+func valueError(pos position, span *expression, code Code, msg, hint string, operands ...*expression) error {
+	err := withHint(errorAt(pos, code, "%s", narrated(msg, narrate(operands...))), hint)
+	if span != nil {
+		err = withSpan(err, span)
+	}
+	return err
 }

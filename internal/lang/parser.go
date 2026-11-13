@@ -158,7 +158,7 @@ func (p *parser) parseStatement() *statement {
 		p.take()
 		for !p.at("dedent") && !p.at("eof") {
 			step := p.name()
-			s.steps = append(s.steps, &expression{kind: "call", text: step.text, pos: step.pos})
+			s.steps = append(s.steps, &expression{kind: "call", text: step.text, pos: step.pos, end: step.end})
 			p.require("newline")
 		}
 		p.require("dedent")
@@ -229,7 +229,7 @@ func (p *parser) expression(minimum int) *expression {
 		}
 		p.take()
 		right := p.expression(level + 1)
-		left = p.checkDepth(&expression{kind: "binary", text: t.text, pos: t.pos, left: left, right: right})
+		left = p.checkDepth(&expression{kind: "binary", text: t.text, pos: t.pos, end: right.end, left: left, right: right})
 	}
 	return left
 }
@@ -258,12 +258,14 @@ func (p *parser) unary() *expression {
 			return p.number(n)
 		}
 		// Route through expression to include the nesting limit for repeated unary operators.
-		return &expression{kind: "unary", text: t.text, pos: t.pos, left: p.expression(7)}
+		u := &expression{kind: "unary", text: t.text, pos: t.pos, left: p.expression(7)}
+		u.end = u.left.end
+		return u
 	}
 	x := p.primary()
 	for p.at("try") {
 		t := p.take()
-		x = p.checkDepth(&expression{kind: "try", pos: t.pos, left: x})
+		x = p.checkDepth(&expression{kind: "try", pos: t.pos, end: t.end, left: x})
 	}
 	return x
 }
@@ -273,7 +275,7 @@ func (p *parser) number(t token) *expression {
 	if err != nil {
 		panic(errorAt(t.pos, CodeIntegerLiteralRange, "integer literal is outside the signed 64-bit range"))
 	}
-	return &expression{kind: "int", number: n, pos: t.pos}
+	return &expression{kind: "int", number: n, pos: t.pos, end: t.end}
 }
 
 func (p *parser) primary() *expression {
@@ -289,15 +291,15 @@ func (p *parser) primary() *expression {
 	}
 	if t.kind == "string" {
 		p.take()
-		return &expression{kind: "string", text: t.text, pos: t.pos}
+		return &expression{kind: "string", text: t.text, pos: t.pos, end: t.end}
 	}
 	if p.at("true") || p.at("false") {
 		p.take()
-		return &expression{kind: "bool", text: t.text, pos: t.pos}
+		return &expression{kind: "bool", text: t.text, pos: t.pos, end: t.end}
 	}
 	if t.kind == "name" && !Reserved(t.text) {
 		p.take()
-		x := &expression{kind: "name", text: t.text, pos: t.pos}
+		x := &expression{kind: "name", text: t.text, pos: t.pos, end: t.end}
 		if p.accept("(") {
 			x.kind = "call"
 			if !p.at(")") {
@@ -308,7 +310,7 @@ func (p *parser) primary() *expression {
 					}
 				}
 			}
-			p.require(")")
+			x.end = p.require(")").end
 		}
 		return x
 	}

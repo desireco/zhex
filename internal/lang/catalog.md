@@ -67,9 +67,11 @@ A name defined with `let` cannot be reassigned. Declare it with `var` to allow u
 
 ## assignment-type
 The new value's type differs from the variable's type. There are no implicit conversions; convert explicitly (for example `int.to-string`).
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## condition-type
 An `if` condition must be `Bool`. Comparisons return `Bool`; integers and strings do not.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## branch-type
 The branches of an `if` end in different types. Make every branch produce the same type.
@@ -82,36 +84,45 @@ Postfix `try` needs a `Result` value to unwrap. It follows a `read-line` or `tex
 
 ## unary-type
 The unary operator (`-`, `not`) received the wrong type. `-` needs `Int`; `not` needs `Bool`.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## operand-types
 A binary operator got two different operand types. If one side is a `Result`, add postfix `try` to unwrap it.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## bool-operand
 `and`/`or` need `Bool` on both sides. Comparisons produce `Bool`; integers do not.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## compare-type
 Equality comparison needs matching `Int`, `Bool`, or `String` values. If one side is a `Result`, add postfix `try` to unwrap it.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## ordering-type
 Ordering comparison (`< <= > >=`) needs `Int` operands.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## addition-type
 `+` adds two `Int`s or concatenates two `String`s — never one of each. If you meant concatenation, convert with `int.to-string` first.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## arithmetic-type
 `- * / %` need `Int` operands.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## argument-count
 A word call passed the wrong number of arguments. The message states how many the word takes.
 
 ## argument-type
 An argument's type does not match the parameter. There are no implicit conversions; convert at the call site.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## unknown-word
 No word with this name exists. The hint suggests the closest known word; check the spelling or define it.
 
 ## print-type
 `print` accepts one `Int`, `String`, or `Bool` value. If it received a `Result`, add postfix `try` to unwrap it.
+When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## range-context
 `range` exists only inside `for n in range(start, end)`. It cannot be called elsewhere.

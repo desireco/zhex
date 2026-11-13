@@ -123,6 +123,39 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 	}
 }
 
+// TestReportAddsSpanFieldsAdditively pins the additive span fields: static
+// diagnostics carry span_start_column/span_end_column; runtime diagnostics
+// must stay byte-identical (no span_ fields).
+func TestReportAddsSpanFieldsAdditively(t *testing.T) {
+	err := Run("bad.zhex", "print(1 + \"a\")\n", strings.NewReader(""), &strings.Builder{})
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	report, ok := Report(err)
+	if !ok {
+		t.Fatal("error is not a diagnostic")
+	}
+	var fields map[string]any
+	if err := json.Unmarshal([]byte(report), &fields); err != nil {
+		t.Fatalf("report is not JSON: %v", err)
+	}
+	if fields["span_start_column"] != float64(7) || fields["span_end_column"] != float64(14) {
+		t.Fatalf("wrong span fields: %s", report)
+	}
+
+	runtimeErr := Run("bad.zhex", "print(1 / 0)\n", strings.NewReader(""), &strings.Builder{})
+	if runtimeErr == nil {
+		t.Fatal("expected an error")
+	}
+	runtimeReport, ok := Report(runtimeErr)
+	if !ok {
+		t.Fatal("error is not a diagnostic")
+	}
+	if strings.Contains(runtimeReport, "span_") {
+		t.Fatalf("runtime report must not carry span fields: %s", runtimeReport)
+	}
+}
+
 func TestReportEmitsThePinnedJSONShape(t *testing.T) {
 	err := Run("bad.zhex", "print(a-b)\n", strings.NewReader(""), &strings.Builder{})
 	if err == nil {
