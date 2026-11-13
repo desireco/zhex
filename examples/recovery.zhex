@@ -1,5 +1,5 @@
 # Five fallible calls propagate ParseError to one application boundary.
-# A reporter runs when explicitly asked and for an error left unhandled.
+# The handler inspects and explicitly reports the failed parse before choosing a fallback.
 
 word report-error(problem: Error) -> Unit
     print("Reported " + error.code(problem))

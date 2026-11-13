@@ -142,6 +142,11 @@ func TestLoadExamplesRejectsNonzeroDeliberateExit(t *testing.T) {
 		if err := os.WriteFile(filename, []byte(source), 0644); err != nil {
 			t.Fatal(err)
 		}
+		for _, file := range spec.files {
+			if err := os.WriteFile(filepath.Join(filepath.Dir(filename), file), []byte("word helper() -> Int\n    1\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	if _, err := loadExamples(root); err == nil || !strings.Contains(err.Error(), "exit-status.zhex") {
 		t.Fatalf("nonzero exit error = %v", err)

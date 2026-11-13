@@ -235,20 +235,20 @@ var exampleSpecs = []struct {
 	args                          []string
 	files                         []string // labeled library files beside the entry (a module)
 }{
-	{"exit-status", "Exit status", "Handle invalid input and choose a portable process exit status.", "0\n", nil, nil},
+	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil, nil},
+	{"composition", "Composition", "Build larger operations from small typed words.", "", nil, nil},
+	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", nil, nil},
+	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", nil, nil},
+	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", nil, nil},
+	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", nil, nil},
+	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", nil, nil},
+	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", nil, nil},
+	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", []string{"examples/text-stats-sample.txt"}, nil},
+	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", nil, []string{"math.zhex"}},
 	{"records", "Named records", "Group related values in a checked named type.", "", nil, nil},
 	{"collections", "Lists and arrays", "Build and safely iterate lists and rectangular arrays.", "", nil, nil},
 	{"recovery", "Error recovery", "Propagate a parse failure, inspect it, and report a handled error.", "", nil, nil},
-	{"composition", "Composition", "Build larger operations from small typed words.", "", nil, nil},
-	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil, nil},
-	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", nil, nil},
-	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", nil, nil},
-	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", nil, nil},
-	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", nil, nil},
-	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", nil, nil},
-	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", nil, nil},
-	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", []string{"examples/text-stats-sample.txt"}, nil},
-	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", nil, []string{"math.zhex"}},
+	{"exit-status", "Exit status", "Choose a valid status; invalid input exits with status 2.", "0\n", nil, nil},
 }
 
 func main() {
