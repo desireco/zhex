@@ -186,6 +186,7 @@ const (
 	bufferType         valueType = "Buffer"
 	fileType           valueType = "File"
 	errorType          valueType = "Error"
+	neverType          valueType = "<never>"
 	intResultType      valueType = "Result<Int, InputError>"
 	stringResultType   valueType = "Result<String, InputError>"
 	intParseResultType valueType = "Result<Int, ParseError>"
@@ -198,10 +199,11 @@ const (
 )
 
 type binding struct {
-	name    string
-	typ     valueType
-	mutable bool
-	origin  string // defining word for provenance narration, e.g. read-line
+	name        string
+	typ         valueType
+	mutable     bool
+	errorFamily string // concrete Result error family for a catch binding
+	origin      string // defining word for provenance narration, e.g. read-line
 }
 
 type parameter struct {

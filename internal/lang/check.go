@@ -53,7 +53,7 @@ type checker struct {
 }
 
 var hostWords = []string{
-	"ok", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"ok", "err", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -326,7 +326,7 @@ func (c *checker) checkWords(words []*word) error {
 		if err != nil {
 			return err
 		}
-		if result != w.result {
+		if result != w.result && result != neverType {
 			return errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
 		}
 	}
@@ -409,6 +409,11 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 	switch s.kind {
 	case "expression":
 		return typ, nil
+	case "return":
+		if !isResult(c.wordResult) || typ != c.wordResult {
+			return "", errorAt(s.pos, CodeWordResult, "return requires the enclosing word's declared Result type")
+		}
+		return neverType, nil
 	case "let", "var":
 		s.binding, err = env.define(s.pos, s.name, typ, s.kind == "var")
 		if err == nil {
@@ -442,6 +447,12 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		right, err := c.block(s.otherwise, newScope(env))
 		if err != nil {
 			return "", err
+		}
+		if left == neverType {
+			return right, nil
+		}
+		if right == neverType {
+			return left, nil
 		}
 		if left != right {
 			return "", errorAt(s.pos, CodeBranchType, "branch result types must match: %s and %s", left, right)
@@ -538,12 +549,13 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if err != nil {
 				return "", err
 			}
+			x.binding.errorFamily = resultFamily(result)
 		}
 		fallback, err := c.block(x.handler, handler)
 		if err != nil {
 			return "", err
 		}
-		if fallback != inner {
+		if fallback != inner && fallback != neverType {
 			return "", errorAt(x.pos, CodeBranchType, "catch fallback must have type %s, found %s", inner, fallback)
 		}
 		typ = inner
@@ -630,6 +642,33 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			}
 			params = []valueType{inner}
 			result = c.wordResult
+		case "err":
+			if !isResult(c.wordResult) {
+				return "", errorAt(x.pos, CodeWordResult, "err requires a Result-returning word")
+			}
+			params = []valueType{errorType}
+			result = c.wordResult
+			if len(x.args) == 1 && len(args) == 1 && args[0] == errorType {
+				family := "Error"
+				if x.args[0].binding != nil && x.args[0].binding.errorFamily != "" {
+					family = x.args[0].binding.errorFamily
+				}
+				if family != resultFamily(result) {
+					return "", errorAt(x.pos, CodeWordResult, "err carries %s; declared error type is %s", family, resultFamily(result))
+				}
+			}
+		case "error.new":
+			params = []valueType{stringType, stringType}
+			result = errorType
+		case "error.wrap":
+			params = []valueType{stringType, stringType, errorType}
+			result = errorType
+		case "error.has-cause":
+			params = []valueType{errorType}
+			result = boolType
+		case "error.cause":
+			params = []valueType{errorType}
+			result = valueType("Result<Error, Error>")
 		case "error.code", "error.message", "error.operation", "error.file":
 			params = []valueType{errorType}
 			result = stringType

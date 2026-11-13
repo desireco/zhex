@@ -28,6 +28,25 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
 	case "ok":
 		return value{result: &inputResult{value: args[0]}}, nil
+	case "err":
+		return value{result: &inputResult{err: args[0].fault}}, nil
+	case "error.new":
+		d := errorAt(x.pos, Code(args[0].text), "%s", args[1].text).(*diagnostic)
+		d.operation = "error.new"
+		return value{fault: d}, nil
+	case "error.wrap":
+		cause := args[2].fault.(*diagnostic)
+		d := errorAt(cause.pos, Code(args[0].text), "%s", args[1].text).(*diagnostic)
+		d.operation, d.cause = cause.operation, cause
+		return value{fault: d}, nil
+	case "error.has-cause":
+		return value{boolean: args[0].fault.(*diagnostic).cause != nil}, nil
+	case "error.cause":
+		cause := args[0].fault.(*diagnostic).cause
+		if cause == nil {
+			return value{result: &inputResult{err: errorAt(x.pos, CodeErrorNoCause, "error has no cause")}}, nil
+		}
+		return value{result: &inputResult{value: value{fault: cause}}}, nil
 	case "error.code":
 		return value{text: string(args[0].fault.(*diagnostic).code)}, nil
 	case "error.message":

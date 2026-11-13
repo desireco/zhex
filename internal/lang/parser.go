@@ -63,7 +63,7 @@ func (p *parser) require(kind string) token {
 // Reserved reports whether name is a Zhex keyword.
 func Reserved(name string) bool {
 	switch name {
-	case "word", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "catch", "and", "or", "not", "true", "false":
+	case "word", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "catch", "return", "and", "or", "not", "true", "false":
 		return true
 	}
 	return false
@@ -175,6 +175,10 @@ func (p *parser) parseStatement() *statement {
 		s.name = p.name().text
 		p.require("=")
 		s.expr = p.statementExpression()
+	case p.accept("return"):
+		s.kind = "return"
+		s.expr = p.expression(0)
+		p.require("newline")
 	case p.at("if"):
 		return p.parseIf()
 	case p.accept("for"):

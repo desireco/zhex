@@ -83,6 +83,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		args                []string
 		resolve             func(string) (ModuleSource, bool) // set: compile main.zhex against these modules
 	}{
+		{"error-no-cause", "word fail() -> Result<Int, Error>\n    return err(error.new(\"domain\", \"message\"))\nlet n = fail() catch problem\n    let cause = error.cause(problem) try\n    0\n", "", nil, nil},
 		{"source-utf8", "\xff print(1)\n", "", nil, nil},
 		{"tab-character", "\tprint(1)\n", "", nil, nil},
 		{"indentation", "     print(1)\n", "", nil, nil},

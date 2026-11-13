@@ -36,6 +36,10 @@ type inputResult struct {
 }
 
 // propagation crosses nested blocks but is caught by the current word or runner.
+type returnValue struct{ result value }
+
+func (r *returnValue) Error() string { return "return" }
+
 type propagation struct{ cause error }
 
 func (p *propagation) Error() string { return p.cause.Error() }
@@ -124,6 +128,8 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 	switch s.kind {
 	case "expression":
 		return v, nil
+	case "return":
+		return value{}, &returnValue{result: v}
 	case "let", "var", "assign":
 		env[s.binding] = v
 		r.traceBinding(s.pos, s.binding, v)
@@ -287,6 +293,9 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		r.traceBinding(p.pos, p.binding, args[i])
 	}
 	result, err := r.block(x.word.body, env)
+	if returned, ok := err.(*returnValue); ok {
+		result, err = returned.result, nil
+	}
 	if propagated, ok := err.(*propagation); ok {
 		result = value{result: &inputResult{err: propagated.cause}}
 		err = nil

@@ -5,6 +5,9 @@ diagnostic is always `file:line:column: message`; the source excerpt, caret,
 and `hint:` line are additive detail. Machine readers use
 `zhex run <file> --report=json`.
 
+## error-no-cause
+`error.cause` was called for an Error without a cause. Check `error.has-cause` first or handle the Result.
+
 ## source-utf8
 The file is not valid UTF-8. Re-save it as UTF-8; Zhex source has no other encoding.
 
