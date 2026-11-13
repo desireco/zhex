@@ -4,17 +4,21 @@ import data from "../../data.json";
 ---
 <Base title="Examples — Zhex" description="Read, download, and run Zhex examples." current="examples">
   <main id="main" class="wrap">
-    <section class="page-intro">
+    <section class="page-intro examples-intro">
       <p class="eyebrow">The language in use</p>
       <h1>Zhex, by example.</h1>
-      <p class="lede">Each program includes its source, sample input, and output.</p>
-      <p class="aside">These examples use the current Go interpreter. Open a program to inspect how the words compose.</p>
+      <p class="lede">Read every program, see its output, and run it yourself.</p>
     </section>
 
+    <nav class="example-index" aria-label="Jump to an example">
+      <h2>Jump to an example</h2>
+      <ul>{data.Examples.map(e => <li><a href={`#${e.ID}`}>{e.Title}</a></li>)}</ul>
+    </nav>
+
     <div class="programs">
-    {data.Examples.filter(e => !["composition", "factorial"].includes(e.ID)).map(e => (
-      <details class="program" id={e.ID} open={e.ID === "hello"}>
-        <summary><span><strong>{e.Title}</strong><span>{e.Description}</span></span><span class="expand-mark" aria-hidden="true">+</span></summary>
+    {data.Examples.map(e => (
+      <section class="program" id={e.ID} aria-labelledby={`${e.ID}-title`}>
+        <header class="program-heading"><h2 id={`${e.ID}-title`}>{e.Title}</h2><p>{e.Description}</p></header>
         <div class="program-body">
           <div class="program-code">
             <div class="code-label"><span>{e.File}</span><a href={e.SourceURL} download>Download source ↓</a></div>
@@ -24,32 +28,24 @@ import data from "../../data.json";
           </div>
           <div class="program-result">
             <h3>Run</h3><pre><code>{e.Command}</code></pre>
-            <h3>Sample input</h3><pre><samp>{e.Input}</samp></pre>
+            {e.Input && <><h3>Sample input</h3><pre><samp>{e.Input}</samp></pre></>}
             <h3>Output</h3><pre><samp>{e.Output}</samp></pre>
           </div>
         </div>
-      </details>
+      </section>
     ))}
     </div>
-
-    <section class="more-examples">
-      <p class="eyebrow">Keep exploring</p>
-      <h2>Two more programs.</h2>
-      <p>Download <a href="examples/composition.zhex" download>simple composition</a> or <a href="examples/factorial.zhex" download>factorial</a> and run them with the same interpreter command.</p>
-    </section>
 
     <section class="example-notes">
       <p class="eyebrow">Language details</p>
       <h2>A few words worth knowing.</h2>
       <ul>
-        <li><code>let</code> creates an immutable value. <code>var</code> allows local updates.</li>
+        <li><code>let</code> creates an immutable binding. <code>var</code> allows rebinding.</li>
         <li><code>flow</code> passes each result to the next operation.</li>
-        <li><code>try</code> propagates a failed input operation as an error.</li>
+        <li><code>try</code> unwraps success or propagates a compatible failure.</li>
         <li>Palindrome checking preserves case, spaces, and punctuation.</li>
       </ul>
-      <a class="text-link" href="./#start">Set up the interpreter →</a>
+      <a class="text-link" href="docs/getting-started.html">Get started with Zhex →</a>
     </section>
   </main>
-
-<script>const openTarget = () => { const target = document.getElementById(location.hash.slice(1)); if (target instanceof HTMLDetailsElement) target.open = true; }; openTarget(); addEventListener('hashchange', openTarget);</script>
 </Base>

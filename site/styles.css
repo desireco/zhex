@@ -484,47 +484,15 @@ pre {
   scroll-margin-top: 2rem;
 }
 
-.program summary {
-  min-height: 96px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  padding: 1.5rem .75rem;
-  cursor: pointer;
-  list-style: none;
-  transition: background var(--transition);
-}
-
-.program summary:hover { background: var(--surface); }
-.program summary::-webkit-details-marker { display: none; }
-
-.program summary strong {
-  display: block;
-  font-family: var(--display);
-  font-size: clamp(1.7rem, 3vw, 2.5rem);
-  letter-spacing: -.03em;
-}
-
-.program summary > span:first-child { min-width: 0; }
-
-.program summary strong + span {
-  display: block;
-  margin-top: .35rem;
-  color: var(--muted);
-  font-size: 17px;
-  overflow-wrap: anywhere;
-}
-
-.expand-mark {
-  flex: 0 0 auto;
-  color: var(--accent-strong);
-  font-size: 2rem;
-  line-height: 1;
-  transition: transform var(--transition);
-}
-
-.program[open] .expand-mark { transform: rotate(45deg); }
+.examples-intro { padding-block: 3rem 2rem; }
+.examples-intro h1 { font-size: clamp(2.75rem, 6vw, 5rem); }
+.example-index { padding: 0 0 2rem; }
+.example-index h2 { margin: 0 0 .75rem; font-size: 1rem; }
+.example-index ul { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: 0; padding: 0; list-style: none; }
+.example-index a { display: inline-block; padding-block: .25rem; }
+.program-heading { padding: 2rem .75rem 1.5rem; }
+.program-heading h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); }
+.program-heading p { margin: .35rem 0 0; color: var(--muted); font-size: 17px; overflow-wrap: anywhere; }
 
 .program-body {
   display: grid;
@@ -717,16 +685,15 @@ pre {
 
   .code-window__head span:last-child { display: none; }
 
-  .program summary {
-    min-height: 0;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.25rem .25rem;
-  }
-
-  .program summary strong { font-size: 1.6rem; }
-  .program summary strong + span { font-size: 15px; line-height: 1.5; }
+  .examples-intro { padding-block: 2rem 1.5rem; }
+  .examples-intro h1 { font-size: clamp(2.5rem, 10vw, 3.5rem); }
+  .example-index ul { flex-wrap: nowrap; overflow-x: auto; }
+  .example-index a { white-space: nowrap; }
+  .program-heading { padding: 1.5rem .25rem 1rem; }
+  .program-heading h2 { font-size: 1.6rem; }
+  .program-heading p { font-size: 15px; line-height: 1.5; }
   .program-body { gap: 1.25rem; padding-inline: .25rem; }
+  .program-result { order: -1; }
   .program-result pre { margin-bottom: 1rem; }
 
   .more-examples p,

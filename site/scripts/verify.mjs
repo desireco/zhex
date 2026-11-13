@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 const read = file => readFile(`../_site/${file}`, 'utf8');
 const data = JSON.parse(await readFile('data.json', 'utf8'));
 const examples = await read('examples.html');
+const shownSources = new Set(data.Examples.flatMap(e => [e.SourceURL, ...(e.Modules || []).map(m => m.URL)]));
+for (const file of await readdir('../examples', { recursive: true })) {
+  if (file.endsWith('.zhex')) assert(shownSources.has(`examples/${file}`), `${file} must appear on the examples page`);
+}
+assert(!/<details\b/i.test(examples), 'examples must be visible without expanding');
 for (const example of data.Examples) {
   assert.equal(await read(example.SourceURL), example.Source, `${example.ID} download`);
-  if (!['composition', 'factorial'].includes(example.ID)) {
-    assert(examples.includes(`id="${example.ID}"`), `${example.ID} anchor`);
-    assert(examples.includes(example.Command), `${example.ID} command`);
-    assert(examples.includes(example.Highlighted), `${example.ID} highlighted source`);
-  }
+  assert(examples.includes(`id="${example.ID}"`), `${example.ID} anchor`);
+  assert(examples.includes(example.Command), `${example.ID} command`);
+  assert(examples.includes(example.Highlighted), `${example.ID} highlighted source`);
   for (const module of example.Modules || []) {
     assert.equal(await read(module.URL), module.Source, `${module.URL} download`);
     assert(examples.includes(module.Highlighted), `${module.URL} source`);
