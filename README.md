@@ -6,7 +6,7 @@ Zhex is an experimental **Forth-inspired language** for composing small operatio
 
 The first interpreter is written in Go. It runs real `.zhex` files with console input and output. The language is still taking shape; syntax and APIs may change.
 
-[Website and examples](https://desireco.github.io/zhex/) · [Getting started](docs/getting-started.md) · [Language reference](docs/initial-language.md) · [Roadmap](ROADMAP.md)
+[Website and examples](https://desireco.github.io/zhex/) · [Getting started](docs/getting-started.md) · [Language reference](docs/initial-language.md) · [Roadmap](ROADMAP.md) · [Project board](https://github.com/users/desireco/projects/8)
 
 ## What it looks like
 
