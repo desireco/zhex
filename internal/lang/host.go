@@ -223,5 +223,8 @@ func formatValue(v value, typ valueType) string {
 	case fileType:
 		return fmt.Sprintf("file(%q)", v.file.path)
 	}
+	if v.record != nil {
+		return fmt.Sprintf("record(%s)", v.record.name)
+	}
 	panic(fmt.Sprintf("unchecked print type %s", typ))
 }

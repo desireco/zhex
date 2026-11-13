@@ -46,6 +46,7 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 // view from the REPL's accumulated words and modules.
 type checker struct {
 	words      map[string]*word
+	records    map[string]*recordType
 	modules    map[string]*module
 	uses       []string
 	module     string // the module being checked; "" for the entry file and the REPL
@@ -153,6 +154,9 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 		}
 	}
 	c.module, c.words, c.uses = "", make(map[string]*word), useNames(p)
+	if err = c.registerRecords(p.records); err != nil {
+		return nil, annotateSource(err, sources)
+	}
 	if err = c.register(p.words); err != nil {
 		return nil, annotateSource(err, sources)
 	}
@@ -290,6 +294,9 @@ func annotateSource(err error, sources map[string]string) error {
 // replaces redefined words instead of rejecting them, so adoption collisions
 // were resolved before this runs; word bodies never see the top-level scope.
 func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
+	if err := c.registerRecords(p.records); err != nil {
+		return "", err
+	}
 	if err := c.register(p.words); err != nil {
 		return "", err
 	}
@@ -299,11 +306,73 @@ func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
 	return c.block(p.body, top)
 }
 
+func (c *checker) validType(typ valueType) bool {
+	if inner, ok := resultInner(typ); ok {
+		return c.validType(inner)
+	}
+	switch typ {
+	case intType, boolType, stringType, unitType, bufferType, fileType, errorType:
+		return true
+	}
+	return c.records[string(typ)] != nil
+}
+
+func (c *checker) registerRecords(records []*recordType) error {
+	if c.records == nil {
+		c.records = make(map[string]*recordType)
+	}
+	for _, record := range records {
+		if c.records[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
+			return errorAt(record.pos, CodeDuplicateName, "type %q is already defined", record.name)
+		}
+		c.records[record.name] = record
+	}
+	for _, record := range records {
+		fields := make(map[string]bool)
+		for _, field := range record.fields {
+			if fields[field.name] {
+				return errorAt(field.pos, CodeDuplicateName, "field %q is already defined", field.name)
+			}
+			fields[field.name] = true
+			if !c.validType(field.typ) {
+				return errorAt(field.pos, CodeUnknownType, "unknown type %q", field.typ)
+			}
+		}
+	}
+	active, done := map[string]bool{}, map[string]bool{}
+	var visit func(*recordType) error
+	visit = func(record *recordType) error {
+		if active[record.name] {
+			return errorAt(record.pos, CodeUnknownType, "recursive record type %q is not supported", record.name)
+		}
+		if done[record.name] {
+			return nil
+		}
+		active[record.name] = true
+		for _, field := range record.fields {
+			if dep := c.records[string(field.typ)]; dep != nil {
+				if err := visit(dep); err != nil {
+					return err
+				}
+			}
+		}
+		delete(active, record.name)
+		done[record.name] = true
+		return nil
+	}
+	for _, record := range records {
+		if err := visit(record); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // register adds a file's own words to the current view, rejecting
 // duplicates and host collisions.
 func (c *checker) register(words []*word) error {
 	for _, w := range words {
-		if c.words[w.name] != nil || HostWord(w.name) {
+		if c.words[w.name] != nil || c.records[w.name] != nil || HostWord(w.name) {
 			return errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
 		}
 		c.words[w.name] = w
@@ -314,6 +383,14 @@ func (c *checker) register(words []*word) error {
 // checkWords type-checks word bodies against the current file's view.
 func (c *checker) checkWords(words []*word) error {
 	for _, w := range words {
+		if !c.validType(w.result) {
+			return errorAt(w.pos, CodeUnknownType, "unknown type %q", w.result)
+		}
+		for _, param := range w.params {
+			if !c.validType(param.typ) {
+				return errorAt(param.pos, CodeUnknownType, "unknown type %q", param.typ)
+			}
+		}
 		c.wordResult = w.result
 		env := newScope(nil)
 		for i := range w.params {
@@ -458,6 +535,9 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 }
 
 func (c *checker) statement(s *statement, env *scope) (valueType, error) {
+	if s.annotation != "" && !c.validType(s.annotation) {
+		return "", errorAt(s.pos, CodeUnknownType, "unknown type %q", s.annotation)
+	}
 	typ, err := c.expression(s.expr, env)
 	if err != nil {
 		return "", err
@@ -610,6 +690,33 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	case "name":
 		x.binding = env.find(x.text)
 		if x.binding == nil {
+			parts := strings.Split(x.text, ".")
+			if len(parts) > 1 {
+				x.binding = env.find(parts[0])
+				if x.binding != nil {
+					typ := x.binding.typ
+					for _, part := range parts[1:] {
+						record := c.records[string(typ)]
+						index := -1
+						if record != nil {
+							for i, field := range record.fields {
+								if field.name == part {
+									index, typ = i, field.typ
+									break
+								}
+							}
+						}
+						if index < 0 {
+							return "", errorAt(x.pos, CodeUnknownName, "type %s has no field %q", typ, part)
+						}
+						x.fields = append(x.fields, index)
+					}
+					x.typ = typ
+					return typ, nil
+				}
+			}
+		}
+		if x.binding == nil {
 			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), nameHint(x.text, append(env.names(), c.wordNames()...))), x)
 		}
 		typ = x.binding.typ
@@ -748,7 +855,18 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 	var params []valueType
 	var result valueType
-	if w, m := c.resolveWord(x.text); w != nil {
+	if record := c.records[x.text]; record != nil {
+		for i, arg := range x.args {
+			if i < len(record.fields) && record.fields[i].typ == errorType && arg.binding != nil && arg.binding.errorFamily != "" && arg.binding.errorFamily != "Error" {
+				return "", errorAt(arg.pos, CodeArgumentType, "convert %s explicitly with error.wrap before storing it as Error", arg.binding.errorFamily)
+			}
+		}
+		x.record = record
+		result = valueType(record.name)
+		for _, field := range record.fields {
+			params = append(params, field.typ)
+		}
+	} else if w, m := c.resolveWord(x.text); w != nil {
 		if m != nil {
 			return "", withHint(withSpan(errorAt(x.pos, CodePrivateUse, "%q is private to module %q", w.name, m.name), x),
 				fmt.Sprintf("remove the leading underscore in %s to export it", m.path))

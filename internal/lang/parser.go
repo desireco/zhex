@@ -29,7 +29,9 @@ func parse(file, source string) (program *Program, err error) {
 	p := parser{tokens: tokens}
 	program = &Program{}
 	for !p.at("eof") {
-		if p.at("word") {
+		if p.at("type") {
+			program.records = append(program.records, p.parseRecord())
+		} else if p.at("word") {
 			program.words = append(program.words, p.parseWord())
 		} else if p.at("use") && p.depth == 0 {
 			program.uses = append(program.uses, p.parseUse())
@@ -63,7 +65,7 @@ func (p *parser) require(kind string) token {
 // Reserved reports whether name is a Zhex keyword.
 func Reserved(name string) bool {
 	switch name {
-	case "word", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "catch", "return", "and", "or", "not", "true", "false":
+	case "word", "type", "record", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "catch", "return", "and", "or", "not", "true", "false":
 		return true
 	}
 	return false
@@ -96,7 +98,28 @@ func (p *parser) parseType() valueType {
 	case intType, boolType, stringType, unitType, bufferType, fileType, errorType:
 		return valueType(t.text)
 	}
-	panic(errorAt(t.pos, CodeUnknownType, "unknown type %q", t.text))
+	return valueType(t.text)
+}
+
+func (p *parser) parseRecord() *recordType {
+	p.require("type")
+	name := p.name()
+	p.require("=")
+	p.require("record")
+	p.require("newline")
+	p.require("indent")
+	result := &recordType{name: name.text, pos: name.pos}
+	for !p.at("dedent") && !p.at("eof") {
+		field := p.name()
+		p.require(":")
+		result.fields = append(result.fields, parameter{name: field.text, pos: field.pos, typ: p.parseType()})
+		p.require("newline")
+	}
+	p.require("dedent")
+	if len(result.fields) == 0 {
+		panic(errorAt(name.pos, CodeEmptyBlock, "record requires at least one field"))
+	}
+	return result
 }
 
 func (p *parser) parseWord() *word {

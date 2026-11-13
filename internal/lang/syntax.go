@@ -224,6 +224,12 @@ type word struct {
 	body   []*statement
 }
 
+type recordType struct {
+	name   string
+	pos    position
+	fields []parameter
+}
+
 // A use directive imports a module: use math.
 type use struct {
 	name string
@@ -234,6 +240,7 @@ type use struct {
 // Program is a checked source file. Syntax, type checking, and execution are separate stages.
 type Program struct {
 	words   []*word
+	records []*recordType
 	uses    []use
 	body    []*statement
 	sources map[string]string // every file in the program, keyed by path, for annotated errors
@@ -252,6 +259,8 @@ type expression struct {
 	inputType   valueType
 	binding     *binding
 	word        *word
+	record      *recordType
+	fields      []int
 	handler     []*statement
 	propagate   bool
 }

@@ -18,6 +18,12 @@ type value struct {
 	fault   error
 	buffer  *bufferValue
 	file    *fileValue
+	record  *recordValue
+}
+
+type recordValue struct {
+	name   string
+	fields []value
 }
 
 // bufferValue is a pointer in value, so names alias one buffer.
@@ -254,7 +260,11 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 	case "string":
 		return value{text: x.text}, nil
 	case "name":
-		return env[x.binding], nil
+		v := env[x.binding]
+		for _, index := range x.fields {
+			v = v.record.fields[index]
+		}
+		return v, nil
 	case "call":
 		if x.text == "error.set-reporter" {
 			r.reporter = &expression{word: x.word, text: x.args[0].text, pos: x.pos, inputType: errorType}
@@ -329,6 +339,9 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 }
 
 func (r *runtime) call(x *expression, args []value) (value, error) {
+	if x.record != nil {
+		return value{record: &recordValue{name: x.record.name, fields: args}}, nil
+	}
 	if x.word == nil {
 		result, err := r.builtin(x, args)
 		if d, ok := err.(*diagnostic); ok && d.operation == "" {
