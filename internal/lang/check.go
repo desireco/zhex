@@ -322,7 +322,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		c.records = make(map[string]*recordType)
 	}
 	for _, record := range records {
-		if c.records[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
+		if c.records[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
 			return errorAt(record.pos, CodeDuplicateName, "type %q is already defined", record.name)
 		}
 		c.records[record.name] = record

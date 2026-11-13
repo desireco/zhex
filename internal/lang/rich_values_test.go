@@ -68,3 +68,23 @@ func TestRecordCanReturnThroughResultAndTrace(t *testing.T) {
 		t.Fatalf("output %q, trace %q", out.String(), trace.String())
 	}
 }
+
+func TestReplKeepsRecordDefinitions(t *testing.T) {
+	var out bytes.Buffer
+	session := NewSession(strings.NewReader(""), &out, nil, nil)
+	if _, err := session.Enter("type Customer = record\n    name: String\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Enter("let c: Customer = Customer(\"Ada\")\n"); err != nil {
+		t.Fatal(err)
+	}
+	if echo, err := session.Enter("c.name\n"); err != nil || echo != "Ada" {
+		t.Fatalf("echo %q, error %v", echo, err)
+	}
+	if _, err := session.Enter("type Broken = record\n    x: Missing\n"); err == nil {
+		t.Fatal("accepted invalid record")
+	}
+	if _, err := session.Enter("let b = Broken(1)\n"); err == nil {
+		t.Fatal("adopted invalid record")
+	}
+}

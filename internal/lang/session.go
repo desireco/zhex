@@ -25,6 +25,7 @@ type Session struct {
 	diagnostics io.Writer
 	trace       io.Writer // nil disables the JSONL step-event stream
 	scope       *scope
+	records     map[string]*recordType
 	words       map[string]*word   // own words plus adopted words under qualified names
 	modules     map[string]*module // adopted modules, keyed by use name
 	uses        []string           // the names use directives named directly; a module's own imports do not count
@@ -49,6 +50,7 @@ func NewSession(input io.Reader, output, trace io.Writer, resolve func(name stri
 		output:      output,
 		diagnostics: io.Discard,
 		trace:       trace,
+		records:     make(map[string]*recordType),
 		words:       make(map[string]*word),
 		modules:     make(map[string]*module),
 		sources:     make(map[string]string),
@@ -121,7 +123,11 @@ func (s *Session) Enter(source string) (string, error) {
 	for _, u := range fresh {
 		uses = append(uses, u.name)
 	}
-	c := checker{words: words, modules: modules, uses: uses}
+	records := make(map[string]*recordType, len(s.records)+len(p.records))
+	for name, record := range s.records {
+		records[name] = record
+	}
+	c := checker{words: words, records: records, modules: modules, uses: uses}
 	env := newScope(s.scope)
 	typ, err := c.checkProgram(p, env)
 	if err != nil {
@@ -136,7 +142,7 @@ func (s *Session) Enter(source string) (string, error) {
 		r.report(err, "unhandled", position{})
 		return "", annotateSource(err, sources)
 	}
-	s.words, s.modules, s.uses, s.sources = words, modules, uses, sources
+	s.words, s.records, s.modules, s.uses, s.sources = words, c.records, modules, uses, sources
 	s.scope = env
 	for _, name := range redefined {
 		fmt.Fprintf(s.output, "redefined %s\n", name)

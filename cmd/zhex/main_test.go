@@ -540,3 +540,12 @@ func TestConsoleFailRequiresString(t *testing.T) {
 		t.Fatalf("status %d stderr %q", status, diagnostics.String())
 	}
 }
+
+func TestReplAcceptsRecordDefinition(t *testing.T) {
+	script := "type Customer = record\n    name: String\n\nlet c: Customer = Customer(\"Ada\")\nc.name\n"
+	var out, diagnostics bytes.Buffer
+	status := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if status != 0 || diagnostics.Len() != 0 || !strings.Contains(out.String(), "Ada\n") {
+		t.Fatalf("status %d stdout %q stderr %q", status, out.String(), diagnostics.String())
+	}
+}

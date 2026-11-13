@@ -107,6 +107,9 @@ func (p *parser) parseRecord() *recordType {
 	p.require("=")
 	p.require("record")
 	p.require("newline")
+	if !p.at("indent") {
+		panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented block"))
+	}
 	p.require("indent")
 	result := &recordType{name: name.text, pos: name.pos}
 	for !p.at("dedent") && !p.at("eof") {
