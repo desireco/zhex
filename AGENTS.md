@@ -35,7 +35,7 @@ The checker validates the whole program before anything runs and reports `file:l
 - `unknown name "a-b"` — hyphenated names are single names; write `a - b` with spaces for subtraction.
 - `... does not support type Result<String, InputError>` (or any `Result` in a plain value position) — a console-read result needs postfix `try` to unwrap it (`let n = console.read-int("N: ") try`).
 
-Typos get did-you-mean suggestions drawn from the visible names and words. The research behind this and the next steps (stable codes, machine-readable output) live in `docs/error-reporting-research.md`.
+Typos get did-you-mean suggestions drawn from the visible names and words. The diagnostic contract and phased plan (stable codes, catalog, machine-readable output, dev-mode insight) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
 
 To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking happens before execution, so a clean run means types and names resolved.
 

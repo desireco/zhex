@@ -53,7 +53,7 @@ Every studied system converges on the same five moves:
 | Built-in hints for the two documented gotchas | **Adopt now** | Hyphenated names and `Result` without `try` are already the two fixes AGENTS.md teaches — move them into the tool. |
 | Stable first line `file:line:column: message` | **Keep** | Existing parsers (agents included) keep working; hints/excerpts are additive lines. |
 | Stable diagnostic codes | **Adapt (next, #17)** | Adopt when #17 lands; each diagnostic gets a `code` field and one docs section per code. |
-| Machine-readable channel (`--json`) | **Adapt (next, #17)** | Emit `{code, file, line, column, message, hint}` per diagnostic; same fields the renderer uses. |
+| Machine-readable channel (`--json`) | **Adapt (next, #17)** | Superseded in shape by `docs/diagnostics-plan.md`: `--report=text\|json` emitting one `{code, severity, file, line, column, message, hint}` object per run. |
 | Fix-its / machine-applicable patches | **Skip for now** | Zhex's hints name exact textual fixes (`a - b`, postfix `try`) which agents apply trivially; structured patches can come with the language-server roadmap item. |
 
 ## Applied slice (this ticket)

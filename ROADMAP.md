@@ -14,12 +14,13 @@ The first language milestone runs real programs with checked types and console i
 - Licensing: the repository is public and published under the MIT license.
 - Editors: syntax highlighting for Vim/Neovim, VS Code, and Zed, with installation and usage documented on the website's docs page.
 - Agents: AGENTS.md, an llms.txt site index, and agent-readable examples make Zhex easy for humans to review and AI agents to write.
+- Errors: every diagnostic points at the failing line with a caret, suggests the fix for common mistakes, and offers did-you-mean for typos, based on research into Elixir, Ruby, Swift, and Elm.
 
 ## Next
 
 Make everyday experiments quicker, then build a useful text utility. This is the proposed order; each step needs working examples and tests.
 
-- Errors: point at the failing line with a caret, suggest the fix for common mistakes, tag each diagnostic with a stable code, and emit machine-readable output for agents.
+- Errors: tag every diagnostic with a stable code, publish a documented catalog, and emit machine-readable output for agents; then widen carets to spans and narrate where values come from.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Website platform: rebuild the site on Astro, replacing the Go site builder.
 - REPL: enter multi-line words, keep definitions between entries, inspect values and signatures, and recover from errors.
@@ -36,3 +37,4 @@ These are directions to explore. Their order and implementation remain open, and
 - WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output.
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.
 - Development tools: formatting, language-server support, and published editor packages as the syntax settles.
+- Development insight: structured tracing, record-and-replay runs, debug-adapter support, and agent tools, so people and AI agents can see and debug what a program is doing (see docs/diagnostics-plan.md).
