@@ -110,6 +110,7 @@ just serve
 ## Project documents
 
 - [Getting started](docs/getting-started.md)
+- [Agent guide](AGENTS.md): writing correct Zhex and verifying changes with the test suite
 - [Language goals](docs/language-goals.md) and [first milestone](docs/first-milestone.md)
 - [Earlier design notes](docs/design-notes.md) and [reference material](docs/reference/)
 
