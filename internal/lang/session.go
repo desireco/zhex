@@ -20,16 +20,17 @@ func IsIncomplete(err error) bool {
 // Session is a REPL: an interactive run whose word definitions, top-level
 // names, values, and adopted modules survive from one entry to the next.
 type Session struct {
-	input   *bufio.Reader
-	output  io.Writer
-	trace   io.Writer // nil disables the JSONL step-event stream
-	scope   *scope
-	words   map[string]*word   // own words plus adopted words under qualified names
-	modules map[string]*module // adopted modules, keyed by use name
-	uses    []string           // the names use directives named directly; a module's own imports do not count
-	sources map[string]string  // every adopted module's text, for annotated errors
-	frame   frame
-	resolve func(name string) (ModuleSource, bool)
+	input    *bufio.Reader
+	output   io.Writer
+	trace    io.Writer // nil disables the JSONL step-event stream
+	scope    *scope
+	words    map[string]*word   // own words plus adopted words under qualified names
+	modules  map[string]*module // adopted modules, keyed by use name
+	uses     []string           // the names use directives named directly; a module's own imports do not count
+	sources  map[string]string  // every adopted module's text, for annotated errors
+	frame    frame
+	reporter *expression
+	resolve  func(name string) (ModuleSource, bool)
 }
 
 // NewSession shares input's buffer when it is already buffered, mirroring
@@ -117,10 +118,13 @@ func (s *Session) Enter(source string) (string, error) {
 		return "", annotate(err, source)
 	}
 	// A runtime per entry resets the recursion depth but keeps the session frame.
-	r := runtime{input: s.input, output: s.output, trace: s.trace}
+	r := runtime{input: s.input, output: s.output, trace: s.trace, reporter: s.reporter}
 	v, err := r.block(p.body, s.frame)
+	s.reporter = r.reporter
 	if err != nil {
-		return "", annotateSource(unwrapPropagation(err), sources)
+		err = unwrapPropagation(err)
+		r.report(err, "unhandled", position{})
+		return "", annotateSource(err, sources)
 	}
 	s.words, s.modules, s.uses, s.sources = words, modules, uses, sources
 	s.scope = env

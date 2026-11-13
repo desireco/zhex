@@ -51,10 +51,11 @@ type checker struct {
 	module     string // the module being checked; "" for the entry file and the REPL
 	wordResult valueType
 	consuming  *binding
+	blockDepth int
 }
 
 var hostWords = []string{
-	"ok", "err", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -410,6 +411,8 @@ func blockReturnsConcreteError(body []*statement) bool {
 }
 
 func (c *checker) block(body []*statement, env *scope) (valueType, error) {
+	c.blockDepth++
+	defer func() { c.blockDepth-- }()
 	typ := unitType
 	var pending *binding
 	for i, s := range body {
@@ -614,6 +617,20 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			x.binding.consumed = true
 		}
 	case "call":
+		if x.text == "error.set-reporter" {
+			if c.wordResult != "" || c.blockDepth != 1 {
+				return "", errorAt(x.pos, CodeArgumentType, "error.set-reporter is only allowed at the top level")
+			}
+			if len(x.args) != 1 || x.args[0].kind != "name" {
+				return "", errorAt(x.pos, CodeArgumentType, "error.set-reporter requires a named word")
+			}
+			w, private := c.resolveWord(x.args[0].text)
+			if w == nil || private != nil || len(w.params) != 1 || w.params[0].typ != errorType || w.result != unitType {
+				return "", errorAt(x.pos, CodeArgumentType, "reporter must be an accessible word with signature (Error) -> Unit")
+			}
+			x.word, x.typ = w, unitType
+			return unitType, nil
+		}
 		args := make([]valueType, len(x.args))
 		for i, arg := range x.args {
 			var err error
@@ -765,6 +782,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 					return "", errorAt(x.pos, CodeWordResult, "err carries %s; declared error type is %s", family, resultFamily(result))
 				}
 			}
+		case "error.report":
+			params = []valueType{errorType}
+			result = unitType
 		case "error.new":
 			params = []valueType{stringType, stringType}
 			result = errorType

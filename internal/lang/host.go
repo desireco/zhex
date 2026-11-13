@@ -34,10 +34,14 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		d := errorAt(x.pos, Code(args[0].text), "%s", args[1].text).(*diagnostic)
 		d.operation = "error.new"
 		return value{fault: d}, nil
+	case "error.report":
+		r.report(args[0].fault, "handled", x.pos)
+		return value{}, nil
 	case "error.wrap":
 		cause := args[2].fault.(*diagnostic)
 		d := errorAt(cause.pos, Code(args[0].text), "%s", args[1].text).(*diagnostic)
 		d.operation, d.cause = cause.operation, cause
+		d.occurrence = ensureOccurrence(cause)
 		return value{fault: d}, nil
 	case "error.has-cause":
 		return value{boolean: args[0].fault.(*diagnostic).cause != nil}, nil

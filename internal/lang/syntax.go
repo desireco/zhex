@@ -12,17 +12,18 @@ type position struct {
 }
 
 type diagnostic struct {
-	pos       position
-	code      Code
-	severity  string
-	message   string
-	hint      string
-	line      string
-	spanStart position
-	spanEnd   position
-	operation string
-	details   map[string]string
-	cause     *diagnostic
+	pos        position
+	code       Code
+	severity   string
+	message    string
+	hint       string
+	line       string
+	spanStart  position
+	spanEnd    position
+	operation  string
+	details    map[string]string
+	cause      *diagnostic
+	occurrence *errorOccurrence
 }
 
 // Error keeps the first line stable — file:line:column: message — so

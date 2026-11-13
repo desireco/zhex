@@ -30,6 +30,15 @@ type fileValue struct {
 	closed bool
 }
 
+type errorOccurrence struct{ reported bool }
+
+func ensureOccurrence(d *diagnostic) *errorOccurrence {
+	if d.occurrence == nil {
+		d.occurrence = &errorOccurrence{}
+	}
+	return d.occurrence
+}
+
 type inputResult struct {
 	value value
 	err   error
@@ -53,11 +62,13 @@ func unwrapPropagation(err error) error {
 type frame map[*binding]value
 
 type runtime struct {
-	input  *bufio.Reader
-	output io.Writer
-	trace  io.Writer // nil disables the JSONL step-event stream
-	depth  int
-	args   []string
+	input     *bufio.Reader
+	output    io.Writer
+	trace     io.Writer // nil disables the JSONL step-event stream
+	depth     int
+	args      []string
+	reporter  *expression
+	reporting bool
 }
 
 // Run checks a file before executing it against the supplied console streams.
@@ -105,7 +116,11 @@ func (p *Program) RunWithArgs(input io.Reader, output, trace io.Writer, args []s
 	}
 	r := runtime{input: reader, output: output, trace: trace, args: args}
 	_, err := r.block(p.body, make(frame))
-	return annotateSource(unwrapPropagation(err), p.sources)
+	err = unwrapPropagation(err)
+	if err != nil {
+		r.report(err, "unhandled", position{})
+	}
+	return annotateSource(err, p.sources)
 }
 
 func (r *runtime) block(body []*statement, env frame) (value, error) {
@@ -200,6 +215,10 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 	case "name":
 		return env[x.binding], nil
 	case "call":
+		if x.text == "error.set-reporter" {
+			r.reporter = &expression{word: x.word, text: x.args[0].text, pos: x.pos, inputType: errorType}
+			return value{}, nil
+		}
 		args := make([]value, len(x.args))
 		for i, arg := range x.args {
 			var err error
@@ -265,9 +284,13 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 func (r *runtime) call(x *expression, args []value) (value, error) {
 	if x.word == nil {
 		result, err := r.builtin(x, args)
+		if d, ok := result.fault.(*diagnostic); ok {
+			ensureOccurrence(d)
+		}
 		if result.result != nil && result.result.err != nil {
 			if d, ok := result.result.err.(*diagnostic); ok && d.operation == "" {
 				d.operation = x.text
+				ensureOccurrence(d)
 				if d.details == nil {
 					d.details = make(map[string]string)
 				}
@@ -311,6 +334,22 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 	}
 	r.traceWordReturn(x.word, result)
 	return result, nil
+}
+
+// report runs only at an explicit handled report or the terminal boundary.
+func (r *runtime) report(err error, outcome string, boundary position) {
+	d, ok := err.(*diagnostic)
+	if !ok || r.reporting || r.reporter == nil {
+		return
+	}
+	occurrence := ensureOccurrence(d)
+	if occurrence.reported {
+		return
+	}
+	occurrence.reported = true
+	r.reporting = true
+	defer func() { r.reporting = false; _ = recover() }()
+	_, _ = r.call(r.reporter, []value{{fault: d}})
 }
 
 func binary(x *expression, a, b value) (value, error) {
