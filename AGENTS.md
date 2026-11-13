@@ -41,7 +41,7 @@ To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking h
 
 ## Ticket workflow
 
-Work on tracked tickets (issues on the project board) in this order:
+File every new ticket into the board's **Inbox** bucket with no status — never straight into Todo; triage promotes Inbox cards. Work on tracked tickets (issues on the project board) in this order:
 
 1. **Analyze first.** Read the ticket and study the relevant code or docs. If the ticket is unclear or incomplete, improve it: update its title and description so it states the goal, scope, and acceptance criteria accurately.
 2. **Claim before working.** Post your plan as a comment, then move the card to In Progress. A ticket must be In Progress while anyone is working on it, so nobody else starts the same work; if nobody has claimed it, claim it before you start.

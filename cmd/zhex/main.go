@@ -26,6 +26,9 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		switch {
 		case arg == "--report=text" || arg == "--report=json":
 			report = strings.TrimPrefix(arg, "--report=")
+		case strings.HasPrefix(arg, "--report="):
+			fmt.Fprintln(diagnostics, usage)
+			return 2
 		case file == "":
 			file = arg
 		default:

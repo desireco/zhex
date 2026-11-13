@@ -36,22 +36,41 @@ func TestRunCommand(t *testing.T) {
 }
 
 func TestRunCommandReportsJSON(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "program.zhex")
-	if err := os.WriteFile(path, []byte("print(a-b)\n"), 0600); err != nil {
-		t.Fatal(err)
+	for _, tc := range []struct {
+		name, source, input, output, wantCode string
+	}{
+		{"checker error", "print(a-b)\n", "", "", "unknown-name"},
+		{"runtime error", "print(1 / 0)\n", "", "", "division-zero"},
+		{"input error", "let n = console.read-int(\"N: \") try\nprint(n)\n", "abc\n", "N: ", "console-int"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "program.zhex")
+			if err := os.WriteFile(path, []byte(tc.source), 0600); err != nil {
+				t.Fatal(err)
+			}
+			var out, diagnostics bytes.Buffer
+			code := run([]string{"run", path, "--report=json"}, strings.NewReader(tc.input), &out, &diagnostics)
+			if code != 1 || out.String() != tc.output {
+				t.Fatalf("code %d, output %q", code, out.String())
+			}
+			for _, want := range []string{`"code":"` + tc.wantCode + `"`, `"severity":"error"`, `"file":"`, `"hint":`} {
+				if !strings.Contains(diagnostics.String(), want) {
+					t.Fatalf("stderr %q misses %s", diagnostics.String(), want)
+				}
+			}
+			if strings.Count(strings.TrimSuffix(diagnostics.String(), "\n"), "\n") != 0 {
+				t.Fatalf("JSON report must be a single line: %q", diagnostics.String())
+			}
+		})
 	}
-	var out, diagnostics bytes.Buffer
-	code := run([]string{"run", path, "--report=json"}, strings.NewReader(""), &out, &diagnostics)
-	if code != 1 || out.Len() != 0 {
-		t.Fatalf("code %d, output %q", code, out.String())
-	}
-	for _, want := range []string{`"code":"unknown-name"`, `"severity":"error"`, `"file":"`, `"line":1`, `"column":7`, `"hint":`} {
-		if !strings.Contains(diagnostics.String(), want) {
-			t.Fatalf("stderr %q misses %s", diagnostics.String(), want)
+}
+
+func TestRunCommandRejectsMalformedReportFlag(t *testing.T) {
+	for _, args := range [][]string{{"run", "--report=xml"}, {"run", "a.zhex", "--report="}, {"run", "--report=json"}} {
+		var out, diagnostics bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || !strings.Contains(diagnostics.String(), "usage:") {
+			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
 		}
-	}
-	if strings.Count(strings.TrimSuffix(diagnostics.String(), "\n"), "\n") != 0 {
-		t.Fatalf("JSON report must be a single line: %q", diagnostics.String())
 	}
 }
 

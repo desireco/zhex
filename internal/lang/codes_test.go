@@ -58,6 +58,71 @@ func TestDiagnosticCodesAreSortedAndUnique(t *testing.T) {
 	}
 }
 
+// TestRaiseSitesUseTheirCodes pins which code each raise site produces, so
+// a future edit cannot swap codes at a site while catalog and tests stay
+// green. unsupported-code and console-output are internal/failure-injection
+// paths with no source-level trigger; empty-block and flow-step are
+// defensive invariants — blank and comment-only lines never emit an indent
+// token, so a parsed block always has a statement, and an empty flow would
+// otherwise check as identity. All four are covered by construction.
+
+func TestRaiseSitesUseTheirCodes(t *testing.T) {
+	for _, tc := range []struct{ code, source, input string }{
+		{"source-utf8", "\xff print(1)\n", ""},
+		{"tab-character", "\tprint(1)\n", ""},
+		{"indentation", "     print(1)\n", ""},
+		{"unterminated-string", "print(\"abc\n", ""},
+		{"string-escape", "print(\"a\\q\")\n", ""},
+		{"unexpected-character", "print(1) $\n", ""},
+		{"expected-token", "let = 1\n", ""},
+		{"expected-name", "word if(a: Int) -> Int\n    a\n", ""},
+		{"unknown-type", "word f(a: Bogus) -> Int\n    1\n", ""},
+		{"expected-indent", "if true\nprint(1)\n", ""},
+		{"nesting-limit", strings.Repeat("(", 260) + "1" + strings.Repeat(")", 260) + "\n", ""},
+		{"integer-literal-range", "print(99999999999999999999)\n", ""},
+		{"expected-expression", "let x =\n", ""},
+		{"unknown-name", "print(x)\n", ""},
+		{"duplicate-name", "let a = 1\nlet a = 2\n", ""},
+		{"duplicate-word", "word f() -> Unit\n    print(1)\nword f() -> Unit\n    print(2)\n", ""},
+		{"word-result", "word f() -> Int\n    true\n", ""},
+		{"immutable-name", "let a = 1\na = 2\n", ""},
+		{"assignment-type", "var a = 1\na = \"x\"\n", ""},
+		{"condition-type", "if 1\n    print(1)\n", ""},
+		{"branch-type", "if true\n    1\nelse\n    \"x\"\n", ""},
+		{"range-type", "for n in range(1, \"x\")\n    print(n)\n", ""},
+		{"try-input", "let x = 1 try\nprint(x)\n", ""},
+		{"unary-type", "print(not 1)\n", ""},
+		{"operand-types", "print(1 + \"a\")\n", ""},
+		{"bool-operand", "print(1 and 2)\n", ""},
+		{"compare-type", "if print(1) == print(2)\n    print(3)\n", ""},
+		{"ordering-type", "print(\"a\" < \"b\")\n", ""},
+		{"addition-type", "print(print(1) + print(2))\n", ""},
+		{"arithmetic-type", "print(true * true)\n", ""},
+		{"argument-count", "print(1, 2)\n", ""},
+		{"argument-type", "print(int.to-string(\"x\"))\n", ""},
+		{"unknown-word", "prnt(\"x\")\n", ""},
+		{"print-type", "print(print(1))\n", ""},
+		{"range-context", "let r = range(1, 2)\n", ""},
+		{"integer-overflow", "print(9223372036854775807 + 1)\n", ""},
+		{"division-zero", "print(1 / 0)\n", ""},
+		{"depth-limit", "word spin(n: Int) -> Int\n    spin(n)\nprint(spin(1))\n", ""},
+		{"console-input", "let n = console.read-int(\"N: \") try\nprint(n)\n", ""},
+		{"console-utf8", "let n = console.read-line(\"N: \") try\nprint(n)\n", "\xff\n"},
+		{"console-int", "let n = console.read-int(\"N: \") try\nprint(n)\n", "abc\n"},
+	} {
+		t.Run(tc.code, func(t *testing.T) {
+			err := Run("bad.zhex", tc.source, strings.NewReader(tc.input), &strings.Builder{})
+			if err == nil {
+				t.Fatalf("expected a %s diagnostic", tc.code)
+			}
+			report, ok := Report(err)
+			if !ok || !strings.Contains(report, `"code":"`+tc.code+`"`) {
+				t.Fatalf("wanted code %s, got %s", tc.code, report)
+			}
+		})
+	}
+}
+
 func TestReportEmitsThePinnedJSONShape(t *testing.T) {
 	err := Run("bad.zhex", "print(a-b)\n", strings.NewReader(""), &strings.Builder{})
 	if err == nil {
