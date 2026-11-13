@@ -127,6 +127,40 @@ func TestRoadmapRejectsMissingOrRenamedMilestones(t *testing.T) {
 	}
 }
 
+func TestRoadmapToleratesCRLFAndRejectsIntroBullets(t *testing.T) {
+	crlf := "# Zhex roadmap\r\n\r\nIntro.\r\n\r\n## Done\r\n\r\nBase.\r\n\r\n- Interpreter.\r\n## Next\r\n- REPL.\r\n## Future\r\n- Compilation.\r\n"
+	if _, err := loadRoadmap([]byte(crlf)); err != nil {
+		t.Fatalf("rejected CRLF roadmap: %v", err)
+	}
+	stray := "# Zhex roadmap\n\n- Stray bullet.\n## Done\n- Interpreter.\n## Next\n- REPL.\n## Future\n- Compilation.\n"
+	if _, err := loadRoadmap([]byte(stray)); err == nil || !strings.Contains(err.Error(), "outside a section") {
+		t.Fatalf("wanted outside-a-section error, got %v", err)
+	}
+}
+
+func TestBuildClearsStaleOutputButNotTheRoot(t *testing.T) {
+	root := siteFixture(t)
+	if err := build(root, "output"); err != nil {
+		t.Fatal(err)
+	}
+	stray := filepath.Join(root, "output", "stale.html")
+	if err := os.WriteFile(stray, []byte("orphan"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := build(root, "output"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Fatal("stale file from a previous build survived")
+	}
+	if err := build(root, "."); err == nil || !strings.Contains(err.Error(), "repository root") {
+		t.Fatalf("wanted repository-root guard error, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "ROADMAP.md")); err != nil {
+		t.Fatal("root guard deleted repository files")
+	}
+}
+
 func TestBuildReadsExamplesExecutesThemAndEscapesHTML(t *testing.T) {
 	root := siteFixture(t)
 	if err := build(root, "output"); err != nil {

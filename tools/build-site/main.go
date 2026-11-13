@@ -46,7 +46,7 @@ type RoadmapSection struct {
 func loadRoadmap(source []byte) (Roadmap, error) {
 	var roadmap Roadmap
 	lines := strings.Split(strings.TrimSpace(string(source)), "\n")
-	if len(lines) == 0 || lines[0] != "# Zhex roadmap" {
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "# Zhex roadmap" {
 		return roadmap, fmt.Errorf("ROADMAP.md must start with # Zhex roadmap")
 	}
 	for _, line := range lines[1:] {
@@ -58,10 +58,13 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 			roadmap.Sections = append(roadmap.Sections, RoadmapSection{Title: strings.TrimPrefix(line, "## ")})
 			continue
 		}
-		if strings.HasPrefix(line, "#") || strings.ContainsAny(line, "`*_[]<>") && !strings.HasPrefix(line, "- ") {
+		if strings.HasPrefix(line, "#") || (strings.ContainsAny(line, "`*_[]<>") && !strings.HasPrefix(line, "- ")) {
 			return roadmap, fmt.Errorf("unsupported roadmap markup: %s", line)
 		}
 		if len(roadmap.Sections) == 0 {
+			if strings.HasPrefix(line, "- ") {
+				return roadmap, fmt.Errorf("roadmap bullet outside a section: %s", line)
+			}
 			roadmap.Intro = strings.TrimSpace(roadmap.Intro + " " + line)
 			continue
 		}
@@ -293,6 +296,12 @@ func build(root, output string) error {
 	}
 	if !filepath.IsAbs(output) {
 		output = filepath.Join(root, output)
+	}
+	if output == filepath.Clean(root) {
+		return fmt.Errorf("output directory must not be the repository root")
+	}
+	if err := os.RemoveAll(output); err != nil {
+		return fmt.Errorf("clear website output: %w", err)
 	}
 	if err := os.MkdirAll(output, 0755); err != nil {
 		return fmt.Errorf("create website output: %w", err)
