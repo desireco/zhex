@@ -367,3 +367,44 @@ func TestArrayRejectsBadTypesAndRequiresHandling(t *testing.T) {
 		}
 	}
 }
+
+func TestCollectionLoopsPositionsAndMutationGuard(t *testing.T) {
+	source := "let items = [3, 4]\nlet alias = items\nfor index, item in items\n    print(index)\n    print(item)\n    list.append(alias, 9) catch problem\n        print(error.code(problem))\nlist.append(items, 5) try\nlet grid = array.new([2, 2], 7) try\nfor coords, item in grid\n    print(coords[0] try)\n    print(coords[1] try)\n    print(item)\n    (grid[0, 0] = 8) catch problem\n        print(error.code(problem))\nprint(list.length(items))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "0\n3\ncollection-iterating\n1\n4\ncollection-iterating\n0\n0\n7\ncollection-iterating\n0\n1\n7\ncollection-iterating\n1\n0\n7\ncollection-iterating\n1\n1\n7\ncollection-iterating\n3\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestCollectionLoopCoordinatesAreFreshAndGuardReleases(t *testing.T) {
+	source := "let grid = array.new([1, 2], 3) try\nlet saved: List<List<Int>> = []\nfor coords, item in grid\n    list.append(saved, coords) try\nlet first = saved[0] try\n(first[1] = 8) try\nlet second = saved[1] try\nprint(second[1] try)\n(grid[0, 0] = 4) try\nprint(grid[0, 0] try)\nlet empty = array.new([0, 2], 1) try\nfor item in empty\n    print(item)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n4\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestCollectionLoopGuardUnwindsOnReturn(t *testing.T) {
+	source := "word first(items: List<Int>) -> Result<Int, Error>\n    for item in items\n        return ok(item)\n    ok(0)\nlet items = [2]\nprint(first(items) try)\nlist.append(items, 3) try\nprint(list.length(items))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "2\n2\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestCollectionLoopTypeAndScopeChecks(t *testing.T) {
+	for _, src := range []string{"for n in 3\n    print(n)\n", "for n in [1]\n    n = 2\n", "for n in [1]\n    print(n)\nprint(n)\n", "for n, n in [1]\n    print(n)\n"} {
+		if _, err := Compile("test.zhex", src); err == nil {
+			t.Errorf("accepted %q", src)
+		}
+	}
+}

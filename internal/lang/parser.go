@@ -220,19 +220,24 @@ func (p *parser) parseStatement() *statement {
 	case p.accept("for"):
 		s.kind = "for"
 		s.name = p.name().text
+		if p.accept(",") {
+			s.secondName = p.name().text
+		}
 		p.require("in")
-		if p.accept("range") {
+		if s.secondName == "" && p.accept("range") {
 			p.require("(")
 			s.expr = p.expression(0)
 			p.require(",")
 			s.end = p.expression(0)
 			p.require(")")
-		} else {
+		} else if s.secondName == "" && p.accept("file.lines") {
 			s.kind = "for-lines"
-			p.require("file.lines")
 			p.require("(")
 			s.expr = p.expression(0)
 			p.require(")")
+		} else {
+			s.kind = "for-collection"
+			s.expr = p.expression(0)
 		}
 		s.body = p.block()
 	case p.accept("flow"):

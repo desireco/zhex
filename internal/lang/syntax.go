@@ -289,6 +289,8 @@ type statement struct {
 	kind            string
 	pos             position
 	name            string
+	secondName      string
+	secondBinding   *binding
 	annotation      valueType
 	expr, end       *expression
 	body, otherwise []*statement

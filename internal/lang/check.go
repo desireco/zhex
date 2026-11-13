@@ -780,6 +780,35 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
 		}
 		return unitType, err
+	case "for-collection":
+		kind, element, ok := collectionInner(typ)
+		if !ok {
+			return "", errorAt(s.pos, CodeRangeType, "collection loop requires a List or Array")
+		}
+		inner := newScope(env)
+		first := element
+		if s.secondName != "" {
+			if kind == "List" {
+				first = intType
+			} else {
+				first = "List<Int>"
+			}
+		}
+		s.binding, err = inner.define(s.pos, s.name, first, false)
+		if err != nil {
+			return "", err
+		}
+		if s.secondName != "" {
+			s.secondBinding, err = inner.define(s.pos, s.secondName, element, false)
+			if err != nil {
+				return "", err
+			}
+		}
+		bodyType, err := c.block(s.body, inner)
+		if err == nil && isResult(bodyType) {
+			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
+		}
+		return unitType, err
 	case "for-lines":
 		if typ != stringType {
 			return "", errorAt(s.pos, CodeRangeType, "file.lines path must have type String")

@@ -221,6 +221,40 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 				return value{}, err
 			}
 		}
+	case "for-collection":
+		var items []value
+		if v.list != nil {
+			v.list.active++
+			defer func() { v.list.active-- }()
+			items = v.list.items
+		} else {
+			v.array.active++
+			defer func() { v.array.active-- }()
+			items = v.array.items
+		}
+		for index, item := range items {
+			first := item
+			if s.secondBinding != nil {
+				if v.list != nil {
+					first = value{number: int64(index)}
+				} else {
+					coords := make([]value, len(v.array.shape))
+					n := int64(index)
+					for i := len(coords) - 1; i >= 0; i-- {
+						coords[i] = value{number: n % v.array.shape[i]}
+						n /= v.array.shape[i]
+					}
+					first = value{list: &listValue{items: coords}}
+				}
+				env[s.secondBinding] = item
+				r.traceBinding(s.pos, s.secondBinding, item)
+			}
+			env[s.binding] = first
+			r.traceBinding(s.pos, s.binding, first)
+			if _, err := r.block(s.body, env); err != nil {
+				return value{}, err
+			}
+		}
 	case "for-lines":
 		f, err := openFile(s.pos, v.text)
 		if err != nil {
