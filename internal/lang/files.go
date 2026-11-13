@@ -40,12 +40,12 @@ func chomp(line string) string {
 
 // chompedLines splits whole-file text into chomped lines for a Buffer.
 func chompedLines(text string) []string {
-	lines := strings.Split(text, "\n")
+	lines := strings.SplitAfter(text, "\n")
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
 	for i, line := range lines {
-		lines[i] = strings.TrimSuffix(line, "\r")
+		lines[i] = chomp(line)
 	}
 	return lines
 }

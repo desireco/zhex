@@ -91,6 +91,29 @@ func TestFileReadLines(t *testing.T) {
 	}
 }
 
+func TestFileLineReadersAgree(t *testing.T) {
+	for _, content := range []string{"", "\n", "one\r\n", "one\r", "\r", "one\r\ntwo\r", "one\n\n", "one\r\r\n"} {
+		t.Run(content, func(t *testing.T) {
+			path := writeFile(t, content)
+			out, err := runFile(t, "let b = file.read-lines(\""+path+"\") try\n"+
+				"let f = file.open(\""+path+"\") try\n"+
+				"var i = 0\n"+
+				"for line in file.lines(\""+path+"\")\n"+
+				"    print(line == (buffer.line(b, i) try))\n"+
+				"    print(line == (file.read-line(f) try))\n"+
+				"    i = i + 1\n"+
+				"print(i == buffer.line-count(b))\n"+
+				"file.close(f)\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(out, "false") {
+				t.Fatalf("line readers disagree for %q: %s", content, out)
+			}
+		})
+	}
+}
+
 func TestFileExplicitLayer(t *testing.T) {
 	path := writeFile(t, "first\r\nsecond\n")
 
