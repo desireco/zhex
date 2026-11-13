@@ -7,7 +7,7 @@ order: 1
 
 Build the interpreter, create `hello.zhex`, and run it from your terminal. You need Git, Go 1.23 or newer, and [`just`](https://just.systems/).
 
-## Build Zhex
+## Build and run
 
 Clone the repository, build the interpreter once, and add it to this terminal's `PATH`:
 
@@ -38,7 +38,9 @@ zhex run hello.zhex
 Hello, Zhex!
 ```
 
-Now replace the file with a word that reads a name and sends it through a flow:
+## Read the program
+
+Replace the file with a word that reads a name and sends it through a flow:
 
 ```zhex
 word greet(name: String) -> String
@@ -90,7 +92,7 @@ Hello, Ada!
 
 Words and values stay available in later entries. Press Ctrl-D to exit.
 
-## Continue learning
+## Where to go next
 
 - [Syntax](syntax.html): names, expressions, and indentation.
 - [Values](values.html): bindings, types, and operators.

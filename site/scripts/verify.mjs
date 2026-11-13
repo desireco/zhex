@@ -28,6 +28,7 @@ assert(home.includes('id="start"'), 'legacy home quickstart anchor');
 const gettingStarted = await read('docs/getting-started.html');
 assert(gettingStarted.includes('docs-nav-mobile') && gettingStarted.includes('<details'), 'mobile documentation disclosure');
 assert(gettingStarted.includes('aria-current="page"'), 'current documentation topic');
+for (const id of ['build-and-run', 'read-the-program', 'try-the-repl', 'where-to-go-next']) assert(gettingStarted.includes(`id="${id}"`), `${id} legacy tutorial anchor`);
 for (const id of ['features-title', 'modules-title', 'errors-title', 'setup-title', 'editors-title']) assert(docs.includes(`id="${id}"`), `${id} legacy anchor`);
 for (const filename of ['index.html', 'roadmap.html', 'manifesto.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
 for (const file of await (await import('node:fs/promises')).readdir('../_site/docs')) {
