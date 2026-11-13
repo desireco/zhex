@@ -27,3 +27,8 @@ word recover(value: Error) -> Result<Int, ParseError>
     ok(n)
 console.exit(0)
 console.fail("bad")
+type Customer = record
+    values: List<Int>
+let grid: Array<Int> = array.new([2, 2], 0) try
+for coordinates, value in grid
+    print(value)

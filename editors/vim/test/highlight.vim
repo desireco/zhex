@@ -23,6 +23,10 @@ function! s:Check(needle, offset, expected) abort
 endfunction
 
 call s:Check('# word', 2, 'zhexComment')
+call s:Check('type Customer', 0, 'zhexKeyword')
+call s:Check('List<Int>', 0, 'zhexType')
+call s:Check('Array<Int>', 0, 'zhexType')
+call s:Check('array.new(', 0, 'zhexBuiltin')
 call s:Check('use math', 0, 'zhexKeyword')
 call s:Check('catch problem', 0, 'zhexKeyword')
 call s:Check('return err', 0, 'zhexKeyword')
