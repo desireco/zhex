@@ -30,7 +30,7 @@ The parser expected a specific token and found something else. The message names
 A keyword appears where a name is required. `word`, `let`, `var`, `if`, and the other keywords are reserved; choose a name that is not one of them.
 
 ## unknown-type
-A type name is not one of `Int`, `Bool`, `String`, or `Unit`. Check the spelling; there are no user-defined types yet.
+A type name is not one of `Int`, `Bool`, `String`, `Unit`, `Buffer`, or `File`. Check the spelling; there are no user-defined types yet.
 
 ## expected-indent
 A construct needs an indented block on the following lines. Indent the body four spaces; parentheses do not continue a line.
@@ -77,10 +77,10 @@ When the checker can trace the value to the word that produced it, the message s
 The branches of an `if` end in different types. Make every branch produce the same type.
 
 ## range-type
-The bounds of `range(start, end)` must both be `Int`.
+The bounds of `range(start, end)` must both be `Int`; the path of `file.lines(path)` must be `String`.
 
 ## try-input
-Postfix `try` needs a `Result` value to unwrap. It follows a `read-line` or `text.to-int` call — the only operations that return a `Result`.
+Postfix `try` needs a `Result` value to unwrap. Results come from `read-line`, `text.to-int`, `console.arg`, and the buffer and file operations that can fail.
 
 ## unary-type
 The unary operator (`-`, `not`) received the wrong type. `-` needs `Int`; `not` needs `Bool`.
@@ -125,7 +125,7 @@ No word with this name exists. The hint suggests the closest known word; check t
 When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## range-context
-`range` exists only inside `for n in range(start, end)`. It cannot be called elsewhere.
+`range` and `file.lines` exist only inside a `for` loop header — `for n in range(start, end)` and `for line in file.lines(path)`. They cannot be called elsewhere.
 
 ## integer-overflow
 An arithmetic result does not fit in a signed 64-bit integer. Overflow is an error in Zhex, not a wraparound; keep intermediate values in range.
@@ -150,3 +150,21 @@ The line read from the input stream is not valid UTF-8. Zhex reads UTF-8 text; s
 
 ## text-to-int
 The text given to `text.to-int` is not a signed 64-bit decimal integer. It accepts only digits, with an optional sign; surrounding whitespace is ignored.
+
+## replace-empty
+`text.replace` was called with an empty old text. Every position matches an empty string, so there is no sane result; this is a bug signal, not a recoverable case. Pass a nonempty old text.
+
+## buffer-range
+`buffer.line` or `buffer.set-line` received an index outside the buffer's lines. The failure lives inside the `Result` and surfaces through `try`; check the index against `buffer.line-count` first.
+
+## file-open
+`file.open`, `file.read-all`, `file.read-lines`, or a `file.lines` loop could not open the path. The message names the path and the operating system's reason; check the path and its permissions.
+
+## file-read
+A read from an open file failed: the stream was drained ("end of file") or the file was closed. `file.read-line` at end of file fails inside the `Result`; to read a whole file, prefer `for line in file.lines(path)` or `file.read-lines`.
+
+## file-utf8
+A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the file as UTF-8.
+
+## argument-missing
+`console.arg` received an index outside the program's command-line arguments. The message names the index and how many arguments were given; the failure lives inside the `Result` and surfaces through `try`. Check the index against `console.args-count()`.

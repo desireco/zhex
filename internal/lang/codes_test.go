@@ -2,6 +2,8 @@ package lang
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -67,51 +69,71 @@ func TestDiagnosticCodesAreSortedAndUnique(t *testing.T) {
 // otherwise check as identity. All four are covered by construction.
 
 func TestRaiseSitesUseTheirCodes(t *testing.T) {
-	for _, tc := range []struct{ code, source, input string }{
-		{"source-utf8", "\xff print(1)\n", ""},
-		{"tab-character", "\tprint(1)\n", ""},
-		{"indentation", "     print(1)\n", ""},
-		{"unterminated-string", "print(\"abc\n", ""},
-		{"string-escape", "print(\"a\\q\")\n", ""},
-		{"unexpected-character", "print(1) $\n", ""},
-		{"expected-token", "let = 1\n", ""},
-		{"expected-name", "word if(a: Int) -> Int\n    a\n", ""},
-		{"unknown-type", "word f(a: Bogus) -> Int\n    1\n", ""},
-		{"expected-indent", "if true\nprint(1)\n", ""},
-		{"nesting-limit", strings.Repeat("(", 260) + "1" + strings.Repeat(")", 260) + "\n", ""},
-		{"integer-literal-range", "print(99999999999999999999)\n", ""},
-		{"expected-expression", "let x =\n", ""},
-		{"unknown-name", "print(x)\n", ""},
-		{"duplicate-name", "let a = 1\nlet a = 2\n", ""},
-		{"duplicate-word", "word f() -> Unit\n    print(1)\nword f() -> Unit\n    print(2)\n", ""},
-		{"word-result", "word f() -> Int\n    true\n", ""},
-		{"immutable-name", "let a = 1\na = 2\n", ""},
-		{"assignment-type", "var a = 1\na = \"x\"\n", ""},
-		{"condition-type", "if 1\n    print(1)\n", ""},
-		{"branch-type", "if true\n    1\nelse\n    \"x\"\n", ""},
-		{"range-type", "for n in range(1, \"x\")\n    print(n)\n", ""},
-		{"try-input", "let x = 1 try\nprint(x)\n", ""},
-		{"unary-type", "print(not 1)\n", ""},
-		{"operand-types", "print(1 + \"a\")\n", ""},
-		{"bool-operand", "print(1 and 2)\n", ""},
-		{"compare-type", "if print(1) == print(2)\n    print(3)\n", ""},
-		{"ordering-type", "print(\"a\" < \"b\")\n", ""},
-		{"addition-type", "print(print(1) + print(2))\n", ""},
-		{"arithmetic-type", "print(true * true)\n", ""},
-		{"argument-count", "print(1, 2)\n", ""},
-		{"argument-type", "print(int.to-string(\"x\"))\n", ""},
-		{"unknown-word", "prnt(\"x\")\n", ""},
-		{"print-type", "print(print(1))\n", ""},
-		{"range-context", "let r = range(1, 2)\n", ""},
-		{"integer-overflow", "print(9223372036854775807 + 1)\n", ""},
-		{"division-zero", "print(1 / 0)\n", ""},
-		{"depth-limit", "word spin(n: Int) -> Int\n    spin(n)\nprint(spin(1))\n", ""},
-		{"console-input", "let n = read-line(\"N: \") try\nprint(n)\n", ""},
-		{"console-utf8", "let n = read-line(\"N: \") try\nprint(n)\n", "\xff\n"},
-		{"text-to-int", "let n = text.to-int(\"abc\") try\nprint(n)\n", ""},
+	// The file codes need real fixtures: a bad-UTF-8 file and a drained one.
+	utf8Path := filepath.Join(t.TempDir(), "bad.txt")
+	if err := os.WriteFile(utf8Path, []byte{'a', 0xff}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	eofPath := filepath.Join(t.TempDir(), "empty.txt")
+	if err := os.WriteFile(eofPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		code, source, input string
+		args                []string
+	}{
+		{"source-utf8", "\xff print(1)\n", "", nil},
+		{"tab-character", "\tprint(1)\n", "", nil},
+		{"indentation", "     print(1)\n", "", nil},
+		{"unterminated-string", "print(\"abc\n", "", nil},
+		{"string-escape", "print(\"a\\q\")\n", "", nil},
+		{"unexpected-character", "print(1) $\n", "", nil},
+		{"expected-token", "let = 1\n", "", nil},
+		{"expected-name", "word if(a: Int) -> Int\n    a\n", "", nil},
+		{"unknown-type", "word f(a: Bogus) -> Int\n    1\n", "", nil},
+		{"expected-indent", "if true\nprint(1)\n", "", nil},
+		{"nesting-limit", strings.Repeat("(", 260) + "1" + strings.Repeat(")", 260) + "\n", "", nil},
+		{"integer-literal-range", "print(99999999999999999999)\n", "", nil},
+		{"expected-expression", "let x =\n", "", nil},
+		{"unknown-name", "print(x)\n", "", nil},
+		{"duplicate-name", "let a = 1\nlet a = 2\n", "", nil},
+		{"duplicate-word", "word f() -> Unit\n    print(1)\nword f() -> Unit\n    print(2)\n", "", nil},
+		{"word-result", "word f() -> Int\n    true\n", "", nil},
+		{"immutable-name", "let a = 1\na = 2\n", "", nil},
+		{"assignment-type", "var a = 1\na = \"x\"\n", "", nil},
+		{"condition-type", "if 1\n    print(1)\n", "", nil},
+		{"branch-type", "if true\n    1\nelse\n    \"x\"\n", "", nil},
+		{"range-type", "for n in range(1, \"x\")\n    print(n)\n", "", nil},
+		{"try-input", "let x = 1 try\nprint(x)\n", "", nil},
+		{"unary-type", "print(not 1)\n", "", nil},
+		{"operand-types", "print(1 + \"a\")\n", "", nil},
+		{"bool-operand", "print(1 and 2)\n", "", nil},
+		{"compare-type", "if print(1) == print(2)\n    print(3)\n", "", nil},
+		{"ordering-type", "print(\"a\" < \"b\")\n", "", nil},
+		{"addition-type", "print(print(1) + print(2))\n", "", nil},
+		{"arithmetic-type", "print(true * true)\n", "", nil},
+		{"argument-count", "print(1, 2)\n", "", nil},
+		{"argument-type", "print(int.to-string(\"x\"))\n", "", nil},
+		{"unknown-word", "prnt(\"x\")\n", "", nil},
+		{"print-type", "print(print(1))\n", "", nil},
+		{"range-context", "let r = range(1, 2)\n", "", nil},
+		{"range-context", "let x = file.lines(\"a\")\n", "", nil},
+		{"range-type", "for line in file.lines(1)\n    print(line)\n", "", nil},
+		{"integer-overflow", "print(9223372036854775807 + 1)\n", "", nil},
+		{"division-zero", "print(1 / 0)\n", "", nil},
+		{"depth-limit", "word spin(n: Int) -> Int\n    spin(n)\nprint(spin(1))\n", "", nil},
+		{"console-input", "let n = read-line(\"N: \") try\nprint(n)\n", "", nil},
+		{"console-utf8", "let n = read-line(\"N: \") try\nprint(n)\n", "\xff\n", nil},
+		{"text-to-int", "let n = text.to-int(\"abc\") try\nprint(n)\n", "", nil},
+		{"replace-empty", "print(text.replace(\"a\", \"\", \"b\"))\n", "", nil},
+		{"argument-missing", "print(console.arg(0) try)\n", "", nil},
+		{"buffer-range", "let s = buffer.line(buffer.new(), 0) try\n", "", nil},
+		{"file-open", "let t = file.read-all(\"/nonexistent-zhex\") try\n", "", nil},
+		{"file-utf8", "let t = file.read-all(\"" + utf8Path + "\") try\n", "", nil},
+		{"file-read", "let f = file.open(\"" + eofPath + "\") try\nlet l = file.read-line(f) try\n", "", nil},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
-			err := Run("bad.zhex", tc.source, strings.NewReader(tc.input), &strings.Builder{})
+			err := RunWithArgs("bad.zhex", tc.source, strings.NewReader(tc.input), &strings.Builder{}, nil, tc.args)
 			if err == nil {
 				t.Fatalf("expected a %s diagnostic", tc.code)
 			}

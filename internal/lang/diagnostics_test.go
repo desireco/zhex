@@ -47,6 +47,61 @@ func TestDiagnosticsSuggestTryForResultOperands(t *testing.T) {
 	if !strings.Contains(got, "add postfix try") {
 		t.Fatalf("missing try hint: %q", got)
 	}
+	// Every Result type earns the hint, whatever operation produced it.
+	for _, source := range []string{"print(file.open(\"x\"))\n", "print(console.arg(0))\n"} {
+		if got := runError(t, source); !strings.Contains(got, "add postfix try") {
+			t.Fatalf("missing try hint for %q: %q", source, got)
+		}
+	}
+}
+
+// TestEveryResultTypeUnwrapsRendersAndHints pins the one Result mapping from
+// three sides: resultInner maps each Result const to its success type,
+// postfix try accepts it, traceValue renders it, and the try hint fires —
+// a new const inherits all three by construction and cannot skip an arm.
+func TestEveryResultTypeUnwrapsRendersAndHints(t *testing.T) {
+	for _, tc := range []struct {
+		typ      valueType
+		producer string // empty when no host word returns the type yet
+		inner    valueType
+	}{
+		{intResultType, "", intType},
+		{stringResultType, "let x = read-line(\"\") try\n", stringType},
+		{intParseResultType, "let x = text.to-int(\"1\") try\n", intType},
+		{bufferFileResultType, "let x = file.read-lines(\"/x\") try\n", bufferType},
+		{stringBufferResultType, "let x = buffer.line(buffer.new(), 0) try\n", stringType},
+		{unitBufferResultType, "let x = buffer.set-line(buffer.new(), 0, \"a\") try\n", unitType},
+		{stringFileResultType, "let x = file.read-all(\"/x\") try\n", stringType},
+		{fileResultType, "let x = file.open(\"/x\") try\n", fileType},
+	} {
+		t.Run(string(tc.typ), func(t *testing.T) {
+			if inner, ok := resultInner(tc.typ); !ok || inner != tc.inner {
+				t.Fatalf("resultInner(%s) = (%s, %v), want (%s, true)", tc.typ, inner, ok, tc.inner)
+			}
+			if tryHint(tc.typ) == "" {
+				t.Fatalf("try hint must fire for %s", tc.typ)
+			}
+			success := value{}
+			switch tc.inner {
+			case bufferType:
+				success.buffer = &bufferValue{}
+			case fileType:
+				success.file = &fileValue{}
+			}
+			if got := traceValue(value{result: &inputResult{value: success}}, tc.typ); !strings.HasPrefix(got, "ok(") {
+				t.Fatalf("success render for %s: %q", tc.typ, got)
+			}
+			failure := value{result: &inputResult{err: errorAt(position{}, CodeUnsupportedCode, "boom")}}
+			if got := traceValue(failure, tc.typ); got != `err("boom")` {
+				t.Fatalf("failure render for %s: %q", tc.typ, got)
+			}
+			if tc.producer != "" {
+				if _, err := Compile("ok.zhex", tc.producer); err != nil {
+					t.Fatalf("try must accept %s: %v", tc.typ, err)
+				}
+			}
+		})
+	}
 }
 
 // TestProvenanceNarration pins the "; <name> comes from <origin>" suffix:
@@ -123,7 +178,7 @@ func TestCaretSpansWholeExpressions(t *testing.T) {
 			`bad.zhex:1:4: condition must have type Bool, found Result<String, InputError>`,
 			"\n       ^^^^^^^^^^^^^^"},
 		{"try input", "let x = 1 try\nprint(x)\n",
-			`bad.zhex:1:11: try requires an input Result, found Int`,
+			`bad.zhex:1:11: try requires a Result, found Int`,
 			"\n            ^^^^^"},
 	}
 	for _, tc := range cases {

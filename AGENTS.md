@@ -15,16 +15,17 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 ## Writing correct Zhex
 
 - Blocks use four spaces per indentation level; tabs outside strings are rejected. `#` starts a comment. Statements end at a newline; parentheses do not continue a line.
-- Bindings: `let name = expr` is immutable; `var name = expr` allows later `name = expr`. Types are `Int` (signed 64-bit), `Bool`, `String`, and `Unit`. There are no implicit conversions.
+- Bindings: `let name = expr` is immutable; `var name = expr` allows later `name = expr`. Types are `Int` (signed 64-bit), `Bool`, `String`, `Unit`, plus the `Buffer` and `File` resource types. There are no implicit conversions.
 - Words: `word name(param: Type, ...) -> Type` followed by an indented body. The final statement supplies the result. Call with `name(args)` or through `flow`. Words may be recursive (runtime depth limit 256).
 - Arithmetic: `+ - * / %` on integers; `+` also concatenates two strings. Division truncates toward zero; division or remainder by zero and integer overflow are language errors.
 - Comparisons: `< <= > >=` require integers; `==` and `!=` compare matching `Int`, `Bool`, or `String` values. `and`/`or` short-circuit. Precedence, low to high: `or`, `and`, `== !=`, `< <= > >=`, `+ -`, `* / %`, unary `-`/`not`, calls, postfix `try`.
 - Branching: `if`, optional `elif`, optional `else`. Conditions must be `Bool`; branch result types must match.
-- Loops: `for n in range(start, end)` — exclusive end, empty when `start >= end`; `range` exists only in this loop syntax.
+- Loops: `for n in range(start, end)` — exclusive end, empty when `start >= end`; `for line in file.lines(path)` streams a file's chomped lines and always closes the file. Both exist only in loop syntax.
 - Flows: `flow <expression>` evaluates the expression, then passes its value through one single-argument word per line; each word receives the previous result, and the last result is the flow's result. The seed can be any expression — `flow gcd(a, b)` starts from a computed value.
-- Input: `read-line(prompt)` returns `Result<String, InputError>` and `text.to-int(text)` returns `Result<Int, ParseError>`. Postfix `try` unwraps success and propagates failure — input failure exits nonzero with a diagnostic.
-- Standard operations: `print`, `range`, `int.to-string`, `text.reverse`, `read-line`, `text.to-int`.
+- Input: `read-line(prompt)` returns `Result<String, InputError>` and `text.to-int(text)` returns `Result<Int, ParseError>`. Postfix `try` unwraps success and propagates failure — input failure exits nonzero with a diagnostic. Program arguments come from `console.arg(i)` (a `Result`) and `console.args-count()`, forwarded by `zhex run <file> [args...]`.
+- Standard operations: `print`, `range`, `int.to-string`, `read-line`; `text.` words — `to-int`, `reverse`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace`; `buffer.` words — `new`, `add-line`, `line-count`, `line`, `set-line`, `to-text`; `file.` words — `read-all`, `read-lines`, `open`, `read-line`, `close`, `lines` (loops only); `console.arg`, `console.args-count`.
 - Names: ASCII letters, digits, underscores, plus hyphenated segments (`is-palindrome`). Dots qualify operation names (`int.to-string`); a dot says which type owns the verb — nothing else is dotted. Gotcha: `a-b` is a single name — write `a - b` for subtraction.
+- Buffers and files: `let` binds a `Buffer` or `File` name, not a copy — two names observe one buffer. Both are excluded from `==`/`!=` and rejected by `print` (turn a buffer into text with `buffer.to-text`); the buffer, file, and argument words that can fail return `Result`s unwrapped with `try`.
 
 REPL sessions: `zhex repl [--trace]` keeps words and values across entries. A blank line ends a multi-line entry — only a missing indented block continues, so statements never span lines. Redefining a word replaces it and prints `redefined <name>`; `let` shadows silently. `words` lists signatures, and bare expressions echo their value (`ok("...")`/`err("...")` for Results). Errors print the annotated diagnostic and the session survives; a runtime error keeps the entry's earlier effects. Ctrl-D exits 0, a final line without its newline still runs, and the `words` command shadows a user binding of that name.
 
@@ -32,10 +33,11 @@ Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seed
 
 ## Reading checker errors
 
-The checker validates the whole program before anything runs and reports `file:line:column` diagnostics, so nothing partial executes. Each diagnostic prints the source line with a caret — the caret underlines the whole failing expression, not one column — and, where a known fix exists, a `hint:` line; the first line stays stable for scripts and agents. Type mismatches narrate where a value came from, e.g. `...found Result<Int, ParseError>; m comes from text.to-int`. The two mistakes the compiler now hints itself:
+The checker validates the whole program before anything runs and reports `file:line:column` diagnostics, so nothing partial executes. Each diagnostic prints the source line with a caret — the caret underlines the whole failing expression, not one column — and, where a known fix exists, a `hint:` line; the first line stays stable for scripts and agents. Type mismatches narrate where a value came from, e.g. `...found Result<Int, ParseError>; m comes from text.to-int`. The mistakes the compiler now hints itself:
 
 - `unknown name "a-b"` — hyphenated names are single names; write `a - b` with spaces for subtraction.
 - `... does not support type Result<String, InputError>` (or any `Result` in a plain value position) — a read result needs postfix `try` to unwrap it (`let line = read-line("N: ") try`).
+- `print does not support type Buffer` — a buffer is lines, not text; convert it first (`print(buffer.to-text(b))`).
 
 Typos get did-you-mean suggestions drawn from the visible names and words. Every diagnostic carries a stable code, cataloged on the site's errors page; `zhex run <file> --report=json` emits the machine-readable report `{code, severity, file, line, column, message, hint}` for agents and tools, plus optional additive `span_start_column`/`span_end_column` — present only for checker diagnostics with a span, never for runtime ones. The diagnostic contract and phased plan (spans, provenance, tracing, replay) live in `docs/diagnostics-plan.md`, which supersedes the channel sketches in `docs/error-reporting-research.md` and older tickets.
 

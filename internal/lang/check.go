@@ -38,7 +38,14 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 
 type checker struct{ words map[string]*word }
 
-var hostWords = []string{"print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range"}
+var hostWords = []string{
+	"print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
+	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
+	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
+	"file.read-all", "file.read-lines", "file.open", "file.read-line", "file.close", "file.lines",
+	"console.arg", "console.args-count",
+}
 
 // HostWord reports whether name is a word provided by the host, not the program.
 func HostWord(name string) bool {
@@ -176,6 +183,17 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		}
 		_, err = c.block(s.body, inner)
 		return unitType, err
+	case "for-lines":
+		if typ != stringType {
+			return "", errorAt(s.pos, CodeRangeType, "file.lines path must have type String")
+		}
+		inner := newScope(env)
+		s.binding, err = inner.define(s.pos, s.name, stringType, false)
+		if err != nil {
+			return "", err
+		}
+		_, err = c.block(s.body, inner)
+		return unitType, err
 	case "flow":
 		for _, step := range s.steps {
 			typ, err = c.call(step, []valueType{typ})
@@ -218,14 +236,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
-		switch inner {
-		case intResultType, intParseResultType:
-			typ = intType
-		case stringResultType:
-			typ = stringType
-		default:
-			return "", withSpan(errorAt(x.pos, CodeTryInput, "try requires an input Result, found %s", inner), x)
+		unwrapped, ok := resultInner(inner)
+		if !ok {
+			return "", withSpan(errorAt(x.pos, CodeTryInput, "try requires a Result, found %s", inner), x)
 		}
+		typ = unwrapped
 	case "unary":
 		inner, err := c.expression(x.left, env)
 		if err != nil {
@@ -307,7 +322,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				if len(x.args) > 0 {
 					span = x.args[0]
 				}
-				return "", valueError(x.pos, span, CodePrintType, fmt.Sprintf("print does not support type %s", args[0]), tryHint(args[0]), x.args...)
+				return "", valueError(x.pos, span, CodePrintType, fmt.Sprintf("print does not support type %s", args[0]), printHint(args[0]), x.args...)
 			}
 			params = args
 			result = unitType
@@ -320,11 +335,66 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "text.to-int":
 			params = []valueType{stringType}
 			result = intParseResultType
+		case "text.length", "text.line-count", "text.word-count":
+			params = []valueType{stringType}
+			result = intType
+		case "text.upper", "text.lower", "text.trim":
+			params = []valueType{stringType}
+			result = stringType
+		case "text.contains":
+			params = []valueType{stringType, stringType}
+			result = boolType
+		case "text.index-of":
+			params = []valueType{stringType, stringType}
+			result = intType
+		case "text.slice":
+			params = []valueType{stringType, intType, intType}
+			result = stringType
+		case "text.replace":
+			params = []valueType{stringType, stringType, stringType}
+			result = stringType
+		case "buffer.new":
+			result = bufferType
+		case "buffer.add-line":
+			params = []valueType{bufferType, stringType}
+			result = unitType
+		case "buffer.line-count":
+			params = []valueType{bufferType}
+			result = intType
+		case "buffer.line":
+			params = []valueType{bufferType, intType}
+			result = stringBufferResultType
+		case "buffer.set-line":
+			params = []valueType{bufferType, intType, stringType}
+			result = unitBufferResultType
+		case "buffer.to-text":
+			params = []valueType{bufferType}
+			result = stringType
+		case "file.read-all":
+			params = []valueType{stringType}
+			result = stringFileResultType
+		case "file.read-line":
+			params = []valueType{fileType}
+			result = stringFileResultType
+		case "file.read-lines":
+			params = []valueType{stringType}
+			result = bufferFileResultType
+		case "file.open":
+			params = []valueType{stringType}
+			result = fileResultType
+		case "file.close":
+			params = []valueType{fileType}
+			result = unitType
+		case "console.arg":
+			params = []valueType{intType}
+			result = stringResultType
+		case "console.args-count":
+			result = intType
 		case "read-line":
 			params = []valueType{stringType}
 			result = stringResultType
-		case "range":
-			return "", errorAt(x.pos, CodeRangeContext, "range is only available in a for loop")
+		case "range", "file.lines":
+			return "", errorAt(x.pos, CodeRangeContext, "%s is only available in a for loop", x.text)
 		default:
 			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestHint(x.text, c.wordNames())), x)
 		}

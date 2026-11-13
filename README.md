@@ -72,7 +72,7 @@ The [example guide](docs/syntax-examples.md) records expected output and edge ca
 
 ## What works today
 
-The interpreter supports typed word definitions, named parameters, inferred local types, immutable `let` bindings, mutable `var` bindings, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, printing, integer formatting, and text reversal are built in.
+The interpreter supports typed word definitions, named parameters, inferred local types, immutable `let` bindings, mutable `var` bindings, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in.
 
 The whole file is checked before execution, including unused word bodies. Static errors do not prompt or consume input. Runtime errors report a source location; integer overflow, division by zero, invalid input, and end-of-input are handled explicitly.
 

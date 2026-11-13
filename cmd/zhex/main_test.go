@@ -161,7 +161,7 @@ func TestRunCommandRejectsMalformedTraceFlag(t *testing.T) {
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 {
 			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
 		}
-		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] | zhex repl [--trace]\n" {
+		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace]\n" {
 			t.Fatalf("usage %q", diagnostics.String())
 		}
 	}
@@ -278,8 +278,44 @@ func TestReplRejectsArguments(t *testing.T) {
 	}
 }
 
+func TestRunCommandForwardsArgs(t *testing.T) {
+	source := "print(console.args-count())\nprint(console.arg(0) try)\nprint(console.arg(1) try)\n"
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"run", path, "alpha", "beta"}, strings.NewReader(""), &out, &diagnostics)
+	if code != 0 || out.String() != "2\nalpha\nbeta\n" || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, output %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+
+	// Flags keep working alongside positional program arguments; the trace
+	// stream keeps flowing next to them.
+	tracedPath := filepath.Join(t.TempDir(), "traced.zhex")
+	if err := os.WriteFile(tracedPath, []byte("let first = console.arg(0) try\nprint(first)\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var tracedOut, tracedErr bytes.Buffer
+	code = run([]string{"run", tracedPath, "--trace", "alpha", "beta"}, strings.NewReader(""), &tracedOut, &tracedErr)
+	if code != 0 || tracedOut.String() != "alpha\n" {
+		t.Fatalf("code %d, output %q", code, tracedOut.String())
+	}
+	if !strings.Contains(tracedErr.String(), `{"event":`) {
+		t.Fatalf("missing trace events: %q", tracedErr.String())
+	}
+
+	// Unknown --flags stay usage errors, before or after positionals.
+	for _, args := range [][]string{{"run", path, "--bogus"}, {"run", path, "alpha", "--bogus"}} {
+		var out, diagnostics bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || !strings.Contains(diagnostics.String(), "usage:") {
+			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
+		}
+	}
+}
+
 func TestCommandUsage(t *testing.T) {
-	for _, args := range [][]string{nil, {"run"}, {"rep"}, {"run", "a", "b"}} {
+	for _, args := range [][]string{nil, {"run"}, {"rep"}, {"run", "--bogus", "a.zhex"}, {"run", "a.zhex", "--bogus"}} {
 		var out, diagnostics bytes.Buffer
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || !strings.Contains(diagnostics.String(), "usage:") {
 			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())

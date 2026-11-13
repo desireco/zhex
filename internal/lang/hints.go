@@ -65,13 +65,21 @@ func editDistance(a, b string) int {
 	return prev[len(b)]
 }
 
-// tryHint explains the most common type mistake: a read-line or text.to-int
-// Result reaching a position that needs a plain value.
+// tryHint explains the most common type mistake: a Result reaching a
+// position that needs a plain value. Any Result<_,_> earns the hint.
 func tryHint(types ...valueType) string {
 	for _, typ := range types {
-		if typ == intResultType || typ == intParseResultType || typ == stringResultType {
-			return `read-line and text.to-int return a Result; add postfix try to unwrap it, as in text.to-int("N: ") try`
+		if isResult(typ) {
+			return `this value is a Result; add postfix try to unwrap it, as in text.to-int("N: ") try`
 		}
 	}
 	return ""
+}
+
+// printHint names the concrete conversion for a printable-but-opaque type.
+func printHint(typ valueType) string {
+	if typ == bufferType {
+		return "a Buffer holds lines; convert it with buffer.to-text first, as in print(buffer.to-text(b))"
+	}
+	return tryHint(typ)
 }

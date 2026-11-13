@@ -10,7 +10,7 @@ import (
 	"zhex/internal/lang"
 )
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] | zhex repl [--trace]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -28,6 +28,7 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	file, report := "", "text"
 	var trace io.Writer
+	var programArgs []string
 	for _, arg := range args[1:] {
 		switch {
 		case arg == "--report=text" || arg == "--report=json":
@@ -37,11 +38,13 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			return 2
 		case arg == "--trace":
 			trace = diagnostics
+		case strings.HasPrefix(arg, "--"):
+			fmt.Fprintln(diagnostics, usage)
+			return 2
 		case file == "":
 			file = arg
 		default:
-			fmt.Fprintln(diagnostics, usage)
-			return 2
+			programArgs = append(programArgs, arg)
 		}
 	}
 	if file == "" {
@@ -50,7 +53,7 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	source, err := os.ReadFile(file)
 	if err == nil {
-		err = lang.RunWithTrace(file, string(source), input, output, trace)
+		err = lang.RunWithArgs(file, string(source), input, output, trace, programArgs)
 	}
 	if err != nil {
 		if report == "json" {

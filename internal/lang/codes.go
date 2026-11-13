@@ -61,6 +61,12 @@ const (
 	CodeConsoleInput    Code = "console-input"
 	CodeConsoleUTF8     Code = "console-utf8"
 	CodeTextToInt       Code = "text-to-int"
+	CodeReplaceEmpty    Code = "replace-empty"
+	CodeBufferRange     Code = "buffer-range"
+	CodeFileOpen        Code = "file-open"
+	CodeFileRead        Code = "file-read"
+	CodeFileUTF8        Code = "file-utf8"
+	CodeArgumentMissing Code = "argument-missing"
 )
 
 var diagnosticCodes = []Code{
@@ -72,7 +78,8 @@ var diagnosticCodes = []Code{
 	CodeCompareType, CodeOrderingType, CodeAdditionType, CodeArithmeticType, CodeArgumentCount, CodeArgumentType,
 	CodeUnknownWord, CodePrintType, CodeRangeContext,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
-	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt,
+	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
+	CodeFileOpen, CodeFileRead, CodeFileUTF8, CodeArgumentMissing,
 }
 
 //go:embed catalog.md

@@ -75,7 +75,7 @@ func (p *parser) name() token {
 func (p *parser) parseType() valueType {
 	t := p.require("name")
 	switch valueType(t.text) {
-	case intType, boolType, stringType, unitType:
+	case intType, boolType, stringType, unitType, bufferType, fileType:
 		return valueType(t.text)
 	}
 	panic(errorAt(t.pos, CodeUnknownType, "unknown type %q", t.text))
@@ -141,12 +141,19 @@ func (p *parser) parseStatement() *statement {
 		s.kind = "for"
 		s.name = p.name().text
 		p.require("in")
-		p.require("range")
-		p.require("(")
-		s.expr = p.expression(0)
-		p.require(",")
-		s.end = p.expression(0)
-		p.require(")")
+		if p.accept("range") {
+			p.require("(")
+			s.expr = p.expression(0)
+			p.require(",")
+			s.end = p.expression(0)
+			p.require(")")
+		} else {
+			s.kind = "for-lines"
+			p.require("file.lines")
+			p.require("(")
+			s.expr = p.expression(0)
+			p.require(")")
+		}
 		s.body = p.block()
 	case p.accept("flow"):
 		s.kind = "flow"

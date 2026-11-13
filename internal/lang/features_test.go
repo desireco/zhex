@@ -65,6 +65,8 @@ func TestRejectedPrograms(t *testing.T) {
 		{"flow arity", "word add(a: Int, b: Int) -> Int\n    a + b\nflow 1\n    add\n", "argument"},
 		{"try required", "let n = text.to-int(\"x\")\nprint(n + 1)\n", "type"},
 		{"invalid try", "let n = 1 try\n", "try"},
+		{"try on a Buffer", "let b = buffer.new()\nlet x = b try\n", "try requires a Result"},
+		{"buffer.new arity", "buffer.new(1)\n", "argument"},
 		{"bad range", "for n in range(\"a\", 2)\n    print(n)\n", "Int"},
 		{"range as value", "let x = range(0, 2)\n", "range"},
 		{"bad indentation", "if true\n  print(1)\n", "indent"},

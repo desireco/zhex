@@ -62,13 +62,8 @@ func (r *runtime) traceBinding(pos position, b *binding, v value) {
 // try holds a Result; those render as ok(inner) or err(message) — message
 // only, single line — per the agent-facing event vocabulary.
 func traceValue(v value, typ valueType) string {
-	var inner valueType
-	switch typ {
-	case intResultType, intParseResultType:
-		inner = intType
-	case stringResultType:
-		inner = stringType
-	default:
+	inner, ok := resultInner(typ)
+	if !ok {
 		return formatValue(v, typ)
 	}
 	if v.result.err != nil {

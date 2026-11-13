@@ -120,6 +120,16 @@ func withSpan(err error, x *expression) error {
 
 func isResult(t valueType) bool { return strings.HasPrefix(string(t), "Result<") }
 
+// resultInner maps a Result type to its success type; ok is false for
+// non-Result types. The one mapping behind try, traceValue, and the hint.
+func resultInner(t valueType) (valueType, bool) {
+	if !isResult(t) {
+		return "", false
+	}
+	inner, _, _ := strings.Cut(strings.TrimPrefix(string(t), "Result<"), ",")
+	return valueType(inner), true
+}
+
 // originOf reports the word a value's binding was defined from, for
 // provenance narration.
 func originOf(x *expression) string {
@@ -162,9 +172,17 @@ const (
 	boolType           valueType = "Bool"
 	stringType         valueType = "String"
 	unitType           valueType = "Unit"
+	bufferType         valueType = "Buffer"
+	fileType           valueType = "File"
 	intResultType      valueType = "Result<Int, InputError>"
 	stringResultType   valueType = "Result<String, InputError>"
 	intParseResultType valueType = "Result<Int, ParseError>"
+	// inputResult is the runtime repr for every Result, whatever its error type.
+	bufferFileResultType   valueType = "Result<Buffer, FileError>"
+	stringBufferResultType valueType = "Result<String, BufferError>"
+	unitBufferResultType   valueType = "Result<Unit, BufferError>"
+	stringFileResultType   valueType = "Result<String, FileError>"
+	fileResultType         valueType = "Result<File, FileError>"
 )
 
 type binding struct {

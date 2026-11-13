@@ -88,8 +88,15 @@ print(n * n)` | highlight}}</code></pre></div>
       </div>
 
       <div class="docs-feature">
+        <h3>Files, streamed and closed.</h3>
+        <p><code>for line in file.lines(path)</code> streams a file's chomped lines — the close is guaranteed on every exit. Whole-file reads exist too: <code>file.read-all</code> for text, <code>file.read-lines</code> for a <code>Buffer</code> of lines.</p>
+        <div class="command-block"><pre><code>{{`for line in file.lines("notes.txt")
+    print(text.upper(line))` | highlight}}</code></pre></div>
+      </div>
+
+      <div class="docs-feature">
         <h3>Standard operations.</h3>
-        <p>The predeclared words: <code>print</code>, <code>range</code>, <code>int.to-string</code>, <code>text.reverse</code>, <code>read-line</code>, and <code>text.to-int</code>. A dot says which type owns the verb — nothing else is dotted; the core operations are bare words. <code>+</code> adds integers and concatenates strings; there are no implicit conversions.</p>
+        <p>The predeclared words: <code>print</code>, <code>range</code>, <code>int.to-string</code>, <code>read-line</code>, and the dotted families. Text: <code>text.length</code>, <code>text.line-count</code>, <code>text.word-count</code>, <code>text.upper</code>, <code>text.lower</code>, <code>text.trim</code>, <code>text.contains</code>, <code>text.index-of</code>, <code>text.slice</code>, <code>text.replace</code>, <code>text.reverse</code>, <code>text.to-int</code>. Lines build in a <code>Buffer</code> (<code>buffer.new</code>, <code>buffer.add-line</code>, <code>buffer.line-count</code>, <code>buffer.line</code>, <code>buffer.set-line</code>, <code>buffer.to-text</code>), files read whole or streamed (<code>file.read-all</code>, <code>file.read-lines</code>, <code>file.open</code>, <code>file.read-line</code>, <code>file.close</code>), and program arguments arrive via <code>console.arg</code> and <code>console.args-count</code>. A dot says which type owns the verb — nothing else is dotted; the core operations are bare words. <code>+</code> adds integers and concatenates strings; there are no implicit conversions.</p>
       </div>
 
       <div class="docs-feature">

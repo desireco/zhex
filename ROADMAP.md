@@ -18,6 +18,7 @@ The first language milestone runs real programs with checked types and console i
 - Input: reads are bare `read-line` for text and `text.to-int` parses a string into an integer symmetric with `int.to-string`, both returning failing results unwrapped with postfix `try`.
 - Insight: `zhex run --trace` streams JSONL step events — word calls, bindings, flow steps, returns — so people and agents can watch a program run; the event vocabulary is documented in llms.txt.
 - REPL: `zhex repl` keeps words and values across entries, enters multi-line words ended by a blank line, echoes expression values, redefines words with a note, lists signatures with `words`, recovers from errors, and traces with `--trace`.
+- Vocabulary: rich text work ships — twelve `text` words, `Buffer` and `File` types with chomped-line buffers, guaranteed-close `file.lines` loops, and program arguments via `console.arg`.
 
 ## Next
 

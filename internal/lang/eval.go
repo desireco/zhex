@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"math"
+	"os"
 )
 
 type value struct {
@@ -11,6 +12,20 @@ type value struct {
 	boolean bool
 	text    string
 	result  *inputResult
+	buffer  *bufferValue
+	file    *fileValue
+}
+
+// bufferValue is a pointer in value, so names alias one buffer.
+type bufferValue struct{ lines []string }
+
+// fileValue keeps the handle so close can release it; closed makes close
+// idempotent and read-after-close a file-read failure.
+type fileValue struct {
+	path   string
+	handle *os.File
+	reader *bufio.Reader
+	closed bool
 }
 
 type inputResult struct {
@@ -25,6 +40,7 @@ type runtime struct {
 	output io.Writer
 	trace  io.Writer // nil disables the JSONL step-event stream
 	depth  int
+	args   []string
 }
 
 // Run checks a file before executing it against the supplied console streams.
@@ -35,11 +51,17 @@ func Run(file, source string, input io.Reader, output io.Writer) error {
 // RunWithTrace is Run with JSONL step events written to trace; nil trace
 // leaves the run identical to Run.
 func RunWithTrace(file, source string, input io.Reader, output, trace io.Writer) error {
+	return RunWithArgs(file, source, input, output, trace, nil)
+}
+
+// RunWithArgs is RunWithTrace with the program's command-line arguments,
+// readable through console.arg and console.args-count.
+func RunWithArgs(file, source string, input io.Reader, output, trace io.Writer, args []string) error {
 	p, err := Compile(file, source)
 	if err != nil {
 		return annotate(err, source)
 	}
-	return p.RunWithTrace(input, output, trace)
+	return p.RunWithArgs(input, output, trace, args)
 }
 
 // Run executes an already checked program with fresh local state.
@@ -49,11 +71,16 @@ func (p *Program) Run(input io.Reader, output io.Writer) error {
 
 // RunWithTrace executes like Run and writes step events to trace when non-nil.
 func (p *Program) RunWithTrace(input io.Reader, output, trace io.Writer) error {
+	return p.RunWithArgs(input, output, trace, nil)
+}
+
+// RunWithArgs executes like RunWithTrace with the program's arguments.
+func (p *Program) RunWithArgs(input io.Reader, output, trace io.Writer, args []string) error {
 	reader, ok := input.(*bufio.Reader)
 	if !ok {
 		reader = bufio.NewReader(input)
 	}
-	r := runtime{input: reader, output: output, trace: trace}
+	r := runtime{input: reader, output: output, trace: trace, args: args}
 	_, err := r.block(p.body, make(frame))
 	return annotate(err, p.source)
 }
@@ -94,6 +121,26 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 		for n := v.number; n < end.number; n++ {
 			env[s.binding] = value{number: n}
 			r.traceBinding(s.pos, s.binding, value{number: n})
+			if _, err := r.block(s.body, env); err != nil {
+				return value{}, err
+			}
+		}
+	case "for-lines":
+		f, err := openFile(s.pos, v.text)
+		if err != nil {
+			return value{}, err
+		}
+		defer f.close()
+		for {
+			line, ok, err := f.nextLine(s.pos)
+			if err != nil {
+				return value{}, err
+			}
+			if !ok {
+				return value{}, nil
+			}
+			env[s.binding] = value{text: line}
+			r.traceBinding(s.pos, s.binding, value{text: line})
 			if _, err := r.block(s.body, env); err != nil {
 				return value{}, err
 			}
