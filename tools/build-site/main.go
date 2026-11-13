@@ -188,6 +188,8 @@ var exampleSpecs = []struct{ id, title, description, input string }{
 	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n"},
 	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n"},
 	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n"},
+	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n"},
+	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n"},
 	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n"},
 	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n"},
 }

@@ -1,0 +1,10 @@
+# Print the times table for one number, from 1 to 10.
+# A bounded loop that builds each line from integers.
+
+let n = console.read-int("Table for: ") try
+
+if n < 1 or n > 12
+    print("Enter a number from 1 to 12.")
+else
+    for i in range(1, 11)
+        print(int.to-string(n) + " x " + int.to-string(i) + " = " + int.to-string(n * i))
