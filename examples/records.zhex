@@ -1,0 +1,10 @@
+# A record gives related values one checked, named type.
+type Customer = record
+    name: String
+    age: Int
+
+word customer-summary(customer: Customer) -> String
+    customer.name + ", age " + int.to-string(customer.age)
+
+let ada: Customer = Customer("Ada", 36)
+print(customer-summary(ada))

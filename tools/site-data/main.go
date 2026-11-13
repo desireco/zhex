@@ -236,6 +236,8 @@ var exampleSpecs = []struct {
 	files                         []string // labeled library files beside the entry (a module)
 }{
 	{"exit-status", "Exit status", "Handle invalid input and choose a portable process exit status.", "0\n", nil, nil},
+	{"records", "Named records", "Group related values in a checked named type.", "", nil, nil},
+	{"collections", "Lists and arrays", "Build and safely iterate lists and rectangular arrays.", "", nil, nil},
 	{"recovery", "Error recovery", "Propagate a parse failure, inspect it, and report a handled error.", "", nil, nil},
 	{"composition", "Composition", "Build larger operations from small typed words.", "", nil, nil},
 	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil, nil},

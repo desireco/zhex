@@ -1,0 +1,27 @@
+# Lists grow by append; arrays are rectangular and keep overlapping values on resize.
+let names: List<String> = ["Ada", "Grace"]
+list.append(names, "Lin") try
+print(list.length(names))
+print(names[1] try)
+
+let alias = names
+for index, name in names
+    print(int.to-string(index) + ": " + name)
+    list.append(alias, "blocked") catch problem
+        print(error.code(problem))
+
+let grid: Array<Int> = array.new([2, 3], 0) try
+(grid[0, 0] = 1) try
+(grid[0, 1] = 2) try
+(grid[0, 2] = 3) try
+(grid[1, 0] = 4) try
+(grid[1, 1] = 5) try
+(grid[1, 2] = 6) try
+for coordinates, value in grid
+    let row = coordinates[0] try
+    let column = coordinates[1] try
+    print(int.to-string(row) + "," + int.to-string(column) + ": " + int.to-string(value))
+array.resize(grid, [3, 4], 7) try
+print(grid[1, 2] try)
+print(grid[2, 3] try)
+print(array.length(grid))
