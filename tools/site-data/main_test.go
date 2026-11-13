@@ -58,9 +58,9 @@ func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n", "text-stats": "3 lines  11 words  64 chars\n", "modules/main": "First number: Second number: 30\n6\n144\n", "recovery": "Handled text-to-int\nReported text-to-int\nThe retry count must be a decimal integer; using 3.\n3\n"}
+	want := map[string]string{"composition": "32\n", "hello": "Your name: Hello, Ada!\n", "fibonacci": "Fibonacci index (0..92): 55\n", "factorial": "Factorial of (0..20): 120\n", "palindrome": "Text to check: Palindrome\n", "gcd": "First number: Second number: 6\n", "times-table": "Table for: 7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70\n", "text-stats": "3 lines  11 words  64 chars\n", "modules/main": "First number: Second number: 30\n6\n144\n", "recovery": "Handled text-to-int\nReported text-to-int\nThe retry count must be a decimal integer; using 3.\n3\n", "exit-status": "Exit status (0..255): Exiting with status 0\n"}
 	wantCommand := map[string]string{"text-stats": "zhex run examples/text-stats.zhex examples/text-stats-sample.txt", "modules/main": "zhex run examples/modules/main.zhex"}
-	if len(data.Examples) != 11 {
+	if len(data.Examples) != 12 {
 		t.Fatalf("got %d examples", len(data.Examples))
 	}
 	for _, example := range data.Examples {
@@ -125,5 +125,25 @@ func TestLoadExamplesRejectsBrokenProgram(t *testing.T) {
 	}
 	if _, err := loadExamples(root); err == nil || !strings.Contains(err.Error(), "fibonacci.zhex") {
 		t.Fatalf("broken example error = %v", err)
+	}
+}
+
+func TestLoadExamplesRejectsNonzeroDeliberateExit(t *testing.T) {
+	root := t.TempDir()
+	for _, spec := range exampleSpecs {
+		filename := filepath.Join(root, "examples", spec.id+".zhex")
+		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+			t.Fatal(err)
+		}
+		source := "print(1)\n"
+		if spec.id == "exit-status" {
+			source = "console.exit(2)\n"
+		}
+		if err := os.WriteFile(filename, []byte(source), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := loadExamples(root); err == nil || !strings.Contains(err.Error(), "exit-status.zhex") {
+		t.Fatalf("nonzero exit error = %v", err)
 	}
 }

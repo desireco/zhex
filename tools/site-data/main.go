@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"html/template"
@@ -234,6 +235,7 @@ var exampleSpecs = []struct {
 	args                          []string
 	files                         []string // labeled library files beside the entry (a module)
 }{
+	{"exit-status", "Exit status", "Handle invalid input and choose a portable process exit status.", "0\n", nil, nil},
 	{"recovery", "Error recovery", "Propagate a parse failure, inspect it, and report a handled error.", "", nil, nil},
 	{"composition", "Composition", "Build larger operations from small typed words.", "", nil, nil},
 	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", nil, nil},
@@ -304,7 +306,10 @@ func loadExamples(root string) (pageData, error) {
 			runArgs[i] = filepath.Join(root, arg)
 		}
 		if err := lang.RunWithModules(filename, string(source), strings.NewReader(spec.input), &output, nil, runArgs, resolve); err != nil {
-			return pageData{}, fmt.Errorf("run website example %s: %w", filename, err)
+			var exit *lang.ExitError
+			if !errors.As(err, &exit) || exit.Status != 0 {
+				return pageData{}, fmt.Errorf("run website example %s: %w", filename, err)
+			}
 		}
 		command := "zhex run examples/" + filename
 		for _, arg := range spec.args {

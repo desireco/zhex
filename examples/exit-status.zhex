@@ -1,0 +1,13 @@
+# Use console.exit to choose a portable process status.
+
+let line = read-line("Exit status (0..255): ") try
+let status = text.to-int(line) catch problem
+    print("Invalid status: " + error.code(problem))
+    console.exit(2)
+
+if status < 0 or status > 255
+    print("Status must be from 0 to 255.")
+    console.exit(2)
+
+print("Exiting with status " + int.to-string(status))
+console.exit(status)

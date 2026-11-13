@@ -14,8 +14,13 @@ func TestExamples(t *testing.T) {
 		name, input, want string
 		args              []string
 		wantErr           string
+		exited            bool
+		exitCode          int
 	}{
 		{name: "composition", want: "32\n"},
+		{name: "exit-status", input: "0\n", want: "Exit status (0..255): Exiting with status 0\n", exited: true, exitCode: 0},
+		{name: "exit-status", input: "oops\n", want: "Exit status (0..255): Invalid status: text-to-int\n", exited: true, exitCode: 2},
+		{name: "exit-status", input: "256\n", want: "Exit status (0..255): Status must be from 0 to 255.\n", exited: true, exitCode: 2},
 		{name: "recovery", want: "Handled text-to-int\nReported text-to-int\nThe retry count must be a decimal integer; using 3.\n3\n"},
 		{name: "hello", input: "Ada\n", want: "Your name: Hello, Ada!\n"},
 		{name: "hello", input: "\n", want: "Your name: Hello, !\n"},
@@ -77,6 +82,13 @@ func TestExamples(t *testing.T) {
 			}
 			var out bytes.Buffer
 			err = RunWithModules(path, string(src), strings.NewReader(tc.input), &out, nil, tc.args, resolve)
+			if tc.exited {
+				exit, ok := err.(*ExitError)
+				if !ok || exit.Status != tc.exitCode || out.String() != tc.want {
+					t.Fatalf("exit %v, output %q", err, out.String())
+				}
+				return
+			}
 			if tc.wantErr != "" {
 				if err == nil {
 					t.Fatalf("wanted %s diagnostic, program succeeded", tc.wantErr)
