@@ -26,7 +26,7 @@ Enter `7` and it prints `49`. A word is a function. A `flow` passes each result 
 
 ## Try it
 
-Install Go 1.23 or newer, then clone the repository. The source repository is currently private, so cloning requires access:
+Install Go 1.23 or newer, then clone the public repository:
 
 ```sh
 git clone https://github.com/desireco/zhex.git

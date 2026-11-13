@@ -2,7 +2,7 @@
 
 The repository includes syntax highlighting for `.zhex` files in Vim/Neovim, VS Code, and Zed. Themes choose the colors. The packages recognize current keywords, types, word definitions, calls, numbers, strings, escapes, and comments. They provide basic four-space indentation settings and line-comment support.
 
-These are local packages. Extension-store publication, language-server completion, live compiler diagnostics, and formatting are future work. Repository access is needed to obtain the source while it remains private.
+These are local packages. Extension-store publication, language-server completion, live compiler diagnostics, and formatting are future work. Clone the public repository to obtain the source.
 
 ## Vim and Neovim
 
@@ -63,7 +63,7 @@ just zed-prepare
 
 Run this from the repository root with Go 1.23 or newer and Git installed. Without `just`, run `go run ./tools/prepare-zed`. The command writes `dist/editors/zed` and prints its full path. In Zed, open **Extensions**, choose **Install Dev Extension**, and select that directory. Zed builds the grammar and recognizes `.zhex` files as **Zhex**. The helper changes only generated files under `dist/`; it does not modify editor settings.
 
-Zed downloads its grammar build tools when needed. See [Zed's dev-extension instructions](https://zed.dev/docs/extensions/developing-extensions) for Rust and WASI SDK requirements. If installing from `editors/zed` directly, its pinned remote grammar requires Git access to the private repository; the prepared local folder avoids that fetch.
+Zed downloads its grammar build tools when needed. See [Zed's dev-extension instructions](https://zed.dev/docs/extensions/developing-extensions) for Rust and WASI SDK requirements. If installing from `editors/zed` directly, its pinned remote grammar fetches from the GitHub repository; the prepared local folder avoids that network fetch.
 
 Zed also receives bracket matching and a word-definition outline. The editor grammar recognizes statements line by line for highlighting; the Go interpreter remains responsible for validating indentation, scope, and types.
 

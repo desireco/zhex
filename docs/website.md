@@ -29,9 +29,8 @@ Run `go test ./...` and `go vet ./...` after changes. Generator tests check sour
 
 The [Pages workflow](../.github/workflows/pages.yml) tests and builds the site on pull requests. Pushes to `main` and manual workflow runs from `main` also upload the static artifact and deploy it to the `github-pages` environment. Action versions are pinned to verified commit SHAs. The build job has read-only repository permissions; only the deployment job receives Pages and identity-token write permissions.
 
-In repository **Settings → Pages**, the build source must be **GitHub Actions**. No branch containing generated files is needed. Deployment publishes only `_site/`, including the six downloadable example programs, rather than the repository's internal planning documents or interpreter source tree. The repository's private visibility still governs access to clone commands and repository links; it does not restrict access to the published Pages site or its example downloads.
+In repository **Settings → Pages**, the build source must be **GitHub Actions**. No branch containing generated files is needed. Deployment publishes only `_site/`, including the six downloadable example programs, rather than the repository's internal planning documents or interpreter source tree. The repository is public, so clone commands and repository links work for everyone alongside the published Pages site and its example downloads.
 
-If Pages reports that the account plan does not support a private repository, keep the repository private and resolve the plan or select another hosting arrangement. Changing repository visibility is a separate decision. GitHub documents Pages availability for public repositories on Free plans and private repositories on eligible paid plans in [Using custom workflows with GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
 To update or roll back the site, push the intended source revision to `main` and let the workflow publish it. The workflow status and deployment URL are the source of truth for whether a version is live.
 
