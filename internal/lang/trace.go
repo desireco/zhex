@@ -91,7 +91,7 @@ func (r *runtime) traceWordReturn(w *word, v value) {
 	if w.module != "" {
 		name = w.module + "." + w.name
 	}
-	r.emit(valueEvent{Event: "word-return", Word: name, Value: formatValue(v, w.result), File: w.pos.file, Line: w.pos.line})
+	r.emit(valueEvent{Event: "word-return", Word: name, Value: traceValue(v, w.result), File: w.pos.file, Line: w.pos.line})
 }
 
 // qualifiedName names a call for the event stream: a module's word carries

@@ -26,6 +26,8 @@ func (r *runtime) write(pos position, text string) error {
 
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
+	case "ok":
+		return value{result: &inputResult{value: args[0]}}, nil
 	case "print":
 		text := formatValue(args[0], x.inputType)
 		return value{}, r.write(x.pos, text+"\n")

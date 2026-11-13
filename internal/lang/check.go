@@ -45,14 +45,15 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 // per file; modules stays for the whole compile. session.go builds the same
 // view from the REPL's accumulated words and modules.
 type checker struct {
-	words   map[string]*word
-	modules map[string]*module
-	uses    []string
-	module  string // the module being checked; "" for the entry file and the REPL
+	words      map[string]*word
+	modules    map[string]*module
+	uses       []string
+	module     string // the module being checked; "" for the entry file and the REPL
+	wordResult valueType
 }
 
 var hostWords = []string{
-	"print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"ok", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -311,6 +312,7 @@ func (c *checker) register(words []*word) error {
 // checkWords type-checks word bodies against the current file's view.
 func (c *checker) checkWords(words []*word) error {
 	for _, w := range words {
+		c.wordResult = w.result
 		env := newScope(nil)
 		for i := range w.params {
 			param := &w.params[i]
@@ -328,6 +330,7 @@ func (c *checker) checkWords(words []*word) error {
 			return errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
 		}
 	}
+	c.wordResult = ""
 	return nil
 }
 
@@ -593,6 +596,13 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	} else {
 		switch x.text {
+		case "ok":
+			inner, ok := resultInner(c.wordResult)
+			if !ok {
+				return "", errorAt(x.pos, CodeWordResult, "ok requires a Result-returning word")
+			}
+			params = []valueType{inner}
+			result = c.wordResult
 		case "print":
 			if len(args) != 1 {
 				return "", withSpan(errorAt(x.pos, CodeArgumentCount, "print requires 1 argument, found %d", len(args)), x)

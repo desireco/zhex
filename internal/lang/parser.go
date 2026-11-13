@@ -116,7 +116,22 @@ func (p *parser) parseWord() *word {
 	}
 	p.require(")")
 	p.require("->")
-	w.result = p.parseType()
+	if p.at("Result") {
+		p.take()
+		p.require("<")
+		inner := p.parseType()
+		p.require(",")
+		family := p.require("name")
+		switch family.text {
+		case "InputError", "ParseError", "FileError", "BufferError", "Error":
+		default:
+			panic(errorAt(family.pos, CodeUnknownType, "unknown error type %q", family.text))
+		}
+		p.require(">")
+		w.result = valueType("Result<" + string(inner) + ", " + family.text + ">")
+	} else {
+		w.result = p.parseType()
+	}
 	w.body = p.block()
 	return w
 }
