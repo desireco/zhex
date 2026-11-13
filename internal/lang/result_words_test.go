@@ -332,3 +332,27 @@ func TestLoopMayReturnResultFromWord(t *testing.T) {
 		t.Fatalf("error %v, output %q", err, out.String())
 	}
 }
+
+func TestFileFailureDetailsDescribeReadReason(t *testing.T) {
+	path := writeFile(t, string([]byte{0xff}))
+	source := "let text = file.read-all(\"" + path + "\") catch problem\n    print(error.detail(problem, \"reason\"))\n    print(error.detail(problem, \"path\"))\n    \"\"\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "invalid-utf8\n"+path+"\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+}
+
+func TestFileReadLineFailureReasons(t *testing.T) {
+	path := writeFile(t, "")
+	source := "let f = file.open(\"" + path + "\") try\nlet first = file.read-line(f) catch problem\n    print(error.detail(problem, \"reason\"))\n    \"\"\nfile.close(f)\nlet next = file.read-line(f) catch problem\n    print(error.detail(problem, \"reason\"))\n    \"\"\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "end-of-file\nclosed\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+}

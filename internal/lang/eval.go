@@ -49,7 +49,6 @@ type inputResult struct {
 	err   error
 }
 
-// propagation crosses nested blocks but is caught by the current word or runner.
 // ExitError requests a deliberate program exit; embedders choose how to apply it.
 type ExitError struct{ Status int }
 
@@ -59,6 +58,7 @@ type returnValue struct{ result value }
 
 func (r *returnValue) Error() string { return "return" }
 
+// propagation crosses nested blocks but is caught by the current word or runner.
 type propagation struct {
 	cause    error
 	boundary position
@@ -204,7 +204,6 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			if err != nil {
 				if d, ok := err.(*diagnostic); ok {
 					d.operation = "file.lines"
-					d.details = map[string]string{"path": v.text}
 				}
 				return value{}, err
 			}

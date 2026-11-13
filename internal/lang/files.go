@@ -29,6 +29,13 @@ func fileOpenError(pos position, path string, cause error) error {
 	return d
 }
 
+func fileReason(err error, path, reason string) error {
+	if d, ok := err.(*diagnostic); ok {
+		d.details = map[string]string{"path": path, "reason": reason}
+	}
+	return err
+}
+
 // readFile reads the whole file, validating UTF-8 at the boundary.
 func readFile(pos position, path string) (string, error) {
 	content, err := os.ReadFile(path)
@@ -36,7 +43,7 @@ func readFile(pos position, path string) (string, error) {
 		return "", fileOpenError(pos, path, err)
 	}
 	if !utf8.Valid(content) {
-		return "", errorAt(pos, CodeFileUTF8, "file %q is not valid UTF-8", path)
+		return "", fileReason(errorAt(pos, CodeFileUTF8, "file %q is not valid UTF-8", path), path, "invalid-utf8")
 	}
 	return string(content), nil
 }
@@ -66,18 +73,18 @@ func chompedLines(text string) []string {
 // end of file, which the for-in loop treats as normal exhaustion.
 func (f *fileValue) nextLine(pos position) (line string, ok bool, err error) {
 	if f.closed {
-		return "", false, errorAt(pos, CodeFileRead, "file %q is closed", f.path)
+		return "", false, fileReason(errorAt(pos, CodeFileRead, "file %q is closed", f.path), f.path, "closed")
 	}
 	raw, rerr := f.reader.ReadString('\n')
 	if rerr != nil && rerr != io.EOF {
-		return "", false, errorAt(pos, CodeFileRead, "reading %q failed: %v", f.path, rerr)
+		return "", false, fileReason(errorAt(pos, CodeFileRead, "reading %q failed: %v", f.path, rerr), f.path, "read-failed")
 	}
 	if rerr == io.EOF && len(raw) == 0 {
 		return "", false, nil
 	}
 	line = chomp(raw)
 	if !utf8.ValidString(line) {
-		return "", false, errorAt(pos, CodeFileUTF8, "file %q is not valid UTF-8", f.path)
+		return "", false, fileReason(errorAt(pos, CodeFileUTF8, "file %q is not valid UTF-8", f.path), f.path, "invalid-utf8")
 	}
 	return line, true, nil
 }
@@ -89,7 +96,7 @@ func (f *fileValue) readLine(pos position) value {
 		return value{result: &inputResult{err: err}}
 	}
 	if !ok {
-		return value{result: &inputResult{err: errorAt(pos, CodeFileRead, "end of file")}}
+		return value{result: &inputResult{err: fileReason(errorAt(pos, CodeFileRead, "end of file"), f.path, "end-of-file")}}
 	}
 	return value{result: &inputResult{value: value{text: line}}}
 }

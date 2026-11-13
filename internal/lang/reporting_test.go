@@ -2,6 +2,7 @@ package lang
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -102,9 +103,14 @@ func TestHostReporterFailureIsIsolated(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	err = p.RunWithOptions(strings.NewReader(""), &out, RunOptions{Reporter: func(ErrorReport) error { panic("reporter failure") }})
-	if err == nil || !strings.Contains(err.Error(), `"bad" is not a signed`) {
-		t.Fatalf("original failure changed: %v", err)
+	for _, reporter := range []func(ErrorReport) error{
+		func(ErrorReport) error { panic("reporter failure") },
+		func(ErrorReport) error { return errors.New("reporter failure") },
+	} {
+		err = p.RunWithOptions(strings.NewReader(""), &out, RunOptions{Reporter: reporter})
+		if err == nil || !strings.Contains(err.Error(), `"bad" is not a signed`) {
+			t.Fatalf("original failure changed: %v", err)
+		}
 	}
 }
 
