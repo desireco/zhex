@@ -434,3 +434,35 @@ func TestArrayErrorDetailsAndOrigin(t *testing.T) {
 		t.Fatalf("output %q", out.String())
 	}
 }
+
+func TestNestedCollectionLoopsHoldGuardUntilOuterEnds(t *testing.T) {
+	source := "let xs = [1]\nfor x in xs\n    for y in xs\n        print(y)\n    list.append(xs, 2) catch problem\n        print(error.code(problem))\nlist.append(xs, 3) try\nprint(list.length(xs))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\ncollection-iterating\n2\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestCollectionGuardUnwindsAfterFailuresAndExits(t *testing.T) {
+	for _, body := range []string{"print(1 / 0)", "console.exit(3)", "console.fail(\"done\")", "list.append(xs, 2) try"} {
+		t.Run(body, func(t *testing.T) {
+			var out bytes.Buffer
+			session := NewSession(strings.NewReader(""), &out, nil, nil)
+			if _, err := session.Enter("let xs = [1]\n"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := session.Enter("for x in xs\n    " + body + "\n"); err == nil {
+				t.Fatal("expected unwinding")
+			}
+			if _, err := session.Enter("list.append(xs, 3) try\n"); err != nil {
+				t.Fatalf("guard remained active: %v", err)
+			}
+			if echo, err := session.Enter("list.length(xs)\n"); err != nil || echo != "2" {
+				t.Fatalf("length %q, error %v", echo, err)
+			}
+		})
+	}
+}
