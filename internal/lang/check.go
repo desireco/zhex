@@ -443,7 +443,7 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 		if isResult(typ) {
 			constructor := s.kind == "expression" && s.expr.kind == "call" && (s.expr.text == "ok" || s.expr.text == "err")
 			flowConstructor := s.kind == "flow" && len(s.steps) > 0 && s.steps[len(s.steps)-1].text == "ok"
-			if i != len(body)-1 || !isResult(c.wordResult) || !(constructor || flowConstructor) {
+			if i != len(body)-1 || !isResult(c.wordResult) || !(constructor || flowConstructor || s.kind == "if") {
 				return "", withHint(errorAt(s.pos, CodeUnhandledResult, "Result must be handled or propagated"), "use try or catch")
 			}
 		}

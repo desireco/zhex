@@ -301,3 +301,14 @@ func TestResultsMustBeHandledImmediately(t *testing.T) {
 		t.Fatalf("valid stored Result: %v, %q", err, out.String())
 	}
 }
+
+func TestResultWordCanConstructResultInBothBranches(t *testing.T) {
+	source := "word validate(n: Int) -> Result<Int, Error>\n    if n > 0\n        ok(n)\n    else\n        err(error.new(\"invalid\", \"invalid\"))\nprint(validate(2) try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "2\n" {
+		t.Fatalf("output = %q", out.String())
+	}
+}
