@@ -30,7 +30,7 @@ type runtime struct {
 func Run(file, source string, input io.Reader, output io.Writer) error {
 	p, err := Compile(file, source)
 	if err != nil {
-		return err
+		return annotate(err, source)
 	}
 	return p.Run(input, output)
 }
@@ -43,7 +43,7 @@ func (p *Program) Run(input io.Reader, output io.Writer) error {
 	}
 	r := runtime{input: reader, output: output}
 	_, err := r.block(p.body, make(frame))
-	return err
+	return annotate(err, p.source)
 }
 
 func (r *runtime) block(body []*statement, env frame) (value, error) {

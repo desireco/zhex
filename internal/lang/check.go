@@ -16,6 +16,15 @@ func (s *scope) find(name string) *binding {
 	}
 	return nil
 }
+func (s *scope) names() []string {
+	var out []string
+	for current := s; current != nil; current = current.parent {
+		for name := range current.bindings {
+			out = append(out, name)
+		}
+	}
+	return out
+}
 func (s *scope) define(pos position, name string, typ valueType, mutable bool) (*binding, error) {
 	if s.bindings[name] != nil {
 		return nil, errorAt(pos, "name %q is already defined in this scope", name)
@@ -27,13 +36,24 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 
 type checker struct{ words map[string]*word }
 
+var hostWords = []string{"print", "int.to-string", "text.reverse", "console.read-int", "console.read-line", "range"}
+
 // HostWord reports whether name is a word provided by the host, not the program.
 func HostWord(name string) bool {
-	switch name {
-	case "print", "int.to-string", "text.reverse", "console.read-int", "console.read-line", "range":
-		return true
+	for _, word := range hostWords {
+		if word == name {
+			return true
+		}
 	}
 	return false
+}
+
+func (c *checker) wordNames() []string {
+	names := append([]string{}, hostWords...)
+	for name := range c.words {
+		names = append(names, name)
+	}
+	return names
 }
 
 // Compile parses and checks every word before the program can perform any I/O.
@@ -42,6 +62,7 @@ func Compile(file, source string) (*Program, error) {
 	if err != nil {
 		return nil, err
 	}
+	p.source = source
 	c := checker{words: make(map[string]*word)}
 	for _, w := range p.words {
 		if c.words[w.name] != nil || HostWord(w.name) {
@@ -98,7 +119,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 	case "assign":
 		s.binding = env.find(s.name)
 		if s.binding == nil {
-			return "", errorAt(s.pos, "unknown name %q", s.name)
+			return "", withHint(errorAt(s.pos, "unknown name %q", s.name), nameHint(s.name, append(env.names(), c.wordNames()...)))
 		}
 		if !s.binding.mutable {
 			return "", errorAt(s.pos, "cannot assign to immutable name %q", s.name)
@@ -109,7 +130,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		return unitType, nil
 	case "if":
 		if typ != boolType {
-			return "", errorAt(s.expr.pos, "condition must have type Bool, found %s", typ)
+			return "", withHint(errorAt(s.expr.pos, "condition must have type Bool, found %s", typ), tryHint(typ))
 		}
 		left, err := c.block(s.body, newScope(env))
 		if err != nil {
@@ -162,7 +183,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	case "name":
 		x.binding = env.find(x.text)
 		if x.binding == nil {
-			return "", errorAt(x.pos, "unknown name %q", x.text)
+			return "", withHint(errorAt(x.pos, "unknown name %q", x.text), nameHint(x.text, append(env.names(), c.wordNames()...)))
 		}
 		typ = x.binding.typ
 	case "call":
@@ -198,7 +219,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			typ = boolType
 		}
 		if inner != typ {
-			return "", errorAt(x.pos, "operator %q requires type %s, found %s", x.text, typ, inner)
+			return "", withHint(errorAt(x.pos, "operator %q requires type %s, found %s", x.text, typ, inner), tryHint(inner))
 		}
 	case "binary":
 		left, err := c.expression(x.left, env)
@@ -210,31 +231,31 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", err
 		}
 		if left != right {
-			return "", errorAt(x.pos, "operator %q has incompatible operand types %s and %s", x.text, left, right)
+			return "", withHint(errorAt(x.pos, "operator %q has incompatible operand types %s and %s", x.text, left, right), tryHint(left, right))
 		}
 		typ = left
 		switch x.text {
 		case "and", "or":
 			if left != boolType {
-				return "", errorAt(x.pos, "operator %q requires type Bool", x.text)
+				return "", withHint(errorAt(x.pos, "operator %q requires type Bool", x.text), tryHint(left))
 			}
 		case "==", "!=":
 			if left != intType && left != stringType && left != boolType {
-				return "", errorAt(x.pos, "cannot compare type %s", left)
+				return "", withHint(errorAt(x.pos, "cannot compare type %s", left), tryHint(left))
 			}
 			typ = boolType
 		case "<", "<=", ">", ">=":
 			if left != intType {
-				return "", errorAt(x.pos, "ordering requires type Int")
+				return "", withHint(errorAt(x.pos, "ordering requires type Int"), tryHint(left))
 			}
 			typ = boolType
 		case "+":
 			if left != intType && left != stringType {
-				return "", errorAt(x.pos, "addition requires type Int or String")
+				return "", withHint(errorAt(x.pos, "addition requires type Int or String"), tryHint(left))
 			}
 		default:
 			if left != intType {
-				return "", errorAt(x.pos, "arithmetic requires type Int")
+				return "", withHint(errorAt(x.pos, "arithmetic requires type Int"), tryHint(left))
 			}
 		}
 	default:
@@ -260,7 +281,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				return "", errorAt(x.pos, "print requires 1 argument, found %d", len(args))
 			}
 			if args[0] != intType && args[0] != stringType && args[0] != boolType {
-				return "", errorAt(x.pos, "print does not support type %s", args[0])
+				return "", withHint(errorAt(x.pos, "print does not support type %s", args[0]), tryHint(args[0]))
 			}
 			params = args
 			result = unitType
@@ -279,7 +300,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "range":
 			return "", errorAt(x.pos, "range is only available in a for loop")
 		default:
-			return "", errorAt(x.pos, "unknown word %q", x.text)
+			return "", withHint(errorAt(x.pos, "unknown word %q", x.text), suggestHint(x.text, c.wordNames()))
 		}
 	}
 	if len(args) != len(params) {
@@ -287,7 +308,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 	}
 	for i, typ := range args {
 		if typ != params[i] {
-			return "", errorAt(x.pos, "argument %d of %s requires type %s, found %s", i+1, x.text, params[i], typ)
+			return "", withHint(errorAt(x.pos, "argument %d of %s requires type %s, found %s", i+1, x.text, params[i], typ), tryHint(typ))
 		}
 	}
 	x.typ = result

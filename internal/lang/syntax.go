@@ -1,6 +1,9 @@
 package lang
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type position struct {
 	file         string
@@ -10,14 +13,46 @@ type position struct {
 type diagnostic struct {
 	pos     position
 	message string
+	hint    string
+	line    string
 }
 
+// Error keeps the first line stable — file:line:column: message — so
+// scripts and agents parsing it keep working; the source excerpt with a
+// caret and the hint are additive lines.
 func (d *diagnostic) Error() string {
-	return fmt.Sprintf("%s:%d:%d: %s", d.pos.file, d.pos.line, d.pos.column, d.message)
+	out := fmt.Sprintf("%s:%d:%d: %s", d.pos.file, d.pos.line, d.pos.column, d.message)
+	if d.line != "" {
+		out += "\n    " + d.line + "\n    " + strings.Repeat(" ", d.pos.column-1) + "^"
+	}
+	if d.hint != "" {
+		out += "\nhint: " + d.hint
+	}
+	return out
 }
 
 func errorAt(pos position, format string, args ...any) error {
-	return &diagnostic{pos, fmt.Sprintf(format, args...)}
+	return &diagnostic{pos: pos, message: fmt.Sprintf(format, args...)}
+}
+
+// annotate attaches the source line so Error can point at the mistake.
+func annotate(err error, source string) error {
+	d, ok := err.(*diagnostic)
+	if !ok || d.line != "" {
+		return err
+	}
+	lines := strings.Split(source, "\n")
+	if d.pos.line >= 1 && d.pos.line <= len(lines) {
+		d.line = strings.TrimSuffix(lines[d.pos.line-1], "\r")
+	}
+	return d
+}
+
+func withHint(err error, hint string) error {
+	if d, ok := err.(*diagnostic); ok && hint != "" {
+		d.hint = hint
+	}
+	return err
 }
 
 type valueType string
@@ -54,8 +89,9 @@ type word struct {
 
 // Program is a checked source file. Syntax, type checking, and execution are separate stages.
 type Program struct {
-	words []*word
-	body  []*statement
+	words  []*word
+	body   []*statement
+	source string
 }
 
 type expression struct {

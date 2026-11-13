@@ -30,10 +30,12 @@ Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seed
 
 ## Reading checker errors
 
-The checker validates the whole program before anything runs and reports `file:line:column` diagnostics, so nothing partial executes. The two most common fixes:
+The checker validates the whole program before anything runs and reports `file:line:column` diagnostics, so nothing partial executes. Each diagnostic prints the source line with a caret and, where a known fix exists, a `hint:` line; the first line stays stable for scripts and agents. The two mistakes the compiler now hints itself:
 
 - `unknown name "a-b"` — hyphenated names are single names; write `a - b` with spaces for subtraction.
-- `... does not support type Result<String, InputError>` — a console-read result reached a plain value position; add postfix `try` to the read (`let n = console.read-int("N: ") try`).
+- `... does not support type Result<String, InputError>` (or any `Result` in a plain value position) — a console-read result needs postfix `try` to unwrap it (`let n = console.read-int("N: ") try`).
+
+Typos get did-you-mean suggestions drawn from the visible names and words. The research behind this and the next steps (stable codes, machine-readable output) live in `docs/error-reporting-research.md`.
 
 To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking happens before execution, so a clean run means types and names resolved.
 
