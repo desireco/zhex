@@ -5,4 +5,3 @@
 /editors/vscode/node_modules/
 /editors/tree-sitter-zhex/*.so
 /editors/tree-sitter-zhex/*.wasm
-/editors/zed/grammars/
