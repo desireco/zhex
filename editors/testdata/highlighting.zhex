@@ -25,3 +25,4 @@ word recover(value: Error) -> Result<Int, ParseError>
     let n = text.to-int("bad") catch problem
         return err(error.wrap("code", "message", problem))
     ok(n)
+console.exit(0)
