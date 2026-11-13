@@ -1,6 +1,6 @@
 # Initial Zhex examples
 
-These source files run in the Go interpreter and are validated by its test suite. They exercise readable composition, named values, conditions, loops, console input/output, and explicit error handling. The [initial language contract](initial-language.md) defines their syntax and semantics.
+These source files are runnable Zhex programs validated by the interpreter's test suite. They exercise readable composition, named values, conditions, loops, console input/output, records, collections, and explicit error handling. The [initial language contract](initial-language.md) defines their syntax and semantics.
 
 ## Example programs
 
@@ -80,19 +80,20 @@ All names and types are checked before the program runs, so an unknown word or i
 Run the examples:
 
 ```sh
-go run ./cmd/zhex run examples/hello.zhex
-go run ./cmd/zhex run examples/records.zhex
-go run ./cmd/zhex run examples/collections.zhex
-go run ./cmd/zhex run examples/fizzbuzz.zhex
-go run ./cmd/zhex run examples/fibonacci.zhex
-go run ./cmd/zhex run examples/factorial.zhex
-go run ./cmd/zhex run examples/palindrome.zhex
-go run ./cmd/zhex run examples/gcd.zhex
-go run ./cmd/zhex run examples/times-table.zhex
-go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
-go run ./cmd/zhex run examples/recovery.zhex
-printf '0\n' | go run ./cmd/zhex run examples/exit-status.zhex
-go run ./cmd/zhex run examples/modules/main.zhex
+zhex run examples/hello.zhex
+zhex run examples/composition.zhex
+zhex run examples/records.zhex
+zhex run examples/collections.zhex
+zhex run examples/fizzbuzz.zhex
+zhex run examples/fibonacci.zhex
+zhex run examples/factorial.zhex
+zhex run examples/palindrome.zhex
+zhex run examples/gcd.zhex
+zhex run examples/times-table.zhex
+zhex run examples/text-stats.zhex examples/text-stats-sample.txt
+zhex run examples/recovery.zhex
+printf '0\n' | zhex run examples/exit-status.zhex
+zhex run examples/modules/main.zhex
 ```
 
 ## Syntax exercised by the examples
