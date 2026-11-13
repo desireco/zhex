@@ -1,0 +1,26 @@
+==================
+Result signatures and recovery
+==================
+word parse(text: String) -> Result<Int, ParseError>
+    let n = text.to-int(text) catch problem
+        return err(error.wrap("parse", "failed", problem))
+    ok(n)
+flow "42"
+    parse try
+    print
+
+---
+
+(source_file
+  (word_definition
+    (identifier)
+    (parameter (identifier) (type))
+    (result_type (type) (error_type)))
+  (binding
+    (identifier)
+    (catch_expression (call_expression (identifier) (identifier)) (identifier)))
+  (return_statement (call_expression (identifier) (call_expression (identifier) (string) (string) (identifier))))
+  (expression_statement (call_expression (identifier) (identifier)))
+  (flow_header (string))
+  (expression_statement (try_expression (identifier)))
+  (expression_statement (identifier)))

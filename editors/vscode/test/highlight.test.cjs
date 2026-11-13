@@ -31,6 +31,11 @@ test('Zhex TextMate scopes match real syntax', async () => {
   }
   expectScope('# word', 2, 'comment.line.number-sign.zhex');
   expectScope('use math', 0, 'keyword.control.zhex');
+  expectScope('catch problem', 0, 'keyword.control.zhex');
+  expectScope('return err', 0, 'keyword.control.zhex');
+  expectScope('Result<Int', 0, 'support.type.builtin.zhex');
+  expectScope('ParseError>', 0, 'support.type.builtin.zhex');
+  expectScope('error.wrap(', 0, 'support.function.builtin.zhex');
   expectScope('word is-palindrome', 0, 'storage.type.function.zhex');
   expectScope('word is-palindrome', 5, 'entity.name.function.zhex');
   expectScope('value: String', 0, 'variable.parameter.zhex');
@@ -67,5 +72,7 @@ test('all shipped examples tokenize and language configuration uses current synt
   const indent = new RegExp(configuration.indentationRules.increaseIndentPattern);
   assert.ok(indent.test('word square(n: Int) -> Int'));
   assert.ok(indent.test('flow 4'));
+  assert.ok(indent.test('let n = text.to-int(s) catch problem'));
+  assert.ok(indent.test('text.to-int(s) catch'));
   assert.ok(!indent.test('if-ready()'));
 });

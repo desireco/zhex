@@ -20,3 +20,8 @@ for item in range(0, 2)
 flow "été"
     is-palindrome
     print
+
+word recover(value: Error) -> Result<Int, ParseError>
+    let n = text.to-int("bad") catch problem
+        return err(error.wrap("code", "message", problem))
+    ok(n)

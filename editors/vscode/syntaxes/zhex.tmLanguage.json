@@ -23,11 +23,11 @@
       }
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:int\\.to-string|text\\.reverse|text\\.to-int|read-line|print|range)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:ok|err|int\\.to-string|text\\.(?:reverse|to-int|length|line-count|word-count|upper|lower|trim|contains|index-of|slice|replace)|buffer\\.(?:new|add-line|line-count|line|set-line|to-text)|file\\.(?:read-all|read-lines|open|read-line|close|lines)|console\\.(?:arg|args-count)|error\\.(?:new|wrap|has-cause|cause|code|message|operation|file|line|column|detail|report|set-reporter)|read-line|print|range)(?![A-Za-z0-9_.-])",
       "name": "support.function.builtin.zhex"
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:use|let|var|if|elif|else|for|in|flow|try)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:use|let|var|if|elif|else|for|in|flow|try|catch|return)(?![A-Za-z0-9_.-])",
       "name": "keyword.control.zhex"
     },
     {
@@ -35,7 +35,7 @@
       "name": "keyword.operator.logical.zhex"
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:Int|Bool|String|Unit)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:Int|Bool|String|Unit|Buffer|File|Error|Result|InputError|ParseError|FileError|BufferError)(?![A-Za-z0-9_.-])",
       "name": "support.type.builtin.zhex"
     },
     {

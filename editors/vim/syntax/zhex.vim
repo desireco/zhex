@@ -10,11 +10,11 @@ syntax match zhexFunction /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\
 syntax match zhexDefinition /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*/ contained
 syntax match zhexParameter /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*\ze\s*:/
 syntax keyword zhexKeyword word nextgroup=zhexDefinition skipwhite
-syntax keyword zhexKeyword use let var if elif else for in flow try
-syntax keyword zhexType Int Bool String Unit
+syntax keyword zhexKeyword use let var if elif else for in flow try catch return
+syntax keyword zhexType Int Bool String Unit Buffer File Error Result InputError ParseError FileError BufferError
 syntax keyword zhexBoolean true false
 syntax keyword zhexOperator and or not
-syntax keyword zhexBuiltin print range int.to-string text.reverse text.to-int read-line
+syntax keyword zhexBuiltin print range int.to-string text.reverse text.to-int read-line ok err error.new error.wrap error.has-cause error.cause error.code error.message error.operation error.file error.line error.column error.detail error.report error.set-reporter
 syntax match zhexNumber /\%([A-Za-z0-9_.]\)\@<!\d\+\%([A-Za-z0-9_.]\)\@!/
 syntax match zhexOperator /->\|==\|!=\|<=\|>=\|[-+*\/%<>=]/
 syntax match zhexDelimiter /[(),:]/

@@ -24,6 +24,11 @@ endfunction
 
 call s:Check('# word', 2, 'zhexComment')
 call s:Check('use math', 0, 'zhexKeyword')
+call s:Check('catch problem', 0, 'zhexKeyword')
+call s:Check('return err', 0, 'zhexKeyword')
+call s:Check('Result<Int', 0, 'zhexType')
+call s:Check('ParseError>', 0, 'zhexType')
+call s:Check('error.wrap(', 0, 'zhexBuiltin')
 call s:Check('word is-palindrome', 0, 'zhexKeyword')
 call s:Check('word is-palindrome', 5, 'zhexDefinition')
 call s:Check('value: String', 0, 'zhexParameter')
