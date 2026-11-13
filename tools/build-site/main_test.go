@@ -221,6 +221,9 @@ func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 		if example.Source != string(source) {
 			t.Fatalf("source drifted for %s", example.ID)
 		}
+		if example.Command != "zhex run examples/"+example.ID+".zhex" {
+			t.Fatalf("user-facing run command for %s is %q", example.ID, example.Command)
+		}
 		if output, ok := want[example.ID]; ok && example.Output != output {
 			t.Fatalf("%s output %q; want %q", example.ID, example.Output, output)
 		}

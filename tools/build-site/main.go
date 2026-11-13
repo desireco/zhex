@@ -224,7 +224,7 @@ func loadExamples(root string) (pageData, error) {
 		data.Examples = append(data.Examples, Example{
 			ID: spec.id, Title: spec.title, Description: spec.description,
 			Source: string(source), Input: strings.TrimSuffix(spec.input, "\n"), Output: output.String(),
-			Command:   "go run ./cmd/zhex run examples/" + filename,
+			Command:   "zhex run examples/" + filename,
 			SourceURL: "examples/" + filename,
 		})
 		if spec.id == "hello" {
