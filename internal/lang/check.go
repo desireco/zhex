@@ -27,7 +27,8 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 
 type checker struct{ words map[string]*word }
 
-func isBuiltin(name string) bool {
+// HostWord reports whether name is a word provided by the host, not the program.
+func HostWord(name string) bool {
 	switch name {
 	case "print", "int.to-string", "text.reverse", "console.read-int", "console.read-line", "range":
 		return true
@@ -43,7 +44,7 @@ func Compile(file, source string) (*Program, error) {
 	}
 	c := checker{words: make(map[string]*word)}
 	for _, w := range p.words {
-		if c.words[w.name] != nil || isBuiltin(w.name) {
+		if c.words[w.name] != nil || HostWord(w.name) {
 			return nil, errorAt(w.pos, "word %q is already defined", w.name)
 		}
 		c.words[w.name] = w

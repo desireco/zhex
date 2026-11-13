@@ -82,17 +82,6 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 	return roadmap, nil
 }
 
-var zhexKeywords = map[string]bool{
-	"word": true, "let": true, "var": true, "if": true, "elif": true, "else": true,
-	"for": true, "in": true, "flow": true, "try": true, "and": true, "or": true,
-	"not": true, "true": true, "false": true,
-}
-
-var zhexHostWords = map[string]bool{
-	"print": true, "range": true, "int.to-string": true, "text.reverse": true,
-	"console.read-line": true, "console.read-int": true,
-}
-
 // highlight marks up Zhex source with the design system's token classes.
 // Every token's text and everything between tokens is HTML-escaped; only
 // the spans themselves are added, so the result is safe trusted HTML.
@@ -154,14 +143,14 @@ func highlight(source string) template.HTML {
 			switch {
 			case text == "flow":
 				writeToken("tok-flow", text)
-			case zhexKeywords[text]:
+			case lang.Reserved(text):
 				writeToken("tok-keyword", text)
 				if text == "word" {
 					if name, _, ok := identAt(skipBlank(j)); ok {
 						words[name] = true
 					}
 				}
-			case strings.ContainsRune(text, '.') || zhexHostWords[text]:
+			case strings.ContainsRune(text, '.') || lang.HostWord(text):
 				writeToken("tok-function", text)
 			default:
 				if k := skipBlank(j); k < len(runes) && runes[k] == '(' {

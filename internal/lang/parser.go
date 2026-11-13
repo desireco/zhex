@@ -55,7 +55,8 @@ func (p *parser) require(kind string) token {
 	return p.take()
 }
 
-func reserved(name string) bool {
+// Reserved reports whether name is a Zhex keyword.
+func Reserved(name string) bool {
 	switch name {
 	case "word", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "and", "or", "not", "true", "false":
 		return true
@@ -65,7 +66,7 @@ func reserved(name string) bool {
 
 func (p *parser) name() token {
 	t := p.require("name")
-	if reserved(t.text) {
+	if Reserved(t.text) {
 		panic(errorAt(t.pos, "expected a name, found keyword %q", t.text))
 	}
 	return t
@@ -164,7 +165,7 @@ func (p *parser) parseStatement() *statement {
 		if len(s.steps) == 0 {
 			panic(errorAt(s.pos, "flow requires a step"))
 		}
-	case t.kind == "name" && !reserved(t.text) && p.tokens[p.index+1].kind == "=":
+	case t.kind == "name" && !Reserved(t.text) && p.tokens[p.index+1].kind == "=":
 		s.kind = "assign"
 		s.name = p.take().text
 		p.require("=")
@@ -294,7 +295,7 @@ func (p *parser) primary() *expression {
 		p.take()
 		return &expression{kind: "bool", text: t.text, pos: t.pos}
 	}
-	if t.kind == "name" && !reserved(t.text) {
+	if t.kind == "name" && !Reserved(t.text) {
 		p.take()
 		x := &expression{kind: "name", text: t.text, pos: t.pos}
 		if p.accept("(") {
