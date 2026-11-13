@@ -20,17 +20,18 @@ func IsIncomplete(err error) bool {
 // Session is a REPL: an interactive run whose word definitions, top-level
 // names, values, and adopted modules survive from one entry to the next.
 type Session struct {
-	input    *bufio.Reader
-	output   io.Writer
-	trace    io.Writer // nil disables the JSONL step-event stream
-	scope    *scope
-	words    map[string]*word   // own words plus adopted words under qualified names
-	modules  map[string]*module // adopted modules, keyed by use name
-	uses     []string           // the names use directives named directly; a module's own imports do not count
-	sources  map[string]string  // every adopted module's text, for annotated errors
-	frame    frame
-	reporter *expression
-	resolve  func(name string) (ModuleSource, bool)
+	input       *bufio.Reader
+	output      io.Writer
+	diagnostics io.Writer
+	trace       io.Writer // nil disables the JSONL step-event stream
+	scope       *scope
+	words       map[string]*word   // own words plus adopted words under qualified names
+	modules     map[string]*module // adopted modules, keyed by use name
+	uses        []string           // the names use directives named directly; a module's own imports do not count
+	sources     map[string]string  // every adopted module's text, for annotated errors
+	frame       frame
+	reporter    *expression
+	resolve     func(name string) (ModuleSource, bool)
 }
 
 // NewSession shares input's buffer when it is already buffered, mirroring
@@ -44,15 +45,24 @@ func NewSession(input io.Reader, output, trace io.Writer, resolve func(name stri
 		reader = bufio.NewReader(input)
 	}
 	return &Session{
-		input:   reader,
-		output:  output,
-		trace:   trace,
-		words:   make(map[string]*word),
-		modules: make(map[string]*module),
-		sources: make(map[string]string),
-		frame:   make(frame),
-		resolve: resolve,
+		input:       reader,
+		output:      output,
+		diagnostics: io.Discard,
+		trace:       trace,
+		words:       make(map[string]*word),
+		modules:     make(map[string]*module),
+		sources:     make(map[string]string),
+		frame:       make(frame),
+		resolve:     resolve,
 	}
+}
+
+// SetDiagnostics routes console.fail output; nil discards it.
+func (s *Session) SetDiagnostics(output io.Writer) {
+	if output == nil {
+		output = io.Discard
+	}
+	s.diagnostics = output
 }
 
 // usedDirectly reports whether a use directive already named this module.
@@ -118,7 +128,7 @@ func (s *Session) Enter(source string) (string, error) {
 		return "", annotate(err, source)
 	}
 	// A runtime per entry resets the recursion depth but keeps the session frame.
-	r := runtime{input: s.input, output: s.output, trace: s.trace, reporter: s.reporter}
+	r := runtime{input: s.input, output: s.output, diagnostics: s.diagnostics, trace: s.trace, reporter: s.reporter}
 	v, err := r.block(p.body, s.frame)
 	s.reporter = r.reporter
 	if err != nil {

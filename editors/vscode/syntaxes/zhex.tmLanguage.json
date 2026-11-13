@@ -23,7 +23,7 @@
       }
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:ok|err|int\\.to-string|text\\.(?:reverse|to-int|length|line-count|word-count|upper|lower|trim|contains|index-of|slice|replace)|buffer\\.(?:new|add-line|line-count|line|set-line|to-text)|file\\.(?:read-all|read-lines|open|read-line|close|lines)|console\\.(?:arg|args-count|exit)|error\\.(?:new|wrap|has-cause|cause|code|message|operation|file|line|column|detail|report|set-reporter)|read-line|print|range)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:ok|err|int\\.to-string|text\\.(?:reverse|to-int|length|line-count|word-count|upper|lower|trim|contains|index-of|slice|replace)|buffer\\.(?:new|add-line|line-count|line|set-line|to-text)|file\\.(?:read-all|read-lines|open|read-line|close|lines)|console\\.(?:arg|args-count|exit|fail)|error\\.(?:new|wrap|has-cause|cause|code|message|operation|file|line|column|detail|report|set-reporter)|read-line|print|range)(?![A-Za-z0-9_.-])",
       "name": "support.function.builtin.zhex"
     },
     {

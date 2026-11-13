@@ -77,6 +77,7 @@ type frame map[*binding]value
 type runtime struct {
 	input            *bufio.Reader
 	output           io.Writer
+	diagnostics      io.Writer
 	trace            io.Writer // nil disables the JSONL step-event stream
 	depth            int
 	args             []string
@@ -107,11 +108,16 @@ func RunWithArgs(file, source string, input io.Reader, output, trace io.Writer, 
 // RunWithModules is RunWithArgs for multi-file programs: resolve supplies
 // each use directive's module, following the sibling <name>.zhex convention.
 func RunWithModules(file, source string, input io.Reader, output, trace io.Writer, args []string, resolve func(name string) (ModuleSource, bool)) error {
+	return RunWithModulesOptions(file, source, input, output, RunOptions{Trace: trace, Args: args}, resolve)
+}
+
+// RunWithModulesOptions compiles and runs modules with optional reporting and diagnostic output.
+func RunWithModulesOptions(file, source string, input io.Reader, output io.Writer, options RunOptions, resolve func(name string) (ModuleSource, bool)) error {
 	p, err := CompileModules(file, source, resolve)
 	if err != nil {
-		return err // already annotated against the file it points into
+		return err
 	}
-	return p.RunWithArgs(input, output, trace, args)
+	return p.RunWithOptions(input, output, options)
 }
 
 // Run executes an already checked program with fresh local state.
@@ -135,7 +141,11 @@ func (p *Program) RunWithOptions(input io.Reader, output io.Writer, options RunO
 	if !ok {
 		reader = bufio.NewReader(input)
 	}
-	r := runtime{input: reader, output: output, trace: options.Trace, args: options.Args, hostReporter: options.Reporter, includeSensitive: options.IncludeSensitive, correlation: options.Correlation}
+	diagnostics := options.Diagnostics
+	if diagnostics == nil {
+		diagnostics = io.Discard
+	}
+	r := runtime{input: reader, output: output, diagnostics: diagnostics, trace: options.Trace, args: options.Args, hostReporter: options.Reporter, includeSensitive: options.IncludeSensitive, correlation: options.Correlation}
 	_, err := r.block(p.body, make(frame))
 	boundary := position{}
 	if propagated, ok := err.(*propagation); ok {

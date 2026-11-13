@@ -185,6 +185,9 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "file.close":
 		args[0].file.close()
 		return value{}, nil
+	case "console.fail":
+		_, _ = io.WriteString(r.diagnostics, args[0].text+"\n")
+		return value{}, &ExitError{Status: 1}
 	case "console.exit":
 		status := args[0].number
 		if status < 0 || status > 255 {

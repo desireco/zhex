@@ -209,3 +209,31 @@ func TestReporterExitCannotReplaceOriginalFailure(t *testing.T) {
 		t.Fatalf("original failure changed: %v", err)
 	}
 }
+
+func TestConsoleFailUsesExplicitDiagnosticStreamAndDoesNotReport(t *testing.T) {
+	p, err := Compile("test.zhex", "console.fail(\"failed\")\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	count := 0
+	err = p.RunWithOptions(strings.NewReader(""), &out, RunOptions{Diagnostics: &diagnostics, Reporter: func(ErrorReport) error { count++; return nil }})
+	exit, ok := err.(*ExitError)
+	if !ok || exit.Status != 1 || out.Len() != 0 || diagnostics.String() != "failed\n" || count != 0 {
+		t.Fatalf("exit %v, output %q, diagnostics %q, reports %d", err, out.String(), diagnostics.String(), count)
+	}
+}
+
+func TestReporterFailCannotReplaceOriginalFailure(t *testing.T) {
+	source := "word report(problem: Error) -> Unit\n    console.fail(\"reporter failed\")\nerror.set-reporter(report)\ntext.to-int(\"bad\") try\n"
+	p, err := Compile("test.zhex", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var diagnostics bytes.Buffer
+	count := 0
+	err = p.RunWithOptions(strings.NewReader(""), io.Discard, RunOptions{Diagnostics: &diagnostics, Reporter: func(ErrorReport) error { count++; return nil }})
+	if err == nil || !strings.Contains(err.Error(), `"bad" is not a signed`) || diagnostics.String() != "reporter failed\n" || count != 1 {
+		t.Fatalf("error %v, diagnostics %q, reports %d", err, diagnostics.String(), count)
+	}
+}

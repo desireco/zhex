@@ -10,6 +10,7 @@ import (
 // RunOptions configures optional tracing, arguments, and reporting for one run.
 type RunOptions struct {
 	Trace            io.Writer
+	Diagnostics      io.Writer // console.fail output; nil discards it
 	Args             []string
 	Reporter         func(ErrorReport) error
 	IncludeSensitive bool

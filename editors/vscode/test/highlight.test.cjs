@@ -37,6 +37,7 @@ test('Zhex TextMate scopes match real syntax', async () => {
   expectScope('ParseError>', 0, 'support.type.builtin.zhex');
   expectScope('error.wrap(', 0, 'support.function.builtin.zhex');
   expectScope('console.exit(', 0, 'support.function.builtin.zhex');
+  expectScope('console.fail(', 0, 'support.function.builtin.zhex');
   expectScope('word is-palindrome', 0, 'storage.type.function.zhex');
   expectScope('word is-palindrome', 5, 'entity.name.function.zhex');
   expectScope('value: String', 0, 'variable.parameter.zhex');

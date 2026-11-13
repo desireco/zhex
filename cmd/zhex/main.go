@@ -66,7 +66,7 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	source, err := os.ReadFile(file)
 	if err == nil {
 		dir := filepath.Dir(file)
-		err = lang.RunWithModules(file, string(source), input, output, trace, programArgs, func(name string) (lang.ModuleSource, bool) {
+		err = lang.RunWithModulesOptions(file, string(source), input, output, lang.RunOptions{Trace: trace, Args: programArgs, Diagnostics: diagnostics}, func(name string) (lang.ModuleSource, bool) {
 			return readModule(dir, name)
 		})
 	}
@@ -106,6 +106,7 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	session := lang.NewSession(reader, output, trace, func(name string) (lang.ModuleSource, bool) {
 		return readModule(".", name)
 	})
+	session.SetDiagnostics(diagnostics)
 	fmt.Fprintln(output, "Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.")
 	buffer, pending := "", false
 	listWords := func() {

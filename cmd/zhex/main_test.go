@@ -372,6 +372,16 @@ func TestExecutable(t *testing.T) {
 	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 23 {
 		t.Fatalf("expected exit 23, got %v", err)
 	}
+	if err := os.WriteFile(exitSource, []byte("console.fail(\"failed\")\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd = exec.Command(path, "run", exitSource)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err = cmd.Run()
+	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 1 || stdout.Len() != 0 || stderr.String() != "failed\n" {
+		t.Fatalf("fail: error %v stdout %q stderr %q", err, stdout.String(), stderr.String())
+	}
 	cmd = exec.Command(path, "repl")
 	cmd.Stdin = strings.NewReader("1 + 1\n")
 	output, err = cmd.CombinedOutput()
@@ -492,5 +502,41 @@ func TestReplConsoleExitReturnsStatus(t *testing.T) {
 	status := run([]string{"repl"}, strings.NewReader("console.exit(42)\nprint(\"after\")\n"), &out, &diagnostics)
 	if status != 42 || strings.Contains(out.String(), "after") || diagnostics.Len() != 0 {
 		t.Fatalf("status %d, output %q, stderr %q", status, out.String(), diagnostics.String())
+	}
+}
+
+func TestConsoleFailWritesStderrAndExits(t *testing.T) {
+	for _, source := range []string{
+		"print(\"before\")\nconsole.fail(\"failed\")\nprint(\"after\")\n",
+		"let n = text.to-int(\"bad\") catch problem\n    print(\"before\")\n    console.fail(\"failed\")\nprint(n)\n",
+	} {
+		path := filepath.Join(t.TempDir(), "fail.zhex")
+		if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+		var out, diagnostics bytes.Buffer
+		status := run([]string{"run", path, "--report=json"}, strings.NewReader(""), &out, &diagnostics)
+		if status != 1 || out.String() != "before\n" || diagnostics.String() != "failed\n" {
+			t.Fatalf("status %d, stdout %q, stderr %q", status, out.String(), diagnostics.String())
+		}
+	}
+}
+
+func TestReplConsoleFailWritesStderrAndExits(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	status := run([]string{"repl"}, strings.NewReader("console.fail(\"failed\")\nprint(\"after\")\n"), &out, &diagnostics)
+	if status != 1 || strings.Contains(out.String(), "after") || diagnostics.String() != "failed\n" {
+		t.Fatalf("status %d, stdout %q, stderr %q", status, out.String(), diagnostics.String())
+	}
+}
+
+func TestConsoleFailRequiresString(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bad.zhex")
+	if err := os.WriteFile(path, []byte("console.fail(42)\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	if status := run([]string{"run", path}, strings.NewReader(""), &out, &diagnostics); status != 1 || !strings.Contains(diagnostics.String(), "requires type String") {
+		t.Fatalf("status %d stderr %q", status, diagnostics.String())
 	}
 }

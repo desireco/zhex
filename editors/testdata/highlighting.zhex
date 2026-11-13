@@ -26,3 +26,4 @@ word recover(value: Error) -> Result<Int, ParseError>
         return err(error.wrap("code", "message", problem))
     ok(n)
 console.exit(0)
+console.fail("bad")

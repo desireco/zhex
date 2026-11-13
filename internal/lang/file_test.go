@@ -260,6 +260,7 @@ func TestFileLinesGuaranteedClose(t *testing.T) {
 		{"utf8 mid-stream", "one\n\xff\n", "print(line)", "file-utf8"},
 		{"body failure", "one\ntwo\n", "print(1 / 0)", "division-zero"},
 		{"deliberate exit", "one\ntwo\n", "console.exit(23)", "exit"},
+		{"deliberate fail", "one\ntwo\n", "console.fail(\"failed\")", "fail"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := writeFile(t, tc.content)
@@ -272,10 +273,14 @@ func TestFileLinesGuaranteedClose(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-			} else if tc.wantCode == "exit" {
+			} else if tc.wantCode == "exit" || tc.wantCode == "fail" {
+				wantStatus := 23
+				if tc.wantCode == "fail" {
+					wantStatus = 1
+				}
 				exit, ok := err.(*ExitError)
-				if !ok || exit.Status != 23 {
-					t.Fatalf("expected exit 23, got %v", err)
+				if !ok || exit.Status != wantStatus {
+					t.Fatalf("expected exit %d, got %v", wantStatus, err)
 				}
 			} else if code, _ := codeOf(t, err); code != tc.wantCode {
 				t.Fatalf("wanted %s, got %s", tc.wantCode, code)
