@@ -25,6 +25,8 @@ Every expression has a checked type. Local binding types are inferred from their
 
 `Buffer` and `File` are resource values. They are not copied when a name is bound, cannot be compared with `==` or `!=`, and are not accepted by `print`.
 
+The [JSON codec](json.html) supports typed records, lists, string-keyed maps, and `Option` values in addition to `Int`, `Bool`, and `String`.
+
 ## Bindings and scope
 
 `let` creates an immutable binding. `var` creates a binding that can later be assigned a value of the same type:

@@ -11,6 +11,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [choices.zhex](../examples/choices.zhex) | None | `running`, `Could not start: network unavailable`, `7`, `0` | Concrete and one-parameter alternatives, payload binding, contextual nullary types, and exhaustive matching with a default. |
 | [collections.zhex](../examples/collections.zhex) | None | List indices and array coordinates, each append reports `collection-iterating`, then `6`, `7`, `12` after resize | Shared list mutation and indexing, dual-binding traversal, row-major array access, pre-mutation guards, overlap-preserving resize, and fill values. |
 | [maps.zhex](../examples/maps.zhex) | None | `1`, `3`, `Ada: 11`, `Morgan has no score`, `Ada: 11`, `Grace: 9`, `Nancy: 23`, `4`, `4` | Inferred and empty typed maps, optional lookups, insertion order, update/removal, and map operations composed in flows. |
+| [json-config.zhex](../examples/json-config.zhex) | None | `3`, `true`, `{"retries":3,"verbose":true}` | Decode a typed record with a default for a missing field, then encode the complete value. |
 | [hello.zhex](../examples/hello.zhex) | `Ada` | `Hello, Ada!` | Read a whole line, build a string, print it. |
 | [fizzbuzz.zhex](../examples/fizzbuzz.zhex) | `15` | The sequence below | Remainders, ordered conditions, bounded iteration, formatting. |
 | [fibonacci.zhex](../examples/fibonacci.zhex) | `10` | `55` | Explicit local mutation and iterative computation. |
@@ -88,6 +89,7 @@ zhex run examples/records.zhex
 zhex run examples/choices.zhex
 zhex run examples/collections.zhex
 zhex run examples/maps.zhex
+zhex run examples/json-config.zhex
 zhex run examples/fizzbuzz.zhex
 zhex run examples/fibonacci.zhex
 zhex run examples/factorial.zhex

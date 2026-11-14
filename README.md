@@ -69,6 +69,7 @@ go build -o bin/zhex ./cmd/zhex
 | [Choices](examples/choices.zhex) | Declare concrete and one-parameter alternatives and handle them with a match. |
 | [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, row-major arrays, and overlap-preserving resize. |
 | [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
+| [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |
 | [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
 | [FizzBuzz](examples/fizzbuzz.zhex) | Decisions, remainders, and a bounded loop. |
 | [Fibonacci](examples/fibonacci.zhex) | Explicitly mutable locals and iterative calculation. |
@@ -85,7 +86,7 @@ The [example guide](docs/syntax-examples.md) records expected output and edge ca
 
 ## What works today
 
-The interpreter supports typed word definitions, named parameters, inferred or explicitly annotated local types, immutable `let` bindings, mutable `var` bindings, nominal records and one-parameter choices with exhaustive matching, shared mutable lists, arrays, and maps, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in. Programs split across files: `use math` imports the sibling `math.zhex`, its words and types are callable qualified (`math.gcd`, `model.Customer`), and a leading underscore keeps a word or type private to its file. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words, values, types, and adopted modules across the session.
+The interpreter supports typed word definitions, named parameters, inferred or explicitly annotated local types, immutable `let` bindings, mutable `var` bindings, nominal records and one-parameter choices with exhaustive matching, shared mutable lists, arrays, and maps, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, streamed file reads, and typed JSON decoding/encoding are built in. Programs split across files: `use math` imports the sibling `math.zhex`, its words and types are callable qualified (`math.gcd`, `model.Customer`), and a leading underscore keeps a word or type private to its file. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words, values, types, and adopted modules across the session.
 
 The whole file is checked before execution, including unused word bodies. Static errors do not prompt or consume input. Runtime errors report a source location; integer overflow, division by zero, invalid input, and end-of-input are handled explicitly.
 
