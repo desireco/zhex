@@ -1,0 +1,19 @@
+==================
+Transparent alias and alias binding
+==================
+type Names = alias List<String>
+let alias: Names = ["Ada"]
+
+---
+
+(source_file
+  (alias_definition
+    (identifier)
+    (type
+      (type)))
+  (binding
+    (identifier)
+    (type
+      (identifier))
+    (list_literal
+      (string))))

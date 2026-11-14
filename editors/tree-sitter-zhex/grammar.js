@@ -7,11 +7,12 @@ module.exports = grammar({
     source_file: $ => seq(repeat(seq(optional($._statement), $._newline)), optional($._statement)),
     _newline: _ => '\n',
     _statement: $ => choice(
-      $.word_definition, $.record_definition, $.choice_definition, $.variant_definition, $.field_definition, $.use_statement, $.binding, $.indexed_assignment, $.assignment, $.if_header, $.elif_header,
+      $.word_definition, $.record_definition, $.choice_definition, $.alias_definition, $.variant_definition, $.field_definition, $.use_statement, $.binding, $.indexed_assignment, $.assignment, $.if_header, $.elif_header,
       $.else_header, $.for_header, $.flow_header, $.case_header, $.return_statement, $.expression_statement,
     ),
     word_definition: $ => seq('word', field('name', $.identifier), '(', optional(seq($.parameter, repeat(seq(',', $.parameter)))), ')', '->', field('result', choice($.type, $.result_type))),
     record_definition: $ => seq('type', field('name', $.identifier), '=', 'record'),
+    alias_definition: $ => seq('type', field('name', $.identifier), '=', 'alias', field('target', $.type)),
     choice_definition: $ => seq('type', field('name', $.identifier), optional(seq('<', $.identifier, '>')), '=', 'choice'),
     variant_definition: $ => seq(field('name', $.identifier), '(', $.parameter, repeat(seq(',', $.parameter)), ')'),
     field_definition: $ => seq(field('name', $.identifier), ':', field('type', $.type)),

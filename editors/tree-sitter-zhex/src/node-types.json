@@ -1,5 +1,31 @@
 [
   {
+    "type": "alias_definition",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "assignment",
     "named": true,
     "fields": {
@@ -1552,6 +1578,10 @@
       "required": false,
       "types": [
         {
+          "type": "alias_definition",
+          "named": true
+        },
+        {
           "type": "assignment",
           "named": true
         },
@@ -2026,6 +2056,10 @@
   },
   {
     "type": "]",
+    "named": false
+  },
+  {
+    "type": "alias",
     "named": false
   },
   {

@@ -12,6 +12,7 @@
 (comment) @comment
 
 ["word" "type" "record" "choice" "match" "case" "use" "let" "var" "if" "elif" "for" "in" "flow" "try" "catch" "return"] @keyword
+(alias_definition "alias" @keyword)
 (else_header) @keyword
 ["and" "or" "not" "+" "-" "*" "/" "%" "==" "!=" "<" "<=" ">" ">=" "=" "->"] @operator
 ["(" ")" "[" "]" "{" "}"] @punctuation.bracket
