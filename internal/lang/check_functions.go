@@ -122,7 +122,11 @@ func (c *checker) checkBuiltinPartial(x *expression, env *scope) (valueType, boo
 		args[i] = solver.expr(arg, terms, false)
 	}
 	result := solver.call(x, args, false)
-	if expected, expectedResult, ok := functionTypeParts(c.expected); ok {
+	expectedType := c.expected
+	if expectedType == "" {
+		expectedType = x.inferredPartial
+	}
+	if expected, expectedResult, ok := functionTypeParts(expectedType); ok {
 		if len(expected) != len(holes) {
 			return "", true, errorAt(x.pos, CodeArgumentCount, "partial requires %d hole types, found %d", len(expected), len(holes))
 		}

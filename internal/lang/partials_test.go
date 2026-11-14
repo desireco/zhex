@@ -483,3 +483,27 @@ word run(raw: String)
 		t.Fatalf("expected incompatible error families, got %v", err)
 	}
 }
+
+func TestOverloadedBuiltinPartialUsesWholeProgramConstraints(t *testing.T) {
+	source := `let show = print _
+show(7)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestOverloadedPartialDoesNotGuessFromFirstCall(t *testing.T) {
+	source := "let show = print _\nshow(7)\nshow(\"no\")\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err == nil {
+		t.Fatal("accepted conflicting callable uses")
+	}
+	if out.Len() != 0 {
+		t.Fatalf("ran before rejecting conflict: %q", out.String())
+	}
+}

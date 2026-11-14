@@ -475,7 +475,7 @@ func (c *checker) checkWords(words []*word) error {
 			}
 		}
 		inference.prepareEffects(words)
-		if hasOmittedParam {
+		if hasOmittedParam || blockHasFunction(c.inferenceBody) {
 			inference.entry = c.inferenceBody
 			inference.entryScope = c.inferenceScope
 		}

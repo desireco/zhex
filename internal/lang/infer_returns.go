@@ -8,20 +8,21 @@ import (
 // returnInference collects constraints on fresh terms, leaving the checked AST
 // untouched until all omitted signatures have concrete solutions.
 type returnInference struct {
-	checker    *checker
-	results    map[*word]*typeConstraint
-	params     map[*word][]*typeConstraint
-	entry      []*statement
-	entryScope *scope
-	views      map[*word]*checker
-	entryView  *checker
-	effects    map[*word]map[string]bool
-	families   map[*word]*typeConstraint
-	fallible   map[*word]bool
-	current    *word
-	err        error
-	pending    []func() bool
-	allowed    []allowedTypes
+	checker      *checker
+	results      map[*word]*typeConstraint
+	params       map[*word][]*typeConstraint
+	entry        []*statement
+	entryScope   *scope
+	views        map[*word]*checker
+	entryView    *checker
+	effects      map[*word]map[string]bool
+	families     map[*word]*typeConstraint
+	fallible     map[*word]bool
+	partialTerms map[*expression]*typeConstraint
+	current      *word
+	err          error
+	pending      []func() bool
+	allowed      []allowedTypes
 }
 type allowedTypes struct {
 	value *typeConstraint
@@ -279,7 +280,13 @@ func (s *returnInference) infer(words []*word) error {
 			}
 		}
 		if len(remaining) == len(s.pending) && s.err == nil {
-			return withHint(errorAt(s.current.pos, CodeWordResult, "cannot infer a type"), "add an explicit type annotation")
+			pos := position{}
+			if s.current != nil {
+				pos = s.current.pos
+			} else if len(s.entry) > 0 {
+				pos = s.entry[0].pos
+			}
+			return withHint(errorAt(pos, CodeWordResult, "cannot infer a type"), "add an explicit type annotation")
 		}
 		s.pending = remaining
 		if s.err != nil {
@@ -303,6 +310,11 @@ func (s *returnInference) infer(words []*word) error {
 		}
 		if !found {
 			return errorAt(rule.pos, CodeArgumentType, "type %s is not supported", concrete)
+		}
+	}
+	for x, term := range s.partialTerms {
+		if typ, ok := constraintType(term); ok {
+			x.inferredPartial = typ
 		}
 	}
 	for _, w := range words {
@@ -717,7 +729,12 @@ func (s *returnInference) termCall(x *expression, args []*typeConstraint, env in
 	if len(holes) == 0 {
 		return result
 	}
-	return namedType("@function", append(holes, result)...)
+	partial := namedType("@function", append(holes, result)...)
+	if s.partialTerms == nil {
+		s.partialTerms = map[*expression]*typeConstraint{}
+	}
+	s.partialTerms[x] = partial
+	return partial
 }
 
 type inferenceSignature struct {

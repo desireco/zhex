@@ -320,6 +320,7 @@ type expression struct {
 	bare              bool
 	grouped           bool
 	partial           bool
+	inferredPartial   valueType
 	holes             []int
 	jsonSchema        *jsonSchema
 	statement         *statement
