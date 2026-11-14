@@ -183,3 +183,14 @@ func TestInferredReturnAlongsideExistingExamples(t *testing.T) {
 		})
 	}
 }
+
+func TestInferredReturnDoesNotExposePrivateModuleType(t *testing.T) {
+	files := mapResolver(map[string]string{
+		"data.zhex": "type _Secret = record\n    value: Int\nword expose()\n    _Secret(1)\n",
+	})
+	if _, err := CompileModules("main.zhex", "use data\n", files); err == nil {
+		t.Fatal("accepted public word with a private inferred return type")
+	} else if d, ok := err.(*diagnostic); !ok || d.code != CodePrivateUse {
+		t.Fatalf("expected private-use diagnostic, got %v", err)
+	}
+}
