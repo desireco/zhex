@@ -27,3 +27,10 @@ func TestContinuationIndentAfterMultilineDelimiter(t *testing.T) {
 		t.Fatalf("continuation indentation %d; want 4", got)
 	}
 }
+
+func TestReplMultilineDelimiterCanFinishOnFinalLine(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	if code := run([]string{"repl"}, strings.NewReader("print(\n  2)"), &out, &diagnostics); code != 0 || diagnostics.Len() != 0 || !strings.Contains(out.String(), "2\n") {
+		t.Fatalf("exit %d stdout %q stderr %q", code, out.String(), diagnostics.String())
+	}
+}

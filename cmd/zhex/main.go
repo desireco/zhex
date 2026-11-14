@@ -177,6 +177,13 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 					fmt.Fprintln(diagnostics, cerr)
 					return 0
 				}
+				if pending && openDelimiter && !blockPending && !lang.IsIncomplete(cerr) {
+					buffer = candidate
+					if status, exited := enter(); exited {
+						return status
+					}
+					return 0
+				}
 			}
 			switch {
 			case pending || line == "":
