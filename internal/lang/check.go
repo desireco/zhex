@@ -87,8 +87,10 @@ func (c *checker) wordNames() []string {
 	for name := range c.words {
 		names = append(names, name)
 	}
-	for name := range c.types.visible {
-		names = append(names, name)
+	for name, record := range c.types.visible {
+		if !record.alias {
+			names = append(names, name)
+		}
 	}
 	for _, use := range c.uses {
 		if m := c.modules[use]; m != nil {
@@ -340,6 +342,9 @@ func (c *checker) register(words []*word) error {
 // checkWords type-checks word bodies against the current file's view.
 func (c *checker) checkWords(words []*word) error {
 	for _, w := range words {
+		if w.module != "" && !strings.HasPrefix(w.name, "_") && c.rawPrivateType(w.result, w.module) {
+			return privateTypeLeak(w.pos, w.result)
+		}
 		typ, ok := c.normalizeType(w.result)
 		if !ok {
 			return c.typeError(w.pos, w.result)
@@ -350,6 +355,9 @@ func (c *checker) checkWords(words []*word) error {
 		}
 		for i := range w.params {
 			param := &w.params[i]
+			if w.module != "" && !strings.HasPrefix(w.name, "_") && c.rawPrivateType(param.typ, w.module) {
+				return privateTypeLeak(param.pos, param.typ)
+			}
 			typ, ok := c.normalizeType(param.typ)
 			if !ok {
 				return c.typeError(param.pos, param.typ)
@@ -1305,6 +1313,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			}
 		}
 	} else if record := c.types.visible[x.text]; record != nil {
+		if record.alias {
+			return "", errorAt(x.pos, CodeArgumentType, "type alias %s is not a constructor", x.text)
+		}
 		if record.choice {
 			return "", errorAt(x.pos, CodeArgumentType, "construct a variant of %s", x.text)
 		}

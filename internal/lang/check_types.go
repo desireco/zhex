@@ -78,12 +78,15 @@ func (c *checker) typeError(pos position, typ valueType) error {
 }
 
 func (c *checker) normalizeType(typ valueType) (valueType, bool) {
+	return c.normalizeTypeSeen(typ, map[*recordType]bool{})
+}
+func (c *checker) normalizeTypeSeen(typ valueType, seen map[*recordType]bool) (valueType, bool) {
 	if base, args, ok := typeApplication(typ); ok && base == "Map" {
 		if len(args) != 2 {
 			return "", false
 		}
-		key, kok := c.normalizeType(args[0])
-		val, vok := c.normalizeType(args[1])
+		key, kok := c.normalizeTypeSeen(args[0], seen)
+		val, vok := c.normalizeTypeSeen(args[1], seen)
 		if !kok || !vok || (key != stringType && key != intType && key != boolType) || containsResultType(val) {
 			return "", false
 		}
@@ -91,7 +94,7 @@ func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 	}
 	if base, args, ok := typeApplication(typ); ok && base != "Result" && base != "List" && base != "Array" {
 		if record := c.types.visible[base]; record != nil && record.typeParam != "" && len(args) == 1 {
-			inner, ok := c.normalizeType(args[0])
+			inner, ok := c.normalizeTypeSeen(args[0], seen)
 			if !ok || isResult(inner) {
 				return "", false
 			}
@@ -100,14 +103,19 @@ func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 		return "", false
 	}
 	if kind, inner, ok := collectionInner(typ); ok {
-		normalized, found := c.normalizeType(inner)
+		normalized, found := c.normalizeTypeSeen(inner, seen)
 		if !found || isResult(normalized) {
 			return "", false
 		}
 		return valueType(kind + "<" + string(normalized) + ">"), true
 	}
 	if inner, ok := resultInner(typ); ok {
-		normalized, found := c.normalizeType(inner)
+		switch resultFamily(typ) {
+		case "InputError", "ParseError", "FileError", "BufferError", "Error":
+		default:
+			return "", false
+		}
+		normalized, found := c.normalizeTypeSeen(inner, seen)
 		if !found || containsResultType(normalized) {
 			return "", false
 		}
@@ -118,6 +126,22 @@ func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 		return typ, true
 	}
 	if record := c.types.visible[string(typ)]; record != nil && record.typeParam == "" {
+		if record.alias {
+			if record.aliasResolved {
+				return record.aliasTarget, true
+			}
+			if seen[record] || len(seen) >= 256 {
+				return "", false
+			}
+			seen[record] = true
+			target, ok := c.normalizeTypeSeen(record.aliasTarget, seen)
+			delete(seen, record)
+			if !ok {
+				return "", false
+			}
+			record.aliasTarget, record.aliasResolved = target, true
+			return target, true
+		}
 		return valueType(record.id()), true
 	}
 	return "", false
@@ -171,6 +195,19 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
 	}
+	if err := c.validateAliases(records); err != nil {
+		return err
+	}
+	for _, record := range records {
+		if record.alias {
+			if record.module != "" && !strings.HasPrefix(record.name, "_") && c.rawPrivateType(record.aliasSource, record.module) {
+				return privateTypeLeak(record.pos, record.aliasSource)
+			}
+			if _, ok := c.normalizeType(valueType(record.id())); !ok {
+				return errorAt(record.pos, CodeUnknownType, "alias %q has an unknown or recursive target", record.name)
+			}
+		}
+	}
 	for _, record := range records {
 		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "Map" || record.typeParam == "List" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
 			return errorAt(record.pos, CodeDuplicateName, "invalid type parameter %q", record.typeParam)
@@ -204,6 +241,9 @@ func (c *checker) registerRecords(records []*recordType) error {
 					return errorAt(field.pos, CodeDuplicateName, "payload %q is invalid or already defined", field.name)
 				}
 				names[field.name] = true
+				if record.module != "" && !strings.HasPrefix(record.name, "_") && c.rawPrivateType(field.typ, record.module) {
+					return privateTypeLeak(field.pos, field.typ)
+				}
 				typ, ok := c.normalizeTemplate(field.typ, record.typeParam)
 				if !ok || isResult(typ) {
 					return c.typeError(field.pos, field.typ)
@@ -221,6 +261,9 @@ func (c *checker) registerRecords(records []*recordType) error {
 				return errorAt(field.pos, CodeDuplicateName, "field %q is invalid or already defined", field.name)
 			}
 			fields[field.name] = true
+			if record.module != "" && !strings.HasPrefix(record.name, "_") && c.rawPrivateType(field.typ, record.module) {
+				return privateTypeLeak(field.pos, field.typ)
+			}
 			typ, ok := c.normalizeType(field.typ)
 			if !ok {
 				return c.typeError(field.pos, field.typ)
@@ -479,4 +522,84 @@ func mapTypes(typ valueType) (valueType, valueType, bool) {
 		return "", "", false
 	}
 	return args[0], args[1], true
+}
+
+// rawPrivateType catches private aliases before transparent normalization erases their names.
+func (c *checker) rawPrivateType(typ valueType, module string) bool {
+	base, args, applied := typeApplication(typ)
+	name := string(typ)
+	if applied {
+		name = base
+	}
+	if record := c.types.visible[name]; record != nil && record.module == module && strings.HasPrefix(record.name, "_") {
+		return true
+	}
+	if applied {
+		for _, arg := range args {
+			if c.rawPrivateType(arg, module) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c *checker) validateAliases(records []*recordType) error {
+	active := map[*recordType]bool{}
+	done := map[*recordType]int{}
+	var visit func(*recordType, int) error
+	visit = func(alias *recordType, depth int) error {
+		if depth > 256 {
+			return errorAt(alias.pos, CodeNestingLimit, "type nesting limit exceeded")
+		}
+		if active[alias] {
+			return errorAt(alias.pos, CodeUnknownType, "recursive alias %q is not supported", alias.name)
+		}
+		if height := done[alias]; height > 0 {
+			if depth+height-1 > 256 {
+				return errorAt(alias.pos, CodeNestingLimit, "type nesting limit exceeded")
+			}
+			return nil
+		}
+		active[alias] = true
+		height := 1
+		var walk func(valueType) error
+		walk = func(t valueType) error {
+			base, args, applied := typeApplication(t)
+			name := string(t)
+			if applied {
+				name = base
+			}
+			if dep := c.types.visible[name]; dep != nil && dep.alias {
+				if err := visit(dep, depth+1); err != nil {
+					return err
+				}
+				if candidate := 1 + done[dep]; candidate > height {
+					height = candidate
+				}
+			}
+			if applied {
+				for _, arg := range args {
+					if err := walk(arg); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+		if err := walk(alias.aliasSource); err != nil {
+			return err
+		}
+		delete(active, alias)
+		done[alias] = height
+		return nil
+	}
+	for _, record := range records {
+		if record.alias {
+			if err := visit(record, 1); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

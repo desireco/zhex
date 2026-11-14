@@ -255,13 +255,17 @@ type word struct {
 }
 
 type recordType struct {
-	module    string
-	name      string
-	pos       position
-	fields    []parameter
-	choice    bool
-	typeParam string
-	variants  []choiceVariant
+	module        string
+	name          string
+	pos           position
+	fields        []parameter
+	choice        bool
+	typeParam     string
+	alias         bool
+	aliasTarget   valueType
+	aliasSource   valueType
+	aliasResolved bool
+	variants      []choiceVariant
 }
 
 type choiceVariant struct {

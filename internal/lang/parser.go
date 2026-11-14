@@ -119,6 +119,14 @@ func (p *parser) parseRecord() *recordType {
 		p.require(">")
 	}
 	p.require("=")
+	if p.accept("alias") {
+		if param != "" {
+			panic(errorAt(name.pos, CodeUnknownType, "generic aliases are not supported"))
+		}
+		target := p.parseType()
+		p.require("newline")
+		return &recordType{name: name.text, pos: name.pos, alias: true, aliasTarget: target, aliasSource: target}
+	}
 	choice := p.accept("choice")
 	if param != "" && !choice {
 		panic(errorAt(name.pos, CodeUnknownType, "type parameters require a choice declaration"))
