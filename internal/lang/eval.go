@@ -109,6 +109,7 @@ type runtime struct {
 	diagnostics      io.Writer
 	trace            io.Writer // nil disables the JSONL step-event stream
 	depth            int
+	defaultDepth     int
 	args             []string
 	reporter         *expression
 	reporting        bool
@@ -529,6 +530,13 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 	if x.record != nil {
 		if x.record.choice {
 			return value{choice: &choiceValue{name: x.record.id() + "." + x.record.variants[x.variant].name, variant: x.variant, fields: args}}, nil
+		}
+		if len(args) < len(x.record.fields) {
+			if r.defaultDepth >= 256 {
+				return value{}, errorAt(x.pos, CodeDepthLimit, "record default depth limit of 256 exceeded")
+			}
+			r.defaultDepth++
+			defer func() { r.defaultDepth-- }()
 		}
 		for _, field := range x.record.fields[len(args):] {
 			v, err := r.expression(field.defaultExpr, make(frame))

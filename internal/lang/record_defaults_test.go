@@ -120,3 +120,25 @@ print(c.retries)
 		t.Fatal(out.String())
 	}
 }
+
+func TestRecursiveRecordDefaultsHaveDepthLimit(t *testing.T) {
+	for _, declarations := range []string{
+		"type R = record\n    n: Int = list.length([R()])\n",
+		"type R = record\n    n: Int = list.length([S()])\ntype S = record\n    n: Int = list.length([R()])\n",
+	} {
+		var out bytes.Buffer
+		session := NewSession(strings.NewReader(""), &out, nil, nil)
+		if _, err := session.Enter(declarations); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := session.Enter("let r = R()\n"); err == nil || !strings.Contains(err.Error(), "depth limit") {
+			t.Fatalf("expected depth diagnostic, got %v", err)
+		}
+		if _, err := session.Enter("print(7)\n"); err != nil {
+			t.Fatal(err)
+		}
+		if out.String() != "7\n" {
+			t.Fatal(out.String())
+		}
+	}
+}
