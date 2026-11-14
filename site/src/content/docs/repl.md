@@ -73,16 +73,26 @@ Checker and runtime errors print an annotated diagnostic, and the session remain
 
 ## Inferred word signatures
 
-The REPL lists inferred return and error types under `words`. Parameters still need annotations; the return type can be omitted when the body determines it:
+The REPL lists inferred parameter, return, and error types under `words`. A parameter can be inferred from its body or from a call in the same entry; later entries cannot add constraints to an already checked definition:
 
 ```text
 zhex> word parse(s: String)
 ....>     text.to-int(s) try
 ....>
 zhex> words
+bye() -> Unit
 parse(s: String) -> Result<Int, ParseError>
 zhex> parse("9") try
 9
+zhex> word identity(value)
+....>     value
+....> print(identity(7))
+....>
+7
+zhex> words
+bye() -> Unit
+identity(value: Int) -> Int
+parse(s: String) -> Result<Int, ParseError>
 ```
 
 `let` can shadow an earlier value silently. Redefining a word with the same effective signature replaces it and prints `redefined name`. A redefinition that changes a word's effective Result signature is rejected transactionally, so the previous word and its callers remain available. The `words` command lists signatures in name order; `words` is a command even if a user has a binding with that name.

@@ -5,7 +5,7 @@ section: Language
 order: 20
 ---
 
-Every expression has a checked type. Local binding types are inferred from their initial value unless an explicit `let name: Type = value` or `var name: Type = value` annotation is supplied. Word parameter types are explicit; a return type may be inferred from the body or written as an annotation. Zhex has no implicit conversions.
+Every expression has a checked type. Local binding types are inferred from their initial value unless an explicit `let name: Type = value` or `var name: Type = value` annotation is supplied. Word parameter and return annotations are optional when the body and same-program calls determine one concrete type; add annotations when inference is ambiguous. Zhex has no implicit conversions.
 
 ## Types
 
@@ -18,7 +18,7 @@ Every expression has a checked type. Local binding types are inferred from their
 | Temporal values | `Date`, `Time`, `Duration`, `Instant`, `TimeZone`, and `ZonedDateTime` represent distinct calendar and elapsed-time concepts. See [dates and time zones](temporal.html). |
 | `Buffer` | A mutable sequence of string lines. See [buffers](buffers.html). |
 | `File` | An open file handle. See [files](files.html). |
-| Result values | Input and parsing operations return `Result<T, E>`; selected collection operations also offer checked forms. User word success types may be inferred from the body or declared with a return annotation; an escaping `try` makes the checker infer the effective Result signature. Explicit `Result<T, E>` signatures remain supported. Results cannot be used as ordinary values and must be handled immediately with `try` or `catch`. User-defined error types are not supported. See [results](results.html). |
+| Result values | Input and parsing operations return `Result<T, E>`; selected collection operations also offer checked forms. User word success types may be inferred from the body or declared with a return annotation; an escaping `try` makes the checker infer the effective Result signature. Explicit `Result<T, E>` signatures remain supported, but Results cannot be word parameters, ordinary values, or discarded; handle them immediately with `try` or `catch`. User-defined error types are not supported. See [results](results.html). |
 | Records | Nominal named types with typed, immutable fields. They cannot be compared or printed directly. See [records](records.html). |
 | Choices | Nominal named types with a fixed set of alternatives and optional typed payloads; a choice can declare one type parameter. Use exhaustive `match` to select a case; choices cannot be compared or printed directly. See [choices and matching](choices.html). |
 | `List<T>` / `Array<T>` | Homogeneous, shared mutable collections. They cannot be compared or printed directly. See [lists and arrays](collections.html). |

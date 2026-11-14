@@ -18,7 +18,22 @@ word square(n: Int)
 print(square(7))
 ```
 
-Parameters always need types. `square` has inferred success type `Int`; if the body does not determine one concrete type, add a return annotation. For example, an unbounded recursive cycle or an empty list result needs an explicit type such as `-> Int` or `-> List<Int>`. Bindings, assignments, and loops have type `Unit`; an explicit return type must match the final statement's type. An `if`, `match`, or `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
+`square` has inferred success type `Int`; if the body does not determine one concrete type, add a return annotation. For example, a recursive cycle without a concrete type anchor or an empty list result needs an explicit type such as `-> Int` or `-> List<Int>`.
+
+Parameter annotations can also be omitted when the word body or calls in the same program determine one concrete type:
+
+```zhex
+word character-count(value)
+    text.length(value)
+
+word identity(value)
+    value
+
+print(character-count("hello"))
+print(identity(7))
+```
+
+This prints `5` and `7`. `text.length` constrains `character-count`'s parameter to `String`; the call to `identity(7)` supplies the constraint for `identity`. Explicit and inferred parameter types can be mixed, as in `word count-down(n, prefix: String)`. If a parameter remains unconstrained, add its type annotation; conflicting calls are type errors, and a word parameter cannot have a `Result` type. Bindings, assignments, and loops have type `Unit`; an explicit return type must match the final statement's type. An `if`, `match`, or `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
 
 `if`, `match`, and `flow` blocks can also supply the entire right-hand side of a `let`, `var`, or assignment. Their final value becomes the binding or assignment value:
 

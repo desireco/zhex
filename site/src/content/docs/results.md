@@ -5,7 +5,7 @@ section: Language
 order: 50
 ---
 
-Built-in operations that can fail return a `Result` containing either a success value or an error. User word parameters always have types; the return annotation may be omitted when the body determines one concrete success type. When a `try` can let a built-in error escape, the checker infers the word's effective `Result<T, E>` signature. A pure word keeps its inferred or declared success type. Successful values are wrapped once at the word boundary, so ordinary words do not need `ok(...)` around their final value.
+Built-in operations that can fail return a `Result` containing either a success value or an error. User word parameter annotations may be omitted when the body and calls in the same program determine one concrete type; `Result` is never a word parameter type. A return annotation may also be omitted when the body determines one concrete success type. When a `try` can let a built-in error escape, the checker infers the word's effective `Result<T, E>` signature. A pure word keeps its inferred or declared success type. Successful values are wrapped once at the word boundary, so ordinary words do not need `ok(...)` around their final value.
 
 ```zhex
 word parse-count(raw: String)
