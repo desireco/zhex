@@ -64,6 +64,9 @@ func (c *checker) checkFunctionCall(x *expression, env *scope) (valueType, bool,
 			return "", true, errorAt(x.pos, CodeArgumentType, "convert %s explicitly with error.wrap before passing it to a user word", arg.binding.errorFamily)
 		}
 	}
+	if len(x.args) > 0 {
+		x.inputType = params[0]
+	}
 	if len(holes) > 0 {
 		x.partial, x.holes = true, holes
 		missing := make([]valueType, len(holes))

@@ -630,3 +630,24 @@ print(f(300))
 		t.Fatalf("expected depth limit, got %v", err)
 	}
 }
+
+func TestTraceSupportsCallableFlowSteps(t *testing.T) {
+	source := `word add(a: Int, b: Int) -> Int
+    a + b
+let plus = flow 5
+    add _
+flow 7
+    plus
+    print
+`
+	var out, trace bytes.Buffer
+	if err := RunWithTrace("test.zhex", source, strings.NewReader(""), &out, &trace); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "12\n" {
+		t.Fatal(out.String())
+	}
+	if !strings.Contains(trace.String(), `"event":"flow-step"`) {
+		t.Fatalf("missing flow trace: %s", trace.String())
+	}
+}
