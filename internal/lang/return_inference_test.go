@@ -2,6 +2,8 @@ package lang
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -160,5 +162,24 @@ func TestInferredReturnAcrossModules(t *testing.T) {
 	}
 	if echo, err := s.Enter("four()"); err != nil || echo != "4" {
 		t.Fatalf("echo %q, error %v", echo, err)
+	}
+}
+
+func TestInferredReturnAlongsideExistingExamples(t *testing.T) {
+	paths, err := filepath.Glob("../../examples/*.zhex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range paths {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, err := Compile(path, string(source)+"\nword inference-probe()\n    1\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
