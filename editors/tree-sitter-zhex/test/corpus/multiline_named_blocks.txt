@@ -25,6 +25,16 @@ let lookup = {
         0
     ]
 }
+for i in range(
+    0,
+    2
+)
+    print(i)
+(values[
+    0
+] =
+    5
+) try
 let n = if true
     1
 else
@@ -88,6 +98,21 @@ n = match Option.Some(n)
       (string)
       (index_expression
         (identifier)
+        (integer))))
+  (for_header
+    (identifier)
+    (integer)
+    (integer))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (identifier)))
+  (expression_statement
+    (try_expression
+      (index_assignment
+        (index_expression
+          (identifier)
+          (integer))
         (integer))))
   (binding
     (identifier)
