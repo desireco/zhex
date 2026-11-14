@@ -411,7 +411,7 @@ func (c *checker) register(words []*word) error {
 
 // checkWords type-checks word bodies against the current file's view.
 func (c *checker) checkWords(words []*word) error {
-	hasOmitted := false
+	hasOmitted := c.needsFunctionInference(words) || blockHasFunction(c.inferenceBody)
 	hasOmittedParam := false
 	for _, w := range words {
 		if w.result == "" {
@@ -474,6 +474,7 @@ func (c *checker) checkWords(words []*word) error {
 				inference.results[w] = termFromType(w.result)
 			}
 		}
+		inference.prepareEffects(words)
 		if hasOmittedParam {
 			inference.entry = c.inferenceBody
 			inference.entryScope = c.inferenceScope
@@ -1133,6 +1134,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		}
 	case "call":
 		if typ, handled, err := c.checkFunctionCall(x, env); handled {
+			return typ, err
+		}
+		if typ, handled, err := c.checkBuiltinPartial(x, env); handled {
 			return typ, err
 		}
 		if len(x.argNames) != 0 {

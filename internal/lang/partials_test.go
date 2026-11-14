@@ -136,3 +136,332 @@ print(plus-five(7))
 		t.Fatal(out.String())
 	}
 }
+
+func TestBuiltinPartialsInferAndUseContext(t *testing.T) {
+	source := `let append-one = list.append _, 1
+let values: List<Int> = []
+append-one(values)
+let show: (Int) -> Unit = print _
+show(list.length(values))
+let change = text.replace _, "A", "a"
+print(change("ADA"))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\naDa\n" {
+		t.Fatal(out.String())
+	}
+	if _, err := Compile("test.zhex", "let show = print _\n"); err == nil {
+		t.Fatal("guessed overloaded builtin type")
+	}
+}
+
+func TestFalliblePartialEffectOccursOnInvocation(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word call-later(raw: String)
+    let later = parse _
+    later(raw) try
+print(call-later("7") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestInferredCallableBindingWinsOverBuiltinName(t *testing.T) {
+	source := `word add(a: Int, b: Int) -> Int
+    a + b
+word apply(print, n: Int) -> Int
+    print(n)
+let plus = add _, 5
+print(apply(plus, 2))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestInferredNonFunctionBindingKeepsBuiltinCall(t *testing.T) {
+	source := `word apply(print)
+    print(1)
+apply(9)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestFalliblePartialThroughInferredFactoryAndCaller(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word factory()
+    parse _
+word call-later(raw: String)
+    let f = factory()
+    f(raw) try
+word outer(raw: String)
+    call-later(raw) try
+print(outer("7") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestFallibleCallableParameterInfersEffect(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word invoke(f: (String) -> Result<Int, ParseError>, raw: String)
+    f(raw) try
+let parse-later = parse _
+print(invoke(parse-later, "8") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "8\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestInferredCallableParameterPropagatesEffect(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word invoke(f, raw: String)
+    f(raw) try
+word outer(raw: String)
+    invoke(parse(_), raw) try
+print(outer("8") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "8\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestFalliblePartialThroughFlowParameter(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word invoke(f, raw: String)
+    f(raw) try
+word outer(raw: String)
+    flow parse _
+        invoke(raw) try
+print(outer("6") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "6\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestFalliblePartialThroughConditionalBinding(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word call-later(raw: String)
+    let f = if true
+        parse _
+    else
+        parse _
+    f(raw) try
+word outer(raw: String)
+    call-later(raw) try
+print(outer("5") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "5\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestNestedPartialRetainsLatentFailure(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word factory(n: Int)
+    parse _
+word outer(raw: String)
+    let delayed = factory _
+    let parser = delayed(1)
+    parser(raw) try
+word top(raw: String)
+    outer(raw) try
+print(top("7") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestDefaultedCallableParameterInfersInvocationEffect(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word invoke(raw: String, op = parse(_))
+    op(raw) try
+word outer(raw: String)
+    invoke(raw) try
+print(outer("9") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "9\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestFallibleFunctionsThroughAggregates(t *testing.T) {
+	source := `type Handler = record
+    action: (String) -> Result<Int, ParseError>
+type Holder = choice
+    Ready(action: (String) -> Result<Int, ParseError>)
+word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word from-list(raw: String)
+    let functions = [parse(_)]
+    let f = functions[0]
+    f(raw) try
+word from-record(raw: String)
+    let h = Handler(parse(_))
+    let f = h.action
+    f(raw) try
+word from-choice(raw: String)
+    match Holder.Ready(parse(_))
+        case Holder.Ready(f)
+            f(raw) try
+word total(raw: String)
+    (from-list(raw) try) + (from-record(raw) try) + (from-choice(raw) try)
+print(total("2") try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "6\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestBuiltinPartialFailureAndInvalidPartialTry(t *testing.T) {
+	source := `let parse = text.to-int _
+let n = parse("bad") catch problem
+    8
+print n
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "8\n" {
+		t.Fatal(out.String())
+	}
+	for _, source := range []string{
+		"let f = text.to-int _ try\n",
+		"let f = (array.new([2, 2], _)) try\n",
+	} {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("accepted try on a partial: %s", source)
+		}
+	}
+}
+
+func TestPartialCaptureFailureOccursAtCreation(t *testing.T) {
+	source := `word add(a: Int, b: Int) -> Int
+    a + b
+word make(raw: String)
+    add(text.to-int(raw) try, _)
+let f = make("5") try
+print(f(7))
+let n = make("bad") catch problem
+    add 1, _
+print(n(2))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "12\n3\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestPartialCannotCaptureConcreteErrorWithoutWrapping(t *testing.T) {
+	for _, source := range []string{
+		"word inspect(problem: Error, n: Int) -> String\n    error.code(problem)\nlet n = text.to-int(\"bad\") catch problem\n    let f = inspect(problem, _)\n    0\n",
+		"let n = text.to-int(\"bad\") catch problem\n    let code: (Error) -> String = error.code _\n    code(problem)\n    0\n",
+	} {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("accepted concrete error laundering: %s", source)
+		}
+	}
+}
+
+func TestRecursivePartialFactoryRequiresFiniteType(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word factory(n: Int)
+    if n == 0
+        parse _
+    else
+        factory _
+`
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("accepted recursive function type")
+	}
+}
+
+func TestCallableFailureCanBeRethrownWithoutChangingFamily(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word call-later(f: (String) -> Result<Int, ParseError>, raw: String)
+    f(raw) catch problem
+        let alias = problem
+        return err(alias)
+word outer(raw: String)
+    call-later(parse(_), raw) try
+let n = outer("bad") catch problem
+    print(error.code(problem))
+    3
+print n
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "text-to-int\n3\n" {
+		t.Fatal(out.String())
+	}
+}

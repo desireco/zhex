@@ -16,6 +16,8 @@ type returnInference struct {
 	views      map[*word]*checker
 	entryView  *checker
 	effects    map[*word]map[string]bool
+	families   map[*word]*typeConstraint
+	fallible   map[*word]bool
 	current    *word
 	err        error
 	pending    []func() bool
@@ -72,15 +74,42 @@ func (s *returnInference) constrain(t *typeConstraint, pos position, names ...st
 }
 func (s *returnInference) wordResult(w *word) *typeConstraint {
 	if result := s.results[w]; result != nil {
-		if !isResult(w.result) && len(s.effects[w]) == 1 {
-			for family := range s.effects[w] {
-				return namedType("Result", result, namedType(family))
-			}
+		if s.fallible[w] {
+			return namedType("Result", result, s.families[w])
 		}
 		return result
 	}
 	return termFromType(w.result)
 }
+
+func (s *returnInference) prepareEffects(words []*word) {
+	s.families = map[*word]*typeConstraint{}
+	s.fallible = map[*word]bool{}
+	for _, w := range words {
+		if !hasPropagation(w.body) {
+			continue
+		}
+		if isResult(w.result) {
+			s.families[w] = namedType(resultFamily(w.result))
+		} else {
+			s.families[w] = freshType()
+			s.fallible[w] = true
+		}
+	}
+}
+func (s *returnInference) recordEffect(family *typeConstraint, pos position) {
+	if s.current == nil || s.families[s.current] == nil {
+		return
+	}
+	prior, previousKnown := constraintType(s.families[s.current])
+	next, nextKnown := constraintType(family)
+	if previousKnown && nextKnown && prior != next && s.err == nil {
+		s.err = errorAt(pos, CodeTryInput, "word %q propagates multiple error families %s and %s; handle or convert them explicitly", s.current.name, prior, next)
+		return
+	}
+	s.equal(s.families[s.current], family, pos)
+}
+
 func (s *returnInference) join(a, b *typeConstraint, pos position) *typeConstraint {
 	if a.root().name == string(neverType) {
 		return b
@@ -109,6 +138,9 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 			}
 		}
 		env[stmt.name] = value
+		if stmt.expr != nil && stmt.expr.kind == "name" && env["\x00error:"+stmt.expr.text] != nil {
+			env["\x00error:"+stmt.name] = env["\x00error:"+stmt.expr.text]
+		}
 		return namedType(string(unitType))
 	case "assign":
 		value := s.expr(stmt.expr, env, false)
@@ -120,9 +152,14 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 		return s.expr(stmt.expr, env, false)
 	case "return":
 		if stmt.expr != nil && stmt.expr.kind == "call" && stmt.expr.text == "err" {
+			family := namedType("Error")
 			for _, arg := range stmt.expr.args {
 				s.expr(arg, env, false)
+				if arg.kind == "name" && env["\x00error:"+arg.text] != nil {
+					family = env["\x00error:"+arg.text]
+				}
 			}
+			s.recordEffect(family, stmt.pos)
 		} else if stmt.expr != nil && stmt.expr.kind == "call" && stmt.expr.text == "ok" && len(stmt.expr.args) == 1 {
 			value := s.expr(stmt.expr.args[0], env, false)
 			result := s.results[s.current]
@@ -155,7 +192,9 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 			}
 			value = s.termCall(step, args, env, step.propagate, 1)
 			if step.propagate {
-				value = s.unwrap(value, step.pos)
+				var family *typeConstraint
+				value, family = s.unwrapParts(value, step.pos)
+				s.recordEffect(family, step.pos)
 			}
 		}
 		return value
@@ -187,10 +226,10 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 	s.err = errorAt(stmt.pos, CodeUnsupportedCode, "unsupported inference statement %q", stmt.kind)
 	return freshType()
 }
-func (s *returnInference) unwrap(result *typeConstraint, pos position) *typeConstraint {
+func (s *returnInference) unwrapParts(result *typeConstraint, pos position) (*typeConstraint, *typeConstraint) {
 	inner, family := freshType(), freshType()
 	s.equal(result, namedType("Result", inner, family), pos)
-	return inner
+	return inner, family
 }
 func (s *returnInference) infer(words []*word) error {
 	for _, w := range words {
@@ -215,6 +254,7 @@ func (s *returnInference) infer(words []*word) error {
 		}
 	}
 	if len(s.entry) > 0 {
+		s.current = nil
 		if s.entryView != nil {
 			s.checker = s.entryView
 		}
@@ -281,7 +321,7 @@ func (s *returnInference) infer(words []*word) error {
 			param.typ = typ
 			param.inferredType = true
 		}
-		if w.result != "" {
+		if w.result != "" && !s.fallible[w] {
 			continue
 		}
 		result, ok := constraintType(s.results[w])
@@ -291,8 +331,17 @@ func (s *returnInference) infer(words []*word) error {
 		if w.module != "" && !strings.HasPrefix(w.name, "_") && (privateTypeInModule(result, w.module) || privateInferredType(result, s.checker.types.all)) {
 			return privateTypeLeak(w.pos, result)
 		}
+		if w.result == "" {
+			w.inferredReturnType = true
+		}
 		w.result = result
-		w.inferredReturnType = true
+		if s.fallible[w] {
+			family, known := constraintType(s.families[w])
+			if !known {
+				return withHint(errorAt(w.pos, CodeTryInput, "cannot infer error family of %q", w.name), "add an explicit Result return annotation")
+			}
+			w.success, w.result, w.inferred = result, valueType("Result<"+string(result)+", "+string(family)+">"), true
+		}
 	}
 	return nil
 }
@@ -307,6 +356,8 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 		return namedType(string(unitType))
 	}
 	switch x.kind {
+	case "flow-value":
+		return termFromType(x.typ)
 	case "hole":
 		return freshType()
 	case "int":
@@ -381,12 +432,15 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 		}
 		return s.termCall(x, args, env, checked, 0)
 	case "try":
-		return s.unwrap(s.expr(x.left, env, true), x.pos)
+		inner, family := s.unwrapParts(s.expr(x.left, env, true), x.pos)
+		s.recordEffect(family, x.pos)
+		return inner
 	case "catch":
-		inner := s.unwrap(s.expr(x.left, env, true), x.pos)
+		inner, family := s.unwrapParts(s.expr(x.left, env, true), x.pos)
 		nested := copyInferScope(env)
 		if x.text != "" {
 			nested[x.text] = namedType("Error")
+			nested["\x00error:"+x.text] = family
 		}
 		fallback := s.block(x.handler, nested)
 		if fallback.root().name != string(neverType) {
@@ -632,6 +686,29 @@ func (s *returnInference) termCall(x *expression, args []*typeConstraint, env in
 			result = freshType()
 			params := append(append([]*typeConstraint{}, args...), result)
 			s.equal(binding, namedType("@function", params...), x.pos)
+		} else if root.name == "" {
+			// A later call site may establish that this binding is callable.
+			// Until then, guessing the same-named word changes the program.
+			result = freshType()
+			view := s.checker
+			deferred := result
+			s.pending = append(s.pending, func() bool {
+				resolved := binding.root()
+				if resolved.name == "" {
+					return false
+				}
+				if resolved.name == "@function" {
+					params := append(append([]*typeConstraint{}, args...), deferred)
+					s.equal(binding, namedType("@function", params...), x.pos)
+				} else {
+					previous := s.checker
+					s.checker = view
+					target := s.call(x, args, checked)
+					s.checker = previous
+					s.equal(deferred, target, x.pos)
+				}
+				return true
+			})
 		}
 	}
 	if result == nil {
@@ -791,6 +868,10 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		}
 		return namedType("Unit")
 	case "ok", "err":
+		if s.current == nil {
+			s.fail(x.pos, "%s requires a Result word context", x.text)
+			return freshType()
+		}
 		result := s.wordResult(s.current)
 		inner, family := freshType(), freshType()
 		s.equal(result, namedType("Result", inner, family), x.pos)

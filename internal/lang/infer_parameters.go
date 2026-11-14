@@ -145,5 +145,6 @@ func inferModuleParameters(p *Program, modules map[string]*module, order []*modu
 			}
 		}
 	}
+	solver.prepareEffects(words)
 	return solver.infer(words)
 }

@@ -396,7 +396,7 @@ func trailingBareTry(x *expression) (*expression, *expression) {
 func (p *parser) argument() *expression {
 	if p.at("_") {
 		next := p.tokens[p.index+1]
-		if next.kind == "," || next.kind == ")" || next.kind == "newline" {
+		if next.kind == "," || next.kind == ")" || next.kind == "newline" || next.text == "try" || next.text == "catch" {
 			t := p.take()
 			return &expression{kind: "hole", text: "_", pos: t.pos, end: t.end}
 		}
@@ -421,6 +421,10 @@ func (p *parser) wholeExpression() *expression {
 		last, guard := trailingBareTry(x.args[len(x.args)-1])
 		x.args[len(x.args)-1] = last
 		x.end = last.end
+		if guard == nil && p.at("try") {
+			t := p.take()
+			guard = &expression{pos: t.pos, end: t.end}
+		}
 		if guard != nil {
 			return p.checkDepth(&expression{kind: "try", pos: guard.pos, end: guard.end, left: p.checkDepth(x)})
 		}
