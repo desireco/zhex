@@ -282,3 +282,21 @@ func TestInferredParametersCarryNestedCallerNominalTypes(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestInferredParameterThroughChoiceMatch(t *testing.T) {
+	source := `word unwrap(value)
+    match value
+        case Option.Some(item)
+            item
+        case Option.None
+            0
+print(unwrap(Option.Some(7)))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
