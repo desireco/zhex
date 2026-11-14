@@ -290,16 +290,20 @@ func TestInteractiveReplUnknownKeyDoesNotAlterLongSource(t *testing.T) {
 }
 
 func TestInteractiveReplByeRestoresTerminal(t *testing.T) {
-	s := startPTY(t)
-	s.send(t, "bye()\r")
-	if err := s.cmd.Wait(); err != nil {
-		t.Fatal(err)
-	}
-	state, err := unix.IoctlGetTermios(int(s.tty.Fd()), unix.TCGETS)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if state.Lflag&(unix.ICANON|unix.ECHO) != unix.ICANON|unix.ECHO {
-		t.Fatalf("terminal mode not restored: %#x", state.Lflag)
+	for _, command := range []string{"bye", "bye()"} {
+		t.Run(command, func(t *testing.T) {
+			s := startPTY(t)
+			s.send(t, command+"\r")
+			if err := s.cmd.Wait(); err != nil {
+				t.Fatal(err)
+			}
+			state, err := unix.IoctlGetTermios(int(s.tty.Fd()), unix.TCGETS)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if state.Lflag&(unix.ICANON|unix.ECHO) != unix.ICANON|unix.ECHO {
+				t.Fatalf("terminal mode not restored: %#x", state.Lflag)
+			}
+		})
 	}
 }
