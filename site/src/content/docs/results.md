@@ -39,6 +39,8 @@ Using `parse-count` from the example above, `load-count` also has effective sign
 
 Forward calls, recursion, and imported words contribute their escaping effects to the effective signature. If uncaught `try` expressions can propagate more than one error family from a word, the checker rejects it; handle a failure with `catch` or convert it explicitly with `error.wrap` to the common `Error` family. Error families never widen implicitly. Runtime faults such as division by zero are not inferred as Result effects.
 
+Partial functions carry a monomorphic arrow type. When their target is fallible, its `Result` appears in the function's return type and the error occurs only when the function is invoked; each caller then uses `try` or `catch`. A `try` on an explicitly supplied capture argument happens while creating the partial. The partial value itself is not a `Result`, so do not place `try` on its creation.
+
 ```zhex
 word read-or-default(raw: String) -> Int
     text.to-int(raw) catch

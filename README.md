@@ -74,7 +74,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Composition](examples/composition.zhex) | Typed words, inferred locals, and a flow that prints `32`. |
 | [Calls](examples/calls.zhex) | Define a word and call it with either parentheses or the simple comma-separated form. |
 | [Word defaults](examples/word-defaults.zhex) | Infer a parameter type from its default, evaluate defaults lazily, and create fresh mutable defaults per call. |
-| [Partial calls](examples/partials.zhex) | Leave explicit argument holes to create a reusable function value, then call it or use it in a flow. |
+| [Partial calls](examples/partials.zhex) | Use explicit holes with words and built-ins, capture values, and handle a fallible partial when it is invoked. |
 | [Records](examples/records.zhex) | A nominal named type, positional constructor, and immutable fields. |
 | [Choices](examples/choices.zhex) | Declare concrete and one-parameter alternatives and handle them with a match. |
 | [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, row-major arrays, and overlap-preserving resize. |

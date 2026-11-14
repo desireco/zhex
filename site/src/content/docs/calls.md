@@ -107,6 +107,35 @@ flow 7
 
 This prints `1`, `1`, and `12`. Each invocation gets a new empty list because the default is evaluated when the partial is called. The [partial application example](../examples.html#partials) also shows a captured integer value: rebinding its original `var` does not change the value the partial captured.
 
+## Built-in calls and function types
+
+Built-ins with a fixed signature can also be partially applied. A contextual function annotation can resolve an overloaded operation such as `print`:
+
+```zhex
+let show: (Int) -> Unit = print _
+show 7
+```
+
+This prints `7`. The annotation resolves `print`'s overload here. Whole-program call constraints can also do so without an annotation, as in `let show = print _` followed by `show 7`; if neither annotation nor call sites determine a type, the checker reports ambiguity. A partial of `text.replace` can infer its remaining argument types from the operation and supplied arguments. The [partial application example](../examples.html#partials) also includes `list.append _, 1`.
+
+Collection intrinsics that normally return plain values keep that mode when partially applied. The function created by `list.append _, 1` returns `Unit` when invoked; adding `try` at invocation cannot switch it to a checked `Result`. To make a fallible function, put the intrinsic's checked form inside an ordinary word and partially apply that word:
+
+```zhex
+word append-checked(values: List<Int>, item: Int)
+    list.append(values, item) try
+
+let append-one = append-checked _, 1
+let values: List<Int> = []
+append-one(values) try
+print(list.length(values))
+```
+
+Here the intrinsic's `try` selects its checked form inside `append-checked`, so the partial's invocation returns a `Result` that its caller handles.
+
+Record and choice constructors are not partial targets. Loop-only `range` and `file.lines`, special reporter registration `error.set-reporter`, and the non-returning `console.exit` and `console.fail` are not partial targets either; call them directly where they are valid.
+
+Function types are monomorphic arrows with a fixed argument tuple, such as `(Int) -> Unit` or `(String, Int) -> String`. They can annotate bindings and parameters, and can be passed to words, returned from words, used in flows, or stored in lists, records, and choices. A function's result type may be a `Result` to describe a failure that will occur when it is invoked; a `Result` cannot be an argument or a captured value. Function values cannot be printed, compared directly, or encoded as JSON. Caught concrete errors follow the usual rule: wrap one with `error.wrap` before capturing it for a function that accepts common `Error`.
+
 ## Handling a fallible call
 
 A trailing `try` or `catch` at a complete bare-call boundary handles that call's result. To handle a fallible argument separately, keep the outer call parenthesized and put `try` on the argument:
@@ -126,6 +155,24 @@ print fallback
 ```
 
 This prints `4`, `3`, and `3`. In the first binding, `try` guards the whole bare `text.to-int` call. In the second, it guards only the parenthesized call argument. A `catch` block can also supply a fallback for a bare call.
+
+A partial of a fallible word does not run that word when the partial is created. Its function result type carries the `Result`, so handle the failure at invocation:
+
+```zhex
+word parse(raw: String)
+    text.to-int(raw) try
+
+let parse-later = parse _
+let value = parse-later "8" try
+let fallback = parse-later "bad" catch problem
+    print(error.code(problem))
+    3
+
+print value
+print fallback
+```
+
+This prints `8`, `text-to-int`, and `3`. `try` on an explicitly supplied capture argument belongs to partial creation; the partial's own `try` is invalid because it is not a `Result` until invocation.
 
 ## Keep parentheses for nesting and ambiguity
 
