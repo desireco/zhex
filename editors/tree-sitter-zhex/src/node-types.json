@@ -2054,7 +2054,7 @@
       },
       "result": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "result_type",

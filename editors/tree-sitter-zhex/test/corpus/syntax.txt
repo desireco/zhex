@@ -151,3 +151,22 @@ for line in file.lines(path)
       (call_expression
         (identifier)
         (identifier)))))
+
+==================
+Inferred word return
+==================
+word double(n: Int)
+    n + n
+
+---
+
+(source_file
+  (word_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type)))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))
