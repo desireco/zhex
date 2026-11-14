@@ -215,3 +215,26 @@ word greet(prefix: String = "hello", name = fallback())
     (binary_expression
       (identifier)
       (identifier))))
+
+==================
+Simple word headers and calls
+==================
+word add left: Int, right = 4
+    left + right
+let n = add 1, 2
+print n
+flow 2
+    add 3
+
+---
+
+(source_file
+  (word_definition
+    (identifier)
+    (parameter (identifier) (type))
+    (parameter (identifier) (integer)))
+  (expression_statement (binary_expression (identifier) (identifier)))
+  (binding (identifier) (bare_call (identifier) (integer) (integer)))
+  (expression_statement (bare_call (identifier) (identifier)))
+  (flow_header (integer))
+  (expression_statement (bare_call (identifier) (integer))))

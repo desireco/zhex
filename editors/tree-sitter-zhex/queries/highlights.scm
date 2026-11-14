@@ -1,6 +1,7 @@
 (identifier) @variable
 (word_definition name: (identifier) @function)
 (call_expression function: (identifier) @function)
+(bare_call function: (identifier) @function)
 (parameter name: (identifier) @variable.parameter)
 (named_argument name: (identifier) @property)
 (type) @type

@@ -44,6 +44,10 @@
         "required": true,
         "types": [
           {
+            "type": "bare_call",
+            "named": true
+          },
+          {
             "type": "binary_expression",
             "named": true
           },
@@ -113,6 +117,88 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "bare_call",
+    "named": true,
+    "fields": {
+      "function": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "binary_expression",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "call_expression",
+          "named": true
+        },
+        {
+          "type": "catch_expression",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "index_assignment",
+          "named": true
+        },
+        {
+          "type": "index_expression",
+          "named": true
+        },
+        {
+          "type": "integer",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "map_literal",
+          "named": true
+        },
+        {
+          "type": "match_expression",
+          "named": true
+        },
+        {
+          "type": "parenthesized_expression",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "try_expression",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -263,6 +349,10 @@
         "multiple": false,
         "required": true,
         "types": [
+          {
+            "type": "bare_call",
+            "named": true
+          },
           {
             "type": "binary_expression",
             "named": true
@@ -637,6 +727,10 @@
       "required": true,
       "types": [
         {
+          "type": "bare_call",
+          "named": true
+        },
+        {
           "type": "binary_expression",
           "named": true
         },
@@ -799,6 +893,10 @@
       "multiple": false,
       "required": true,
       "types": [
+        {
+          "type": "bare_call",
+          "named": true
+        },
         {
           "type": "binary_expression",
           "named": true
