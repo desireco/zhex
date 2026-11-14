@@ -116,7 +116,7 @@ The [error guide](diagnostics.html) documents error inspection, causes, and the 
 
 ## Built-ins that return results
 
-The built-in operations that return results are:
+These built-in operations return a `Result` directly:
 
 | Operation | Result type | Example failure |
 | --- | --- | --- |
@@ -130,6 +130,11 @@ The built-in operations that return results are:
 | `buffer.line(buffer, i)` | `Result<String, BufferError>` | Index is outside the buffer's lines. |
 | `buffer.set-line(buffer, i, line)` | `Result<Unit, BufferError>` | Index is outside the buffer's lines. |
 | `error.cause(error)` | `Result<Error, Error>` | The error has no cause (`error-no-cause`). |
+
+List and array operations normally return ordinary values and report invalid operations as runtime diagnostics. Put `try` or `catch` directly on the operation to opt into the checked `Result` shown below; `try` unwraps success to the operation's ordinary result type, and assignments must be parenthesized before the guard:
+
+| Guarded operation | Result type when guarded | Example failure |
+| --- | --- | --- |
 | `list.append(list, value)` | `Result<Unit, Error>` | The collection is being iterated (`collection-iterating`) or the size limit is exceeded (`collection-limit`). |
 | `list[index]` | `Result<T, Error>` | Index is outside the list (`list-range`). |
 | `(list[index] = value)` | `Result<Unit, Error>` | Invalid index or an active traversal prevents mutation. |

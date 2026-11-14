@@ -1,10 +1,10 @@
 # Simple calls and explicit partial application
 
-Accepted design for [#55](https://github.com/desireco/zhex/issues/55), November 13, 2026. **This is an implementation contract, not a claim that the syntax has shipped.** It follows return inference [#51](https://github.com/desireco/zhex/issues/51), parameter inference [#52](https://github.com/desireco/zhex/issues/52), and word defaults [#53](https://github.com/desireco/zhex/issues/53). Existing parenthesized syntax remains supported. Automatic currying, anonymous functions, rank polymorphism, general named word arguments, and implicit bare function references are outside this feature.
+Accepted design for [#55](https://github.com/desireco/zhex/issues/55), November 13, 2026. **This is a historical implementation contract; the syntax shipped in [`0b21a0c`](https://github.com/desireco/zhex/commit/0b21a0c).** See the current [calls and defaults guide](../site/src/content/docs/calls.md) for user-facing behavior. It follows return inference [#51](https://github.com/desireco/zhex/issues/51), parameter inference [#52](https://github.com/desireco/zhex/issues/52), and word defaults [#53](https://github.com/desireco/zhex/issues/53). Existing parenthesized syntax remains supported. Automatic currying, anonymous functions, rank polymorphism, general named word arguments, and implicit bare function references are outside this feature.
 
 ## The intended everyday form
 
-The following examples use the accepted new syntax and become executable only when its implementation lands:
+The following examples use the shipped syntax:
 
 ```zhex
 word join left: String = "one", right: String = "two"
@@ -17,7 +17,7 @@ let from-hello = join "hello", _
 print(from-hello("world"))
 ```
 
-`join` has success type `String`. Both outputs are `hello world`. Its parenthesized equivalent is valid after #53 adds word defaults:
+`join` has success type `String`. Both outputs are `hello world`. Its parenthesized equivalent remains valid with word defaults:
 
 ```zhex
 word join(left: String = "one", right: String = "two") -> String
@@ -114,7 +114,7 @@ The opt-in checked collection intrinsics keep their narrow direct-call semantics
 
 Use a monomorphic arrow type with an explicit parameter tuple: `(String) -> Int`, `(String, Int) -> String`, or `(String) -> Result<Int, ParseError>`. Function values normally infer this type, so annotations are not mandatory. Different calls to one function value must satisfy the same type. No rank polymorphism, generic function definitions, variance conversion, lambdas or automatic currying is implied.
 
-A Result in the function's *return signature* is a future effect contract, not a stored unhandled Result value. Type containment checks must distinguish it from an actual Result parameter/capture. Function parameters cannot smuggle Results, and capture arguments must satisfy current immediate handling rules. The function type may appear in ordinary supported annotation/collection/record positions when these checks are preserved.
+A Result in the function's *return signature* is a checked effect contract, not a stored unhandled Result value. Type containment checks distinguish it from an actual Result parameter/capture. Function parameters cannot smuggle Results, and capture arguments must satisfy the immediate handling rules. The function type may appear in ordinary supported annotation/collection/record positions when these checks are preserved.
 
 Concrete caught errors cannot be laundered through a capture or a function-valued call. Apply the same explicit `error.wrap` requirement as ordinary user-word arguments/storage; indirect callable values do not gain a blanket exception for builtin inspection. Direct builtin error inspection remains unchanged.
 
@@ -126,7 +126,7 @@ Function values are excluded from direct equality and JSON; formatting uses a co
 
 ## Delivery, examples, and review
 
-Terra owns all implementation and main staging/commits/build/deploy. Sol owns this contract and independent grammar/type/effect/lifetime review. Luna owns public usage docs and runnable examples. Implement after #51/#52/#53 in focused slices: simple declaration/call sugar; callable types/storage/invocation; explicit partial creation/default/effect integration; editor/docs/example integration. A coherent earlier slice may ship before the whole story is done, with scope recorded honestly.
+Terra owns implementation and main staging/commits/build/deploy. Sol owns this contract and independent grammar/type/effect/lifetime review. Luna owns public usage docs and runnable examples. The implementation followed #51/#52/#53 in focused slices: simple declaration/call sugar; callable types/storage/invocation; explicit partial creation/default/effect integration; editor/docs/example integration. The contract records the accepted scope; the calls guide describes the shipped behavior.
 
 Keep the current inline Language basics/Algorithms example groups. Add a discoverable words/calls/flows/defaults/partials guide or thematic subsection within the language basics, with beginner examples before advanced capture/error cases. Include full runnable examples for normal calls/defaults, `plus-five`, left/right holes, a partial used in a flow, repeated invocation with fresh defaults, and meaningful fallible invocation. Do not replace beginner recovery with a large reporting demonstration.
 

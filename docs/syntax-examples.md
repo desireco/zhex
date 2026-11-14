@@ -125,7 +125,7 @@ zhex run examples/modules/main.zhex
 - `range(start, end)` is an ascending integer iteration with an exclusive end. When `start >= end`, it performs no iterations. It should not require materializing a list of all integers.
 - `int.to-string` returns decimal text. `text.reverse` reverses a valid string by Unicode code points. These standard operations are predeclared.
 
-`print` uses statically selected built-in overloads rather than requiring a general formatting protocol. Boolean output is `true` or `false`. Broader traits, collections, and polymorphism are not needed for these examples.
+`print` uses statically selected built-in overloads rather than requiring a general formatting protocol. Boolean output is `true` or `false`. These examples use concrete value types and monomorphic words rather than general traits or polymorphism.
 
 ## Boundary and error examples
 
