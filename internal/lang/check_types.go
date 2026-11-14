@@ -412,39 +412,16 @@ func (c *checker) privateVariant(name string) (*recordType, *module) {
 func typeApplication(typ valueType) (string, []valueType, bool) {
 	text := string(typ)
 	i := strings.IndexByte(text, '<')
-	if i <= 0 || !strings.HasSuffix(text, ">") {
+	if i <= 0 || !strings.HasSuffix(text, ">") || strings.ContainsAny(text[:i], "() ") {
 		return "", nil, false
 	}
-	body := text[i+1 : len(text)-1]
-	depth, start := 0, 0
-	var args []valueType
-	for at, r := range body {
-		switch r {
-		case '<':
-			depth++
-		case '>':
-			depth--
-			if depth < 0 {
-				return "", nil, false
-			}
-		case ',':
-			if depth == 0 {
-				args = append(args, valueType(strings.TrimSpace(body[start:at])))
-				start = at + 1
-			}
-		}
-	}
-	if depth != 0 {
+	args, ok := splitTypeList(text[i+1 : len(text)-1])
+	if !ok || len(args) == 0 {
 		return "", nil, false
-	}
-	args = append(args, valueType(strings.TrimSpace(body[start:])))
-	for _, arg := range args {
-		if arg == "" {
-			return "", nil, false
-		}
 	}
 	return text[:i], args, true
 }
+
 func substituteType(typ valueType, param string, arg valueType) valueType {
 	if string(typ) == param {
 		return arg

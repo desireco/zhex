@@ -127,33 +127,11 @@ func isResult(t valueType) bool { return strings.HasPrefix(string(t), "Result<")
 // resultInner maps a Result type to its success type; ok is false for
 // non-Result types. The one mapping behind try, traceValue, and the hint.
 func resultParts(t valueType) (valueType, string, bool) {
-	text := string(t)
-	if !strings.HasPrefix(text, "Result<") || !strings.HasSuffix(text, ">") {
+	base, args, ok := typeApplication(t)
+	if !ok || base != "Result" || len(args) != 2 {
 		return "", "", false
 	}
-	body := strings.TrimSuffix(strings.TrimPrefix(text, "Result<"), ">")
-	depth := 0
-	for i, r := range body {
-		switch r {
-		case '<':
-			depth++
-		case '>':
-			depth--
-			if depth < 0 {
-				return "", "", false
-			}
-		case ',':
-			if depth == 0 {
-				inner := strings.TrimSpace(body[:i])
-				family := strings.TrimSpace(body[i+1:])
-				if inner == "" || family == "" {
-					return "", "", false
-				}
-				return valueType(inner), family, true
-			}
-		}
-	}
-	return "", "", false
+	return args[0], string(args[1]), true
 }
 func resultInner(t valueType) (valueType, bool) { inner, _, ok := resultParts(t); return inner, ok }
 func resultFamily(t valueType) string           { _, family, _ := resultParts(t); return family }
