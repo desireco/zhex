@@ -19,3 +19,20 @@ match Status.Failed("network unavailable")
         print("Could not start: " + message)
     case _
         print("No failure")
+
+type Maybe<T> = choice
+    None
+    Some(value: T)
+
+let answer = Maybe.Some(7)
+let empty: Maybe<Int> = Maybe.None
+
+word maybe-value(m: Maybe<Int>) -> Int
+    match m
+        case Maybe.Some(value)
+            value
+        case Maybe.None
+            0
+
+print(maybe-value(answer))
+print(maybe-value(empty))
