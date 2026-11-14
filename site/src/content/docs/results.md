@@ -20,7 +20,7 @@ flow " 12 "
 
 This prints `12`. The written signature says that success produces an `Int`; `text.to-int try` can fail with `ParseError`, so callers see `parse-count(raw: String) -> Result<Int, ParseError>` and must use `try` or `catch`.
 
-The supported built-in error families are `InputError`, `ParseError`, `FileError`, `BufferError`, and the common `Error` family. User-defined error types are not part of the language. Built-ins keep their explicit `Result<T, E>` signatures.
+The supported built-in error families are `InputError`, `ParseError`, `FileError`, `BufferError`, and the common `Error` family. User-defined error types are not part of the language. Input and parsing built-ins keep their explicit `Result<T, E>` signatures; selected collection operations offer checked forms.
 
 The built-ins that return results include `read-line`, `text.to-int`, `console.arg`, file and buffer operations, `error.cause`, and checked list/array operations. See [console](console.html), [files](files.html), [buffers](buffers.html), and [lists and arrays](collections.html) for their success types and failure cases.
 
