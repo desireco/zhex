@@ -191,3 +191,27 @@ word twice(value, multiplier: Int)
     (binary_expression
       (identifier)
       (identifier))))
+
+==================
+Word parameter defaults
+==================
+word greet(prefix: String = "hello", name = fallback())
+    prefix + name
+
+---
+
+(source_file
+  (word_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type)
+      (string))
+    (parameter
+      (identifier)
+      (call_expression
+        (identifier))))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))
