@@ -667,3 +667,54 @@ print(list.length(values))
 		t.Fatalf("output %q trace %s", out.String(), trace.String())
 	}
 }
+
+func TestCallableFlowCannotEraseConcreteErrorFamily(t *testing.T) {
+	for _, source := range []string{
+		`word store(values: List<Error>, problem: Error) -> Unit
+    list.append(values, problem)
+let values: List<Error> = []
+let save = store values, _
+let n = text.to-int("bad") catch problem
+    flow problem
+        save
+    7
+`,
+		`word explain(problem: Error) -> String
+    error.message(problem)
+let f = explain _
+let n = text.to-int("bad") catch problem
+    flow problem
+        f
+        print
+    7
+`,
+		`let f = error.message _
+let n = text.to-int("bad") catch problem
+    flow problem
+        f
+        print
+    7
+`,
+	} {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("accepted concrete Error through callable flow: %s", source)
+		}
+	}
+	source := `word store(values: List<Error>, problem: Error) -> Unit
+    list.append(values, problem)
+let values: List<Error> = []
+let save = store values, _
+let n = text.to-int("bad") catch problem
+    let wrapped = error.wrap("parse-failed", "invalid", problem)
+    save(wrapped)
+    7
+print(list.length(values))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n" {
+		t.Fatal(out.String())
+	}
+}

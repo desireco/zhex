@@ -841,7 +841,11 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			if typ == errorType {
 				w, _ := c.resolveWord(step.text)
 				choice, _ := c.resolveVariant(step.text)
-				if w != nil || choice != nil || c.types.visible[step.text] != nil {
+				callable := false
+				if binding := env.find(step.text); binding != nil {
+					_, _, callable = functionTypeParts(binding.typ)
+				}
+				if w != nil || callable || choice != nil || c.types.visible[step.text] != nil {
 					return "", errorAt(step.pos, CodeArgumentType, "use a direct user-word call or constructor instead of an Error-valued flow step")
 				}
 			}
