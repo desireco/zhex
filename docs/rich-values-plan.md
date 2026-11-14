@@ -129,3 +129,84 @@ Tests are part of each slice, before implementation where behavior changes:
 - Real programs exercising try/catch/reporting and fresh built CLI execution, plus syntax support in every shipped editor and validated website snippets/downloads.
 
 Run just test, go vet ./..., applicable editor checks, and a fresh just build with real binary smoke tests. Review/fix findings, push and wait for green website deployment, then record evidence before closing #5/#31. Complete this approved slice without claiming the staged #32/#33/#34 work has shipped.
+
+## Approved continuation: choices and matching (#32)
+
+The owner resumed the whole #5 epic after the first slice shipped. #5 and #32 remain In Progress while the remaining representations, maps and temporal values are implemented. The following choice surface is now approved; alias, scalar-wrapper and opaque spelling remain separate decisions.
+
+```text
+type Status = choice
+    Pending
+    Running
+    Failed(message: String)
+
+let status = Status.Failed("File not found")
+let description = match status
+    case Status.Failed(message)
+        message
+    case _
+        "no failure"
+```
+
+Constructors retain their type qualifier. Inference removes redundant binding annotations, not the qualifier. A nullary variant is a value such as `Status.Pending`; payload variants take positional arguments. Imported constructors use `model.Status.Pending`. All variants share the parent type's visibility; public payload types cannot leak module-private types. Constructor collisions, including exact overlap with imported qualified words, diagnose before effects. A value binding with the same base spelling does not change constructor resolution.
+
+Match accepts an arbitrary choice-valued expression evaluated once. It works as a statement, final word result, or whole binding RHS. Payload bindings are immutable and scoped to one arm; `_` ignores a payload. Without a default, every variant must appear. `case _` appears at most once, last, and covers remaining variants. Duplicate arms, missing coverage and unreachable defaults diagnose. Arm result types agree, with never-returning exits allowed. No guards, nested patterns, pinning or multi-clause words are introduced.
+
+Choice payloads cannot hide Results or implicitly convert concrete Error families. Matching must preserve these obligations through branch results, nested matches/catches and final Result-returning words. No direct choice formatting/equality or recursive type graphs are added. Generic choices needed for optional values are approved as a subsequent foundation; exact Option provisioning and other generic representations must be recorded separately before claiming them complete.
+
+## Approved continuation: inferred fallibility (#38)
+
+```text
+word parse(raw: String) -> Int
+    flow raw
+        text.trim
+        text.to-int try
+
+word configure(raw: String) -> Int
+    parse(raw) try
+
+let count = configure("abc") catch
+    3
+```
+
+These examples describe the approved #38 behavior, not the earlier interpreter contract. An ordinary return annotation names the success type. An escaping `try` infers one error family and exposes a checked `Result<T, E>` call signature; success values wrap automatically once. Pure words retain plain return types. Every caller still explicitly handles or propagates a Result, and raw Results cannot be silently discarded. Explicit Result declarations with `ok`/`err` remain supported without double wrapping.
+
+Infer effects over the complete call graph to a fixed point, including recursion, forward calls and modules. A catch handles the protected returned failure; argument/seed propagation and handler failures may still escape. Multiple escaping families require explicit handling/conversion, never implicit widening. Runtime faults and deliberate process exits are not Result effects. Public/REPL signatures expose inferred effects, and incompatible REPL redefinitions must recheck dependents or reject transactionally.
+
+Existing composition already avoids many temporary names: a flow seed can be a computed or unwrapped call, a word may end in a catch fallback, and a match arm may end in a flow. Before #39, flow steps were unary and multiple arguments required direct calls. The approved extension below adds explicit arguments while keeping the same visible composition. No implicit stack, placeholder, partial application or callback protocol is required.
+
+## Approved maps and flow calls (#33, #39)
+
+The owner has now approved both extensions. This supersedes earlier tentative fallible-map-mutation and fixed-map-limit recommendations; current List/Array rules remain unchanged.
+
+```text
+let scores = {"Ada": 10}
+scores["Ada"] = 11
+map.remove(scores, "absent")
+
+match scores["Ada"]
+    case Option.Some(value)
+        print(value)
+    case Option.None
+        print("missing")
+
+flow scores
+    map.put("Nancy", 23)
+    map.length
+    print
+
+flow {"Grace": 42}
+    map.into(scores)
+```
+
+Nonempty literals infer exact homogeneous Map<K,V>; empty literals require an expected type. Constant String/Int/Bool keys include negative integers; escaped-string and signed-integer equality determines duplicate literal keys, which diagnose before effects. Value expressions evaluate once left to right. Map values cannot hide Results or implicitly erase concrete Error families.
+
+Option<T> is a built-in reserved generic choice with qualified `Option.Some(value)` and nullary `Option.None`; the latter requires an expected type. Lookup returns Option<V> without try. `map.length` returns Int and `map.contains` returns Bool. Plain index assignment and `map.remove` return Unit; removing an absent key is a no-op. `map.put(target,key,value)` returns that same target. `map.into(source,target)` merges and returns that same target, using source-first order to fit the flow rule.
+
+Maps share mutable identity and traverse in insertion order: one loop binding receives values, two receive key and value. Updates keep a key's existing position; removing then reinserting moves it last. Automatic growth has no visible fixed capacity or 1M map cap; process OOM is not promised recoverable. Reclaim deleted order entries rather than growing tombstone storage without bound.
+
+All mutation attempts on an actively traversed target diagnose before changing it, including no-op removals/overwrites. This is a runtime programmer diagnostic, not a Result effect. Release guards on every exit. A different target can receive values from a currently traversed source. Merge preflights the target guard and preserves atomic observable state; source==target is a no-op after the same guard check. Existing target positions survive overwrites, and new keys append in source order.
+
+Flow steps may now be named calls with explicit extra arguments. Prepend the prior flowing value as argument one; evaluate explicit arguments once left to right after producing that value. Bare unary steps stay compatible. Reuse ordinary argument/context checking, including generic constructors and empty collections, while preserving Error provenance. Both postfix step try and try inside explicit arguments contribute their normal escaping effects. No placeholder or partial function object is introduced.
+
+Map/flow code examples in this section describe approved behavior pending their implementation gates. JSON/interchange policy remains a separate unresolved part of #33; map core alone does not complete that story.
