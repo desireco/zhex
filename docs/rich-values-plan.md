@@ -1,10 +1,10 @@
 # Named records, lists, arrays, and collection loops
 
-Approved first implementation for [#5](https://github.com/desireco/zhex/issues/5) and [#31](https://github.com/desireco/zhex/issues/31). The owner requested implementation, tests, runnable examples, and website documentation. This plan supplies the concrete contract; completion still requires executable verification and deployment. #23 must ship before this implementation starts.
+Approved first implementation for [#5](https://github.com/desireco/zhex/issues/5) and [#31](https://github.com/desireco/zhex/issues/31). The owner requested implementation, tests, runnable examples, and website documentation. This plan supplies the concrete contract; the initial record/collection slice and later choice/map/effect slices have shipped. Remaining accepted work is tracked below; each new slice still requires review and deployment.
 
 ## Scope
 
-A named type is not synonymous with a record. This slice implements nominal records as its first representation, homogeneous growable List<T>, rectangular runtime-shaped Array<T>, and collection loops. Other named representations remain tracked in [#32](https://github.com/desireco/zhex/issues/32), maps/interchange in [#33](https://github.com/desireco/zhex/issues/33), and validated temporal values in [#34](https://github.com/desireco/zhex/issues/34). Sets remain deferred. No general user-defined generic declarations, iterator objects, yield, lazy protocols, or implicit conversions are introduced.
+A named type is not synonymous with a record. This slice implements nominal records as its first representation, homogeneous growable List<T>, rectangular runtime-shaped Array<T>, and collection loops. Other named representations remain tracked in [#32](https://github.com/desireco/zhex/issues/32), maps/interchange in [#33](https://github.com/desireco/zhex/issues/33), and validated temporal values in [#34](https://github.com/desireco/zhex/issues/34). Sets remain deferred. One-parameter generic choices are implemented; generic words/records, iterator objects, yield, lazy protocols and implicit conversions remain outside scope.
 
 ## Records and annotations
 
@@ -17,13 +17,13 @@ let customer: Customer = Customer("Ada", 36)
 print(customer.name)
 ```
 
-`type Name = record` is top-level, followed by four-space-indented `field: Type` declarations. Every field has an explicit type and a unique name. The positional constructor uses declaration order and exact count/types. Fields are immutable; read through a bound value with `customer.name`, including nested field paths. A mutable binding can be reassigned to another value of the same named type. There is no field-update syntax in this slice.
+`type Name = record` is top-level, followed by four-space-indented `field: Type` declarations. Every field has an explicit type and a unique name. The positional constructor uses declaration order and exact types. Required fields precede optional trailing field defaults, described below. Fields are immutable; read through a bound value with `customer.name`, including nested field paths. A mutable binding can be reassigned to another value of the same named type. There is no field-update syntax in this slice.
 
 Two declarations with identical fields remain different nominal types. A name cannot collide with a constructor/word in the same file or a built-in type. Collect declarations before checking words, resolve forward type references, and reject unknown, duplicate, or recursive definitions before execution. Recursion through collection fields is also excluded initially.
 
 Types can appear in optional binding annotations, word signatures, fields, and nested List/Array type applications. Existing inferred locals continue to work. Imported types use module qualification, e.g. `model.Customer`; internal identity remains qualified even inside the defining file. Module-local type references normalize in that module's context. Imported files may declare types as well as words. A leading underscore makes the declared type private under the existing module visibility rule. Import cycles still fail before checking effects.
 
-An imported module's public word parameters/results and public record fields must not expose its private record types, including through nested List/Array/Result applications. Private words/types may use them internally. Entry-only local helpers need no exported-interface check. This slice does not implement an opaque representation: returning a private instance publicly and then exposing all of its fields is not a substitute for one.
+An imported module's public word parameters/results and public record fields must not expose its private record types, including through nested List/Array/Result applications. Private words/types may use them internally. Entry-only local helpers need no exported-interface check.
 
 Record fields are immutable values, but a field containing a mutable collection refers to that collection. A record does not clone its collection fields. Record/collection equality and direct printing are rejected in this slice; print specific fields/elements or explicitly build text. No implicit formatting or deep copy is invented.
 
@@ -32,8 +32,8 @@ Record fields are immutable values, but a field containing a mutable collection 
 ```text
 let numbers: List<Int> = [1, 2, 3]
 let empty: List<String> = []
-list.append(numbers, 4) try
-let first = numbers[0] try
+list.append(numbers, 4)
+let first = numbers[0]
 numbers[1] = 7
 ```
 
@@ -43,8 +43,8 @@ List<T> is homogeneous and one-dimensional. Nonempty literals infer one checked 
 | --- | --- |
 | `list.new()` | Contextually typed empty List<T> |
 | `list.length(values)` | Int |
-| `list.append(values, value)` | Result<Unit, Error> |
-| `values[index]` | Result<T, Error> |
+| `list.append(values, value)` | Unit; direct try/catch selects Result<Unit, Error> |
+| `values[index]` | T; direct try/catch selects Result<T, Error> |
 | `values[index] = value` | Unit; failure is a runtime diagnostic |
 | `(values[index] = value)` | Result<Unit, Error> |
 
@@ -55,22 +55,22 @@ List assignment and parameter passing share mutable storage, as Buffer does. `le
 ## Arrays
 
 ```text
-let grid: Array<Int> = array.new([2, 3], 0) try
-let cell = grid[1, 2] try
+let grid: Array<Int> = array.new([2, 3], 0)
+let cell = grid[1, 2]
 grid[1, 2] = 7
-array.resize(grid, [3, 4], 0) try
+array.resize(grid, [3, 4], 0)
 ```
 
 Array<T> is rectangular and has runtime rank at least two. Its type does not encode static capacity or extents. Dimensions are a List<Int>; annotations/context keep empty or nested values typed. Arrays do not use nested-list literals as an implicit conversion.
 
 | Operation | Result |
 | --- | --- |
-| `array.new(dimensions, fill)` | Result<Array<T>, Error> |
+| `array.new(dimensions, fill)` | Array<T>; direct try/catch selects Result<Array<T>, Error> |
 | `array.shape(values)` | Fresh List<Int> of extents |
 | `array.rank(values)` | Int |
 | `array.length(values)` | Int total cell count |
-| `array.resize(values, dimensions, fill)` | Result<Unit, Error> |
-| `values[i, j, ...]` | Result<T, Error> |
+| `array.resize(values, dimensions, fill)` | Unit; direct try/catch selects Result<Unit, Error> |
+| `values[i, j, ...]` | T; direct try/catch selects Result<T, Error> |
 | `values[i, j, ...] = value` | Unit; failure is a runtime diagnostic |
 | `(values[i, j, ...] = value)` | Result<Unit, Error> |
 
@@ -88,7 +88,7 @@ Record fields and collection elements cannot hold Result values and hide unhandl
 
 Passing a caught concrete-family error to any user word also requires explicit `error.wrap`, including a word that only formats its argument today. A helper can return an aggregate or mutate shared storage, so checking only direct constructor/append/write expressions would allow implicit family conversion. This conservative boundary avoids adding effect analysis. Built-in error inspection, reporting, and wrapping operations still accept the caught error directly. Error-valued user flow steps are conservatively rejected even after wrapping; use a direct call, where argument provenance is checked.
 
-Checked collection operations return Result<T, Error> or Result<Unit, Error>. Type/name/field/constructor errors are checker diagnostics before effects. Reads, parenthesized checked writes, append and resize expose source-located Result failures that require try/catch. Plain indexed writes instead raise runtime diagnostics on failure, as detailed in #40 below. There is no silent default value for failed access and no implicit ordinary Result discard.
+Checked collection operations return Result<T, Error> or Result<Unit, Error>. Type/name/field/constructor errors are checker diagnostics before effects. Ordinary reads, writes, append, creation and resize return plain values and diagnose invalid operations at runtime. Direct try/catch selects recoverable Results only for the designated collection intrinsics; checked writes retain the parenthesized form. See #40/#43/#44 below. There is no silent default value for failed access and no implicit ordinary Result discard.
 
 ## Collection loops (#31)
 
@@ -103,8 +103,8 @@ for value in grid
     print(value)
 
 for coordinates, value in grid
-    let row = coordinates[0] try
-    let column = coordinates[1] try
+    let row = coordinates[0]
+    let column = coordinates[1]
     print(value)
 ```
 
@@ -134,7 +134,7 @@ Run just test, go vet ./..., applicable editor checks, and a fresh just build wi
 
 ## Approved continuation: choices and matching (#32)
 
-The owner resumed the whole #5 epic after the first slice shipped. #5 and #32 remain In Progress while the remaining representations, maps and temporal values are implemented. The following choice surface is now approved; alias, scalar-wrapper and opaque spelling remain separate decisions.
+The owner resumed the whole #5 epic after the first slice shipped. Choices, one-parameter generics and explicit transparent aliases are the selected named representations. Additional nominal scalar/list wrappers were not selected. Opaque types were explicitly excluded and are not active or future requirements for this epic.
 
 ```text
 type Status = choice
@@ -154,7 +154,7 @@ Constructors retain their type qualifier. Inference removes redundant binding an
 
 Match accepts an arbitrary choice-valued expression evaluated once. It works as a statement, final word result, or whole binding RHS. Payload bindings are immutable and scoped to one arm; `_` ignores a payload. Without a default, every variant must appear. `case _` appears at most once, last, and covers remaining variants. Duplicate arms, missing coverage and unreachable defaults diagnose. Arm result types agree, with never-returning exits allowed. No guards, nested patterns, pinning or multi-clause words are introduced.
 
-Choice payloads cannot hide Results or implicitly convert concrete Error families. Matching must preserve these obligations through branch results, nested matches/catches and final Result-returning words. No direct choice formatting/equality or recursive type graphs are added. Generic choices needed for optional values are approved as a subsequent foundation; exact Option provisioning and other generic representations must be recorded separately before claiming them complete.
+Choice payloads cannot hide Results or implicitly convert concrete Error families. Matching must preserve these obligations through branch results, nested matches/catches and final Result-returning words. No direct choice formatting/equality or recursive type graphs are added. One-parameter generic choices are implemented with payload inference and contextual nullary alternatives. Built-in Option provisioning is recorded below; generic words and records remain outside scope.
 
 ## Approved continuation: inferred fallibility (#38)
 
@@ -211,7 +211,7 @@ All mutation attempts on an actively traversed target diagnose before changing i
 
 Flow steps may now be named calls with explicit extra arguments. Prepend the prior flowing value as argument one; evaluate explicit arguments once left to right after producing that value. Bare unary steps stay compatible. Reuse ordinary argument/context checking, including generic constructors and empty collections, while preserving Error provenance. Both postfix step try and try inside explicit arguments contribute their normal escaping effects. No placeholder or partial function object is introduced.
 
-Map/flow code examples in this section are implemented and independently reviewed. Release still follows the required validation, push and green deployment gates. JSON/interchange policy remains a separate unresolved part of #33; map core alone does not complete that story.
+Map/flow examples in this section are implemented, independently reviewed and shipped. The approved typed JSON continuation below is also implemented and independently reviewed; release gates and deployment remain required for each new slice. No Array/arbitrary-choice wire format is invented.
 
 ## Approved opt-in indexed-write guards (#40)
 
@@ -228,4 +228,48 @@ For List/Array, a plain indexed assignment statement yields Unit and turns a bou
 
 Both forms evaluate receiver, indices and value once left to right, then validate before mutation. Neither leaks an unchecked Go indexing panic or changes storage on failure. The active-identity guard applies to aliases and no-op attempts in the selected failure mode, and releases on every exit. Plain assignment has no inferred Result effect; explicit checked try and tries in subexpressions retain their effects.
 
-Reads, list.append and array.resize keep their existing checked rules until a separate policy is accepted. Allocation dual-mode scope remains a decision; recoverable controlled/preflight failures must not be advertised as reliable recovery from Go process OOM. No bulk initializer API or arbitrary new capacity limit is introduced by this decision.
+This historical indexed-write slice is extended by #43/#44 below: reads, list.append, array.new and array.resize are now plain by default with direct opt-in checked handling. Controlled/preflight failures must not be advertised as reliable recovery from Go process OOM. No bulk initializer API or arbitrary new capacity limit is introduced.
+
+## Approved typed JSON with supplied defaults (#33)
+
+```text
+type Settings = record
+    retries: Int
+    verbose: Bool
+
+let settings = json.decode("{\"verbose\":true}", Settings(3, false)) try
+print(settings.retries)
+let encoded = json.encode(settings) try
+```
+
+The checked builtins infer the target type from the supplied default instance. Record-field defaults are independently implemented in #42, allowing Settings() when all fields default; no generic-word syntax is needed. Missing fields inherit supplied defaults, while present values must have the exact expected type. Unknown and duplicate keys fail. Null is distinct from missing: only Option accepts null as None, and a non-null optional value decodes as Some.
+
+Support Int, Bool, String, ordinary records, List<T>, Map<String,T> and Option<T> recursively. Reject unsupported resources, Error/Result, Array, arbitrary choices and non-string-key maps before execution. Do not invent a wire representation for unsupported types. Opaque types are excluded, not a codec dependency.
+
+Construct a fresh result without mutating defaults. Inherited mutable lists/maps are deeply cloned for each decode, with a memo table preserving alias relationships within one inherited graph. A present collection replaces its field instead of merging into its default; newly introduced record elements require all fields when no record prototype is supplied. A nested supplied record or Some(record) can provide nested defaults.
+
+Use exact JSON number tokens, never float64 rounding. Initial Int decoding requires an in-range signed-64 integer token; decimal/exponent forms fail explicitly. Encoding includes all fields, in declaration order, with maps in insertion order. None encodes null, Some its payload, empty lists/maps as []/{}. Consume one JSON value and reject trailing non-whitespace.
+
+Failures use common Error with json-syntax, json-type, json-field, json-range or json-depth codes. The path detail is JSON Pointer: empty at the root, /items/0/name for nested data, with ~0 for ~ and ~1 for /. Preserve the Zhex call's source and operation. A nesting limit of 256 is recoverable; existing List limits apply and Map remains uncapped. See the [Go JSON documentation](https://pkg.go.dev/encoding/json#Decoder.UseNumber) for token-preserving decoding and [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901.html#section-3) for the path convention.
+
+## Accepted automatic timezone interpretation (#34)
+
+The owner selected automatic documented resolution. Repeated local times resolve to the earlier instant. Nonexistent local times shift forward by the actual transition gap, which is not assumed to be one hour. Preserve the named zone and resolved instant; converting zones preserves the instant.
+
+This follows Temporal's compatible policy, described in its [official timezone documentation](https://tc39.es/proposal-temporal/docs/timezone.html). Go time.Date explicitly leaves ambiguous-zone selection unspecified, so it must not define Zhex's policy accidentally; see [Go time.Date](https://pkg.go.dev/time#Date). Validate invalid calendar/clock fields separately from legitimate timezone gaps. Date/time APIs and tests should be finalized as ordinary builtins; no opaque-type feature is required.
+
+## Approved aliases and optional record-field defaults (#32, #42)
+
+Transparent aliases use `type Names = alias List<String>` and normalize to the exact target type; there is no constructor or nominal wrapper. Forward references, cycles, private exposure, imported identity and expanded nesting are checked. Aliases cannot hide Result obligations or erase Error-family provenance. The owner selected aliases; additional nominal wrappers were not selected, and opaque declarations are explicitly excluded.
+
+Record fields may opt into `field: Type = expression`. Required fields come before defaulted fields; constructors may omit only trailing defaulted arguments. Supplied arguments override defaults. No automatic zero/null defaults or named arguments are introduced. Defaults evaluate only when omitted, in order after supplied arguments, in the defining module's scope. They cannot capture caller/global bindings or earlier fields. Plain helper calls are permitted; escaping Result effects are rejected, while a helper may handle its own expected failure. Each construction evaluates mutable defaults afresh, with normal sharing for explicitly supplied values. Constructor-default recursion is bounded separately and unwinds safely. JSON can use `json.decode(raw, Settings()) try` for all-defaulted Settings.
+
+## Plain collection computation and opt-in recovery (#43, #44)
+
+Plain List/Array indexed reads yield the element. `array.new` yields Array<T>; `list.append` and `array.resize` yield Unit. Failures produce automatic safe runtime diagnostics. Apply try/catch directly to one of these intrinsics to select the checked Result form; marked collection flow steps behave the same. Parentheses do not prevent direct selection. Maps retain Option lookup and plain mutation; ordinary Result-returning user/builtin calls still require explicit handling.
+
+Receiver/arguments/indices evaluate once left to right. Recovery handles only the selected intrinsic's own controlled failure, never nested argument/receiver faults. Explicit tries in nested expressions preserve their effects. Bounds, shape, limits and active traversal are validated before mutation; failed operations leave storage unchanged and all guards unwind. Real process OOM is not promised recoverable and no new artificial limits are introduced. `let item = values[i]` now stores T; later `item try` is invalid. Put the guard directly on the indexed read if deliberate recovery is needed.
+
+## Released temporal API (#34)
+
+The issue body is the exact executable contract. Date/Time numeric construction, Duration nanosecond construction, zoned composition, calendar add-days and elapsed add-duration are plain validated computation. Invalid numeric values or range overflow produce safe runtime diagnostics. Date/time/instant/duration parsing and timezone.load remain Result boundaries. The approved automatic gap/overlap policy above is final; parsing is not silently used as a substitute for numeric construction. Date, Time, Instant, Duration, TimeZone and ZonedDateTime remain distinct, with explicit formatting and conversion. No temporal JSON representation is silently invented.
