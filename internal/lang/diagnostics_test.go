@@ -185,3 +185,13 @@ func TestCaretSpansWholeExpressions(t *testing.T) {
 		})
 	}
 }
+
+func TestResultTypeParsingHandlesNestedGenericCommas(t *testing.T) {
+	typ := valueType("Result<Map<String, Int>, ParseError>")
+	if inner, ok := resultInner(typ); !ok || inner != "Map<String, Int>" {
+		t.Fatalf("inner %q, ok %t", inner, ok)
+	}
+	if family := resultFamily(typ); family != "ParseError" {
+		t.Fatalf("family %q", family)
+	}
+}

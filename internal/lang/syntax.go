@@ -126,21 +126,37 @@ func isResult(t valueType) bool { return strings.HasPrefix(string(t), "Result<")
 
 // resultInner maps a Result type to its success type; ok is false for
 // non-Result types. The one mapping behind try, traceValue, and the hint.
-func resultInner(t valueType) (valueType, bool) {
-	if !isResult(t) {
-		return "", false
+func resultParts(t valueType) (valueType, string, bool) {
+	text := string(t)
+	if !strings.HasPrefix(text, "Result<") || !strings.HasSuffix(text, ">") {
+		return "", "", false
 	}
-	inner, _, _ := strings.Cut(strings.TrimPrefix(string(t), "Result<"), ",")
-	return valueType(inner), true
-}
-
-func resultFamily(t valueType) string {
-	_, family, ok := strings.Cut(string(t), ", ")
-	if !ok {
-		return ""
+	body := strings.TrimSuffix(strings.TrimPrefix(text, "Result<"), ">")
+	depth := 0
+	for i, r := range body {
+		switch r {
+		case '<':
+			depth++
+		case '>':
+			depth--
+			if depth < 0 {
+				return "", "", false
+			}
+		case ',':
+			if depth == 0 {
+				inner := strings.TrimSpace(body[:i])
+				family := strings.TrimSpace(body[i+1:])
+				if inner == "" || family == "" {
+					return "", "", false
+				}
+				return valueType(inner), family, true
+			}
+		}
 	}
-	return strings.TrimSuffix(family, ">")
+	return "", "", false
 }
+func resultInner(t valueType) (valueType, bool) { inner, _, ok := resultParts(t); return inner, ok }
+func resultFamily(t valueType) string           { _, family, _ := resultParts(t); return family }
 
 func collectionInner(typ valueType) (string, valueType, bool) {
 	text := string(typ)
