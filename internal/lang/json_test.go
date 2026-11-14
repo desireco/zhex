@@ -159,3 +159,23 @@ func TestJSONRejectsLoneSurrogateEscapes(t *testing.T) {
 		t.Fatalf("valid surrogate pair: %+v", v.result)
 	}
 }
+
+func TestJSONOptionDoesNotConsumeWireNestingDepth(t *testing.T) {
+	schema := &jsonSchema{typ: intType, kind: "int"}
+	v := value{number: 7}
+	for i := 0; i < 130; i++ {
+		schema = &jsonSchema{kind: "option", element: schema}
+		v = value{choice: &choiceValue{name: "Option.Some", variant: 1, fields: []value{v}}}
+		schema = &jsonSchema{kind: "record", fields: []jsonField{{name: "next", schema: schema}}}
+		v = value{record: &recordValue{fields: []value{v}}}
+	}
+	pos := position{file: "test.zhex", line: 1, column: 1}
+	encoded := encodeJSON(pos, v, schema)
+	if encoded.result.err != nil {
+		t.Fatalf("encode: %v", encoded.result.err)
+	}
+	decoded := decodeJSON(pos, encoded.result.value.text, v, schema)
+	if decoded.result.err != nil {
+		t.Fatalf("decode: %v", decoded.result.err)
+	}
+}

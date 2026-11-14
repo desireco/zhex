@@ -481,7 +481,7 @@ func appendJSON(out *bytes.Buffer, v value, s *jsonSchema, path string, depth in
 		if v.choice.variant == 0 {
 			out.WriteString("null")
 		} else {
-			return appendJSON(out, v.choice.fields[0], s.element, path, depth+1)
+			return appendJSON(out, v.choice.fields[0], s.element, path, depth)
 		}
 	case "list":
 		out.WriteByte('[')
