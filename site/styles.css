@@ -790,8 +790,7 @@ pre {
   .docs-intro h1 { font-size: clamp(2.25rem, 9vw, 3rem); }
 }
 
-.docs-index .feature-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
-@media (max-width: 700px) { .docs-index .feature-row { grid-template-columns: minmax(0, 1fr) auto; } .docs-index .feature-row p { grid-column: 1; } .docs-index .feature-row::after { grid-column: 2; } }
+.docs-index .feature-row h3 { font-size: 1.35rem; }
 
 .docs-index .section { padding-block: 2rem; }
 .docs-index .section-heading { margin-bottom: 1.25rem; }
