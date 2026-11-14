@@ -18,6 +18,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [temporal.zhex](../examples/temporal.zhex) | None | Noon and 1 p.m. after the DST transition | Calendar-day and elapsed-duration arithmetic in a named zone. |
 | [json-config.zhex](../examples/json-config.zhex) | None | `3`, `true`, `{"retries":3,"verbose":true}` | Decode a typed record with a default for a missing field, then encode the complete value. |
 | [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [line-filter.zhex](../examples/line-filter.zhex) | None | `shipped: inv-1042, inv-1044` | Split embedded records, select lines by literal prefix and suffix, and join the selected fields into a report. |
 | [recovery.zhex](../examples/recovery.zhex) | None | A fallback message, then `Retries: 3` | Catch invalid numeric text and continue with a default value. |
 | [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
 | [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |

@@ -199,6 +199,32 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			return value{}, errorAt(x.pos, CodeReplaceEmpty, "text.replace old text is empty")
 		}
 		return value{text: strings.ReplaceAll(args[0].text, args[1].text, args[2].text)}, nil
+	case "text.split":
+		count := int64(1)
+		if args[1].text == "" {
+			count = int64(utf8.RuneCountInString(args[0].text))
+		} else {
+			count = int64(strings.Count(args[0].text, args[1].text)) + 1
+		}
+		if count > maxCollectionElements {
+			return value{}, errorAt(x.pos, CodeCollectionLimit, "text.split exceeds element limit")
+		}
+		parts := strings.Split(args[0].text, args[1].text)
+		items := make([]value, len(parts))
+		for i, part := range parts {
+			items[i] = value{text: part}
+		}
+		return value{list: &listValue{items: items}}, nil
+	case "text.join":
+		parts := make([]string, len(args[0].list.items))
+		for i, item := range args[0].list.items {
+			parts[i] = item.text
+		}
+		return value{text: strings.Join(parts, args[1].text)}, nil
+	case "text.starts-with":
+		return value{boolean: strings.HasPrefix(args[0].text, args[1].text)}, nil
+	case "text.ends-with":
+		return value{boolean: strings.HasSuffix(args[0].text, args[1].text)}, nil
 	case "buffer.new":
 		return value{buffer: &bufferValue{}}, nil
 	case "buffer.add-line":

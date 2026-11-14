@@ -1,6 +1,6 @@
 # Standard library research and proposed plan
 
-Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; review and select each before implementation.
+Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57 has since shipped, and #58–64 await one-by-one review.
 
 ## Recommendation
 
@@ -10,13 +10,13 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`. [`hostWords` in check.go](../internal/lang/check.go) registers **84 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; story S1 (#57) has since shipped four text words. [`hostWords` in check.go](../internal/lang/check.go) registers **88 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
 | Bare | `print`, `range`, `read-line`, `ok`, `err` | [Console](../site/src/content/docs/console.md), [Results](../site/src/content/docs/results.md); `io_test.go`, `result_words_test.go`, `features_test.go` |
 | `int` | `to-string` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
-| `text` | `reverse`, `to-int`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
+| `text` | `reverse`, `to-int`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace`, `split`, `join`, `starts-with`, `ends-with` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
 | `list` | `new`, `length`, `append` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |
 | `array` | `new`, `resize`, `shape`, `rank`, `length` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |
 | `map` | `length`, `contains`, `remove`, `put`, `into` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
@@ -32,7 +32,7 @@ The baseline is commit `b4b6f59`. [`hostWords` in check.go](../internal/lang/che
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 84 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 88 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -94,11 +94,11 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable Todo stories, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57) has shipped, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
-**S1. Literal text decomposition and reconstruction.** Proposed host signatures:
+**S1. Literal text decomposition and reconstruction.** Shipped as [#57](https://github.com/desireco/zhex/issues/57); host signatures:
 
 ```text
 text.split(value: String, separator: String) -> List<String>
@@ -107,7 +107,9 @@ text.starts-with(value: String, prefix: String) -> Bool
 text.ends-with(value: String, suffix: String) -> Bool
 ```
 
-Demand: a proposed `line-filter` program selects records by literal prefix/suffix and joins selected fields for a report; this is the next application recommended by [measurements](measurements.md). Split on a nonempty literal separator preserves leading, repeated, and trailing empty fields; no implicit trim. Proposed empty-separator behavior: split into code points, with empty input producing an empty list; nonempty separator with empty input produces one empty field. Empty prefix/suffix matches. Join of an empty list is empty text. Returned lists have fresh outer storage. Enforce the existing one-million-element list limit before allocating/materializing an unbounded split output; ordinary limit failure diagnoses, with an opt-in checked form if integrated into the existing collection recovery mechanism. Specify and test invalid-UTF-8 input behavior, including the existing argv boundary gap, before assuming every host-supplied string is valid. Tests must cover UTF-8, combining marks, emoji, empty values, repeated/trailing separators, limits, and data-first flow use. No regex, grapheme normalization, or whitespace mode. `text.words`/`text.lines` and prefix removal wait for demonstrated repeated code.
+Demand: a proposed `line-filter` program selects records by literal prefix/suffix and joins selected fields for a report; this is the next application recommended by [measurements](measurements.md). Split on a nonempty literal separator preserves leading, repeated, and trailing empty fields; no implicit trim. Empty-separator behavior: split into code points, with empty input producing an empty list; nonempty separator with empty input produces one empty field. Empty prefix/suffix matches. Join of an empty list is empty text. Returned lists have fresh outer storage. Enforce the existing one-million-element list limit before allocating/materializing an unbounded split output; ordinary limit failure diagnoses, with an opt-in checked form if integrated into the existing collection recovery mechanism. Specify and test invalid-UTF-8 input behavior, including the existing argv boundary gap, before assuming every host-supplied string is valid. Tests must cover UTF-8, combining marks, emoji, empty values, repeated/trailing separators, limits, and data-first flow use. No regex, grapheme normalization, or whitespace mode. `text.words`/`text.lines` and prefix removal wait for demonstrated repeated code.
+
+Shipped notes: split enforces the one-million-element limit before materializing output, reusing the `collection-limit` code with the message `text.split exceeds element limit`; no new diagnostic codes were added. Invalid-UTF-8 input behaves like the existing code-point text words (no validation), and the argv gap stays open as a pre-existing boundary. The opt-in checked split recovery is deferred with the collection recovery mechanism. The `line-filter` example demonstrating the shipped words is registered; the full file-reading `line-filter` application recommended by [measurements](measurements.md) remains open.
 
 **S2. Persist a text report.** Proposed host signature:
 
@@ -117,7 +119,7 @@ file.write-all(contents: String, path: String) -> Result<Unit, FileError>
 
 Demand: save the proposed line-filter report or a Life generation snapshot; current programs can print but cannot write a file. This story depends on the report workload, not new generics. Specify create-or-truncate/overwrite, no implicit parent creation, UTF-8 contents with explicit handling of invalid host-supplied argument strings, and resource closure. Errors can leave a partial/truncated file; do not promise atomic replacement. Test existing/missing paths, empty contents, write/close failures and short writes through suitable host seams, and failure propagation/reporting. Preserve error-family rules when composing with console arguments; demonstrate explicit wrapping if families need unification. A separate atomic-save API requires a later portability contract.
 
-**S3. Reduce the edit-distance recurrence.** Start with concrete source words `min(left: Int, right: Int) -> Int` in the algorithm or a sibling module. Demand: replace the manual three-way minimum in `examples/edit-distance.zhex` while preserving exact results. This can ship independently of S1/S2. S1's proposed empty-separator split also permits precomputing code-point lists once instead of repeatedly slicing whole strings in the nested loop; benchmark that change before claiming a speedup. Only promote `int.min`/`int.max` into the core after a second workload demonstrates reuse; a two-line helper alone does not justify more built-ins. If promoted, include MinInt64/MaxInt64 and equal-value cases. Do not add `abs` without specifying MinInt64 overflow, or Float/math APIs without new type design. Life already has sufficient rectangular arrays; no new grid type is needed.
+**S3. Reduce the edit-distance recurrence.** Start with concrete source words `min(left: Int, right: Int) -> Int` in the algorithm or a sibling module. Demand: replace the manual three-way minimum in `examples/edit-distance.zhex` while preserving exact results. This can ship independently of S1/S2. S1's empty-separator split also permits precomputing code-point lists once instead of repeatedly slicing whole strings in the nested loop; benchmark that change before claiming a speedup. Only promote `int.min`/`int.max` into the core after a second workload demonstrates reuse; a two-line helper alone does not justify more built-ins. If promoted, include MinInt64/MaxInt64 and equal-value cases. Do not add `abs` without specifying MinInt64 overflow, or Float/math APIs without new type design. Life already has sufficient rectangular arrays; no new grid type is needed.
 
 ### Phase 2 — reusable collection composition
 
@@ -188,11 +190,11 @@ Directory listing/metadata belongs in a separate story with deterministic orderi
 
 Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6 and the deliberately separate S7. S8 and other optional capabilities stay proposals.
 
-The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference.
+The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) has since shipped, and its four text words are recorded in the inventory above.
 
 | Order | Story | Dependency |
 | --- | --- | --- |
-| S1 | [#57 — Literal text split/join and prefix/suffix](https://github.com/desireco/zhex/issues/57) | Establish line-filter workload |
+| S1 | [#57 — Literal text split/join and prefix/suffix](https://github.com/desireco/zhex/issues/57) — shipped | Full line-filter application still open |
 | S2 | [#58 — Persist a text report](https://github.com/desireco/zhex/issues/58) | #57 report workload; Life snapshot is another validation option |
 | S3 | [#59 — Simplify edit-distance minimum](https://github.com/desireco/zhex/issues/59) | Independent |
 | S4 | [#60 — List map/filter/fold](https://github.com/desireco/zhex/issues/60) | #57 workload and existing callable support |

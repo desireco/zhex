@@ -82,6 +82,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Dates and time zones](examples/temporal.zhex) | Compare a calendar day and 24 elapsed hours across a daylight-saving transition. |
 | [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |
 | [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [Line filter](examples/line-filter.zhex) | Split embedded records, select by literal prefix and suffix, and join a report. |
 | [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
 | [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
 | [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library and keeps one helper underscore-private. |

@@ -31,6 +31,10 @@ There is no implicit conversion between `Int` and `String`.
 | `text.index-of(String, String) -> Int` | Return the code-point position of the first occurrence, or `-1` if absent. |
 | `text.slice(String, Int, Int) -> String` | Return code points from `start` up to but not including `end`. Negative `start` clamps to 0; `end` past the length clamps to the length; `start >= end` returns empty text. |
 | `text.replace(String, String, String) -> String` | Replace every literal occurrence of the second string with the third. An empty search string is a runtime `replace-empty` error. |
+| `text.split(String, String) -> List<String>` | Split on every literal occurrence of the second string, preserving leading, repeated, and trailing empty fields with no trimming. An empty separator splits into single code points; empty text with an empty separator yields an empty list, and empty text with a nonempty separator yields one empty field. A result beyond 1,000,000 elements fails `collection-limit` before the list is materialized. |
+| `text.join(List<String>, String) -> String` | Join the elements with the separator between each pair. An empty list joins to empty text, and an empty list literal is accepted as `List<String>`. |
+| `text.starts-with(String, String) -> Bool` | Return whether the first string starts with the second, compared literally; an empty prefix matches. |
+| `text.ends-with(String, String) -> Bool` | Return whether the first string ends with the second, compared literally; an empty suffix matches. |
 
 Examples:
 

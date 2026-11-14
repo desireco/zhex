@@ -21,6 +21,27 @@ func TestTextWords(t *testing.T) {
 		{"slice is code-point indexed", "print(text.slice(\"héllo\", 1, 3))\n", "él\n"},
 		{"replace rewrites every occurrence", "print(text.replace(\"a-b-c\", \"-\", \"+\"))\n", "a+b+c\n"},
 		{"replace is literal, not a pattern", "print(text.replace(\"a.b.c\", \".\", \"!\"))\n", "a!b!c\n"},
+		{"split preserves leading, repeated, and trailing empty fields", "let parts = text.split(\",a,,b,\", \",\")\nprint(list.length(parts))\nprint(parts[0] + \"|\" + parts[1] + \"|\" + parts[2] + \"|\" + parts[3] + \"|\" + parts[4])\n", "5\n|a||b|\n"},
+		{"split keeps surrounding spaces", "let parts = text.split(\" a , b \", \",\")\nprint(\"[\" + parts[0] + \"][\" + parts[1] + \"]\")\n", "[ a ][ b ]\n"},
+		{"split without the separator keeps the whole text", "let parts = text.split(\"abc\", \",\")\nprint(list.length(parts))\nprint(parts[0])\n", "1\nabc\n"},
+		{"split on an empty separator yields code points", "let parts = text.split(\"héllo\", \"\")\nprint(list.length(parts))\nprint(parts[1])\n", "5\né\n"},
+		{"split of empty text with an empty separator is an empty list", "print(list.length(text.split(\"\", \"\")))\n", "0\n"},
+		{"split of empty text with a separator keeps one empty field", "print(list.length(text.split(\"\", \",\")))\n", "1\n"},
+		{"split on a multibyte separator", "let parts = text.split(\"a😀b\", \"😀\")\nprint(list.length(parts))\nprint(parts[0] + parts[1])\n", "2\nab\n"},
+		{"split keeps combining marks as code points", "let marks = text.split(\"e\\u0301|e\\u0302\", \"|\")\nprint(text.length(marks[0]))\nprint(marks[1])\n", "2\ne\u0302\n"},
+		{"split returns fresh lists", "let a = text.split(\"x,y\", \",\")\nlet b = text.split(\"x,y\", \",\")\nlist.append(a, \"z\")\nprint(list.length(a))\nprint(list.length(b))\n", "3\n2\n"},
+		{"join of an empty list is empty text", "print(\"[\" + text.join([], \"-\") + \"]\")\n", "[]\n"},
+		{"join of one element has no separator", "print(text.join(text.split(\"solo\", \",\"), \"-\"))\n", "solo\n"},
+		{"join places the separator between all elements", "print(text.join(text.split(\"a,b,c\", \",\"), \"-\"))\n", "a-b-c\n"},
+		{"join keeps multibyte content", "print(text.join(text.split(\"1😀2\", \"😀\"), \"😀\"))\n", "1😀2\n"},
+		{"starts-with matches a literal prefix", "print(text.starts-with(\"hello\", \"he\"))\nprint(text.starts-with(\"hello\", \"el\"))\nprint(text.starts-with(\"hello\", \"hello\"))\nprint(text.starts-with(\"hello\", \"hello!\"))\n", "true\nfalse\ntrue\nfalse\n"},
+		{"starts-with accepts an empty prefix", "print(text.starts-with(\"hello\", \"\"))\nprint(text.starts-with(\"\", \"\"))\nprint(text.starts-with(\"\", \"x\"))\n", "true\ntrue\nfalse\n"},
+		{"starts-with is code-point safe", "print(text.starts-with(\"héllo\", \"hé\"))\nprint(text.starts-with(\"héllo\", \"llo\"))\n", "true\nfalse\n"},
+		{"ends-with matches a literal suffix", "print(text.ends-with(\"hello\", \"lo\"))\nprint(text.ends-with(\"hello\", \"el\"))\nprint(text.ends-with(\"hello\", \"hello\"))\nprint(text.ends-with(\"hello\", \"!hello\"))\n", "true\nfalse\ntrue\nfalse\n"},
+		{"ends-with accepts an empty suffix", "print(text.ends-with(\"hello\", \"\"))\nprint(text.ends-with(\"\", \"\"))\nprint(text.ends-with(\"\", \"x\"))\n", "true\ntrue\nfalse\n"},
+		{"ends-with is code-point safe", "print(text.ends-with(\"héllo\", \"llo\"))\nprint(text.ends-with(\"héllo\", \"hé\"))\n", "true\nfalse\n"},
+		{"flow splits and rejoins", "flow \"a,b,c\"\n    text.split(\",\")\n    text.join(\"-\")\n    print\n", "a-b-c\n"},
+		{"flow checks a suffix", "flow \"report.csv\"\n    text.ends-with(\".csv\")\n    print\n", "true\n"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -49,6 +70,62 @@ func TestReplaceEmptyIsABugSignal(t *testing.T) {
 	report, ok := Report(err)
 	if !ok || !strings.Contains(report, `"code":"replace-empty"`) {
 		t.Fatalf("wanted code replace-empty, got %s", report)
+	}
+}
+
+// TestSplitElementLimit pins the hard stop before materializing: a split that
+// would produce more than the runtime element limit fails with the shared
+// collection-limit code, the same limit as list.append and array.new.
+func TestSplitElementLimit(t *testing.T) {
+	for name, source := range map[string]string{
+		"empty separator":    "var big = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\nfor i in range(1, 16)\n    big = big + big\nlet parts = text.split(big, \"\")\nprint(list.length(parts))\n",
+		"nonempty separator": "var big = \",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,\"\nfor i in range(1, 16)\n    big = big + big\nprint(list.length(text.split(big, \",\")))\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			var out strings.Builder
+			err := Run("split.zhex", source, strings.NewReader(""), &out)
+			if err == nil || !strings.Contains(err.Error(), "text.split exceeds element limit") {
+				t.Fatalf("wanted element limit diagnostic, got %v", err)
+			}
+			report, ok := Report(err)
+			if !ok || !strings.Contains(report, `"code":"collection-limit"`) {
+				t.Fatalf("wanted code collection-limit, got %s", report)
+			}
+			if out.Len() != 0 {
+				t.Fatalf("limit must stop the run before output, got %q", out.String())
+			}
+		})
+	}
+}
+
+// TestTextSplitJoinPrefixTyping pins the argument diagnostics of the new
+// words: join takes a List<String>, the others take Strings.
+func TestTextSplitJoinPrefixTyping(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"join wants a list", "print(text.join(\"abc\", \"-\"))\n", "argument 1 of text.join requires type List<String>, found String"},
+		{"join element type", "print(text.join([1, 2], \"-\"))\n", "list element has type Int; expected String"},
+		{"split value type", "print(text.split(1, \",\"))\n", "argument 1 of text.split requires type String, found Int"},
+		{"split separator type", "print(text.split(\"a\", 1))\n", "argument 2 of text.split requires type String, found Int"},
+		{"split argument count", "print(text.split(\"a\"))\n", "text.split requires 2 arguments, found 1"},
+		{"starts-with value type", "print(text.starts-with(1, \"a\"))\n", "argument 1 of text.starts-with requires type String, found Int"},
+		{"starts-with prefix type", "print(text.starts-with(\"a\", 1))\n", "argument 2 of text.starts-with requires type String, found Int"},
+		{"ends-with argument count", "print(text.ends-with(\"a\"))\n", "text.ends-with requires 2 arguments, found 1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var out strings.Builder
+			err := Run("typing.zhex", tc.source, strings.NewReader(""), &out)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("wanted %q, got %v", tc.want, err)
+			}
+		})
+	}
+	var out strings.Builder
+	if err := Run("typing.zhex", "print(text.join([], \"-\") == \"\")\n", strings.NewReader(""), &out); err != nil {
+		t.Fatalf("empty list literal must check against List<String>: %v", err)
+	}
+	if out.String() != "true\n" {
+		t.Fatalf("got %q", out.String())
 	}
 }
 

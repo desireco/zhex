@@ -67,7 +67,7 @@ var hostWords = []string{
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
-	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
+	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
 	"file.read-all", "file.read-lines", "file.open", "file.read-line", "file.close", "file.lines",
 	"console.arg", "console.args-count", "console.exit", "console.fail",
@@ -1243,6 +1243,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if x.text == "list.append" && i == 1 && len(args) > 0 {
 				_, expected, _ = collectionInner(args[0])
 			}
+			if x.text == "text.join" && i == 0 {
+				expected = "List<String>"
+			}
 			var err error
 			args[i], err = c.expressionExpected(arg, env, expected)
 			if err != nil {
@@ -1806,6 +1809,15 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "text.replace":
 			params = []valueType{stringType, stringType, stringType}
 			result = stringType
+		case "text.split":
+			params = []valueType{stringType, stringType}
+			result = "List<String>"
+		case "text.join":
+			params = []valueType{"List<String>", stringType}
+			result = stringType
+		case "text.starts-with", "text.ends-with":
+			params = []valueType{stringType, stringType}
+			result = boolType
 		case "buffer.new":
 			result = bufferType
 		case "buffer.add-line":
