@@ -60,6 +60,7 @@ type checker struct {
 
 var hostWords = []string{
 	"date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string",
+	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
@@ -124,7 +125,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "date", "time", "duration"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "date", "time", "duration", "instant", "timezone", "zoned"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -1467,6 +1468,30 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			params, result = []valueType{dateType, intType}, dateType
 		case "duration.new":
 			params, result = []valueType{intType}, durationType
+		case "instant.now":
+			params, result = nil, instantType
+		case "instant.parse":
+			params, result = []valueType{stringType}, "Result<Instant, Error>"
+		case "timezone.load":
+			params, result = []valueType{stringType}, "Result<TimeZone, Error>"
+		case "instant.to-string":
+			params, result = []valueType{instantType}, stringType
+		case "instant.add-duration":
+			params, result = []valueType{instantType, durationType}, instantType
+		case "timezone.name":
+			params, result = []valueType{timezoneType}, stringType
+		case "zoned.new":
+			params, result = []valueType{dateType, timeType, timezoneType}, zonedType
+		case "zoned.to-string":
+			params, result = []valueType{zonedType}, stringType
+		case "zoned.instant":
+			params, result = []valueType{zonedType}, instantType
+		case "zoned.in-zone":
+			params, result = []valueType{zonedType, timezoneType}, zonedType
+		case "zoned.add-days":
+			params, result = []valueType{zonedType, intType}, zonedType
+		case "zoned.add-duration":
+			params, result = []valueType{zonedType, durationType}, zonedType
 		case "array.new", "array.resize", "array.shape", "array.rank", "array.length":
 			count := 1
 			if x.text == "array.new" {

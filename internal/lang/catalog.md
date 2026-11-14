@@ -257,3 +257,11 @@ Numeric date or time components are outside their valid range.
 ## temporal-range
 
 Temporal arithmetic produced a value outside the supported range.
+
+## instant-parse
+
+An instant string is invalid. Include a date, time, and explicit RFC 3339 offset.
+
+## timezone-load
+
+A named time zone is invalid or unavailable. Use UTC or an IANA time zone name.

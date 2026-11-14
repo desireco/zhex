@@ -24,6 +24,7 @@ type value struct {
 	choice  *choiceValue
 	mapping *mapValue
 	moment  time.Time
+	zone    *time.Location
 }
 
 const maxCollectionElements = 1000000

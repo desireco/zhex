@@ -29,6 +29,8 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
 	case "date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string":
 		return temporalBuiltin(x, args)
+	case "instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration":
+		return temporalBuiltin(x, args)
 	case "json.decode":
 		return decodeJSON(x.pos, args[0].text, args[1], x.jsonSchema), nil
 	case "json.encode":
@@ -285,6 +287,12 @@ func formatValue(v value, typ valueType) string {
 		return v.moment.Format("15:04:05.999999999")
 	case durationType:
 		return time.Duration(v.number).String()
+	case instantType:
+		return v.moment.UTC().Format(time.RFC3339Nano)
+	case timezoneType:
+		return v.zone.String()
+	case zonedType:
+		return formatZoned(v.moment)
 	}
 	if v.mapping != nil {
 		return fmt.Sprintf("map(%d entries)", len(v.mapping.entries))

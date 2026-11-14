@@ -73,3 +73,66 @@ print(time.to-string(clock))
 		}
 	}
 }
+
+func TestInstantAndZonedDSTOperations(t *testing.T) {
+	source := `let zone = timezone.load("America/New_York") try
+let start = zoned.new(date.new(2024, 3, 9), time.new(2, 30, 0), zone)
+print(zoned.to-string(zoned.add-days(start, 1)))
+let span = duration.parse("24h") try
+print(zoned.to-string(zoned.add-duration(start, span)))
+let overlap = zoned.new(date.new(2024, 11, 3), time.new(1, 30, 0), zone)
+print(instant.to-string(zoned.instant(overlap)))
+let utc = timezone.load("UTC") try
+print(zoned.to-string(zoned.in-zone(overlap, utc)))
+let origin = instant.parse("2024-01-01T12:00:00+02:00") try
+print(instant.to-string(instant.add-duration(origin, duration.new(1))))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	want := "2024-03-10T03:30:00-04:00[America/New_York]\n2024-03-10T03:30:00-04:00[America/New_York]\n2024-11-03T05:30:00Z\n2024-11-03T05:30:00Z[UTC]\n2024-01-01T10:00:00.000000001Z\n"
+	if out.String() != want {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestInstantAndZoneInputFailures(t *testing.T) {
+	for _, source := range []string{"let t = instant.parse(\"2024-01-01T12:00:00\") try\n", "let z = timezone.load(\"Local\") try\n", "let z = timezone.load(\"not/a/zone\") try\n"} {
+		if err := Run("test.zhex", source, strings.NewReader(""), &bytes.Buffer{}); err == nil {
+			t.Errorf("accepted %s", source)
+		}
+	}
+}
+
+func TestZonedCalendarAndElapsedArithmeticDiffer(t *testing.T) {
+	source := `let zone = timezone.load("America/New_York") try
+let day = zoned.new(date.new(2024,3,9), time.new(12,0,0), zone)
+print(zoned.to-string(zoned.add-days(day, 1)))
+print(zoned.to-string(zoned.add-duration(day, duration.parse("24h") try)))
+let old = zoned.new(date.new(1890,1,1), time.new(12,0,0), timezone.load("Europe/Paris") try)
+print(zoned.to-string(old))
+print(instant.to-string(zoned.instant(old)))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	want := "2024-03-10T12:00:00-04:00[America/New_York]\n2024-03-10T13:00:00-04:00[America/New_York]\n1890-01-01T12:00:00+00:09:21[Europe/Paris]\n1890-01-01T11:50:39Z\n"
+	if out.String() != want {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestInstantStrictRFC3339AndYearBoundaries(t *testing.T) {
+	for _, input := range []string{"0000-01-01T00:00:00Z", "2024-01-01T1:00:00Z", "2024-01-01T12:00:00,1Z", "2024-01-01T12:00:00+24:00", "2024-01-01T12:00:00+01:60", "0001-01-01T00:00:00+01:00", "9999-12-31T23:00:00-02:00"} {
+		source := "let x = instant.parse(\"" + input + "\") try\n"
+		if err := Run("test.zhex", source, strings.NewReader(""), &bytes.Buffer{}); err == nil {
+			t.Errorf("accepted %s", input)
+		}
+	}
+	source := "let i = instant.parse(\"9999-12-31T23:59:59.999999999Z\") try\nlet x = instant.add-duration(i, duration.new(1))\n"
+	if err := Run("test.zhex", source, strings.NewReader(""), &bytes.Buffer{}); err == nil {
+		t.Fatal("accepted instant overflow")
+	}
+}
