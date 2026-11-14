@@ -64,5 +64,13 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
       </ul>
       <a class="text-link" href="docs/getting-started.html">Get started with Zhex →</a>
     </section>
+
+    <a class="to-top" href="#top">Back to top ↑</a>
+    <script is:inline>
+      const link = document.querySelector('.to-top');
+      new IntersectionObserver(([entry]) =>
+        link.classList.toggle('shown', !entry.isIntersecting)
+      ).observe(document.querySelector('.examples-intro'));
+    </script>
   </main>
 </Base>

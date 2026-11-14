@@ -237,13 +237,10 @@ p { overflow-wrap: anywhere; }
   margin-top: 2rem;
 }
 
-.button {
-  min-height: 52px;
+.button,
+.to-top {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  padding: .85rem 1.15rem;
   border: 2px solid var(--ink);
   background: var(--ink);
   color: var(--paper);
@@ -252,7 +249,15 @@ p { overflow-wrap: anywhere; }
   transition: background var(--transition), color var(--transition), transform var(--transition);
 }
 
-.button:hover {
+.button {
+  min-height: 52px;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: .85rem 1.15rem;
+}
+
+.button:hover,
+.to-top:hover {
   background: var(--accent);
   color: var(--ink);
   transform: translateY(-2px);
@@ -265,6 +270,20 @@ p { overflow-wrap: anywhere; }
   font-weight: 800;
   text-decoration-thickness: 2px;
 }
+
+.to-top {
+  position: fixed;
+  z-index: 40;
+  right: 1rem;
+  bottom: 1rem;
+  min-height: 44px;
+  padding: .75rem 1rem;
+  opacity: 0;
+  visibility: hidden;
+  transition: background var(--transition), color var(--transition), transform var(--transition), opacity var(--transition), visibility var(--transition);
+}
+
+.to-top.shown { opacity: 1; visibility: visible; }
 
 .status {
   display: flex;

@@ -6,7 +6,7 @@ const links = [[`${base}/manifesto.html`, 'Manifesto', 'manifesto'], [`${base}/e
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content={description}><meta name="theme-color" content="#f6f3ec"><title>{title}</title><link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml"><link rel="stylesheet" href={`${base}/styles.css`}></head><body>
 
   <a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header wrap">
+  <header id="top" class="site-header wrap">
     <a class="brand" href={`${base}/`} aria-label="Zhex home"><img class="brand-logo" src={`${base}/logo.svg`} width="168" height="50" alt=""></a>
     <nav aria-label="Main navigation">
       {links.map(([href, label, page]) => <a href={href} aria-current={page === current ? "page" : undefined}>{label}</a>)}
