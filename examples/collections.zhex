@@ -11,12 +11,12 @@ for index, name in names
         print(error.code(problem))
 
 let grid: Array<Int> = array.new([2, 3], 0) try
-(grid[0, 0] = 1) try
-(grid[0, 1] = 2) try
-(grid[0, 2] = 3) try
-(grid[1, 0] = 4) try
-(grid[1, 1] = 5) try
-(grid[1, 2] = 6) try
+grid[0, 0] = 1
+grid[0, 1] = 2
+grid[0, 2] = 3
+grid[1, 0] = 4
+grid[1, 1] = 5
+grid[1, 2] = 6
 for coordinates, value in grid
     let row = coordinates[0] try
     let column = coordinates[1] try
