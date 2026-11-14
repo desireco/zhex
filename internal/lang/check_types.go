@@ -172,7 +172,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
 	}
 	for _, record := range records {
-		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "List" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
+		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "Map" || record.typeParam == "List" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
 			return errorAt(record.pos, CodeDuplicateName, "invalid type parameter %q", record.typeParam)
 		}
 		variants := make(map[string]bool)

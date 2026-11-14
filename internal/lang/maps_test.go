@@ -225,3 +225,11 @@ func TestMapGuardUnwindsOnReturnAndPropagation(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestMapAndOptionTypeNamesAreReserved(t *testing.T) {
+	for _, src := range []string{"type Map = record\n    value: Int\n", "type Option = choice\n    None\n", "type Maybe<Map> = choice\n    Some(value: Map)\n"} {
+		if _, err := Compile("test.zhex", src); err == nil {
+			t.Errorf("accepted reserved type name:\n%s", src)
+		}
+	}
+}
