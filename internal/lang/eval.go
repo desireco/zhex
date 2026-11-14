@@ -291,7 +291,15 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 	case "flow":
 		for _, step := range s.steps {
 			r.traceFlowStep(step, v)
-			v, err = r.call(step, []value{v})
+			args := []value{v}
+			for _, arg := range step.args[1:] {
+				item, err := r.expression(arg, env)
+				if err != nil {
+					return value{}, err
+				}
+				args = append(args, item)
+			}
+			v, err = r.call(step, args)
 			if err != nil {
 				return value{}, err
 			}

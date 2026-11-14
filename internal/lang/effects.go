@@ -114,6 +114,9 @@ func (c *checker) effectBlock(body []*statement, env map[string]string, effects 
 		c.effectBlock(s.body, copyEffectsEnv(env), effects, found)
 		c.effectBlock(s.otherwise, copyEffectsEnv(env), effects, found)
 		for _, step := range s.steps {
+			for _, arg := range step.args {
+				c.effectExpr(arg, env, effects, found)
+			}
 			if step.propagate {
 				for _, family := range c.effectResult(step, env, effects) {
 					if family != "?" {

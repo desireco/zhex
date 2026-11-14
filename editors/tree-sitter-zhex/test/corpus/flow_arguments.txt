@@ -1,0 +1,22 @@
+==================
+Flow steps with arguments
+==================
+flow "hello"
+    text.replace("e", "a")
+    text.upper
+    print
+
+---
+
+(source_file
+  (flow_header
+    (string))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (string)
+      (string)))
+  (expression_statement
+    (identifier))
+  (expression_statement
+    (identifier)))

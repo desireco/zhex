@@ -55,6 +55,7 @@ type checker struct {
 	blockDepth    int
 	expected      valueType
 	blockExpected valueType
+	flowExpected  valueType
 }
 
 var hostWords = []string{
@@ -502,8 +503,14 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 			}
 			c.consuming = pending
 		}
+		previousFlow := c.flowExpected
+		c.flowExpected = ""
+		if i == len(body)-1 && s.kind == "flow" {
+			c.flowExpected = c.blockExpected
+		}
 		var err error
 		typ, err = c.statement(s, env)
+		c.flowExpected = previousFlow
 		c.expected = previous
 		c.consuming = nil
 		if err != nil {
@@ -683,14 +690,20 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		for index, step := range s.steps {
 			if typ == errorType {
 				w, _ := c.resolveWord(step.text)
-				if w != nil {
-					return "", errorAt(step.pos, CodeArgumentType, "use a direct user-word call instead of an Error-valued flow step")
+				choice, _ := c.resolveVariant(step.text)
+				if w != nil || choice != nil || c.types.visible[step.text] != nil {
+					return "", errorAt(step.pos, CodeArgumentType, "use a direct user-word call or constructor instead of an Error-valued flow step")
 				}
 			}
 			if step.text == "err" || step.text == "ok" && typ == errorType {
 				return "", errorAt(step.pos, CodeArgumentType, "construct Error Results with a direct call")
 			}
-			typ, err = c.call(step, []valueType{typ})
+			step.args = append([]*expression{{kind: "flow-value", pos: step.pos, end: step.end, typ: typ}}, step.args...)
+			expected := valueType("")
+			if index == len(s.steps)-1 {
+				expected = c.flowExpected
+			}
+			typ, err = c.expressionExpected(step, env, expected)
 			if err != nil {
 				return "", err
 			}
@@ -726,6 +739,8 @@ func (c *checker) expressionExpected(x *expression, env *scope, expected valueTy
 func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	var typ valueType
 	switch x.kind {
+	case "flow-value":
+		typ = x.typ
 	case "list":
 		if len(x.args) > maxCollectionElements {
 			return "", errorAt(x.pos, CodeCollectionLimit, "list exceeds %d elements", maxCollectionElements)

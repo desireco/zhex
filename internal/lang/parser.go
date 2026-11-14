@@ -282,6 +282,17 @@ func (p *parser) parseStatement() *statement {
 		for !p.at("dedent") && !p.at("eof") {
 			step := p.name()
 			x := &expression{kind: "call", text: step.text, pos: step.pos, end: step.end}
+			if p.accept("(") {
+				if !p.at(")") {
+					for {
+						x.args = append(x.args, p.expression(0))
+						if !p.accept(",") {
+							break
+						}
+					}
+				}
+				x.end = p.require(")").end
+			}
 			x.propagate = p.accept("try")
 			s.steps = append(s.steps, x)
 			p.require("newline")
