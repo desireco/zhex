@@ -193,7 +193,10 @@ func (p *parser) parseWord() *word {
 		}
 	}
 	p.require(")")
-	p.require("->")
+	if !p.accept("->") {
+		w.body = p.block()
+		return w
+	}
 	if p.at("Result") {
 		p.take()
 		p.require("<")

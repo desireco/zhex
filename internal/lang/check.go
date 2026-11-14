@@ -352,17 +352,23 @@ func (c *checker) register(words []*word) error {
 
 // checkWords type-checks word bodies against the current file's view.
 func (c *checker) checkWords(words []*word) error {
+	hasOmitted := false
 	for _, w := range words {
-		if w.module != "" && !strings.HasPrefix(w.name, "_") && c.rawPrivateType(w.result, w.module) {
+		if w.result == "" {
+			hasOmitted = true
+		}
+		if w.result != "" && w.module != "" && !strings.HasPrefix(w.name, "_") && c.rawPrivateType(w.result, w.module) {
 			return privateTypeLeak(w.pos, w.result)
 		}
-		typ, ok := c.normalizeType(w.result)
-		if !ok {
-			return c.typeError(w.pos, w.result)
+		if w.result != "" {
+			typ, ok := c.normalizeType(w.result)
+			if !ok {
+				return c.typeError(w.pos, w.result)
+			}
+			w.result = typ
 		}
-		w.result = typ
-		if w.module != "" && !strings.HasPrefix(w.name, "_") && privateTypeInModule(typ, w.module) {
-			return privateTypeLeak(w.pos, typ)
+		if w.result != "" && w.module != "" && !strings.HasPrefix(w.name, "_") && privateTypeInModule(w.result, w.module) {
+			return privateTypeLeak(w.pos, w.result)
 		}
 		for i := range w.params {
 			param := &w.params[i]
@@ -380,6 +386,19 @@ func (c *checker) checkWords(words []*word) error {
 			if w.module != "" && !strings.HasPrefix(w.name, "_") && privateTypeInModule(typ, w.module) {
 				return privateTypeLeak(param.pos, typ)
 			}
+		}
+	}
+	if hasOmitted {
+		inference := &returnInference{checker: c, results: map[*word]*typeConstraint{}, effects: c.collectWordEffects(words)}
+		for _, w := range words {
+			if w.result == "" {
+				inference.results[w] = freshType()
+			} else {
+				inference.results[w] = termFromType(w.result)
+			}
+		}
+		if err := inference.infer(words); err != nil {
+			return err
 		}
 	}
 	if err := c.inferWordEffects(words); err != nil {
