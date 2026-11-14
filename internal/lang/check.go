@@ -1634,6 +1634,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	}
 	if len(args) < minimum || len(args) > len(params) {
+		if minimum != len(params) {
+			return "", withSpan(errorAt(x.pos, CodeArgumentCount, "%s requires %d to %d arguments, found %d", x.text, minimum, len(params), len(args)), x)
+		}
 		return "", withSpan(errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments, found %d", x.text, len(params), len(args)), x)
 	}
 	for i, typ := range args {

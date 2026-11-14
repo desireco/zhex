@@ -75,3 +75,10 @@ func TestRecordDefaultsPersistInREPL(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestRecordDefaultArityDiagnosticIncludesOptionalRange(t *testing.T) {
+	_, err := Compile("test.zhex", "type Config = record\n    name: String\n    retries: Int = 3\nlet config = Config()\n")
+	if err == nil || !strings.Contains(err.Error(), "requires 1 to 2 arguments") {
+		t.Fatalf("unexpected diagnostic: %v", err)
+	}
+}
