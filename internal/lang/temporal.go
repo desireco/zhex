@@ -126,6 +126,9 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 		return value{moment: v}, nil
 	case "zoned.add-days":
 		days := args[1].number
+		if days == 0 {
+			return args[0], nil
+		}
 		if days < -3652059 || days > 3652059 {
 			return value{}, errorAt(x.pos, CodeTemporalRange, "zoned arithmetic is outside the supported range")
 		}

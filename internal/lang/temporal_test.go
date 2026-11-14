@@ -136,3 +136,19 @@ func TestInstantStrictRFC3339AndYearBoundaries(t *testing.T) {
 		t.Fatal("accepted instant overflow")
 	}
 }
+
+func TestZonedAddZeroDaysPreservesLaterOverlapInstant(t *testing.T) {
+	source := `let zone = timezone.load("America/New_York") try
+let first = zoned.new(date.new(2024,11,3), time.new(1,30,0), zone)
+let later = zoned.add-duration(first, duration.parse("1h") try)
+print(instant.to-string(zoned.instant(later)))
+print(instant.to-string(zoned.instant(zoned.add-days(later, 0))))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "2024-11-03T06:30:00Z\n2024-11-03T06:30:00Z\n" {
+		t.Fatal(out.String())
+	}
+}
