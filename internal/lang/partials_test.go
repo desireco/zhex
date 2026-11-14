@@ -595,3 +595,20 @@ func TestPartialTraceAndBodyFailuresKeepCorrectLocations(t *testing.T) {
 		t.Fatalf("wrong call trace: %s", trace.String())
 	}
 }
+
+func TestMapBuiltinPartialsSpecializeFromCapturesAndUses(t *testing.T) {
+	source := `let put-ada = map.put(_, "Ada", 5)
+let contains-ada = map.contains(_, "Ada")
+let scores: Map<String, Int> = {}
+let same = put-ada(scores)
+print(contains-ada(same))
+print(map.length(scores))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "true\n1\n" {
+		t.Fatal(out.String())
+	}
+}
