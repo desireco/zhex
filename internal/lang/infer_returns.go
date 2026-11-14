@@ -613,6 +613,19 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 	return table
 }()
 
+func (s *returnInference) callArgument(x *expression, args []*typeConstraint, i int, expected *typeConstraint) {
+	actual := args[i]
+	if len(x.args) == len(args) && s.err == nil {
+		found, foundOK := constraintType(actual)
+		required, requiredOK := constraintType(expected)
+		if foundOK && requiredOK && found != required {
+			msg := fmt.Sprintf("argument %d of %s requires type %s, found %s", i+1, x.text, required, found)
+			s.err = valueError(x.pos, x.args[i], CodeArgumentType, msg, tryHint(found), x.args[i])
+		}
+	}
+	s.equal(actual, expected, x.pos)
+}
+
 func (s *returnInference) call(x *expression, args []*typeConstraint, checked bool) *typeConstraint {
 	if choice, index := s.checker.resolveVariant(x.text); choice != nil {
 		param := freshType()
@@ -653,17 +666,17 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			}
 			return freshType()
 		}
-		for i, arg := range args {
+		for i := range args {
 			if i < len(word.params) {
-				s.equal(arg, termFromType(word.params[i].typ), x.pos)
+				s.callArgument(x, args, i, termFromType(word.params[i].typ))
 			}
 		}
 		return s.wordResult(word)
 	}
 	if signature, ok := inferenceBuiltins[x.text]; ok {
-		for i, arg := range args {
+		for i := range args {
 			if i < len(signature.params) {
-				s.equal(arg, termFromType(signature.params[i]), x.pos)
+				s.callArgument(x, args, i, termFromType(signature.params[i]))
 			}
 		}
 		return termFromType(signature.result)
