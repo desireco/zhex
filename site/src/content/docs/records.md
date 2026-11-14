@@ -19,9 +19,38 @@ let ada: Customer = Customer("Ada", 36)
 print(display-name(ada))
 ```
 
-The constructor takes field values positionally in declaration order, with exactly one value of the declared type for each field. The checker verifies the constructor arguments and each field read. Record fields are immutable after construction. Record types are nominal: two record declarations with the same fields still name distinct types. Type names cannot collide with a word or another type in the same module. You can use a declared record type in binding annotations, word signatures, and other field declarations; `let` and `var` infer the type as before. Recursive record declarations, including cycles through collections, are not supported.
+The constructor takes field values positionally in declaration order, with the declared type for each supplied field. Required fields come first; trailing fields with defaults can be omitted. The checker verifies the constructor arguments and each field read. Record fields are immutable after construction. Record types are nominal: two record declarations with the same fields still name distinct types. Type names cannot collide with a word or another type in the same module. You can use a declared record type in binding annotations, word signatures, and other field declarations; `let` and `var` infer the type as before. Recursive record declarations, including cycles through collections, are not supported.
 
 An explicit annotation can be written on a binding as `let name: Type = expression` or `var name: Type = expression`. An annotation checks the value against the declared type; it does not convert the value.
+
+## Field defaults
+
+Give trailing fields a default to omit them from a constructor call:
+
+```zhex
+type Settings = record
+    retries: Int = 3
+    verbose: Bool = false
+
+let defaults = Settings()
+let custom = Settings(5)
+print(defaults.retries)
+print(custom.retries)
+```
+
+Required fields must precede defaulted fields. Supplied arguments are evaluated first; each omitted default is evaluated in declaration order, in its defining module, each time a record is constructed. Defaults cannot refer to caller bindings or other fields and cannot propagate a Result. Fresh list or map expressions create independent collections; explicitly supplied collections keep their shared identity.
+
+## Type aliases
+
+An alias gives an existing type another name without creating a new type or constructor:
+
+```zhex
+type Names = alias List<String>
+let names: Names = ["Ada"]
+print(list.length(names))
+```
+
+Aliases work in annotations and signatures, can refer forward to other types, and follow module privacy rules. Cycles and generic alias declarations are rejected. An alias cannot hide a Result obligation.
 
 Collections can be fields, and a record stores their shared reference. A `let` name cannot be rebound, but a collection referenced by that name can still be changed through its collection operations. See [lists and arrays](collections.html) and [maps](maps.html). Records and supported nested collection values can be encoded as JSON; see [JSON](json.html). Record fields cannot contain `Result` values, and concrete error families cannot be hidden in an `Error` field without explicit `error.wrap`.
 

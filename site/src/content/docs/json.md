@@ -9,10 +9,10 @@ The `json` operations convert between JSON text and checked Zhex values. Decodin
 
 ```zhex
 type Settings = record
-    retries: Int
-    verbose: Bool
+    retries: Int = 3
+    verbose: Bool = false
 
-let settings = json.decode("{\"verbose\":true}", Settings(3, false)) try
+let settings = json.decode("{\"verbose\":true}", Settings()) try
 print(settings.retries)
 print(settings.verbose)
 print(json.encode(settings) try)
@@ -33,7 +33,7 @@ true
 | `json.decode(raw, defaults)` | `(String, T) -> Result<T, Error>` | Decode JSON using the defaults value to determine `T` and fill missing record fields. |
 | `json.encode(value)` | `(T) -> Result<String, Error>` | Encode a supported value as compact JSON. |
 
-The decoder checks every supplied value. It rejects unknown fields, duplicate JSON object keys, wrong types, and missing fields with no default; it never substitutes a default for an invalid supplied value. A JSON `null` is valid only for `Option<T>` and produces `Option.None`. An omitted `Option<T>` field uses the default value, so `null` and omission have different meanings. `Option.Some(record)` can provide a default record for a non-null Option value; `Option.None` cannot provide inner defaults. Lists and maps of records do not provide a per-item default record: each supplied record item must include its required fields.
+The decoder checks every supplied value. It rejects unknown fields, duplicate JSON object keys, wrong types, and missing fields with no default; it never substitutes a default for an invalid supplied value. A JSON `null` is valid only for `Option<T>` and produces `Option.None`. An omitted `Option<T>` field uses the default value, so `null` and omission have different meanings. `Option.Some(record)` can provide a default record for a non-null Option value; `Option.None` cannot provide inner defaults. Lists and maps of records do not provide a per-item default record: each supplied record item must include every field, even fields with constructor defaults.
 
 ## Supported values
 
@@ -53,13 +53,13 @@ For example, an invalid supplied type reports the path rather than falling back:
 
 ```zhex
 type Settings = record
-    retries: Int
-    verbose: Bool
+    retries: Int = 3
+    verbose: Bool = false
 
-let settings = json.decode("{\"retries\":\"many\"}", Settings(3, false)) catch problem
+let settings = json.decode("{\"retries\":\"many\"}", Settings()) catch problem
     print(error.code(problem))
     print(error.detail(problem, "path"))
-    Settings(3, false)
+    Settings()
 print(settings.retries)
 ```
 
