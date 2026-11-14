@@ -702,7 +702,7 @@ func (s *returnInference) termCall(x *expression, args []*typeConstraint, env in
 			// A later call site may establish that this binding is callable.
 			// Until then, guessing the same-named word changes the program.
 			result = freshType()
-			view := s.checker
+			view, current := s.checker, s.current
 			deferred := result
 			s.pending = append(s.pending, func() bool {
 				resolved := binding.root()
@@ -713,10 +713,10 @@ func (s *returnInference) termCall(x *expression, args []*typeConstraint, env in
 					params := append(append([]*typeConstraint{}, args...), deferred)
 					s.equal(binding, namedType("@function", params...), x.pos)
 				} else {
-					previous := s.checker
-					s.checker = view
+					previous, previousWord := s.checker, s.current
+					s.checker, s.current = view, current
 					target := s.call(x, args, checked)
-					s.checker = previous
+					s.checker, s.current = previous, previousWord
 					s.equal(deferred, target, x.pos)
 				}
 				return true

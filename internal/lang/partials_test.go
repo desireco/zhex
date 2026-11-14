@@ -549,3 +549,17 @@ print(later(2))
 		t.Fatalf("incorrect trace: %s", trace.String())
 	}
 }
+
+func TestDeferredNonFunctionShadowKeepsResultWordContext(t *testing.T) {
+	source := `word wrap(ok, n: Int) -> Result<Int, Error>
+    ok(n)
+print(wrap(0, 7) try)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
