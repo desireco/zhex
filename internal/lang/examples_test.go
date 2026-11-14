@@ -23,7 +23,7 @@ func TestExamples(t *testing.T) {
 		{name: "exit-status", input: "0\n", want: "Exit status (0..255): Exiting with status 0\n", exited: true, exitCode: 0},
 		{name: "exit-status", input: "oops\n", want: "Exit status (0..255): Invalid status: text-to-int\n", exited: true, exitCode: 2},
 		{name: "exit-status", input: "256\n", want: "Exit status (0..255): Status must be from 0 to 255.\n", exited: true, exitCode: 2},
-		{name: "recovery", want: "Handled text-to-int\nReported text-to-int\nThe retry count must be a decimal integer; using 3.\n3\n"},
+		{name: "recovery", want: "That is not a whole number. I'll use 3 retries.\nRetries: 3\n"},
 		{name: "hello", input: "Ada\n", want: "Your name: Hello, Ada!\n"},
 		{name: "hello", input: "\n", want: "Your name: Hello, !\n"},
 		{name: "hello", input: " Ada \r\n", want: "Your name: Hello,  Ada !\n"},

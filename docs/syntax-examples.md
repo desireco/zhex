@@ -17,7 +17,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [gcd.zhex](../examples/gcd.zhex) | `48`, `18` | `6` | Euclid's algorithm by recursion and a flow seeded with a computed call. |
 | [times-table.zhex](../examples/times-table.zhex) | `7` | `7 x 1 = 7` through `7 x 10 = 70` | A bounded loop building each line from integers and strings. |
 | [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
-| [recovery.zhex](../examples/recovery.zhex) | None | `Handled text-to-int`, `Reported text-to-int`, the fallback message, then `3` | Five layers of matching `ParseError` propagation, one top-level `catch`, error-code inspection, and explicit reporting of the handled error. |
+| [recovery.zhex](../examples/recovery.zhex) | None | A fallback message, then `Retries: 3` | Catch invalid numeric text and continue with a default value. |
 | [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
 | [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
 
@@ -73,7 +73,7 @@ collection-iterating
 
 `read-line` removes one trailing LF and an immediately preceding CR, preserving the remaining spaces and text. An empty line is a valid empty string. A nonempty final line without a newline is accepted. EOF before any line content, invalid UTF-8, and I/O failures produce input errors. `text.to-int` additionally rejects empty/whitespace-only input, malformed integers, and integers outside the supported range.
 
-The interactive examples use postfix `try` to propagate failed input to the program boundary; the runner writes a source-located diagnostic and exits nonzero. Earlier runtime output, including a prompt, can remain. `recovery.zhex` instead declares fallible words with `Result<Int, ParseError>`, propagates through each call with `try`, and handles the failure once with `catch`. Its reporter runs only because the handler explicitly calls `error.report(problem)`.
+The interactive examples use postfix `try` to propagate failed input to the program boundary; the runner writes a source-located diagnostic and exits nonzero. Earlier runtime output, including a prompt, can remain. `recovery.zhex` demonstrates a local `catch` fallback: invalid numeric text prints a short explanation and supplies `3`, so the program continues. For declared fallible words, propagation across multiple calls, and structured error reporting, see [results and error handling](../site/src/content/docs/results.md).
 
 All names and types are checked before the program runs, so an unknown word or incompatible flow produces no prompt and consumes no input. Output failures should likewise produce controlled runtime errors. Input comes from standard input in both interactive terminals and redirected streams; file execution and the REPL must share that input stream without losing buffered data.
 
