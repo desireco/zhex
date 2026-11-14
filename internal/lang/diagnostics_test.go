@@ -203,35 +203,19 @@ func TestUnknownPrintNameSuggestsCallSyntax(t *testing.T) {
 	}
 }
 
-func TestPrintWithWhitespaceSuggestsParentheses(t *testing.T) {
-	got := runError(t, "print 1 + 1\n")
-	if !strings.HasPrefix(got, `bad.zhex:1:7: expected newline, found "1"`) || !strings.Contains(got, "write print(expression)") {
-		t.Fatalf("missing call syntax hint: %s", got)
+func TestBareCallsAndRequiredArguments(t *testing.T) {
+	var out strings.Builder
+	source := "word bye() -> Unit\n    print(1)\nbye\nprint 1 + 1\n"
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil || out.String() != "1\n2\n" {
+		t.Fatalf("output %q error %v", out.String(), err)
 	}
-}
-
-func TestBareKnownWordSuggestsCall(t *testing.T) {
-	for _, tc := range []struct{ source, first, hint string }{
-		{"word bye() -> Unit\n    print(1)\nbye\n", `bad.zhex:3:1: unknown name "bye"`, "call bye()"},
-		{"word greet(name: String) -> Unit\n    print(name)\ngreet\n", `bad.zhex:3:1: unknown name "greet"`, "call greet(...)"},
-	} {
-		got := runError(t, tc.source)
-		if !strings.HasPrefix(got, tc.first) || !strings.Contains(got, tc.hint) || strings.Contains(got, `did you mean`) {
+	for _, source := range []string{"word greet(name: String) -> Unit\n    print(name)\ngreet\n", "text.lower\n"} {
+		if got := runError(t, source); !strings.Contains(got, "requires 1 argument") {
 			t.Errorf("unexpected diagnostic: %s", got)
 		}
 	}
-	var out strings.Builder
-	if err := Run("test.zhex", "word bye() -> Unit\n    print(1)\nlet bye = 3\nprint(bye)\n", strings.NewReader(""), &out); err != nil || out.String() != "3\n" {
-		t.Fatalf("binding shadow: %q %v", out.String(), err)
-	}
-}
-
-func TestBareBuiltinSuggestsCallSyntax(t *testing.T) {
-	for _, tc := range []struct{ source, hint string }{{"instant.now\n", "call instant.now()"}, {"text.lower\n", "call text.lower(...)"}} {
-		got := runError(t, tc.source)
-		if !strings.Contains(got, tc.hint) {
-			t.Errorf("missing hint: %s", got)
-		}
+	if _, err := Compile("test.zhex", "instant.now\n"); err != nil {
+		t.Fatal(err)
 	}
 }
 

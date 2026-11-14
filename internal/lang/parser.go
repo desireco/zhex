@@ -181,8 +181,8 @@ func (p *parser) parseWord() *word {
 	p.require("word")
 	t := p.name()
 	w := &word{name: t.text, pos: t.pos}
-	p.require("(")
-	if !p.at(")") {
+	parenthesized := p.accept("(")
+	if (parenthesized && !p.at(")")) || (!parenthesized && p.current().kind == "name" && !p.at("newline")) {
 		for {
 			n := p.name()
 			param := parameter{name: n.text, pos: n.pos}
@@ -200,7 +200,9 @@ func (p *parser) parseWord() *word {
 			}
 		}
 	}
-	p.require(")")
+	if parenthesized {
+		p.require(")")
+	}
 	if !p.accept("->") {
 		w.body = p.block()
 		return w
@@ -298,7 +300,7 @@ func (p *parser) parseStatement() *statement {
 		s.body = p.block()
 	case p.accept("flow"):
 		s.kind = "flow"
-		s.expr = p.expression(0)
+		s.expr = p.wholeExpression()
 		p.require("newline")
 		if !p.at("indent") {
 			panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented flow"))
@@ -309,8 +311,14 @@ func (p *parser) parseStatement() *statement {
 			x := &expression{kind: "call", text: step.text, pos: step.pos, end: step.end}
 			if p.accept("(") {
 				p.callArguments(x)
+			} else if p.bareArgumentStart() && p.current().pos.line == x.end.line && p.current().pos.column > x.end.column {
+				x.args = p.bareArguments()
+				if last := x.args[len(x.args)-1]; last.kind == "try" {
+					x.args[len(x.args)-1] = last.left
+					x.propagate = true
+				}
 			}
-			x.propagate = p.accept("try")
+			x.propagate = p.accept("try") || x.propagate
 			s.steps = append(s.steps, x)
 			p.require("newline")
 		}
@@ -325,7 +333,7 @@ func (p *parser) parseStatement() *statement {
 		if p.at("if") || p.at("match") || p.at("flow") {
 			s.expr = p.statementExpression(false)
 		} else {
-			s.expr = p.expression(0)
+			s.expr = p.wholeExpression()
 			p.require("newline")
 		}
 	default:
@@ -333,6 +341,44 @@ func (p *parser) parseStatement() *statement {
 		s.expr = p.statementExpression(true)
 	}
 	return s
+}
+
+// Bare calls occur only at a complete statement-value boundary. Argument
+// expressions keep the existing precedence and nesting rules.
+func (p *parser) bareArgumentStart() bool {
+	t := p.current()
+	return t.kind == "number" || t.kind == "string" || t.kind == "name" && (!Reserved(t.text) || t.text == "true" || t.text == "false" || t.text == "not")
+}
+func (p *parser) bareArguments() []*expression {
+	var args []*expression
+	for {
+		args = append(args, p.expression(0))
+		if !p.accept(",") {
+			break
+		}
+	}
+	return args
+}
+func (p *parser) wholeExpression() *expression {
+	x := p.expression(0)
+	if x.kind == "name" && p.bareArgumentStart() && p.current().pos.line == x.end.line && p.current().pos.column > x.end.column {
+		x.kind = "call"
+		x.args = p.bareArguments()
+		last := x.args[len(x.args)-1]
+		x.end = last.end
+		if last.kind == "try" {
+			x.args[len(x.args)-1] = last.left
+			return p.checkDepth(&expression{kind: "try", pos: last.pos, end: last.end, left: p.checkDepth(x)})
+		}
+		return p.checkDepth(x)
+	}
+	if x.kind == "name" {
+		x.bare = true
+	}
+	if x.kind == "try" && x.left != nil && x.left.kind == "name" {
+		x.left.bare = true
+	}
+	return x
 }
 
 // statementExpression accepts an indented catch as the whole statement value.
@@ -344,7 +390,7 @@ func (p *parser) statementExpression(allowAssignment bool) *expression {
 		t := p.current()
 		return &expression{kind: "statement-value", pos: t.pos, end: t.end, statement: p.parseStatement()}
 	}
-	x := p.expression(0)
+	x := p.wholeExpression()
 	if allowAssignment && p.accept("=") {
 		if x.kind != "index" {
 			panic(errorAt(x.pos, CodeExpectedExpression, "assignment requires an indexed collection"))
@@ -360,9 +406,6 @@ func (p *parser) statementExpression(allowAssignment bool) *expression {
 			name = p.name().text
 		}
 		return &expression{kind: "catch", pos: t.pos, end: t.end, text: name, left: x, handler: p.block()}
-	}
-	if x.kind == "name" && x.text == "print" && !p.at("newline") {
-		panic(withHint(errorAt(p.current().pos, CodeExpectedToken, "expected newline, found %q", p.current().text), "write print(expression) to call print"))
 	}
 	p.require("newline")
 	return x

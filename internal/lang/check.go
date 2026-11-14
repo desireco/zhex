@@ -1114,6 +1114,12 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				}
 			}
 		}
+		if x.binding == nil && x.bare {
+			if word, _ := c.resolveWord(x.text); word != nil || HostWord(x.text) {
+				x.kind = "call"
+				return c.expression(x, env)
+			}
+		}
 		if x.binding == nil {
 			hint := c.unknownNameHint(x.text, env.names())
 			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), hint), x)

@@ -339,6 +339,7 @@ type expression struct {
 	plainWrite        bool
 	checkedIndex      bool
 	checkedCollection bool
+	bare              bool
 	jsonSchema        *jsonSchema
 	statement         *statement
 }

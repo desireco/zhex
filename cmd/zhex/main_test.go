@@ -569,10 +569,10 @@ func TestReplByeIsOrdinaryRedefinableWord(t *testing.T) {
 	}
 }
 
-func TestReplBareByeSuggestsCallAndDoesNotExit(t *testing.T) {
+func TestReplBareByeExitsNormally(t *testing.T) {
 	var out, diagnostics bytes.Buffer
 	status := run([]string{"repl"}, strings.NewReader("bye\nprint(7)\nbye()\n"), &out, &diagnostics)
-	if status != 0 || !strings.Contains(diagnostics.String(), "call bye()") || strings.Contains(diagnostics.String(), `did you mean "bye"`) || !strings.Contains(out.String(), "7\n") {
+	if status != 0 || diagnostics.Len() != 0 || strings.Contains(out.String(), "7\n") {
 		t.Fatalf("exit %d stdout %q stderr %q", status, out.String(), diagnostics.String())
 	}
 }

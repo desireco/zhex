@@ -333,6 +333,11 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 			}
 			return result
 		}
+		if x.bare {
+			if word, _ := s.checker.resolveWord(x.text); word != nil || HostWord(x.text) {
+				return s.call(x, nil, checked)
+			}
+		}
 		if s.err == nil {
 			var names []string
 			for name := range env {

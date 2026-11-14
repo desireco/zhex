@@ -59,6 +59,11 @@ func (c *checker) effectResult(x *expression, env map[string]string, effects map
 		if f := env[x.text]; f != "" {
 			return []string{f}
 		}
+		if x.bare {
+			call := *x
+			call.kind = "call"
+			return c.effectResult(&call, env, effects)
+		}
 	case "index", "index-write":
 		return []string{"Error"}
 	case "call":
