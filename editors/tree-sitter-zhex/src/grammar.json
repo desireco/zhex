@@ -161,8 +161,22 @@
                   "type": "SEQ",
                   "members": [
                     {
-                      "type": "SYMBOL",
-                      "name": "parameter"
+                      "type": "CHOICE",
+                      "members": [
+                        {
+                          "type": "SYMBOL",
+                          "name": "parameter"
+                        },
+                        {
+                          "type": "ALIAS",
+                          "content": {
+                            "type": "SYMBOL",
+                            "name": "untyped_parameter"
+                          },
+                          "named": true,
+                          "value": "parameter"
+                        }
+                      ]
                     },
                     {
                       "type": "REPEAT",
@@ -188,8 +202,22 @@
                             }
                           },
                           {
-                            "type": "SYMBOL",
-                            "name": "parameter"
+                            "type": "CHOICE",
+                            "members": [
+                              {
+                                "type": "SYMBOL",
+                                "name": "parameter"
+                              },
+                              {
+                                "type": "ALIAS",
+                                "content": {
+                                  "type": "SYMBOL",
+                                  "name": "untyped_parameter"
+                                },
+                                "named": true,
+                                "value": "parameter"
+                              }
+                            ]
                           }
                         ]
                       }
@@ -536,6 +564,14 @@
           }
         }
       ]
+    },
+    "untyped_parameter": {
+      "type": "FIELD",
+      "name": "name",
+      "content": {
+        "type": "SYMBOL",
+        "name": "identifier"
+      }
     },
     "type": {
       "type": "CHOICE",

@@ -170,3 +170,24 @@ word double(n: Int)
     (binary_expression
       (identifier)
       (identifier))))
+
+==================
+Inferred parameter and result
+==================
+word twice(value, multiplier: Int)
+    value * multiplier
+
+---
+
+(source_file
+  (word_definition
+    (identifier)
+    (parameter
+      (identifier))
+    (parameter
+      (identifier)
+      (type)))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier))))
