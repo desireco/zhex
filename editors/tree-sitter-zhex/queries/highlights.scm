@@ -2,6 +2,7 @@
 (word_definition name: (identifier) @function)
 (call_expression function: (identifier) @function)
 (parameter name: (identifier) @variable.parameter)
+(named_argument name: (identifier) @property)
 (type) @type
 (error_type) @type
 "Result" @type

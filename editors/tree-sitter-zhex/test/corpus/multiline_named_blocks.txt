@@ -1,0 +1,124 @@
+==================
+Multiline delimiters, named records and block bindings
+==================
+word scale(
+    value: Int,
+    factor: Int
+) -> Int
+    value * factor
+type Config = record
+    retries: Int = 3
+    verbose: Bool = false
+let config = Config(
+    verbose: true,
+    retries: scale(
+        2,
+        3
+    )
+)
+let values = [
+    1,
+    2
+]
+let lookup = {
+    "key": values[
+        0
+    ]
+}
+let n = if true
+    1
+else
+    2
+var text = flow " ADA "
+    text.trim
+    text.lower
+n = match Option.Some(n)
+    case Option.Some(value)
+        value
+    case Option.None
+        0
+
+---
+
+(source_file
+  (word_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type))
+    (parameter
+      (identifier)
+      (type))
+    (type))
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier)))
+  (record_definition
+    (identifier))
+  (field_definition
+    (identifier)
+    (type)
+    (integer))
+  (field_definition
+    (identifier)
+    (type)
+    (boolean))
+  (binding
+    (identifier)
+    (call_expression
+      (identifier)
+      (named_argument
+        (identifier)
+        (boolean))
+      (named_argument
+        (identifier)
+        (call_expression
+          (identifier)
+          (integer)
+          (integer)))))
+  (binding
+    (identifier)
+    (list_literal
+      (integer)
+      (integer)))
+  (binding
+    (identifier)
+    (map_literal
+      (string)
+      (index_expression
+        (identifier)
+        (integer))))
+  (binding
+    (identifier)
+    (if_header
+      (boolean)))
+  (expression_statement
+    (integer))
+  (else_header)
+  (expression_statement
+    (integer))
+  (binding
+    (identifier)
+    (flow_header
+      (string)))
+  (expression_statement
+    (identifier))
+  (expression_statement
+    (identifier))
+  (assignment
+    (identifier)
+    (match_expression
+      (call_expression
+        (identifier)
+        (identifier))))
+  (case_header
+    (call_expression
+      (identifier)
+      (identifier)))
+  (expression_statement
+    (identifier))
+  (case_header
+    (identifier))
+  (expression_statement
+    (integer)))
