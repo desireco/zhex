@@ -15,17 +15,34 @@ The REPL checks and runs each submitted entry. Defined words, values, and adopte
 
 ## Enter a word
 
-A word body needs an indented block. The REPL uses a continuation prompt while it is waiting for that block. Submit a multi-line entry with a blank line:
+Calls use parentheses: enter `print(1 + 1)` to print `2`. The REPL does not accept the shell-like form `print 1 + 1`.
+
+In an interactive terminal, the continuation editor inserts four spaces after a block header. It carries the current indentation into nested blocks. Enter submits a line; a line containing only the suggested indentation is blank and submits the entry. Tab inserts four spaces at the cursor, and Backspace removes one character; press it four times to dedent one level before `else`:
 
 ```text
-zhex> word greet(name: String) -> String
-....>     "Hello, " + name + "!"
+Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.
+zhex> print(1 + 1)
+2
+zhex> word positive(n: Int) -> Int
+....>     if n > 0
+....>         n
+....>     else
+....>         0
 ....>
-zhex> greet("Ada")
-Hello, Ada!
+zhex> flow 3
+....>     positive
+....>     print
+....>
+3
 ```
 
-Only a missing indented block continues an entry. Parentheses and incomplete expressions do not continue a line. Statements do not span lines.
+The spaces shown after `....>` are editable spaces supplied by the terminal editor. To enter `else`, press Backspace four times to remove one indentation level before you type it. The flow sends `3` to `positive`, then sends the result to `print`.
+
+While editing, Ctrl-C cancels the current entry and returns to the top-level prompt. Ctrl-D on an empty top-level prompt exits with status 0; in a pending entry, Ctrl-D on an empty or spaces-only continuation line discards it and exits. Bracketed paste keeps the pasted source indentation, including literal tabs; tabs and non-ASCII whitespace outside strings or comments remain source errors. These editing conveniences apply only when both input and output are interactive terminals. Piped entries keep the existing line-based behavior and must include their own four-space indentation.
+
+When a program uses `read-line`, the terminal reader also supplies its input. It reads the typed line as data, without source auto-indentation or Tab expansion.
+
+Only a missing indented block continues an entry. Parentheses and incomplete expressions do not continue a line, and statements do not span lines. The source grammar is unchanged.
 
 ## Results and errors
 

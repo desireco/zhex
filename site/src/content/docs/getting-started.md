@@ -74,23 +74,32 @@ Your name: Hello, Ada!
 
 ## Try the REPL
 
-Start an interactive session:
+Start an interactive session. Calls use parentheses, so `print(1 + 1)` prints `2`:
 
 ```sh
 zhex repl
 ```
 
-Define and call a word. The blank line submits its body:
+Define a word and send a value through it. The terminal editor inserts four spaces after each block header, including nested ones. A blank line submits the entry; the flow body is indented four spaces:
 
 ```text
+zhex> print(1 + 1)
+2
 zhex> word greet(name: String) -> String
 ....>     "Hello, " + name + "!"
 ....>
-zhex> greet("Ada")
+zhex> flow "Ada"
+....>     greet
+....>     print
+....>
 Hello, Ada!
 ```
 
-Words and values stay available in later entries. Press Ctrl-D to exit.
+The spaces shown after `....>` are editable. Tab inserts four spaces; Backspace removes one character; press it four times to dedent one level. An empty or spaces-only continuation line submits the entry. While editing, Ctrl-C cancels the current entry. Ctrl-D on an empty top-level line exits; in a pending entry, Ctrl-D on an empty or spaces-only continuation line discards it and exits.
+
+Auto-indentation applies to interactive terminal input. Piped REPL input keeps the existing source format, so include the leading four spaces yourself. Pasted code keeps its source indentation; tabs and non-ASCII whitespace outside strings or comments are still rejected by the language. A program's `read-line` prompt reads input as data, without source auto-indentation or Tab expansion. The language grammar is unchanged.
+
+Words and values stay available in later entries.
 
 ## Where to go next
 

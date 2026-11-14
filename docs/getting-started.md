@@ -71,14 +71,19 @@ Start a REPL session:
 zhex repl
 ```
 
-Words and values persist across entries. A word header opens a multi-line entry, shown with the `....> ` continuation prompt; a blank line submits its body:
+Words and values persist across entries. Calls use parentheses: `print(1 + 1)` prints `2`. A word header opens a multi-line entry, shown with the `....> ` continuation prompt. In an interactive terminal, the editor pre-fills four spaces and carries indentation into nested blocks:
 
 ```text
 Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.
 zhex> word greet(name: String) -> String
 ....>     "Hello, " + name + "!"
 ....>
-zhex> greet("Ada")
+zhex> print(1 + 1)
+2
+zhex> flow "Ada"
+....>     greet
+....>     print
+....>
 Hello, Ada!
 zhex> word greet(name: String) -> String
 ....>     "Hi, " + name + "!"
@@ -93,7 +98,7 @@ Hi, Linus!
 zhex> [Ctrl-D]
 ```
 
-The lines after `zhex> ` and `....> ` are your input, as is `Linus` at the prompt; `[Ctrl-D]` is the keypress that exits with status 0. Redefining a word replaces it and prints `redefined greet`. A bare expression echoes its value, while `let` and `print` entries do not. Errors print a diagnostic and the session continues; `words` lists the effective signatures defined so far, including inferred Result effects. See the [REPL guide](../site/src/content/docs/repl.md) for entry rules and tracing.
+The lines after `zhex> ` and `....> ` are your input, as is `Linus` at the prompt; `[Ctrl-D]` is the keypress that exits with status 0. The continuation spaces are editable: Tab inserts four spaces; Backspace removes one character, so press it four times to dedent one level. An empty or spaces-only continuation line submits the entry; Ctrl-C cancels the current entry. Ctrl-D on an empty or spaces-only continuation line in a pending entry discards it and exits. Redefining a word replaces it and prints `redefined greet`. A bare expression echoes its value, while `let` and `print` entries do not. Errors print a diagnostic and the session continues; `words` lists the effective signatures defined so far, including inferred Result effects. Auto-indentation applies only to interactive terminals. Piped entries keep the existing source format and need explicit four-space indentation; bracketed paste preserves its source indentation, and tabs and non-ASCII whitespace outside strings or comments remain source errors. A program's `read-line` input is data and receives no source indentation or Tab expansion. See the [REPL guide](../site/src/content/docs/repl.md) for entry rules and tracing.
 
 ## Read the greeting
 
