@@ -28,6 +28,36 @@ func DelimiterIndent(source string, err error) (int, bool) {
 	return len(line) - len(strings.TrimLeft(line, " ")) + 4, true
 }
 
+// LastStatementIndent reports the leading indentation of the last logical
+// statement, ignoring physical line breaks inside delimiters.
+func LastStatementIndent(source string) (int, bool) {
+	tokens, err := lex("", source)
+	if err != nil {
+		return 0, false
+	}
+	first, last := 0, 0
+	for _, token := range tokens {
+		switch token.kind {
+		case "indent", "dedent", "eof":
+		case "newline":
+			if first != 0 {
+				last = first
+				first = 0
+			}
+		default:
+			if first == 0 {
+				first = token.pos.line
+			}
+		}
+	}
+	lines := strings.Split(source, "\n")
+	if last < 1 || last > len(lines) {
+		return 0, false
+	}
+	line := lines[last-1]
+	return len(line) - len(strings.TrimLeft(line, " ")), true
+}
+
 // Session is a REPL: an interactive run whose word definitions, top-level
 // names, values, and adopted modules survive from one entry to the next.
 type Session struct {

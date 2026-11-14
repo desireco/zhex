@@ -47,3 +47,28 @@ func TestInteractiveReplOpenDelimiterCanCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInteractiveReplNestedMultilineContinuesAtLogicalIndent(t *testing.T) {
+	s := startPTY(t)
+	s.send(t, "word size() -> Int\r")
+	s.until(t, "....>     ")
+	s.send(t, "let n = text.length(\r")
+	s.until(t, "....>         ")
+	s.send(t, "\"abc\"\r")
+	s.until(t, "....>         ")
+	s.send(t, ")\r")
+	s.until(t, "....>     ")
+	s.send(t, "n\r")
+	s.until(t, "....>     ")
+	s.send(t, "\r")
+	s.until(t, "zhex> ")
+	s.send(t, "size()\r")
+	got := s.until(t, "zhex> ")
+	if !strings.Contains(got, "3\r\n") {
+		t.Fatalf("nested multiline: %q", got)
+	}
+	s.send(t, "bye()\r")
+	if err := s.cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+}

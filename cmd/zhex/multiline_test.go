@@ -20,3 +20,10 @@ func TestReplUnclosedDelimiterAtPipedEOFDiagnoses(t *testing.T) {
 		t.Fatalf("exit %d stderr %q", code, diagnostics.String())
 	}
 }
+
+func TestContinuationIndentAfterMultilineDelimiter(t *testing.T) {
+	source := "word f() -> Int\n    let n = text.length(\n        \"abc\"\n        )\n"
+	if got := continuationIndent(source); got != 4 {
+		t.Fatalf("continuation indentation %d; want 4", got)
+	}
+}

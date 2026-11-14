@@ -21,6 +21,9 @@ func continuationIndent(source string) int {
 	lines := strings.Split(strings.TrimSuffix(source, "\n"), "\n")
 	last := lines[len(lines)-1]
 	indent := len(last) - len(strings.TrimLeft(last, " "))
+	if logical, ok := lang.LastStatementIndent(source); ok {
+		indent = logical
+	}
 	if lang.IsIncomplete(err) {
 		indent += 4
 	}
