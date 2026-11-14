@@ -158,3 +158,23 @@ print n
 		t.Fatal(out.String())
 	}
 }
+
+func TestBareCallTrailingTryAcrossUnaryExpression(t *testing.T) {
+	source := `word invert(flag: Bool) -> Result<Bool, Error>
+    ok(flag)
+word choose(text: String, flag: Bool) -> Result<Bool, Error>
+    ok(flag)
+let yes = invert not false try
+print yes
+flow "ignored"
+    choose not false try
+    print
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "true\ntrue\n" {
+		t.Fatal(out.String())
+	}
+}

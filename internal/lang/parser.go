@@ -360,6 +360,14 @@ func trailingBareTry(x *expression) (*expression, *expression) {
 	if x.kind == "try" {
 		return x.left, x
 	}
+	if x.kind == "unary" {
+		left, guard := trailingBareTry(x.left)
+		if guard != nil {
+			x.left = left
+			x.end = left.end
+			return x, guard
+		}
+	}
 	if x.kind == "binary" {
 		right, guard := trailingBareTry(x.right)
 		if guard != nil {
