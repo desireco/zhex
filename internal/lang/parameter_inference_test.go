@@ -168,3 +168,10 @@ print(n)
 		t.Fatal(out.String())
 	}
 }
+
+func TestReporterRegistrationConstrainsUnusedParameter(t *testing.T) {
+	source := "word report(problem)\n    print(\"reported\")\nerror.set-reporter(report)\n"
+	if _, err := Compile("test.zhex", source); err != nil {
+		t.Fatal(err)
+	}
+}
