@@ -1,9 +1,9 @@
 word is-palindrome(value: String) -> Bool
     value == text.reverse(value)
 
-let value = read-line("Text to check: ") try
+let value = read-line "Text to check: " try
 
 if is-palindrome(value)
-    print("Palindrome")
+    print "Palindrome"
 else
-    print("Not a palindrome")
+    print "Not a palindrome"

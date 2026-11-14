@@ -37,7 +37,7 @@ Replace the file contents with a word that reads a name and sends it through a f
 word greet(name: String) -> String
     "Hello, " + name + "!"
 
-let name = read-line("Your name: ") try
+let name = read-line "Your name: " try
 
 flow name
     greet
@@ -108,7 +108,7 @@ The [greeting source](../examples/hello.zhex) is:
 word greet(name: String) -> String
     "Hello, " + name + "!"
 
-let name = read-line("Your name: ") try
+let name = read-line "Your name: " try
 
 flow name
     greet

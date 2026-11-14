@@ -29,8 +29,8 @@ In this invocation, `console.args-count() -> Int` returns `1`, and `console.arg(
 These signatures show built-in return values. User words can omit a return annotation when the body determines one concrete success type; an escaping `try` also makes the checker infer the effective Result signature. Explicit return and `Result<T, E>` signatures remain supported; see [Results and error handling](results.html).
 
 ```zhex
-let path = console.arg(0) try
-print(path)
+let path = console.arg 0 try
+print path
 ```
 
 Extra positional arguments are forwarded to the program. Command options such as `--trace` and `--report=json` belong to the interpreter and are not program arguments. Unknown options are rejected.

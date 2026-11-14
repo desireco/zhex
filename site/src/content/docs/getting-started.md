@@ -46,7 +46,7 @@ Replace the file with a word that reads a name and sends it through a flow:
 word greet(name: String) -> String
     "Hello, " + name + "!"
 
-let name = read-line("Your name: ") try
+let name = read-line "Your name: " try
 
 flow name
     greet

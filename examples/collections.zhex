@@ -2,7 +2,7 @@
 let names: List<String> = ["Ada", "Grace"]
 list.append(names, "Lin")
 print(list.length(names))
-print(names[1])
+print names[1]
 
 let alias = names
 for index, name in names

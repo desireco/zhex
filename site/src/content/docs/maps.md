@@ -64,7 +64,7 @@ The next example passes a new literal map into `map.into`, with `scores` as its 
 
 ```zhex
 flow {"Lin": 12}
-    map.into(scores)
+    map.into scores
     map.length
     print
 ```

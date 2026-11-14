@@ -1,10 +1,10 @@
 # Report line, word, and character counts for a text file.
 # One argument counts the whole file; a second argument streams it uppercased.
 
-let path = console.arg(0) try
+let path = console.arg 0 try
 
 if console.args-count() == 1
-    let body = file.read-all(path) try
+    let body = file.read-all path try
     print(int.to-string(text.line-count(body)) + " lines  " + int.to-string(text.word-count(body)) + " words  " + int.to-string(text.length(body)) + " chars")
 else
     for line in file.lines(path)

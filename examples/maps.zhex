@@ -28,7 +28,7 @@ for name, score in scores
     print(name + ": " + int.to-string(score))
 
 flow {"Lin": 12}
-    map.into(scores)
+    map.into scores
     map.length
     print
 

@@ -8,9 +8,9 @@ order: 115
 Zhex separates calendar dates and local times from instants. A `Duration` measures elapsed nanoseconds; a `TimeZone` names a zone, and a `ZonedDateTime` combines a zone with an instant. Format these values explicitly with `to-string`.
 
 ```zhex
-let zone = timezone.load("America/New_York") try
+let zone = timezone.load "America/New_York" try
 let start = zoned.new(date.new(2024, 3, 9), time.new(12, 0, 0), zone)
-let elapsed = duration.parse("24h") try
+let elapsed = duration.parse "24h" try
 print(zoned.to-string(zoned.add-days(start, 1)))
 print(zoned.to-string(zoned.add-duration(start, elapsed)))
 ```

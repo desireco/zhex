@@ -16,9 +16,9 @@ print(describe(Status.Running))
 
 match Status.Failed("network unavailable")
     case Status.Failed(message)
-        print("Could not start: " + message)
+        print "Could not start: " + message
     case _
-        print("No failure")
+        print "No failure"
 
 type Maybe<T> = choice
     None

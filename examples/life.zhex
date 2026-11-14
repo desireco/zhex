@@ -35,7 +35,7 @@ word show(grid: Array<Int>, generation: Int) -> Array<Int>
                 line = line + "#"
             else
                 line = line + "."
-        print(line)
+        print line
     grid
 
 word seed(grid: Array<Int>, cells: List<List<Int>>) -> Array<Int>
@@ -52,5 +52,5 @@ word generations(grid: Array<Int>, count: Int) -> Array<Int>
 
 flow array.new([7, 7], 0)
     seed([[2, 3], [3, 4], [4, 2], [4, 3], [4, 4]])
-    show(0)
-    generations(4)
+    show 0
+    generations 4

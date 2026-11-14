@@ -1,7 +1,7 @@
 # Levenshtein distance counts insertions, deletions, and substitutions.
 word distance(left: String, right: String) -> Int
-    let rows = text.length(left)
-    let columns = text.length(right)
+    let rows = text.length left
+    let columns = text.length right
     let costs: Array<Int> = array.new([rows + 1, columns + 1], 0)
 
     for row in range(0, rows + 1)

@@ -1,5 +1,5 @@
 let rawRetries = "abc"
-let retries = text.to-int(rawRetries) catch
-    print("That is not a whole number. I'll use 3 retries.")
+let retries = text.to-int rawRetries catch
+    print "That is not a whole number. I'll use 3 retries."
     3
 print("Retries: " + int.to-string(retries))

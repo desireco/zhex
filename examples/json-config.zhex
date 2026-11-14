@@ -6,6 +6,6 @@ let settings = json.decode(
     "{\"verbose\":true}",
     Settings(verbose: true)
 ) try
-print(settings.retries)
-print(settings.verbose)
+print settings.retries
+print settings.verbose
 print(json.encode(settings) try)

@@ -141,7 +141,7 @@ func TestLifeGenerationCountsAndTrace(t *testing.T) {
 	}
 	lines := strings.SplitAfter(full.String(), "\n")
 	for _, count := range []int{0, 1, 4} {
-		program := strings.Replace(string(source), "generations(4)", fmt.Sprintf("generations(%d)", count), 1)
+		program := strings.Replace(string(source), "generations 4", fmt.Sprintf("generations %d", count), 1)
 		var out, trace bytes.Buffer
 		if err := RunWithTrace("life.zhex", program, strings.NewReader(""), &out, &trace); err != nil {
 			t.Fatal(err)

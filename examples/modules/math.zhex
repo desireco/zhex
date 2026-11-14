@@ -17,4 +17,4 @@ word lcm(a: Int, b: Int) -> Int
     _normalize(a * b) / gcd(a, b)
 
 word _normalize(n: Int) -> Int
-    abs(n)
+    abs n

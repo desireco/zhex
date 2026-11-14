@@ -59,11 +59,11 @@ Use `match value` with an indented list of `case` arms. A case names an alternat
 ```zhex
 match Status.Failed("network unavailable")
     case Status.Failed(message)
-        print("Could not start: " + message)
+        print "Could not start: " + message
     case Status.Pending
-        print("Waiting to start")
+        print "Waiting to start"
     case Status.Running
-        print("Already running")
+        print "Already running"
 ```
 
 The cases must cover every alternative exactly once unless the final arm is `case _`, which handles all remaining alternatives. Use `_` inside a payload pattern to ignore that field, as in `case Status.Failed(_)`. A wildcard is allowed at most once and must be last. Missing cases, repeated alternatives, a default after every alternative is already covered, and cases after a wildcard are checker errors.

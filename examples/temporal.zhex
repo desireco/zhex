@@ -1,6 +1,6 @@
 # A calendar day and 24 elapsed hours differ across a daylight-saving change.
-let zone = timezone.load("America/New_York") try
+let zone = timezone.load "America/New_York" try
 let start = zoned.new(date.new(2024, 3, 9), time.new(12, 0, 0), zone)
-let elapsed = duration.parse("24h") try
+let elapsed = duration.parse "24h" try
 print(zoned.to-string(zoned.add-days(start, 1)))
 print(zoned.to-string(zoned.add-duration(start, elapsed)))

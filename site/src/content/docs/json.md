@@ -16,8 +16,8 @@ let settings = json.decode(
     "{\"verbose\":true}",
     Settings(verbose: true)
 ) try
-print(settings.retries)
-print(settings.verbose)
+print settings.retries
+print settings.verbose
 print(json.encode(settings) try)
 ```
 
@@ -63,7 +63,7 @@ let settings = json.decode("{\"retries\":\"many\"}", Settings()) catch problem
     print(error.code(problem))
     print(error.detail(problem, "path"))
     Settings()
-print(settings.retries)
+print settings.retries
 ```
 
 This prints `json-type`, `/retries`, then `3`.
