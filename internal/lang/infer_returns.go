@@ -132,7 +132,12 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 		}
 		return namedType(string(neverType))
 	case "if":
-		s.equal(s.expr(stmt.expr, env, false), namedType("Bool"), stmt.pos)
+		condition := s.expr(stmt.expr, env, false)
+		if typ, ok := constraintType(condition); ok && typ != boolType && s.err == nil {
+			err := withHint(errorAt(stmt.expr.pos, CodeConditionType, "%s", narrated(fmt.Sprintf("condition must have type Bool, found %s", typ), narrate(stmt.expr))), tryHint(typ))
+			s.err = withSpan(err, stmt.expr)
+		}
+		s.equal(condition, namedType("Bool"), stmt.pos)
 		left := s.block(stmt.body, copyInferScope(env))
 		right := s.block(stmt.otherwise, copyInferScope(env))
 		return s.join(left, right, stmt.pos)

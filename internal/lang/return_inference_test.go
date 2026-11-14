@@ -207,3 +207,14 @@ func TestInferredReturnsPreserveUnknownNameDiagnostics(t *testing.T) {
 		}
 	}
 }
+
+func TestInferredReturnsPreserveConditionDiagnostics(t *testing.T) {
+	source := "word broken() -> Int\n    if 1\n        1\n    else\n        2\n"
+	_, original := Compile("test.zhex", source)
+	_, combined := Compile("test.zhex", source+"word inferred()\n    1\n")
+	first, ok1 := original.(*diagnostic)
+	second, ok2 := combined.(*diagnostic)
+	if !ok1 || !ok2 || first.code != second.code || first.message != second.message || first.hint != second.hint || first.spanStart != second.spanStart || first.spanEnd != second.spanEnd {
+		t.Fatalf("original %v, combined %v", original, combined)
+	}
+}
