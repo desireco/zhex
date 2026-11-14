@@ -326,7 +326,7 @@ func (p *parser) statementExpression(allowAssignment bool) *expression {
 		}
 		right := p.expression(0)
 		p.require("newline")
-		return &expression{kind: "index-write", pos: x.pos, end: right.end, left: x, right: right}
+		return p.checkDepth(&expression{kind: "index-write", pos: x.pos, end: right.end, left: x, right: right, plainWrite: true})
 	}
 	if p.at("catch") {
 		t := p.take()

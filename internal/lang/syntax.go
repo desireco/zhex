@@ -321,6 +321,7 @@ type expression struct {
 	typeArg     valueType
 	handler     []*statement
 	propagate   bool
+	plainWrite  bool
 }
 
 type statement struct {

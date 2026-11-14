@@ -400,11 +400,19 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 		}
 		if receiver.list != nil {
 			if x.kind == "index-write" {
-				return listWrite(x.pos, receiver.list, indices[0], item), nil
+				result := listWrite(x.pos, receiver.list, indices[0], item)
+				if x.plainWrite {
+					return plainWriteResult(result)
+				}
+				return result, nil
 			}
 			return listRead(x.pos, receiver.list, indices[0]), nil
 		}
-		return arrayIndex(x.pos, receiver.array, indices, item, x.kind == "index-write"), nil
+		result := arrayIndex(x.pos, receiver.array, indices, item, x.kind == "index-write")
+		if x.kind == "index-write" && x.plainWrite {
+			return plainWriteResult(result)
+		}
+		return result, nil
 	case "int":
 		return value{number: x.number}, nil
 	case "bool":

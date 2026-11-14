@@ -902,7 +902,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if valueType == errorType && x.right.binding != nil && x.right.binding.errorFamily != "" && x.right.binding.errorFamily != "Error" {
 			return "", errorAt(x.right.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
 		}
-		if isMap {
+		if isMap || x.plainWrite {
 			typ = unitType
 		} else {
 			typ = valueTypeResultUnitError

@@ -123,3 +123,11 @@ func arrayResize(pos position, a *arrayValue, dims *listValue, fill value) value
 	a.shape, a.items = shape, items
 	return value{result: &inputResult{}}
 }
+
+// plainWriteResult promotes checked collection failures to runtime diagnostics.
+func plainWriteResult(result value) (value, error) {
+	if result.result.err != nil {
+		return value{}, result.result.err
+	}
+	return value{}, nil
+}
