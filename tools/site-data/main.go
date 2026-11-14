@@ -254,7 +254,7 @@ var exampleSpecs = []struct {
 	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", "Algorithms", nil, nil},
 	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", "Algorithms", nil, nil},
 	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", "Algorithms", nil, nil},
-	{"life", "Game of Life", "Evolve a finite grid with a dead exterior and explicit array state.", "", "Algorithms", nil, nil},
+	{"life", "Game of Life", "Carry a finite grid through each generation in a flow; cells beyond the board are dead.", "", "Algorithms", nil, nil},
 	{"edit-distance", "Edit distance", "Fill a dynamic-programming table to compare Unicode text.", "", "Algorithms", nil, nil},
 }
 

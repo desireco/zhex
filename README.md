@@ -93,7 +93,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Palindrome](examples/palindrome.zhex) | Text input, comparison, and Unicode code-point reversal. |
 | [GCD](examples/gcd.zhex) | Euclid's algorithm by recursion, seeded into a flow. |
 | [Times table](examples/times-table.zhex) | A bounded loop building strings from integers. |
-| [Game of Life](examples/life.zhex) | Advance a finite grid with array indexing, loops, and explicit state; cells beyond the board are dead. |
+| [Game of Life](examples/life.zhex) | Carry a finite grid through generations in a flow; out-of-board neighbors are dead. |
 | [Edit distance](examples/edit-distance.zhex) | Use a two-dimensional dynamic-programming table to compare strings by Unicode code point. |
 
 The [example guide](docs/syntax-examples.md) records expected output and edge cases. The [language contract](docs/initial-language.md) defines the current rules.
