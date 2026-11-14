@@ -360,8 +360,8 @@ func TestArrayThreeDimensionalResizeAndFreshShape(t *testing.T) {
 	}
 }
 
-func TestArrayRejectsBadTypesAndRequiresHandling(t *testing.T) {
-	for _, src := range []string{"array.new([2, 2], 0)\n", "let a = array.new([2, 2], 0) try\n(a[0, 0] = true) try\n", "let a = array.new([2, 2], 0) try\nprint(a[true, 0] try)\n", "let a = array.new([2, 2], 0) try\narray.resize(a, [2, 2], true) try\n"} {
+func TestArrayRejectsBadTypes(t *testing.T) {
+	for _, src := range []string{"let a = array.new([2, 2], 0) try\n(a[0, 0] = true) try\n", "let a = array.new([2, 2], 0) try\nprint(a[true, 0] try)\n", "let a = array.new([2, 2], 0) try\narray.resize(a, [2, 2], true) try\n"} {
 		if _, err := Compile("test.zhex", src); err == nil {
 			t.Errorf("accepted %q", src)
 		}

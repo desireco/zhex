@@ -568,6 +568,9 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 				}
 			}
 		}
+		if err == nil && isCheckedCollectionOperation(x.text) && !x.checkedCollection {
+			return plainReadResult(result)
+		}
 		return result, err
 	}
 	if r.depth >= 256 {

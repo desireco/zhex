@@ -307,28 +307,29 @@ type Program struct {
 }
 
 type expression struct {
-	kind         string
-	pos          position
-	end          position // exclusive, one past the last rune
-	text         string
-	number       int64
-	depth        int
-	left, right  *expression
-	args         []*expression
-	typ          valueType
-	inputType    valueType
-	binding      *binding
-	word         *word
-	record       *recordType
-	fields       []int
-	arms         []matchArm
-	variant      int
-	typeArg      valueType
-	handler      []*statement
-	propagate    bool
-	plainWrite   bool
-	checkedIndex bool
-	jsonSchema   *jsonSchema
+	kind              string
+	pos               position
+	end               position // exclusive, one past the last rune
+	text              string
+	number            int64
+	depth             int
+	left, right       *expression
+	args              []*expression
+	typ               valueType
+	inputType         valueType
+	binding           *binding
+	word              *word
+	record            *recordType
+	fields            []int
+	arms              []matchArm
+	variant           int
+	typeArg           valueType
+	handler           []*statement
+	propagate         bool
+	plainWrite        bool
+	checkedIndex      bool
+	checkedCollection bool
+	jsonSchema        *jsonSchema
 }
 
 type statement struct {

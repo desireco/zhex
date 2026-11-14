@@ -718,6 +718,9 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "flow seed Result must be handled with try or catch")
 		}
 		for index, step := range s.steps {
+			if step.propagate && isCheckedCollectionOperation(step.text) {
+				step.checkedCollection = true
+			}
 			if typ == errorType {
 				w, _ := c.resolveWord(step.text)
 				choice, _ := c.resolveVariant(step.text)
@@ -1191,6 +1194,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if x.left.kind == "index" {
 			x.left.checkedIndex = true
 		}
+		if x.left.kind == "call" && isCheckedCollectionOperation(x.left.text) {
+			x.left.checkedCollection = true
+		}
 		inner, err := c.expression(x.left, env)
 		if err != nil {
 			return "", err
@@ -1206,6 +1212,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	case "catch":
 		if x.left.kind == "index" {
 			x.left.checkedIndex = true
+		}
+		if x.left.kind == "call" && isCheckedCollectionOperation(x.left.text) {
+			x.left.checkedCollection = true
 		}
 		result, err := c.expression(x.left, env)
 		if err != nil {
@@ -1649,6 +1658,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			return "", withSpan(errorAt(x.pos, CodeArgumentCount, "%s requires %d to %d arguments, found %d", x.text, minimum, len(params), len(args)), x)
 		}
 		return "", withSpan(errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments, found %d", x.text, len(params), len(args)), x)
+	}
+	if isCheckedCollectionOperation(x.text) && !x.checkedCollection {
+		result, _ = resultInner(result)
 	}
 	for i, typ := range args {
 		if typ != params[i] {

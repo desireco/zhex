@@ -2,6 +2,10 @@ package lang
 
 import "strconv"
 
+func isCheckedCollectionOperation(name string) bool {
+	return name == "array.new" || name == "array.resize" || name == "list.append"
+}
+
 func failedCollection(pos position, code Code, operation, message string, details map[string]string) value {
 	d := errorAt(pos, code, "%s", message).(*diagnostic)
 	d.operation, d.details = operation, details
