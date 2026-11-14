@@ -98,6 +98,20 @@ func (p *parser) parseType() valueType {
 	if p.depth > 256 {
 		panic(errorAt(p.current().pos, CodeNestingLimit, "syntax nesting limit exceeded"))
 	}
+	if p.accept("(") {
+		var args []valueType
+		if !p.at(")") {
+			for {
+				args = append(args, p.parseType())
+				if !p.accept(",") {
+					break
+				}
+			}
+		}
+		p.require(")")
+		p.require("->")
+		return functionType(args, p.parseType())
+	}
 	t := p.require("name")
 	if p.accept("<") {
 		args := []string{string(p.parseType())}

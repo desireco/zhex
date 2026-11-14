@@ -131,6 +131,9 @@ func constraintType(t *typeConstraint) (valueType, bool) {
 			}
 		}
 		text := t.name + "<" + strings.Join(args, ", ") + ">"
+		if t.name == "@function" {
+			text = "(" + strings.Join(args[:len(args)-1], ", ") + ") -> " + args[len(args)-1]
+		}
 		memo[t] = rendered{text: text, height: height}
 		return text, true
 	}

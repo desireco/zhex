@@ -97,6 +97,20 @@ func (c *checker) normalizeInferredType(typ valueType) (valueType, bool) {
 }
 
 func (c *checker) normalizeTypeSeen(typ valueType, seen map[*recordType]bool) (valueType, bool) {
+	if params, result, ok := functionTypeParts(typ); ok {
+		for i, param := range params {
+			var valid bool
+			params[i], valid = c.normalizeTypeSeen(param, seen)
+			if !valid || containsResultType(params[i]) {
+				return "", false
+			}
+		}
+		result, ok = c.normalizeTypeSeen(result, seen)
+		if !ok {
+			return "", false
+		}
+		return functionType(params, result), true
+	}
 	if base, args, ok := typeApplication(typ); ok && base == "Map" {
 		if len(args) != 2 {
 			return "", false
@@ -410,6 +424,9 @@ func (c *checker) privateVariant(name string) (*recordType, *module) {
 
 // typeApplication splits nested type arguments without confusing inner commas.
 func typeApplication(typ valueType) (string, []valueType, bool) {
+	if params, result, ok := functionTypeParts(typ); ok {
+		return "@function", append(params, result), true
+	}
 	text := string(typ)
 	i := strings.IndexByte(text, '<')
 	if i <= 0 || !strings.HasSuffix(text, ">") || strings.ContainsAny(text[:i], "() ") {
@@ -423,6 +440,12 @@ func typeApplication(typ valueType) (string, []valueType, bool) {
 }
 
 func substituteType(typ valueType, param string, arg valueType) valueType {
+	if params, result, ok := functionTypeParts(typ); ok {
+		for i := range params {
+			params[i] = substituteType(params[i], param, arg)
+		}
+		return functionType(params, substituteType(result, param, arg))
+	}
 	if string(typ) == param {
 		return arg
 	}
@@ -460,12 +483,38 @@ func inferTypeArgument(pattern, actual valueType, param string, found *valueType
 	return true
 }
 func (c *checker) normalizeTemplate(typ valueType, param string) (valueType, bool) {
+	if params, result, ok := functionTypeParts(typ); ok {
+		for i := range params {
+			var valid bool
+			params[i], valid = c.normalizeTemplate(params[i], param)
+			if !valid || containsResultType(params[i]) {
+				return "", false
+			}
+		}
+		result, ok = c.normalizeTemplate(result, param)
+		if !ok {
+			return "", false
+		}
+		return functionType(params, result), true
+	}
 	if string(typ) == param && param != "" {
 		return typ, true
 	}
 	base, args, ok := typeApplication(typ)
 	if !ok {
 		return c.normalizeType(typ)
+	}
+	if base == "Result" && len(args) == 2 {
+		switch args[1] {
+		case "InputError", "ParseError", "FileError", "BufferError", "Error":
+		default:
+			return "", false
+		}
+		inner, valid := c.normalizeTemplate(args[0], param)
+		if !valid || containsResultType(inner) {
+			return "", false
+		}
+		return valueType("Result<" + string(inner) + ", " + string(args[1]) + ">"), true
 	}
 	normalized := make([]string, len(args))
 	for i, arg := range args {
@@ -511,6 +560,14 @@ func choiceTypeArg(choice *recordType, typ valueType) valueType {
 }
 
 func containsResultType(typ valueType) bool {
+	if params, _, ok := functionTypeParts(typ); ok {
+		for _, param := range params {
+			if containsResultType(param) {
+				return true
+			}
+		}
+		return false
+	}
 	if isResult(typ) {
 		return true
 	}
