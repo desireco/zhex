@@ -1132,6 +1132,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			x.binding.consumed = true
 		}
 	case "call":
+		if typ, handled, err := c.checkFunctionCall(x, env); handled {
+			return typ, err
+		}
 		if len(x.argNames) != 0 {
 			if err := c.prepareNamedRecordArguments(x); err != nil {
 				return "", err

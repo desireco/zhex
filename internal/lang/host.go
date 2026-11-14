@@ -266,6 +266,9 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 }
 
 func formatValue(v value, typ valueType) string {
+	if v.function != nil {
+		return fmt.Sprintf("function(%s, %d remaining)", v.function.target.text, len(v.function.holes))
+	}
 	switch typ {
 	case intType:
 		return strconv.FormatInt(v.number, 10)

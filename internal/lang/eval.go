@@ -11,20 +11,27 @@ import (
 )
 
 type value struct {
-	number  int64
-	boolean bool
-	text    string
-	result  *inputResult
-	fault   error
-	buffer  *bufferValue
-	file    *fileValue
-	record  *recordValue
-	list    *listValue
-	array   *arrayValue
-	choice  *choiceValue
-	mapping *mapValue
-	moment  time.Time
-	zone    *time.Location
+	number   int64
+	boolean  bool
+	text     string
+	result   *inputResult
+	fault    error
+	buffer   *bufferValue
+	file     *fileValue
+	record   *recordValue
+	list     *listValue
+	array    *arrayValue
+	choice   *choiceValue
+	mapping  *mapValue
+	function *partialValue
+	moment   time.Time
+	zone     *time.Location
+}
+
+type partialValue struct {
+	target *expression
+	values []value
+	holes  []int
 }
 
 const maxCollectionElements = 1000000
@@ -316,13 +323,17 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			r.traceFlowStep(step, v)
 			args := []value{v}
 			for _, arg := range step.args[1:] {
+				if arg.kind == "hole" {
+					args = append(args, value{})
+					continue
+				}
 				item, err := r.expression(arg, env)
 				if err != nil {
 					return value{}, err
 				}
 				args = append(args, item)
 			}
-			v, err = r.call(step, args)
+			v, err = r.invoke(step, args, env)
 			if err != nil {
 				return value{}, err
 			}
@@ -464,13 +475,16 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 		}
 		args := make([]value, len(x.args))
 		for i, arg := range x.args {
+			if arg.kind == "hole" {
+				continue
+			}
 			var err error
 			args[i], err = r.expression(arg, env)
 			if err != nil {
 				return value{}, err
 			}
 		}
-		return r.call(x, args)
+		return r.invoke(x, args, env)
 	case "try":
 		v, err := r.expression(x.left, env)
 		if err != nil {
@@ -530,7 +544,37 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 	return value{}, errorAt(x.pos, CodeUnsupportedCode, "unsupported expression")
 }
 
+// invoke resolves a checked callable binding without introducing a dispatch
+// chain: re-partial application updates the original closure's slots.
+func (r *runtime) invoke(x *expression, args []value, env frame) (value, error) {
+	if x.binding == nil {
+		return r.call(x, args)
+	}
+	closure := env[x.binding].function
+	if closure == nil {
+		return value{}, errorAt(x.pos, CodeUnsupportedCode, "missing function value")
+	}
+	values := append([]value(nil), closure.values...)
+	var remaining []int
+	for i, pos := range closure.holes {
+		if x.args[i].kind == "hole" {
+			remaining = append(remaining, pos)
+		} else {
+			values[pos] = args[i]
+		}
+	}
+	if len(remaining) != 0 {
+		return value{function: &partialValue{target: closure.target, values: values, holes: remaining}}, nil
+	}
+	return r.call(closure.target, values)
+}
+
 func (r *runtime) call(x *expression, args []value) (value, error) {
+	if x.partial {
+		target := *x
+		target.partial = false
+		return value{function: &partialValue{target: &target, values: append([]value(nil), args...), holes: append([]int(nil), x.holes...)}}, nil
+	}
 	if x.record != nil {
 		if x.record.choice {
 			return value{choice: &choiceValue{name: x.record.id() + "." + x.record.variants[x.variant].name, variant: x.variant, fields: args}}, nil

@@ -153,7 +153,7 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 			for _, arg := range step.args {
 				args = append(args, s.expr(arg, env, false))
 			}
-			value = s.call(step, args, step.propagate)
+			value = s.termCall(step, args, env, step.propagate, 1)
 			if step.propagate {
 				value = s.unwrap(value, step.pos)
 			}
@@ -307,6 +307,8 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 		return namedType(string(unitType))
 	}
 	switch x.kind {
+	case "hole":
+		return freshType()
 	case "int":
 		return namedType("Int")
 	case "string":
@@ -377,7 +379,7 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 		for i, arg := range x.args {
 			args[i] = s.expr(arg, env, false)
 		}
-		return s.call(x, args, checked)
+		return s.termCall(x, args, env, checked, 0)
 	case "try":
 		return s.unwrap(s.expr(x.left, env, true), x.pos)
 	case "catch":
@@ -608,6 +610,37 @@ func (s *returnInference) match(x *expression, env inferScope) *typeConstraint {
 		return namedType(string(neverType))
 	}
 	return result
+}
+
+// termCall carries callable terms through inference without creating a runtime
+// Result: a partial's Result, if any, is its future invocation contract.
+func (s *returnInference) termCall(x *expression, args []*typeConstraint, env inferScope, checked bool, offset int) *typeConstraint {
+	var holes []*typeConstraint
+	for i, arg := range x.args {
+		if arg.kind == "hole" && i+offset < len(args) {
+			holes = append(holes, args[i+offset])
+		}
+	}
+	if len(holes) > 0 {
+		checked = false
+	}
+	var result *typeConstraint
+	if binding := env[x.text]; binding != nil {
+		root := binding.root()
+		word, _ := s.checker.resolveWord(x.text)
+		if root.name == "@function" || (root.name == "" && word == nil && !HostWord(x.text)) {
+			result = freshType()
+			params := append(append([]*typeConstraint{}, args...), result)
+			s.equal(binding, namedType("@function", params...), x.pos)
+		}
+	}
+	if result == nil {
+		result = s.call(x, args, checked)
+	}
+	if len(holes) == 0 {
+		return result
+	}
+	return namedType("@function", append(holes, result)...)
 }
 
 type inferenceSignature struct {

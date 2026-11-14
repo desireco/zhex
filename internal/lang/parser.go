@@ -393,10 +393,20 @@ func trailingBareTry(x *expression) (*expression, *expression) {
 	return x, nil
 }
 
+func (p *parser) argument() *expression {
+	if p.at("_") {
+		next := p.tokens[p.index+1]
+		if next.kind == "," || next.kind == ")" || next.kind == "newline" {
+			t := p.take()
+			return &expression{kind: "hole", text: "_", pos: t.pos, end: t.end}
+		}
+	}
+	return p.expression(0)
+}
 func (p *parser) bareArguments() []*expression {
 	var args []*expression
 	for {
-		args = append(args, p.expression(0))
+		args = append(args, p.argument())
 		if !p.accept(",") {
 			break
 		}
@@ -686,7 +696,7 @@ func (p *parser) callArguments(x *expression) {
 				anyNamed = true
 			}
 			names = append(names, name)
-			x.args = append(x.args, p.expression(0))
+			x.args = append(x.args, p.argument())
 			if !p.accept(",") {
 				break
 			}

@@ -319,6 +319,8 @@ type expression struct {
 	checkedCollection bool
 	bare              bool
 	grouped           bool
+	partial           bool
+	holes             []int
 	jsonSchema        *jsonSchema
 	statement         *statement
 }
