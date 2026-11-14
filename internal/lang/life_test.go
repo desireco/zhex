@@ -2,7 +2,10 @@ package lang
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -123,5 +126,45 @@ Generation 1
 `
 	if output.String() != want {
 		t.Fatalf("Life patterns differ from their oracles:\n got:\n%s\nwant:\n%s", output.String(), want)
+	}
+}
+
+// Generations must advance the same board once per requested step.
+func TestLifeGenerationCountsAndTrace(t *testing.T) {
+	source, err := os.ReadFile("../../examples/life.zhex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var full bytes.Buffer
+	if err := Run("life.zhex", string(source), strings.NewReader(""), &full); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.SplitAfter(full.String(), "\n")
+	for _, count := range []int{0, 1, 4} {
+		program := strings.Replace(string(source), "generations(4)", fmt.Sprintf("generations(%d)", count), 1)
+		var out, trace bytes.Buffer
+		if err := RunWithTrace("life.zhex", program, strings.NewReader(""), &out, &trace); err != nil {
+			t.Fatal(err)
+		}
+		want := strings.Join(lines[:(count+1)*8], "")
+		if out.String() != want {
+			t.Errorf("%d generations: got %q, want %q", count, out.String(), want)
+		}
+		calls := map[string]int{}
+		for _, line := range strings.Split(strings.TrimSpace(trace.String()), "\n") {
+			var event struct {
+				Event string `json:"event"`
+				Word  string `json:"word"`
+			}
+			if err := json.Unmarshal([]byte(line), &event); err != nil {
+				t.Fatal(err)
+			}
+			if event.Event == "word-call" {
+				calls[event.Word]++
+			}
+		}
+		if calls["seed"] != 1 || calls["generations"] != 1 || calls["advance"] != count || calls["show"] != count+1 {
+			t.Errorf("%d generations: unexpected calls %v", count, calls)
+		}
 	}
 }

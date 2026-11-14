@@ -38,20 +38,19 @@ word show(grid: Array<Int>, generation: Int) -> Array<Int>
         print(line)
     grid
 
-let start: Array<Int> = array.new([7, 7], 0)
-start[2, 3] = 1
-start[3, 4] = 1
-start[4, 2] = 1
-start[4, 3] = 1
-start[4, 4] = 1
+word seed(grid: Array<Int>, cells: List<List<Int>>) -> Array<Int>
+    for cell in cells
+        grid[cell[0], cell[1]] = 1
+    grid
 
-flow start
+word generations(grid: Array<Int>, count: Int) -> Array<Int>
+    var current = grid
+    for generation in range(1, count + 1)
+        current = advance(current)
+        show(current, generation)
+    current
+
+flow array.new([7, 7], 0)
+    seed([[2, 3], [3, 4], [4, 2], [4, 3], [4, 4]])
     show(0)
-    advance
-    show(1)
-    advance
-    show(2)
-    advance
-    show(3)
-    advance
-    show(4)
+    generations(4)
