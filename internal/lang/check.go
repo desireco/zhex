@@ -728,6 +728,9 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "flow seed Result must be handled with try or catch")
 		}
 		for index, step := range s.steps {
+			if len(step.argNames) != 0 {
+				return "", errorAt(step.pos, CodeArgumentType, "named arguments cannot be used in a flow step")
+			}
 			if step.propagate && isCheckedCollectionOperation(step.text) {
 				step.checkedCollection = true
 			}
@@ -1019,6 +1022,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			x.binding.consumed = true
 		}
 	case "call":
+		if len(x.argNames) != 0 {
+			if err := c.prepareNamedRecordArguments(x); err != nil {
+				return "", err
+			}
+		}
 		if x.text == "error.set-reporter" {
 			if c.wordResult != "" || c.blockDepth != 1 {
 				return "", errorAt(x.pos, CodeArgumentType, "error.set-reporter is only allowed at the top level")
@@ -1045,8 +1053,14 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			}
 		}
 		if record := c.types.visible[x.text]; record != nil {
-			for _, field := range record.fields {
-				params = append(params, field.typ)
+			if len(x.argNames) != 0 {
+				for _, index := range x.argFields {
+					params = append(params, record.fields[index].typ)
+				}
+			} else {
+				for _, field := range record.fields {
+					params = append(params, field.typ)
+				}
 			}
 		}
 		if x.text == "ok" {
@@ -1371,14 +1385,24 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			return "", errorAt(x.pos, CodeArgumentType, "construct a variant of %s", x.text)
 		}
 		for i, arg := range x.args {
-			if i < len(record.fields) && record.fields[i].typ == errorType && arg.binding != nil && arg.binding.errorFamily != "" && arg.binding.errorFamily != "Error" {
+			field := i
+			if len(x.argNames) != 0 {
+				field = x.argFields[i]
+			}
+			if field < len(record.fields) && record.fields[field].typ == errorType && arg.binding != nil && arg.binding.errorFamily != "" && arg.binding.errorFamily != "Error" {
 				return "", errorAt(arg.pos, CodeArgumentType, "convert %s explicitly with error.wrap before storing it as Error", arg.binding.errorFamily)
 			}
 		}
 		x.record = record
 		result = valueType(record.id())
-		for _, field := range record.fields {
-			params = append(params, field.typ)
+		if len(x.argNames) != 0 {
+			for _, index := range x.argFields {
+				params = append(params, record.fields[index].typ)
+			}
+		} else {
+			for _, field := range record.fields {
+				params = append(params, field.typ)
+			}
 		}
 	} else if w, m := c.resolveWord(x.text); w != nil {
 		if m != nil {
@@ -1721,7 +1745,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	}
 	minimum := len(params)
-	if x.record != nil && !x.record.choice {
+	if x.record != nil && !x.record.choice && len(x.argNames) == 0 {
 		for minimum > 0 && x.record.fields[minimum-1].defaultExpr != nil {
 			minimum--
 		}

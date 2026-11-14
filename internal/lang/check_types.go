@@ -639,3 +639,41 @@ func (c *checker) checkRecordDefaults(records []*recordType) error {
 	}
 	return nil
 }
+
+func (c *checker) prepareNamedRecordArguments(x *expression) error {
+	if record, module := c.privateRecord(x.text); record != nil {
+		return withHint(errorAt(x.pos, CodePrivateUse, "%q is private to module %q", record.name, module.name), fmt.Sprintf("remove the leading underscore in %s to export it", module.path))
+	}
+	record := c.types.visible[x.text]
+	if record == nil || record.alias || record.choice {
+		return errorAt(x.pos, CodeArgumentType, "named arguments require a record constructor")
+	}
+	used := make([]bool, len(record.fields))
+	x.argFields = make([]int, 0, len(x.argNames))
+	for _, name := range x.argNames {
+		if name == "" {
+			return errorAt(x.pos, CodeArgumentType, "named and positional arguments cannot be mixed")
+		}
+		index := -1
+		for i, field := range record.fields {
+			if field.name == name {
+				index = i
+				break
+			}
+		}
+		if index < 0 {
+			return errorAt(x.pos, CodeArgumentType, "record %s has no field %q", x.text, name)
+		}
+		if used[index] {
+			return errorAt(x.pos, CodeDuplicateName, "field %q is supplied more than once", name)
+		}
+		used[index] = true
+		x.argFields = append(x.argFields, index)
+	}
+	for i, field := range record.fields {
+		if !used[i] && field.defaultExpr == nil {
+			return errorAt(x.pos, CodeArgumentCount, "record %s requires field %q", x.text, field.name)
+		}
+	}
+	return nil
+}

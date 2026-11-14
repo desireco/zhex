@@ -535,6 +535,15 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		if x.record.choice {
 			return value{choice: &choiceValue{name: x.record.id() + "." + x.record.variants[x.variant].name, variant: x.variant, fields: args}}, nil
 		}
+		fields := make([]value, len(x.record.fields))
+		present := make([]bool, len(fields))
+		for i, arg := range args {
+			index := i
+			if len(x.argNames) != 0 {
+				index = x.argFields[i]
+			}
+			fields[index], present[index] = arg, true
+		}
 		if len(args) < len(x.record.fields) {
 			if r.defaultDepth >= 256 {
 				return value{}, errorAt(x.pos, CodeDepthLimit, "record default depth limit of 256 exceeded")
@@ -542,14 +551,17 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 			r.defaultDepth++
 			defer func() { r.defaultDepth-- }()
 		}
-		for _, field := range x.record.fields[len(args):] {
+		for i, field := range x.record.fields {
+			if present[i] {
+				continue
+			}
 			v, err := r.expression(field.defaultExpr, make(frame))
 			if err != nil {
 				return value{}, err
 			}
-			args = append(args, v)
+			fields[i] = v
 		}
-		return value{record: &recordValue{name: x.record.id(), fields: args}}, nil
+		return value{record: &recordValue{name: x.record.id(), fields: fields}}, nil
 	}
 	if x.word == nil {
 		result, err := r.builtin(x, args)

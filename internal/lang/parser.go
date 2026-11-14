@@ -297,15 +297,7 @@ func (p *parser) parseStatement() *statement {
 			step := p.name()
 			x := &expression{kind: "call", text: step.text, pos: step.pos, end: step.end}
 			if p.accept("(") {
-				if !p.at(")") {
-					for {
-						x.args = append(x.args, p.expression(0))
-						if !p.accept(",") {
-							break
-						}
-					}
-				}
-				x.end = p.require(")").end
+				p.callArguments(x)
 			}
 			x.propagate = p.accept("try")
 			s.steps = append(s.steps, x)
@@ -576,17 +568,33 @@ func (p *parser) primary() *expression {
 		x := &expression{kind: "name", text: t.text, pos: t.pos, end: t.end}
 		if p.accept("(") {
 			x.kind = "call"
-			if !p.at(")") {
-				for {
-					x.args = append(x.args, p.expression(0))
-					if !p.accept(",") {
-						break
-					}
-				}
-			}
-			x.end = p.require(")").end
+			p.callArguments(x)
 		}
 		return x
 	}
 	panic(errorAt(t.pos, CodeExpectedExpression, "expected an expression, found %q", t.text))
+}
+
+func (p *parser) callArguments(x *expression) {
+	var names []string
+	anyNamed := false
+	if !p.at(")") {
+		for {
+			name := ""
+			if p.current().kind == "name" && p.tokens[p.index+1].kind == ":" {
+				name = p.name().text
+				p.require(":")
+				anyNamed = true
+			}
+			names = append(names, name)
+			x.args = append(x.args, p.expression(0))
+			if !p.accept(",") {
+				break
+			}
+		}
+	}
+	if anyNamed {
+		x.argNames = names
+	}
+	x.end = p.require(")").end
 }

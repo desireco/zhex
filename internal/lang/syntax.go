@@ -321,6 +321,8 @@ type expression struct {
 	depth             int
 	left, right       *expression
 	args              []*expression
+	argNames          []string
+	argFields         []int
 	typ               valueType
 	inputType         valueType
 	binding           *binding
