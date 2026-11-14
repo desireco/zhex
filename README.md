@@ -71,6 +71,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | Example | What it demonstrates |
 | --- | --- |
 | [Composition](examples/composition.zhex) | Typed words, inferred locals, and a flow that prints `32`. |
+| [Calls](examples/calls.zhex) | Define a word and call it with either parentheses or the simple comma-separated form. |
 | [Records](examples/records.zhex) | A nominal named type, positional constructor, and immutable fields. |
 | [Choices](examples/choices.zhex) | Declare concrete and one-parameter alternatives and handle them with a match. |
 | [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, row-major arrays, and overlap-preserving resize. |

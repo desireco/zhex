@@ -74,7 +74,7 @@ Your name: Hello, Ada!
 
 ## Try the REPL
 
-Start an interactive session. Calls use parentheses, so `print(1 + 1)` prints `2`:
+Start an interactive session. Parenthesized calls remain available; simple calls may also use comma-separated arguments at a complete expression boundary, so `print 1 + 1` prints `2`:
 
 ```sh
 zhex repl

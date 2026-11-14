@@ -72,6 +72,8 @@ word greet(name: String) -> String
 print(greet("Ada"))
 ```
 
+Simple calls may also use a comma-separated short form, such as `greet "Ada"`; this is useful for a complete statement, binding right-hand side, final word value, or flow step. Keep parentheses for nested calls and ambiguous arguments. See [calls and defaults](calls.html) for the exact boundaries and runnable examples.
+
 ## Default parameters
 
 Parameters with defaults must come after required parameters. Calls stay positional and may omit only the trailing defaulted arguments:

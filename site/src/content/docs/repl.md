@@ -11,11 +11,11 @@ Start an interactive session with:
 zhex repl
 ```
 
-The REPL checks and runs each submitted entry. Defined words, values, and adopted modules persist across entries. Use Ctrl-D or call the preloaded ordinary word `bye()` to exit with status 0. `bye()` appears in `words` and follows the usual word-redefinition rules; it is available only in the REPL.
+The REPL checks and runs each submitted entry. Defined words, values, and adopted modules persist across entries. Use Ctrl-D or call the preloaded ordinary word `bye()` to exit with status 0. The simple zero-argument form `bye` does the same. `bye()` appears in `words` and follows the usual word-redefinition rules; it is available only in the REPL.
 
 ## Enter a word
 
-Calls use parentheses: enter `print(1 + 1)` to print `2`. The REPL does not accept the shell-like form `print 1 + 1`.
+Parenthesized calls remain available: enter `print(1 + 1)` to print `2`. Simple calls may also use comma-separated arguments at a complete expression boundary, so `print 1 + 1` prints `2`; this means `print(1 + 1)`, not two whitespace-separated arguments. For nested calls, keep the inner call parenthesized: `print(add(1, 2))`.
 
 In an interactive terminal, the continuation editor inserts four spaces after a block header. It carries the current indentation into nested blocks. Enter submits a line; a line containing only the suggested indentation is blank and submits the entry. Tab inserts four spaces at the cursor, and Backspace removes one character; press it four times to dedent one level before `else`:
 

@@ -71,7 +71,7 @@ Start a REPL session:
 zhex repl
 ```
 
-Words and values persist across entries. Calls use parentheses: `print(1 + 1)` prints `2`. A word header opens a multi-line entry, shown with the `....> ` continuation prompt. In an interactive terminal, the editor pre-fills four spaces and carries indentation into nested blocks:
+Words and values persist across entries. Parenthesized calls remain available; simple calls may also use comma-separated arguments at a complete expression boundary (`print 1 + 1` prints `2`). A word header opens a multi-line entry, shown with the `....> ` continuation prompt. In an interactive terminal, the editor pre-fills four spaces and carries indentation into nested blocks:
 
 ```text
 Zhex REPL — end multi-line entries with a blank line; bye() or Ctrl-D exits.

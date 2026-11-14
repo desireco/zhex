@@ -6,6 +6,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 
 | File | Input | Result after the prompt | Purpose |
 | --- | --- | --- | --- |
+| [calls.zhex](../examples/calls.zhex) | None | `Hello, Ada`, `Hello, Grace`, `3`, `3`, `7`, `2`, `1`, `3` | Simple and parenthesized calls, defaults, zero-argument words, and cases that still need parentheses. |
 | [composition.zhex](../examples/composition.zhex) | None | `32` | Typed words, inferred locals, flow composition. |
 | [records.zhex](../examples/records.zhex) | None | `Ada, age 36` | A nominal record declaration, a positional constructor, typed binding, field reads, and a word that accepts the record. |
 | [choices.zhex](../examples/choices.zhex) | None | `running`, `Could not start: network unavailable`, `7`, `0` | Concrete and one-parameter alternatives, payload binding, contextual nullary types, and exhaustive matching with a default. |
@@ -118,7 +119,7 @@ zhex run examples/modules/main.zhex
 - Word parameter annotations may be omitted when body and same-program call constraints determine one concrete type; unresolved parameters need annotations, conflicting calls are type errors, and `Result` is never a parameter type. A return annotation is optional when the body determines one concrete success type. An escaping `try` infers a user word's effective `Result<T, E>` signature; explicit Result signatures remain available for `ok`/`err` construction. Local types and flow intermediate types are inferred.
 - `let` binds an immutable local. `var` explicitly permits reassignment within lexical scope; assignment preserves its type. Naming a value does not dictate its eventual machine representation.
 - Blocks use indentation. A word's final expression supplies its result; an `if` used as a value has compatible branch result types. Statement branches in these top-level programs return `Unit`.
-- Calls use parentheses. Qualify type- and module-owned operations such as `text.reverse`, `math.gcd`, and `error.code`; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
+- Calls may use parentheses or the simple comma-separated form at a complete expression boundary. Qualify type- and module-owned operations such as `text.reverse`, `math.gcd`, and `error.code`; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
 - `+` supports integer addition or string concatenation with matching operand types; no automatic integer-to-string conversion occurs. `%` is integer remainder. `==` compares same-typed values by value. `or` combines booleans with short-circuit evaluation.
 - `range(start, end)` is an ascending integer iteration with an exclusive end. When `start >= end`, it performs no iterations. It should not require materializing a list of all integers.
 - `int.to-string` returns decimal text. `text.reverse` reverses a valid string by Unicode code points. These standard operations are predeclared.
