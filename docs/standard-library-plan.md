@@ -1,6 +1,6 @@
 # Standard library research and proposed plan
 
-Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 are filed in Inbox with no status; review and select each before implementation.
+Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; review and select each before implementation.
 
 ## Recommendation
 
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories filed in Inbox, not scheduled or implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable Todo stories, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -188,7 +188,7 @@ Directory listing/metadata belongs in a separate story with deterministic orderi
 
 Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6 and the deliberately separate S7. S8 and other optional capabilities stay proposals.
 
-The owner approved story creation and one-by-one review. The stories are filed in Inbox with no status; their unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference.
+The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference.
 
 | Order | Story | Dependency |
 | --- | --- | --- |
@@ -205,4 +205,4 @@ No story is In Progress merely because it appears in this order. #30 tracks comp
 
 ## Additional dogfooding exploration
 
-After approving the eight library stories, the owner also approved [#65 — a Zhex-written REPL front end](https://github.com/desireco/zhex/issues/65) as a bounded investigation/prototype. Zhex would own prompt, buffer, and dispatch policy over the existing Go Session engine; lexing, checking, evaluation, and terminal machinery stay host-owned. The story must examine a minimal typed session bridge, indefinite input without recursive stack growth, EOF/cancellation, and shared program/source input. Transcript parity comes before any production cutover, with terminal parity a separate later gate. This is not a promise to rewrite the interpreter in Zhex. It is filed in Inbox with no status and can inform library gaps without depending on every earlier story.
+After approving the eight library stories, the owner also approved [#65 — a Zhex-written REPL front end](https://github.com/desireco/zhex/issues/65) as a bounded investigation/prototype. Zhex would own prompt, buffer, and dispatch policy over the existing Go Session engine; lexing, checking, evaluation, and terminal machinery stay host-owned. The story must examine a minimal typed session bridge, indefinite input without recursive stack growth, EOF/cancellation, and shared program/source input. Transcript parity comes before any production cutover, with terminal parity a separate later gate. This is not a promise to rewrite the interpreter in Zhex. It was filed in Inbox and then moved to Todo at the owner's request; it can inform library gaps without depending on every earlier story.

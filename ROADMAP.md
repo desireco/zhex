@@ -28,7 +28,7 @@ The first language milestone runs real programs with checked types and console i
 
 Grow the language's reach: a dedicated domain and funding. This is the proposed order; each step needs working examples and tests.
 
-- Standard library: review Inbox stories #57–64 one by one, starting with literal text operations and report output. The six-language research and dependency order live in `docs/standard-library-plan.md` (#30); proposed operations are not shipped.
+- Standard library: review Todo stories #57–64 one by one, starting with literal text operations and report output. The six-language research and dependency order live in `docs/standard-library-plan.md` (#30); proposed operations are not shipped.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Funding: enable GitHub Sponsors or Open Collective with a sponsor section on the site, and pursue the researched grant and visibility channels (#26).
 
