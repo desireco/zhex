@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"zhex/internal/lang"
 )
 
 func TestRunCommand(t *testing.T) {
@@ -188,7 +190,7 @@ func TestReplSessionScript(t *testing.T) {
 		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
 	}
 	for _, want := range []string{
-		"Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.\n",
+		"Zhex REPL — end multi-line entries with a blank line; bye() or Ctrl-D exits.\n",
 		"....> ",
 		"Hello, Ada!\n",
 		"redefined greet\n",
@@ -232,7 +234,7 @@ func TestReplWordsCommand(t *testing.T) {
 	if code != 0 || diagnostics.Len() != 0 {
 		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
 	}
-	for _, want := range []string{"no words defined\n", "double(n: Int) -> Int\n"} {
+	for _, want := range []string{"bye() -> Unit\n", "double(n: Int) -> Int\n"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("stdout %q misses %q", out.String(), want)
 		}
@@ -547,5 +549,22 @@ func TestReplAcceptsRecordDefinition(t *testing.T) {
 	status := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
 	if status != 0 || diagnostics.Len() != 0 || !strings.Contains(out.String(), "Ada\n") {
 		t.Fatalf("status %d stdout %q stderr %q", status, out.String(), diagnostics.String())
+	}
+}
+
+func TestReplByeIsOrdinaryRedefinableWord(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	script := "words\nbye()\nprint(\"after\")\n"
+	if code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics); code != 0 || diagnostics.Len() != 0 || !strings.Contains(out.String(), "bye() -> Unit") || strings.Contains(out.String(), "after") {
+		t.Fatalf("exit %d stdout %q stderr %q", code, out.String(), diagnostics.String())
+	}
+	out.Reset()
+	diagnostics.Reset()
+	script = "word bye() -> Unit\n    print(\"custom\")\n\nbye()\n"
+	if code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics); code != 0 || diagnostics.Len() != 0 || !strings.Contains(out.String(), "redefined bye") || !strings.Contains(out.String(), "custom\n") {
+		t.Fatalf("exit %d stdout %q stderr %q", code, out.String(), diagnostics.String())
+	}
+	if _, err := lang.Compile("file.zhex", "bye()\n"); err == nil {
+		t.Fatal("bye unexpectedly available in file program")
 	}
 }

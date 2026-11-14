@@ -112,7 +112,11 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		return readModule(".", name)
 	})
 	session.SetDiagnostics(diagnostics)
-	fmt.Fprintln(output, "Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.")
+	if _, err := session.Enter("word bye() -> Unit\n    console.exit(0)\n"); err != nil {
+		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	fmt.Fprintln(output, "Zhex REPL — end multi-line entries with a blank line; bye() or Ctrl-D exits.")
 	buffer, pending := "", false
 	listWords := func() {
 		if words := session.Words(); len(words) == 0 {
