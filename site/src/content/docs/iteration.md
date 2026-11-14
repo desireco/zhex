@@ -21,12 +21,12 @@ for index, name in names
 ```zhex
 let shape: List<Int> = [2, 3]
 let grid: Array<Int> = array.new(shape, 0) try
-(grid[0, 0] = 10) try
-(grid[0, 1] = 20) try
-(grid[1, 0] = 30) try
-(grid[1, 1] = 40) try
-(grid[0, 2] = 50) try
-(grid[1, 2] = 60) try
+grid[0, 0] = 10
+grid[0, 1] = 20
+grid[1, 0] = 30
+grid[1, 1] = 40
+grid[0, 2] = 50
+grid[1, 2] = 60
 
 for coordinates, value in grid
     let row = coordinates[0] try
