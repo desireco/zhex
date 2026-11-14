@@ -209,4 +209,4 @@ All mutation attempts on an actively traversed target diagnose before changing i
 
 Flow steps may now be named calls with explicit extra arguments. Prepend the prior flowing value as argument one; evaluate explicit arguments once left to right after producing that value. Bare unary steps stay compatible. Reuse ordinary argument/context checking, including generic constructors and empty collections, while preserving Error provenance. Both postfix step try and try inside explicit arguments contribute their normal escaping effects. No placeholder or partial function object is introduced.
 
-Map/flow code examples in this section describe approved behavior pending their implementation gates. JSON/interchange policy remains a separate unresolved part of #33; map core alone does not complete that story.
+Map/flow code examples in this section are implemented and independently reviewed. Release still follows the required validation, push and green deployment gates. JSON/interchange policy remains a separate unresolved part of #33; map core alone does not complete that story.
