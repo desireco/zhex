@@ -78,6 +78,17 @@ func (c *checker) typeError(pos position, typ valueType) error {
 }
 
 func (c *checker) normalizeType(typ valueType) (valueType, bool) {
+	if base, args, ok := typeApplication(typ); ok && base == "Map" {
+		if len(args) != 2 {
+			return "", false
+		}
+		key, kok := c.normalizeType(args[0])
+		val, vok := c.normalizeType(args[1])
+		if !kok || !vok || (key != stringType && key != intType && key != boolType) || containsResultType(val) {
+			return "", false
+		}
+		return valueType("Map<" + string(key) + ", " + string(val) + ">"), true
+	}
 	if base, args, ok := typeApplication(typ); ok && base != "Result" && base != "List" && base != "Array" {
 		if record := c.types.visible[base]; record != nil && record.typeParam != "" && len(args) == 1 {
 			inner, ok := c.normalizeType(args[0])
@@ -97,7 +108,7 @@ func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 	}
 	if inner, ok := resultInner(typ); ok {
 		normalized, found := c.normalizeType(inner)
-		if !found {
+		if !found || containsResultType(normalized) {
 			return "", false
 		}
 		return valueType("Result<" + string(normalized) + ", " + resultFamily(typ) + ">"), true
@@ -155,7 +166,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 	}
 	for _, record := range records {
-		if record.name == "Option" || record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
+		if record.name == "Map" || record.name == "Option" || record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
 			return errorAt(record.pos, CodeDuplicateName, "type %q is invalid or already defined", record.name)
 		}
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
@@ -214,6 +225,9 @@ func (c *checker) registerRecords(records []*recordType) error {
 			if !ok {
 				return c.typeError(field.pos, field.typ)
 			}
+			if containsResultType(typ) {
+				return errorAt(field.pos, CodeUnhandledResult, "a Result cannot be stored in a record")
+			}
 			field.typ = typ
 			if record.module != "" && !strings.HasPrefix(record.name, "_") && privateTypeInModule(typ, record.module) {
 				return privateTypeLeak(field.pos, typ)
@@ -227,7 +241,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 			return errorAt(record.pos, CodeNestingLimit, "type nesting limit exceeded")
 		}
 		if active[record.id()] {
-			return errorAt(record.pos, CodeUnknownType, "recursive record type %q is not supported", record.id())
+			return errorAt(record.pos, CodeUnknownType, "recursive named type %q is not supported", record.id())
 		}
 		if height := done[record.id()]; height > 0 {
 			if depth+height-1 > 256 {
@@ -411,6 +425,9 @@ func (c *checker) normalizeTemplate(typ valueType, param string) (valueType, boo
 	if (base == "List" || base == "Array") && len(args) == 1 {
 		return valueType(base + "<" + normalized[0] + ">"), true
 	}
+	if base == "Map" && len(args) == 2 && (normalized[0] == string(stringType) || normalized[0] == string(intType) || normalized[0] == string(boolType)) {
+		return valueType("Map<" + normalized[0] + ", " + normalized[1] + ">"), true
+	}
 	if record := c.types.visible[base]; record != nil && record.typeParam != "" && len(args) == 1 {
 		return valueType(record.id() + "<" + normalized[0] + ">"), true
 	}
@@ -454,4 +471,12 @@ func containsResultType(typ valueType) bool {
 		}
 	}
 	return false
+}
+
+func mapTypes(typ valueType) (valueType, valueType, bool) {
+	base, args, ok := typeApplication(typ)
+	if !ok || base != "Map" || len(args) != 2 {
+		return "", "", false
+	}
+	return args[0], args[1], true
 }

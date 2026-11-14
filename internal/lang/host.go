@@ -26,6 +26,29 @@ func (r *runtime) write(pos position, text string) error {
 
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
+	case "map.length":
+		return value{number: int64(len(args[0].mapping.entries))}, nil
+	case "map.contains":
+		_, ok := args[0].mapping.index[args[0].mapping.key(args[1])]
+		return value{boolean: ok}, nil
+	case "map.put":
+		if err := args[0].mapping.guard(x.pos, "map.put"); err != nil {
+			return value{}, err
+		}
+		args[0].mapping.put(args[1], args[2])
+		return args[0], nil
+	case "map.remove":
+		if err := args[0].mapping.guard(x.pos, "map.remove"); err != nil {
+			return value{}, err
+		}
+		args[0].mapping.remove(args[1])
+		return value{}, nil
+	case "map.into":
+		if err := args[1].mapping.guard(x.pos, "map.into"); err != nil {
+			return value{}, err
+		}
+		args[1].mapping.merge(args[0].mapping)
+		return args[1], nil
 	case "array.new":
 		return arrayNew(x.pos, args[0].list, args[1]), nil
 	case "array.resize":
@@ -249,6 +272,9 @@ func formatValue(v value, typ valueType) string {
 		return fmt.Sprintf("buffer(%d lines)", len(v.buffer.lines))
 	case fileType:
 		return fmt.Sprintf("file(%q)", v.file.path)
+	}
+	if v.mapping != nil {
+		return fmt.Sprintf("map(%d entries)", len(v.mapping.entries))
 	}
 	if v.array != nil {
 		return fmt.Sprintf("array(%d elements)", len(v.array.items))

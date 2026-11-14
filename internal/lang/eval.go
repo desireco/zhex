@@ -22,6 +22,7 @@ type value struct {
 	list    *listValue
 	array   *arrayValue
 	choice  *choiceValue
+	mapping *mapValue
 }
 
 const maxCollectionElements = 1000000
@@ -229,6 +230,25 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			}
 		}
 	case "for-collection":
+		if v.mapping != nil {
+			m := v.mapping
+			m.active++
+			defer func() { m.active-- }()
+			for _, entry := range m.entries {
+				first := entry.value
+				if s.secondBinding != nil {
+					first = m.keyValue(entry.key)
+					env[s.secondBinding] = entry.value
+					r.traceBinding(s.pos, s.secondBinding, entry.value)
+				}
+				env[s.binding] = first
+				r.traceBinding(s.pos, s.binding, first)
+				if _, err := r.block(s.body, env); err != nil {
+					return value{}, err
+				}
+			}
+			break
+		}
 		var items []value
 		if v.list != nil {
 			v.list.active++
@@ -317,6 +337,21 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 
 func (r *runtime) expression(x *expression, env frame) (value, error) {
 	switch x.kind {
+	case "map":
+		keyType, _, _ := mapTypes(x.typ)
+		m := &mapValue{keyType: keyType, index: make(map[mapKey]int)}
+		for i := 0; i < len(x.args); i += 2 {
+			k, err := r.expression(x.args[i], env)
+			if err != nil {
+				return value{}, err
+			}
+			v, err := r.expression(x.args[i+1], env)
+			if err != nil {
+				return value{}, err
+			}
+			m.put(k, v)
+		}
+		return value{mapping: m}, nil
 	case "list":
 		items := make([]value, len(x.args))
 		for i, item := range x.args {
@@ -337,11 +372,13 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			return value{}, err
 		}
 		indices := make([]int64, len(idx.args))
+		keys := make([]value, len(idx.args))
 		for i, arg := range idx.args {
 			v, err := r.expression(arg, env)
 			if err != nil {
 				return value{}, err
 			}
+			keys[i] = v
 			indices[i] = v.number
 		}
 		var item value
@@ -350,6 +387,16 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			if err != nil {
 				return value{}, err
 			}
+		}
+		if receiver.mapping != nil {
+			if x.kind == "index-write" {
+				if err := receiver.mapping.guard(x.pos, "map.set"); err != nil {
+					return value{}, err
+				}
+				receiver.mapping.put(keys[0], item)
+				return value{}, nil
+			}
+			return receiver.mapping.lookup(keys[0]), nil
 		}
 		if receiver.list != nil {
 			if x.kind == "index-write" {

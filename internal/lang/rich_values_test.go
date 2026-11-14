@@ -748,3 +748,24 @@ func TestInferredGenericTypeDepthIsBounded(t *testing.T) {
 		t.Fatalf("wanted inferred type nesting limit: %v", err)
 	}
 }
+
+func TestResultsCannotHideInRecordFieldsOrWordParameters(t *testing.T) {
+	cases := []string{
+		"type Box = record\n    pending: Result<Int, ParseError>\nlet box = Box(text.to-int(\"bad\"))\n",
+		"word discard(pending: Result<Int, ParseError>) -> Unit\n    print(\"discarded\")\ndiscard(text.to-int(\"bad\"))\n",
+		"word nested() -> Result<Result<Int, ParseError>, Error>\n    ok(text.to-int(\"bad\"))\n",
+	}
+	for _, src := range cases {
+		if _, err := Compile("test.zhex", src); err == nil {
+			t.Errorf("accepted hidden Result:\n%s", src)
+		}
+	}
+	source := "type Box = record\n    number: Int\nword show(box: Box) -> Int\n    box.number\nprint(show(Box(3)))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "3\n" {
+		t.Fatal(out.String())
+	}
+}

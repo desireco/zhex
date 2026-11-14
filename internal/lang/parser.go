@@ -241,7 +241,7 @@ func (p *parser) parseStatement() *statement {
 			s.annotation = p.parseType()
 		}
 		p.require("=")
-		s.expr = p.statementExpression()
+		s.expr = p.statementExpression(false)
 	case p.accept("return"):
 		s.kind = "return"
 		s.expr = p.expression(0)
@@ -309,17 +309,25 @@ func (p *parser) parseStatement() *statement {
 		p.require("newline")
 	default:
 		s.kind = "expression"
-		s.expr = p.statementExpression()
+		s.expr = p.statementExpression(true)
 	}
 	return s
 }
 
 // statementExpression accepts an indented catch as the whole statement value.
-func (p *parser) statementExpression() *expression {
+func (p *parser) statementExpression(allowAssignment bool) *expression {
 	if p.at("match") {
 		return p.parseMatch()
 	}
 	x := p.expression(0)
+	if allowAssignment && p.accept("=") {
+		if x.kind != "index" {
+			panic(errorAt(x.pos, CodeExpectedExpression, "assignment requires an indexed collection"))
+		}
+		right := p.expression(0)
+		p.require("newline")
+		return &expression{kind: "index-write", pos: x.pos, end: right.end, left: x, right: right}
+	}
 	if p.at("catch") {
 		t := p.take()
 		name := ""
@@ -482,6 +490,21 @@ func (p *parser) number(t token) *expression {
 
 func (p *parser) primary() *expression {
 	t := p.current()
+	if p.accept("{") {
+		x := &expression{kind: "map", pos: t.pos}
+		if !p.at("}") {
+			for {
+				x.args = append(x.args, p.expression(0))
+				p.require(":")
+				x.args = append(x.args, p.expression(0))
+				if !p.accept(",") {
+					break
+				}
+			}
+		}
+		x.end = p.require("}").end
+		return p.checkDepth(x)
+	}
 	if p.accept("[") {
 		x := &expression{kind: "list", pos: t.pos}
 		if !p.at("]") {

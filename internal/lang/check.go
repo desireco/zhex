@@ -59,6 +59,7 @@ type checker struct {
 }
 
 var hostWords = []string{
+	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace",
@@ -119,7 +120,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -228,7 +229,7 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 			}
 			if reservedModule(u.name) {
 				return withSpanRange(withHint(errorAt(u.pos, CodeUseReserved, "module name %q is reserved", u.name),
-					"rename the module file — a module cannot be named text, int, buffer, file, console, error, list, or array"), u.pos, u.end)
+					"rename the module file — a module cannot be named text, int, buffer, file, console, error, list, array, or map"), u.pos, u.end)
 			}
 			src, ok := ModuleSource{}, false
 			if resolve != nil {
@@ -351,6 +352,9 @@ func (c *checker) checkWords(words []*word) error {
 			typ, ok := c.normalizeType(param.typ)
 			if !ok {
 				return c.typeError(param.pos, param.typ)
+			}
+			if containsResultType(typ) {
+				return errorAt(param.pos, CodeUnhandledResult, "a Result cannot be passed as a word parameter")
 			}
 			param.typ = typ
 			if w.module != "" && !strings.HasPrefix(w.name, "_") && privateTypeInModule(typ, w.module) {
@@ -642,14 +646,22 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		return unitType, err
 	case "for-collection":
 		kind, element, ok := collectionInner(typ)
+		mapKey, mapValue, isMap := mapTypes(typ)
+		if isMap {
+			kind = "Map"
+			element = mapValue
+			ok = true
+		}
 		if !ok {
-			return "", errorAt(s.pos, CodeRangeType, "collection loop requires a List or Array")
+			return "", errorAt(s.pos, CodeRangeType, "collection loop requires a List, Array, or Map")
 		}
 		inner := newScope(env)
 		first := element
 		if s.secondName != "" {
 			if kind == "List" {
 				first = intType
+			} else if kind == "Map" {
+				first = mapKey
 			} else {
 				first = "List<Int>"
 			}
@@ -755,6 +767,55 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	switch x.kind {
 	case "flow-value":
 		typ = x.typ
+	case "map":
+		keyType, element, contextual := mapTypes(c.expected)
+		if !contextual {
+			keyType = ""
+			element = ""
+		}
+		if len(x.args) == 0 && !contextual {
+			return "", errorAt(x.pos, CodeArgumentType, "empty map requires an expected Map type")
+		}
+		seen := map[string]bool{}
+		for i := 0; i < len(x.args); i += 2 {
+			key, item := x.args[i], x.args[i+1]
+			if key.kind != "int" && key.kind != "string" && key.kind != "bool" {
+				return "", errorAt(key.pos, CodeArgumentType, "map literal keys must be constants")
+			}
+			kt, err := c.expressionExpected(key, env, keyType)
+			if err != nil {
+				return "", err
+			}
+			if kt != intType && kt != stringType && kt != boolType {
+				return "", errorAt(key.pos, CodeArgumentType, "map key must be String, Int, or Bool")
+			}
+			if keyType == "" {
+				keyType = kt
+			} else if keyType != kt {
+				return "", errorAt(key.pos, CodeArgumentType, "map keys must have one type")
+			}
+			identity := fmt.Sprintf("%s:%d:%s", kt, key.number, key.text)
+			if seen[identity] {
+				return "", errorAt(key.pos, CodeDuplicateName, "duplicate map key")
+			}
+			seen[identity] = true
+			it, err := c.expressionExpected(item, env, element)
+			if err != nil {
+				return "", err
+			}
+			if containsResultType(it) {
+				return "", errorAt(item.pos, CodeUnhandledResult, "a Result cannot be stored in a map")
+			}
+			if it == errorType && item.binding != nil && item.binding.errorFamily != "" && item.binding.errorFamily != "Error" {
+				return "", errorAt(item.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+			}
+			if element == "" {
+				element = it
+			} else if element != it {
+				return "", errorAt(item.pos, CodeArgumentType, "map values must have one type")
+			}
+		}
+		typ = valueType("Map<" + string(keyType) + ", " + string(element) + ">")
 	case "list":
 		if len(x.args) > maxCollectionElements {
 			return "", errorAt(x.pos, CodeCollectionLimit, "list exceeds %d elements", maxCollectionElements)
@@ -789,9 +850,24 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
+		mapKey, mapValue, isMap := mapTypes(receiver)
+		if isMap {
+			if len(x.args) != 1 {
+				return "", errorAt(x.pos, CodeArgumentCount, "Map indexing requires one key")
+			}
+			key, err := c.expressionExpected(x.args[0], env, mapKey)
+			if err != nil {
+				return "", err
+			}
+			if key != mapKey {
+				return "", errorAt(x.args[0].pos, CodeArgumentType, "map key requires %s, found %s", mapKey, key)
+			}
+			typ = valueType("Option<" + string(mapValue) + ">")
+			break
+		}
 		kind, element, ok := collectionInner(receiver)
 		if !ok {
-			return "", errorAt(x.pos, CodeArgumentType, "indexing requires a List or Array")
+			return "", errorAt(x.pos, CodeArgumentType, "indexing requires a List, Array, or Map")
 		}
 		if kind == "List" && len(x.args) != 1 {
 			return "", errorAt(x.pos, CodeArgumentCount, "List indexing requires one index")
@@ -812,6 +888,10 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", err
 		}
 		inner, _ := resultInner(indexed)
+		_, mapValue, isMap := mapTypes(x.left.left.typ)
+		if isMap {
+			inner = mapValue
+		}
 		valueType, err := c.expressionExpected(x.right, env, inner)
 		if err != nil {
 			return "", err
@@ -822,7 +902,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if valueType == errorType && x.right.binding != nil && x.right.binding.errorFamily != "" && x.right.binding.errorFamily != "Error" {
 			return "", errorAt(x.right.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
 		}
-		typ = valueTypeResultUnitError
+		if isMap {
+			typ = unitType
+		} else {
+			typ = valueTypeResultUnitError
+		}
 	case "int":
 		typ = intType
 	case "bool":
@@ -938,6 +1022,28 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 					expected = substituteType(pattern, genericChoice.typeParam, x.typeArg)
 				} else if typeContainsParam(pattern, genericChoice.typeParam) {
 					expected = ""
+				}
+			}
+			if (x.text == "map.put" || x.text == "map.contains" || x.text == "map.remove") && i > 0 && len(args) > 0 {
+				key, val, ok := mapTypes(args[0])
+				if ok {
+					if i == 1 {
+						expected = key
+					} else if i == 2 {
+						expected = val
+					}
+				}
+			}
+			if x.text == "map.into" && i == 1 && len(args) > 0 {
+				if _, _, ok := mapTypes(args[0]); ok {
+					expected = args[0]
+				}
+			}
+			if x.text == "map.into" && i == 0 && len(x.args) > 1 && x.args[1].kind == "name" {
+				if b := env.find(x.args[1].text); b != nil {
+					if _, _, ok := mapTypes(b.typ); ok {
+						expected = b.typ
+					}
 				}
 			}
 			if (x.text == "array.new" && i == 0) || (x.text == "array.resize" && i == 1) {
@@ -1217,6 +1323,49 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	} else {
 		switch x.text {
+		case "map.length", "map.contains", "map.remove", "map.put", "map.into":
+			count := 1
+			if x.text == "map.contains" || x.text == "map.remove" || x.text == "map.into" {
+				count = 2
+			}
+			if x.text == "map.put" {
+				count = 3
+			}
+			if len(args) != count {
+				return "", errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments", x.text, count)
+			}
+			key, element, ok := mapTypes(args[0])
+			if !ok {
+				return "", errorAt(x.pos, CodeArgumentType, "%s requires a Map", x.text)
+			}
+			switch x.text {
+			case "map.length":
+				result = intType
+			case "map.contains":
+				if args[1] != key {
+					return "", errorAt(x.pos, CodeArgumentType, "map.contains key requires %s", key)
+				}
+				result = boolType
+			case "map.remove":
+				if args[1] != key {
+					return "", errorAt(x.pos, CodeArgumentType, "map.remove key requires %s", key)
+				}
+				result = unitType
+			case "map.put":
+				if args[1] != key || args[2] != element {
+					return "", errorAt(x.pos, CodeArgumentType, "map.put requires a matching key and value")
+				}
+				if element == errorType && x.args[2].binding != nil && x.args[2].binding.errorFamily != "" && x.args[2].binding.errorFamily != "Error" {
+					return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+				}
+				result = args[0]
+			case "map.into":
+				if args[1] != args[0] {
+					return "", errorAt(x.pos, CodeArgumentType, "map.into requires matching maps")
+				}
+				result = args[1]
+			}
+			params = args
 		case "array.new", "array.resize", "array.shape", "array.rank", "array.length":
 			count := 1
 			if x.text == "array.new" {

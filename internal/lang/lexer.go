@@ -109,7 +109,7 @@ func lex(file, source string) ([]token, error) {
 					continue
 				}
 			}
-			if strings.ContainsRune("()[]+-*/%<>=:,", c) {
+			if strings.ContainsRune("()[]{}+-*/%<>=:,", c) {
 				i++
 				end := position{file, lineIndex + 1, i + 1}
 				tokens = append(tokens, token{kind: string(c), text: string(c), pos: pos, end: end})
