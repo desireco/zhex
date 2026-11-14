@@ -7,6 +7,8 @@ import (
 
 // namedTypeRegistry separates the declarations visible in the current file
 // from the full graph needed to check imported field types and cycles.
+var builtinOption = &recordType{name: "Option", choice: true, typeParam: "T", variants: []choiceVariant{{name: "None"}, {name: "Some", fields: []parameter{{name: "value", typ: "T"}}}}}
+
 type namedTypeRegistry struct {
 	visible map[string]*recordType
 	all     map[string]*recordType
@@ -136,8 +138,24 @@ func (c *checker) registerRecords(records []*recordType) error {
 	if c.types.all == nil {
 		c.types.all = make(map[string]*recordType)
 	}
+	c.types.visible["Option"] = builtinOption
+	c.types.all["Option"] = builtinOption
+	if c.used("Option") {
+		if module := c.modules["Option"]; module != nil {
+			for _, variant := range builtinOption.variants {
+				if module.words[variant.name] != nil {
+					return errorAt(module.words[variant.name].pos, CodeDuplicateName, "imported word conflicts with Option.%s", variant.name)
+				}
+				for _, record := range module.recordOrder {
+					if record.name == variant.name {
+						return errorAt(record.pos, CodeDuplicateName, "imported type conflicts with Option.%s", variant.name)
+					}
+				}
+			}
+		}
+	}
 	for _, record := range records {
-		if record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
+		if record.name == "Option" || record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
 			return errorAt(record.pos, CodeDuplicateName, "type %q is invalid or already defined", record.name)
 		}
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
