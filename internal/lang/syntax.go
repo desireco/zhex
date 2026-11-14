@@ -228,12 +228,14 @@ type parameter struct {
 }
 
 type word struct {
-	name   string
-	module string // owning module's use name; "" in the entry file and the REPL
-	pos    position
-	params []parameter
-	result valueType
-	body   []*statement
+	name     string
+	module   string // owning module's use name; "" in the entry file and the REPL
+	pos      position
+	params   []parameter
+	result   valueType
+	success  valueType // declared success type of an inferred fallible word
+	inferred bool
+	body     []*statement
 }
 
 type recordType struct {

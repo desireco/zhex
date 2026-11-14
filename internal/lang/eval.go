@@ -517,6 +517,9 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 	if err != nil {
 		return value{}, err
 	}
+	if x.word.inferred && result.result == nil {
+		result = value{result: &inputResult{value: result}}
+	}
 	r.traceWordReturn(x.word, result)
 	return result, nil
 }

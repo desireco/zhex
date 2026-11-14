@@ -357,9 +357,15 @@ func (c *checker) checkWords(words []*word) error {
 			}
 		}
 	}
+	if err := c.inferWordEffects(words); err != nil {
+		return err
+	}
 	for _, w := range words {
 		c.wordResult = w.result
 		c.blockExpected = w.result
+		if w.inferred {
+			c.blockExpected = w.success
+		}
 		env := newScope(nil)
 		for i := range w.params {
 			param := &w.params[i]
@@ -376,8 +382,12 @@ func (c *checker) checkWords(words []*word) error {
 		if result == errorType && blockReturnsConcreteError(w.body) {
 			return errorAt(w.pos, CodeWordResult, "convert the concrete error explicitly with error.wrap before returning Error")
 		}
-		if result != w.result && result != neverType {
-			return errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, w.result)
+		expectedResult := w.result
+		if w.inferred {
+			expectedResult = w.success
+		}
+		if result != expectedResult && result != neverType {
+			return errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, expectedResult)
 		}
 	}
 	c.wordResult = ""

@@ -146,6 +146,24 @@ func (s *Session) Enter(source string) (string, error) {
 	if err != nil {
 		return "", annotate(err, source)
 	}
+	// Existing compiled callers retain word pointers. Reject incompatible
+	// redefinitions before executing or adopting anything in this entry.
+	for _, w := range p.words {
+		if previous := s.words[w.name]; previous != nil {
+			same := previous.result == w.result && len(previous.params) == len(w.params)
+			if same {
+				for i := range w.params {
+					if previous.params[i].typ != w.params[i].typ {
+						same = false
+						break
+					}
+				}
+			}
+			if !same {
+				return "", annotate(errorAt(w.pos, CodeWordResult, "cannot redefine %q with a different signature in the REPL", w.name), source)
+			}
+		}
+	}
 	// A runtime per entry resets the recursion depth but keeps the session frame.
 	r := runtime{input: s.input, output: s.output, diagnostics: s.diagnostics, trace: s.trace, reporter: s.reporter}
 	v, err := r.block(p.body, s.frame)

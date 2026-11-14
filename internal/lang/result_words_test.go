@@ -55,7 +55,6 @@ func TestTryReturnsFailureAtWordBoundary(t *testing.T) {
 
 func TestTryRequiresCompatibleFallibleWord(t *testing.T) {
 	cases := []string{
-		"word parse(s: String) -> Int\n    text.to-int(s) try\n",
 		"word parse(s: String) -> Result<Int, InputError>\n    let n = text.to-int(s) try\n    ok(n)\n",
 	}
 	for _, source := range cases {
@@ -202,7 +201,6 @@ func TestErrorCauseIsPreservedAndAbsentCauseFails(t *testing.T) {
 func TestErrRequiresMatchingFamilyAndFallibleWord(t *testing.T) {
 	cases := []string{
 		"word bad() -> Result<Int, ParseError>\n    let text = file.read-all(\"missing\") catch problem\n        return err(problem)\n    ok(1)\n",
-		"word bad() -> Int\n    return err(error.new(\"bad\", \"bad\"))\n",
 		"return err(error.new(\"bad\", \"bad\"))\n",
 	}
 	for _, source := range cases {
