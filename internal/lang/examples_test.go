@@ -17,6 +17,7 @@ func TestExamples(t *testing.T) {
 		exited            bool
 		exitCode          int
 	}{
+		{name: "choices", want: "running\nCould not start: network unavailable\n"},
 		{name: "records", want: "Ada, age 36\n"},
 		{name: "collections", want: "3\nGrace\n0: Ada\ncollection-iterating\n1: Grace\ncollection-iterating\n2: Lin\ncollection-iterating\n0,0: 1\n0,1: 2\n0,2: 3\n1,0: 4\n1,1: 5\n1,2: 6\n6\n7\n12\n"},
 		{name: "composition", want: "32\n"},

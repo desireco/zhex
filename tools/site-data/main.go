@@ -246,6 +246,7 @@ var exampleSpecs = []struct {
 	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", []string{"examples/text-stats-sample.txt"}, nil},
 	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", nil, []string{"math.zhex"}},
 	{"records", "Named records", "Group related values in a checked named type.", "", nil, nil},
+	{"choices", "Choices and matching", "Select and handle alternatives with a checked match.", "", nil, nil},
 	{"collections", "Lists and arrays", "Build and safely iterate lists and rectangular arrays.", "", nil, nil},
 	{"recovery", "Error recovery", "Catch invalid numeric input and continue with a useful fallback.", "", nil, nil},
 	{"exit-status", "Exit status", "Choose a valid status; invalid input exits with status 2.", "0\n", nil, nil},

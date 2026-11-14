@@ -1,0 +1,21 @@
+type Status = choice
+    Pending
+    Running
+    Failed(message: String)
+
+word describe(status: Status) -> String
+    match status
+        case Status.Pending
+            "pending"
+        case Status.Running
+            "running"
+        case Status.Failed(message)
+            "failed: " + message
+
+print(describe(Status.Running))
+
+match Status.Failed("network unavailable")
+    case Status.Failed(message)
+        print("Could not start: " + message)
+    case _
+        print("No failure")
