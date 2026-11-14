@@ -321,6 +321,10 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 	case "flow":
 		for _, step := range s.steps {
 			r.traceFlowStep(step, v)
+			var callable *partialValue
+			if step.binding != nil {
+				callable = env[step.binding].function
+			}
 			args := []value{v}
 			for _, arg := range step.args[1:] {
 				if arg.kind == "hole" {
@@ -333,7 +337,7 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 				}
 				args = append(args, item)
 			}
-			v, err = r.invoke(step, args, env)
+			v, err = r.invoke(step, args, callable)
 			if err != nil {
 				return value{}, err
 			}
@@ -473,6 +477,10 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			r.reporter = &expression{word: x.word, text: x.args[0].text, pos: x.pos, inputType: errorType}
 			return value{}, nil
 		}
+		var callable *partialValue
+		if x.binding != nil {
+			callable = env[x.binding].function
+		}
 		args := make([]value, len(x.args))
 		for i, arg := range x.args {
 			if arg.kind == "hole" {
@@ -484,7 +492,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 				return value{}, err
 			}
 		}
-		return r.invoke(x, args, env)
+		return r.invoke(x, args, callable)
 	case "try":
 		v, err := r.expression(x.left, env)
 		if err != nil {
@@ -546,11 +554,10 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 
 // invoke resolves a checked callable binding without introducing a dispatch
 // chain: re-partial application updates the original closure's slots.
-func (r *runtime) invoke(x *expression, args []value, env frame) (value, error) {
+func (r *runtime) invoke(x *expression, args []value, closure *partialValue) (value, error) {
 	if x.binding == nil {
 		return r.call(x, args)
 	}
-	closure := env[x.binding].function
 	if closure == nil {
 		return value{}, errorAt(x.pos, CodeUnsupportedCode, "missing function value")
 	}
