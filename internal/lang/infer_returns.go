@@ -283,7 +283,14 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 			}
 			return result
 		}
-		s.fail(x.pos, "unknown name %q", x.text)
+		if s.err == nil {
+			var names []string
+			for name := range env {
+				names = append(names, name)
+			}
+			hint := s.checker.unknownNameHint(x.text, names)
+			s.err = withSpan(withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), hint), x)
+		}
 		return freshType()
 	case "list":
 		element := freshType()
@@ -630,7 +637,13 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		}
 		return namedType(record.id())
 	}
-	if word, private := s.checker.resolveWord(x.text); word != nil && private == nil {
+	if word, private := s.checker.resolveWord(x.text); word != nil {
+		if private != nil {
+			if s.err == nil {
+				s.err = withHint(withSpan(errorAt(x.pos, CodePrivateUse, "%q is private to module %q", word.name, private.name), x), fmt.Sprintf("remove the leading underscore in %s to export it", private.path))
+			}
+			return freshType()
+		}
 		for i, arg := range args {
 			if i < len(word.params) {
 				s.equal(arg, termFromType(word.params[i].typ), x.pos)
@@ -756,6 +769,8 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 	case "json.encode":
 		return namedType("Result", namedType("String"), namedType("Error"))
 	}
-	s.fail(x.pos, "unknown word %q", x.text)
+	if s.err == nil {
+		s.err = withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestWordHint(x.text, s.checker.wordNames())), x)
+	}
 	return freshType()
 }

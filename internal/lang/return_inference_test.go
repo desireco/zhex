@@ -194,3 +194,16 @@ func TestInferredReturnDoesNotExposePrivateModuleType(t *testing.T) {
 		t.Fatalf("expected private-use diagnostic, got %v", err)
 	}
 }
+
+func TestInferredReturnsPreserveUnknownNameDiagnostics(t *testing.T) {
+	for _, expression := range []string{"unknown", "unknown()"} {
+		source := "word broken() -> Int\n    " + expression + "\n"
+		_, original := Compile("test.zhex", source)
+		_, combined := Compile("test.zhex", source+"word inferred()\n    1\n")
+		first, ok1 := original.(*diagnostic)
+		second, ok2 := combined.(*diagnostic)
+		if !ok1 || !ok2 || first.code != second.code || first.message != second.message || first.hint != second.hint || first.spanStart != second.spanStart || first.spanEnd != second.spanEnd {
+			t.Fatalf("%s: original %v, combined %v", expression, original, combined)
+		}
+	}
+}
