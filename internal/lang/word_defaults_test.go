@@ -152,3 +152,21 @@ func TestRecursiveWordDefaultHitsDepthLimit(t *testing.T) {
 		t.Fatalf("expected depth limit, got %v", err)
 	}
 }
+
+func TestWordDefaultsConstrainImportedParameters(t *testing.T) {
+	files := mapResolver(map[string]string{
+		"helper.zhex": "word identity(value)\n    value\n",
+		"util.zhex":   "use helper\nword choose(value = helper.identity(7))\n    value\n",
+	})
+	program, err := CompileModules("main.zhex", "use util\nprint(util.choose())\n", files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := program.Run(strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}
