@@ -737,3 +737,14 @@ func TestGenericChoiceCannotHideResultObligation(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestInferredGenericTypeDepthIsBounded(t *testing.T) {
+	var source strings.Builder
+	source.WriteString("type Maybe<T> = choice\n    Some(value: T)\nlet v0 = 0\n")
+	for i := 1; i <= 257; i++ {
+		fmt.Fprintf(&source, "let v%d = Maybe.Some(v%d)\n", i, i-1)
+	}
+	if _, err := Compile("test.zhex", source.String()); err == nil || !strings.Contains(err.Error(), "nesting limit") {
+		t.Fatalf("wanted inferred type nesting limit: %v", err)
+	}
+}
