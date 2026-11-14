@@ -152,3 +152,15 @@ print(instant.to-string(zoned.instant(zoned.add-days(later, 0))))
 		t.Fatal(out.String())
 	}
 }
+
+func TestTemporalInvalidComponentDetailsAndOrigin(t *testing.T) {
+	p, err := Compile("test.zhex", "let value = date.new(2023, 2, 29)\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report ErrorReport
+	err = p.RunWithOptions(strings.NewReader(""), &bytes.Buffer{}, RunOptions{IncludeSensitive: true, Reporter: func(e ErrorReport) error { report = e; return nil }})
+	if err == nil || report.Error.Operation != "date.new" || report.Error.Origin.Line != 1 || report.Error.Details["year"] != "2023" || report.Error.Details["month"] != "2" || report.Error.Details["day"] != "29" {
+		t.Fatalf("error %v, report %+v", err, report)
+	}
+}

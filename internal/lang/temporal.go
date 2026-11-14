@@ -17,17 +17,17 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 	case "date.new":
 		y, m, d := args[0].number, args[1].number, args[2].number
 		if y < 1 || y > 9999 || m < 1 || m > 12 || d < 1 || d > 31 {
-			return value{}, errorAt(x.pos, CodeTemporalInvalid, "invalid date components")
+			return value{}, temporalComponents(errorAt(x.pos, CodeTemporalInvalid, "invalid date components"), "year", y, "month", m, "day", d)
 		}
 		v := time.Date(int(y), time.Month(m), int(d), 0, 0, 0, 0, time.UTC)
 		if v.Month() != time.Month(m) {
-			return value{}, errorAt(x.pos, CodeTemporalInvalid, "invalid date components")
+			return value{}, temporalComponents(errorAt(x.pos, CodeTemporalInvalid, "invalid date components"), "year", y, "month", m, "day", d)
 		}
 		return value{moment: v}, nil
 	case "time.new":
 		h, m, s := args[0].number, args[1].number, args[2].number
 		if h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59 {
-			return value{}, errorAt(x.pos, CodeTemporalInvalid, "invalid time components")
+			return value{}, temporalComponents(errorAt(x.pos, CodeTemporalInvalid, "invalid time components"), "hour", h, "minute", m, "second", s)
 		}
 		return value{moment: time.Date(1, 1, 1, int(h), int(m), int(s), 0, time.UTC)}, nil
 	case "date.parse":
@@ -141,6 +141,12 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 		return value{moment: v}, nil
 	}
 	panic("unknown temporal builtin")
+}
+
+func temporalComponents(err error, a string, av int64, b string, bv int64, c string, cv int64) error {
+	d := err.(*diagnostic)
+	d.details = map[string]string{a: strconv.FormatInt(av, 10), b: strconv.FormatInt(bv, 10), c: strconv.FormatInt(cv, 10)}
+	return d
 }
 
 // Both representations must remain in the supported Gregorian range.
