@@ -1,6 +1,6 @@
 # Session code review — issue #56
 
-Status: independent review completed; eight actionable findings were repaired and rechecked. Final repair-release build/deployment evidence is pending below. The frozen review baseline remains unchanged.
+Status: independent review completed; eight actionable findings were repaired and rechecked. The frozen review baseline remains unchanged. Release verification is recorded below and on [issue #56](https://github.com/desireco/zhex/issues/56).
 
 ## Frozen scope
 
@@ -57,7 +57,9 @@ Audit evidence:
 - `govulncheck` v1.9.0, scanning all four root packages with Go 1.27.3, reported zero reachable symbol/package vulnerabilities. It additionally reported two module/toolchain-only advisories not called by this code: [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859) (`net/http`, toolchain fix Go 1.27.4) and [GO-2026-5024](https://pkg.go.dev/vuln/GO-2026-5024) (`x/sys/windows.NewNTUnicodeString`, fixed x/sys v0.44.0). These are recorded as scan limitations/information, not an assertion that the modules contain no advisories. No host toolchain was modified. The Windows report was independently checked against the official Go vulnerability database.
 - Current behavior intentionally retains documented limits/exclusions (for example checked intrinsic guard scope, supported JSON shapes and temporal year range). Unsupported features are not audit failures merely because they are not implemented.
 
-Pending final release evidence: ledger commit, final full required gates/editor/PTY/browser checks, clean fresh binary revision, pushed repair commit, green Pages/editor workflows and live checks. Closure must wait for that evidence. No claim is made that all possible defects or performance pathologies have been eliminated.
+Release checkpoint at `ea26c53bcbdcb9c44dc99762e9de9d8da247651a`: final `just test` and `go vet` passed, along with the same-code race run and shipped editor checks. The fresh binary reported this exact revision and `vcs.modified=false`; all 23 canonical outputs and repaired flow-trace/Error-flow/REPL-source probes passed independently. All 23 rendered primary/module sources, outputs and downloads matched; all 28 generated pages passed HTTP, single-H1 and horizontal-overflow checks at 320/1440 pixels. The repaired Results reference was present in the built site.
+
+Pages [43569707032](https://github.com/desireco/zhex/actions/runs/43569707032) and editor [43569720342](https://github.com/desireco/zhex/actions/runs/43569720342) passed for that checkpoint. The final ship comment on [#56](https://github.com/desireco/zhex/issues/56) records live verification and the final published revision after this evidence note. No claim is made that all possible defects or performance pathologies have been eliminated.
 
 ## Changed-path inventory
 
