@@ -35,3 +35,16 @@ func TestGenericChoiceCanDescribeFallibleFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFunctionTypeDepthCountsArrowsAndGenericNesting(t *testing.T) {
+	typ := valueType("Int")
+	for i := 0; i < 257; i++ {
+		typ = functionType([]valueType{typ}, "Int")
+	}
+	if typeWithinDepth(typ, 256) {
+		t.Fatal("accepted excessive function nesting")
+	}
+	if !typeWithinDepth("List<(Int) -> Result<Int, Error>>", 256) {
+		t.Fatal("rejected ordinary nested function")
+	}
+}

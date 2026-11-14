@@ -92,3 +92,26 @@ func functionType(args []valueType, result valueType) valueType {
 	}
 	return valueType("(" + strings.Join(parts, ", ") + ") -> " + string(result))
 }
+
+func typeWithinDepth(typ valueType, limit int) bool {
+	type item struct {
+		typ   valueType
+		depth int
+	}
+	pending := []item{{typ, 0}}
+	for len(pending) > 0 {
+		last := len(pending) - 1
+		current := pending[last]
+		pending = pending[:last]
+		if current.depth > limit {
+			return false
+		}
+		_, args, ok := typeApplication(current.typ)
+		if ok {
+			for _, arg := range args {
+				pending = append(pending, item{arg, current.depth + 1})
+			}
+		}
+	}
+	return true
+}

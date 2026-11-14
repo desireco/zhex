@@ -884,18 +884,8 @@ func (c *checker) expressionExpected(x *expression, env *scope, expected valueTy
 	c.expected = expected
 	defer func() { c.expected = previous }()
 	typ, err := c.expression(x, env)
-	if err == nil {
-		depth := 0
-		for _, r := range string(typ) {
-			if r == '<' {
-				depth++
-				if depth > 256 {
-					return "", errorAt(x.pos, CodeNestingLimit, "type nesting limit exceeded")
-				}
-			} else if r == '>' {
-				depth--
-			}
-		}
+	if err == nil && !typeWithinDepth(typ, 256) {
+		return "", errorAt(x.pos, CodeNestingLimit, "type nesting limit exceeded")
 	}
 	return typ, err
 }
