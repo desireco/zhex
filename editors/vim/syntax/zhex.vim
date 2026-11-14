@@ -11,10 +11,10 @@ syntax match zhexDefinition /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]
 syntax match zhexParameter /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*\ze\s*:/
 syntax keyword zhexKeyword word nextgroup=zhexDefinition skipwhite
 syntax keyword zhexKeyword type record choice match case use let var if elif else for in flow try catch return
-syntax keyword zhexType Int Bool String Unit Buffer File Error Result List Array Map Option InputError ParseError FileError BufferError
+syntax keyword zhexType Int Bool String Unit Buffer File Error Result List Array Map Option Date Time Duration Instant TimeZone ZonedDateTime InputError ParseError FileError BufferError
 syntax keyword zhexBoolean true false
 syntax keyword zhexOperator and or not
-syntax keyword zhexBuiltin print range int.to-string text.reverse text.to-int read-line ok err error.new error.wrap error.has-cause error.cause error.code error.message error.operation error.file error.line error.column error.detail error.report error.set-reporter console.exit console.fail list.new list.length list.append array.new array.resize array.shape array.rank array.length map.put map.into map.length map.contains map.remove json.decode json.encode
+syntax keyword zhexBuiltin print range int.to-string text.reverse text.to-int read-line ok err error.new error.wrap error.has-cause error.cause error.code error.message error.operation error.file error.line error.column error.detail error.report error.set-reporter console.exit console.fail list.new list.length list.append array.new array.resize array.shape array.rank array.length map.put map.into map.length map.contains map.remove json.decode json.encode date.new date.parse date.to-string date.add-days time.new time.parse time.to-string duration.new duration.parse duration.to-string instant.now instant.parse instant.to-string instant.add-duration timezone.load timezone.name zoned.new zoned.to-string zoned.instant zoned.in-zone zoned.add-days zoned.add-duration
 syntax match zhexNumber /\%([A-Za-z0-9_.]\)\@<!\d\+\%([A-Za-z0-9_.]\)\@!/
 syntax match zhexOperator /->\|==\|!=\|<=\|>=\|[-+*\/%<>=]/
 syntax match zhexDelimiter /[()\[\]{},:]/

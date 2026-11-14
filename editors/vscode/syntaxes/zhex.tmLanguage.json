@@ -23,7 +23,7 @@
       }
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:ok|err|int\\.to-string|text\\.(?:reverse|to-int|length|line-count|word-count|upper|lower|trim|contains|index-of|slice|replace)|buffer\\.(?:new|add-line|line-count|line|set-line|to-text)|file\\.(?:read-all|read-lines|open|read-line|close|lines)|console\\.(?:arg|args-count|exit|fail)|error\\.(?:new|wrap|has-cause|cause|code|message|operation|file|line|column|detail|report|set-reporter)|list\\.(?:new|length|append)|array\\.(?:new|resize|shape|rank|length)|map\\.(?:put|into|length|contains|remove)|json\\.(?:decode|encode)|read-line|print|range)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:ok|err|int\\.to-string|text\\.(?:reverse|to-int|length|line-count|word-count|upper|lower|trim|contains|index-of|slice|replace)|buffer\\.(?:new|add-line|line-count|line|set-line|to-text)|file\\.(?:read-all|read-lines|open|read-line|close|lines)|console\\.(?:arg|args-count|exit|fail)|error\\.(?:new|wrap|has-cause|cause|code|message|operation|file|line|column|detail|report|set-reporter)|list\\.(?:new|length|append)|array\\.(?:new|resize|shape|rank|length)|map\\.(?:put|into|length|contains|remove)|json\\.(?:decode|encode)|date\\.(?:new|parse|to-string|add-days)|time\\.(?:new|parse|to-string)|duration\\.(?:new|parse|to-string)|instant\\.(?:now|parse|to-string|add-duration)|timezone\\.(?:load|name)|zoned\\.(?:new|to-string|instant|in-zone|add-days|add-duration)|read-line|print|range)(?![A-Za-z0-9_.-])",
       "name": "support.function.builtin.zhex"
     },
     {
@@ -35,7 +35,7 @@
       "name": "keyword.operator.logical.zhex"
     },
     {
-      "match": "(?<![A-Za-z0-9_.-])(?:Int|Bool|String|Unit|Buffer|File|Error|Result|List|Array|Map|Option|InputError|ParseError|FileError|BufferError)(?![A-Za-z0-9_.-])",
+      "match": "(?<![A-Za-z0-9_.-])(?:Int|Bool|String|Unit|Buffer|File|Error|Result|List|Array|Map|Option|Date|Time|Duration|Instant|TimeZone|ZonedDateTime|InputError|ParseError|FileError|BufferError)(?![A-Za-z0-9_.-])",
       "name": "support.type.builtin.zhex"
     },
     {

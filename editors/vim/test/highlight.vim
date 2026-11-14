@@ -23,6 +23,8 @@ function! s:Check(needle, offset, expected) abort
 endfunction
 
 call s:Check('# word', 2, 'zhexComment')
+call s:Check('zoned.add-days(', 0, 'zhexBuiltin')
+call s:Check('ZonedDateTime', 0, 'zhexType')
 call s:Check('json.decode(', 0, 'zhexBuiltin')
 call s:Check('Map<String', 0, 'zhexType')
 call s:Check('map.put(', 0, 'zhexBuiltin')

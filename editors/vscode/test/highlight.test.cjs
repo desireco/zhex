@@ -30,6 +30,8 @@ test('Zhex TextMate scopes match real syntax', async () => {
     assert.ok(token?.scopes.includes(scope), `${needle}: expected ${scope}, got ${token?.scopes}`);
   }
   expectScope('# word', 2, 'comment.line.number-sign.zhex');
+  expectScope('zoned.add-days(', 0, 'support.function.builtin.zhex');
+  expectScope('ZonedDateTime', 0, 'support.type.builtin.zhex');
   expectScope('json.decode(', 0, 'support.function.builtin.zhex');
   expectScope('Map<String', 0, 'support.type.builtin.zhex');
   expectScope('map.put(', 0, 'support.function.builtin.zhex');
