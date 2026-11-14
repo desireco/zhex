@@ -33,7 +33,21 @@ A bare ordinary expression echoes its value; `Unit` has no visible value. A bare
 
 Checker and runtime errors print an annotated diagnostic, and the session remains open. A checker error adopts none of the entry's definitions or values. If a runtime error occurs, effects that already happened in that entry remain.
 
-`let` can shadow an earlier value silently. Redefining a word replaces it and prints `redefined name`. The `words` command lists signatures in name order; `words` is a command even if a user has a binding with that name.
+## Inferred word signatures
+
+When a word's body lets a built-in failure escape through `try`, the REPL lists its effective Result signature, even though the source declares the success type:
+
+```text
+zhex> word parse(s: String) -> Int
+....>     text.to-int(s) try
+....>
+zhex> words
+parse(s: String) -> Result<Int, ParseError>
+zhex> parse("9") try
+9
+```
+
+`let` can shadow an earlier value silently. Redefining a word with the same effective signature replaces it and prints `redefined name`. A redefinition that changes a word's effective Result signature is rejected transactionally, so the previous word and its callers remain available. The `words` command lists signatures in name order; `words` is a command even if a user has a binding with that name.
 
 Press Ctrl-D to exit with status 0. A final input line without a newline still runs. `use name` resolves `name.zhex` in the working directory and adopts that module's qualified words for the rest of the session.
 

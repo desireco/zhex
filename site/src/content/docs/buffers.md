@@ -33,7 +33,7 @@ updated
 | `buffer.set-line(Buffer, Int, String) -> Result<Unit, BufferError>` | On success, replace the line at a zero-based index. |
 | `buffer.to-text(Buffer) -> String` | Join the lines with `\n`. |
 
-`buffer.line` and `buffer.set-line` fail when the index is negative or is at least the line count. Add `try` to either call to propagate that failure, or use `catch` to supply a fallback. Programs can declare `Result<T, E>` as a fallible word's result type; see [results and error handling](results.html).
+`buffer.line` and `buffer.set-line` fail when the index is negative or is at least the line count. Add `try` to either call to propagate that failure, or use `catch` to supply a fallback. A user word that lets the failure escape through `try` receives an inferred Result signature; explicit `Result<T, E>` signatures remain supported. See [results and error handling](results.html).
 
 Names refer to the same buffer value; binding it with `let` does not make a copy. A second name observes changes made through the first. Buffers cannot be compared with `==` or `!=`, and `print` does not accept a `Buffer`; convert it with `buffer.to-text` first.
 

@@ -5,7 +5,7 @@ section: Language
 order: 35
 ---
 
-Lists and arrays are mutable, homogeneous collections. Their element type is checked and their variables hold shared references: assigning a collection to another name does not copy its storage. `let` prevents rebinding that name, while collection operations can still change the shared collection. Collection size is limited to 1,000,000 elements.
+Lists and arrays are mutable, homogeneous collections. Their element type is checked and their variables hold shared references: assigning a collection to another name does not copy its storage. `let` prevents rebinding that name, while collection operations can still change the shared collection. List and array size is limited to 1,000,000 elements; maps have no fixed entry-count limit (see [maps](maps.html)).
 
 ## Lists
 
@@ -38,12 +38,14 @@ let empty: List<String> = list.new()
 | `list.append(list, value)` | `Result<Unit, Error>` | Append a value of the list's element type; fails with `collection-limit` if the size limit would be exceeded. |
 | `list.length(list)` | `Int` | Return the number of elements. |
 
-Read and write a list element with one zero-based signed `Int` index. Each access returns a Result, failing with `list-range` when the index is negative or outside the list. The error exposes `index` and `length` details:
+Read and write a list element with one zero-based signed `Int` index. A read returns a `Result` and fails with `list-range` when the index is negative or outside the list. The error exposes `index` and `length` details. A plain indexed assignment returns `Unit`; an invalid index produces a runtime diagnostic. Parenthesize the assignment to handle that failure as a `Result<Unit, Error>` with `try` or `catch`:
 
 ```zhex
 let items: List<Int> = [10, 20]
 let second = items[1] try
-(items[0] = second) try
+items[0] = second
+(items[8] = 0) catch problem
+    print(error.code(problem))
 ```
 
 ## Arrays
@@ -67,18 +69,20 @@ Rank is the number of dimensions; length is the total number of elements. Arrays
 | `array.rank(array)` | `Int` | Return the number of dimensions. |
 | `array.length(array)` | `Int` | Return the total element count. |
 
-Array reads and writes use zero-based bracket indexing. Use exactly one index for each axis. Reads and writes can fail, so handle them with `try` or `catch`:
+Array reads and writes use zero-based bracket indexing. Use exactly one index for each axis. Reads return a Result and can be handled with `try` or `catch`. A plain indexed assignment returns `Unit`; an invalid rank or coordinate produces a runtime diagnostic. Parenthesize the assignment when the caller needs a recoverable `Result<Unit, Error>`:
 
 ```zhex
 let grid: Array<Int> = array.new([2, 3], 0) try
 let first = grid[0, 0] try
-(grid[0, 1] = first + 1) try
+grid[0, 1] = first + 1
+(grid[0, 3] = 9) catch problem
+    print(error.code(problem))
 ```
 
 An index is checked against every dimension and fails with `array-range` when it is outside the shape; details include `axis`, `index`, and `extent`. List indexing uses `list-range` with `index` and `length` details. Receivers, indices, and assigned values evaluate once, left to right. Failed writes leave the collection unchanged. Array traversal order is row-major: the last coordinate changes fastest. `array.resize` preserves values at overlapping coordinates; removed values are discarded. Newly introduced cells receive the supplied fill value. When the fill value is itself a mutable collection, each new cell refers to that same collection; resize does not make deep copies.
 
 `array.resize` cannot change the rank. Invalid rank fails with `array-rank` (`rank`, `expected_rank`); rank errors while creating an array may also include `min_rank` and `max_rank`. Negative extents or other invalid dimensions fail with `array-shape` (`axis`, `extent`); an element count over the limit fails with `collection-limit` (`limit`). A checked shape/limit failure leaves existing collections unchanged. Process-level out-of-memory termination is not recoverable. Array dimensions are explicit `List<Int>` values; nested lists are not converted to arrays.
 
-List and array indexes, dimensions, sizes, and mutations return the common `Result<..., Error>` family where they can fail. These Results must be handled with `try` or `catch`. Collections cannot contain a `Result` value, so a fallible operation cannot hide an unhandled result obligation in an element. A caught concrete error cannot be hidden as an `Error` collection element or passed to a user word taking `Error` without first using `error.wrap`; built-in `error.*` operations accept it directly. Records and collections cannot be printed or compared directly; inspect fields/elements or construct text explicitly.
+List/array reads, list append, array creation and resize, and parenthesized indexed assignments return the common `Result<..., Error>` family where they can fail. Plain indexed assignments instead produce runtime diagnostics on invalid rank, bounds, or active-iteration guard failures. Collections cannot contain a `Result` value, so a fallible operation cannot hide an unhandled result obligation in an element. A caught concrete error cannot be hidden as an `Error` collection element or passed to a user word taking `Error` without first using `error.wrap`; built-in `error.*` operations accept it directly. Records and collections cannot be printed or compared directly; inspect fields/elements or construct text explicitly.
 
 Lists and arrays are shared mutable storage. See [collection iteration](iteration.html) for traversal order, positions, and mutation restrictions while iterating.

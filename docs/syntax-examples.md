@@ -1,6 +1,6 @@
 # Initial Zhex examples
 
-These source files are runnable Zhex programs validated by the interpreter's test suite. They exercise readable composition, named values, conditions, loops, console input/output, records, collections, and explicit error handling. The [initial language contract](initial-language.md) defines their syntax and semantics.
+These source files are runnable Zhex programs validated by the interpreter's test suite. They exercise readable composition, named values, conditions, loops, console input/output, records, choices, collections, and explicit error handling. The [initial language contract](initial-language.md) defines their syntax and semantics.
 
 ## Example programs
 
@@ -8,7 +8,9 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | --- | --- | --- | --- |
 | [composition.zhex](../examples/composition.zhex) | None | `32` | Typed words, inferred locals, flow composition. |
 | [records.zhex](../examples/records.zhex) | None | `Ada, age 36` | A nominal record declaration, a positional constructor, typed binding, field reads, and a word that accepts the record. |
+| [choices.zhex](../examples/choices.zhex) | None | `running`, `Could not start: network unavailable`, `7`, `0` | Concrete and one-parameter alternatives, payload binding, contextual nullary types, and exhaustive matching with a default. |
 | [collections.zhex](../examples/collections.zhex) | None | List indices and array coordinates, each append reports `collection-iterating`, then `6`, `7`, `12` after resize | Shared list mutation and indexing, dual-binding traversal, row-major array access, pre-mutation guards, overlap-preserving resize, and fill values. |
+| [maps.zhex](../examples/maps.zhex) | None | `1`, `3`, `Ada: 11`, `Morgan has no score`, `Ada: 11`, `Grace: 9`, `Nancy: 23`, `4`, `4` | Inferred and empty typed maps, optional lookups, insertion order, update/removal, and map operations composed in flows. |
 | [hello.zhex](../examples/hello.zhex) | `Ada` | `Hello, Ada!` | Read a whole line, build a string, print it. |
 | [fizzbuzz.zhex](../examples/fizzbuzz.zhex) | `15` | The sequence below | Remainders, ordered conditions, bounded iteration, formatting. |
 | [fibonacci.zhex](../examples/fibonacci.zhex) | `10` | `55` | Explicit local mutation and iterative computation. |
@@ -83,7 +85,9 @@ Run the examples:
 zhex run examples/hello.zhex
 zhex run examples/composition.zhex
 zhex run examples/records.zhex
+zhex run examples/choices.zhex
 zhex run examples/collections.zhex
+zhex run examples/maps.zhex
 zhex run examples/fizzbuzz.zhex
 zhex run examples/fibonacci.zhex
 zhex run examples/factorial.zhex
@@ -98,7 +102,7 @@ zhex run examples/modules/main.zhex
 
 ## Syntax exercised by the examples
 
-- Named word parameters and result types are explicit; fallible words can declare `Result<T, E>`, while local types and flow intermediate types are inferred.
+- Named word parameters and success types are explicit. An escaping `try` infers a user word's effective `Result<T, E>` signature; explicit Result signatures remain available for `ok`/`err` construction. Local types and flow intermediate types are inferred.
 - `let` binds an immutable local. `var` explicitly permits reassignment within lexical scope; assignment preserves its type. Naming a value does not dictate its eventual machine representation.
 - Blocks use indentation. A word's final expression supplies its result; an `if` used as a value has compatible branch result types. Statement branches in these top-level programs return `Unit`.
 - Calls use parentheses. Qualify type- and module-owned operations such as `text.reverse`, `math.gcd`, and `error.code`; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
@@ -132,4 +136,4 @@ Palindrome comparison is exact, including case, punctuation, spaces, and Unicode
 
 ## Later algorithm examples
 
-GCD has landed — [gcd.zhex](../examples/gcd.zhex) runs Euclid's algorithm by recursion — and [text-stats.zhex](../examples/text-stats.zhex) is the first real application, exercising the file and text vocabulary on a sample document. Primality testing would exercise early exits; exponentiation by squaring would exercise logarithmic iteration. Binary search would exercise arrays and indexing. Normalized palindrome checks and word-frequency counting would exercise richer Unicode/text operations and maps. Add these as the corresponding features become concrete.
+GCD has landed — [gcd.zhex](../examples/gcd.zhex) runs Euclid's algorithm by recursion — and [text-stats.zhex](../examples/text-stats.zhex) is the first real application, exercising the file and text vocabulary on a sample document. Primality testing would exercise early exits; exponentiation by squaring would exercise logarithmic iteration. Binary search could show array indexing in an algorithm, while word-frequency counting could apply the existing map operations to text processing. Add these when they make useful runnable examples.

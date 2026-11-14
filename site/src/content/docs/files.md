@@ -31,7 +31,7 @@ Run that program from the repository root so the sample path resolves.
 | `file.read-line(File) -> Result<String, FileError>` | On success, return the next line. End of file is a failure. |
 | `file.close(File) -> Unit` | Close the file. Calling it more than once is safe. |
 
-These signatures show built-in return values. A program word may declare `Result<T, E>` as its result type; see [results and error handling](results.html).
+These signatures show built-in return values. User words declare a success type; when a `try` can escape, the checker infers the word's effective `Result<T, E>` signature. Explicit Result signatures remain supported; see [results and error handling](results.html).
 
 An open `File` is a resource: it cannot be printed or compared. Close a file after you finish reading. Reading from a closed file fails.
 

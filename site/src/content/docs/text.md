@@ -5,7 +5,7 @@ section: Standard library
 order: 70
 ---
 
-Zhex validates strings as UTF-8. Text length, reversal, indexing, and slicing use Unicode code points rather than bytes. In the signatures below, `Result<T, E>` describes a built-in return value. Programs can declare `Result<T, E>` as a fallible word's result type; user-defined error types are not supported.
+Zhex validates strings as UTF-8. Text length, reversal, indexing, and slicing use Unicode code points rather than bytes. In the signatures below, `Result<T, E>` describes a built-in return value. User words declare their success type, and an escaping `try` makes the checker infer the effective Result signature. Explicit `Result<T, E>` word signatures remain supported; user-defined error types are not.
 
 ## Formatting and parsing
 

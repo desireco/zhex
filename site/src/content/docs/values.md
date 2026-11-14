@@ -17,9 +17,11 @@ Every expression has a checked type. Local binding types are inferred from their
 | `Unit` | The result of statements such as assignment, loops, and `print`. |
 | `Buffer` | A mutable sequence of string lines. See [buffers](buffers.html). |
 | `File` | An open file handle. See [files](files.html). |
-| Result values | Selected built-ins return either a success value or a failure. A word may declare `Result<T, E>` as its result type; the supported built-in error families are listed in [results](results.html). Results cannot be used as ordinary values and must be handled immediately with `try` or `catch`. User-defined error types are not supported. |
+| Result values | Built-ins that can fail return `Result<T, E>`. User words declare a success type; an escaping `try` makes the checker infer the effective Result signature. Explicit `Result<T, E>` signatures remain supported. Results cannot be used as ordinary values and must be handled immediately with `try` or `catch`. User-defined error types are not supported. See [results](results.html). |
 | Records | Nominal named types with typed, immutable fields. They cannot be compared or printed directly. See [records](records.html). |
+| Choices | Nominal named types with a fixed set of alternatives and optional typed payloads; a choice can declare one type parameter. Use exhaustive `match` to select a case; choices cannot be compared or printed directly. See [choices and matching](choices.html). |
 | `List<T>` / `Array<T>` | Homogeneous, shared mutable collections. They cannot be compared or printed directly. See [lists and arrays](collections.html). |
+| `Map<K, V>` | Shared mutable key/value collection with insertion-ordered iteration. Keys are `String`, `Int`, or `Bool`; lookup returns built-in `Option<V>`. Maps cannot be printed or compared directly. See [maps](maps.html). |
 
 `Buffer` and `File` are resource values. They are not copied when a name is bound, cannot be compared with `==` or `!=`, and are not accepted by `print`.
 

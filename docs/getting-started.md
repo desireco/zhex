@@ -93,7 +93,7 @@ Hi, Linus!
 zhex> [Ctrl-D]
 ```
 
-The lines after `zhex> ` and `....> ` are your input, as is `Linus` at the prompt; `[Ctrl-D]` is the keypress that exits with status 0. Redefining a word replaces it and prints `redefined greet`. A bare expression echoes its value, while `let` and `print` entries do not. Errors print a diagnostic and the session continues; `words` lists the signatures defined so far. See the [REPL guide](../site/src/content/docs/repl.md) for entry rules and tracing.
+The lines after `zhex> ` and `....> ` are your input, as is `Linus` at the prompt; `[Ctrl-D]` is the keypress that exits with status 0. Redefining a word replaces it and prints `redefined greet`. A bare expression echoes its value, while `let` and `print` entries do not. Errors print a diagnostic and the session continues; `words` lists the effective signatures defined so far, including inferred Result effects. See the [REPL guide](../site/src/content/docs/repl.md) for entry rules and tracing.
 
 ## Read the greeting
 
@@ -114,7 +114,7 @@ A **word** is a function with named, typed parameters. `greet` accepts a `String
 
 `let` names an immutable value. Its type is inferred: the successful result of `read-line` is a string, so `name` is a `String` without another annotation.
 
-`flow` expresses a sequence of one-argument operations. Here `name` goes into `greet`, and the resulting greeting goes into `print`. The checker verifies each connection before execution. You can call the word directly with parentheses, such as `greet(name)`. See [words and flows](../site/src/content/docs/words-and-flows.md) for more composition patterns.
+`flow` sends each result to the next operation. Here `name` goes into `greet`, and the greeting goes into `print`. The checker verifies each connection before execution. You can call the word directly with parentheses, such as `greet(name)`. See [words and flows](../site/src/content/docs/words-and-flows.md) for additional arguments and more composition patterns.
 
 ## Read numbers and choose a fallback
 
@@ -132,7 +132,7 @@ print(number * number)
 
 `read-line` preserves spaces and accepts an empty line. `text.to-int` trims surrounding whitespace and requires a signed 64-bit decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
 
-When one word calls another fallible word, declare a compatible `Result` return and add `try` at the call site. The [Results and error handling guide](../site/src/content/docs/results.md) explains propagation, structured errors, and recovery.
+User words declare their success type. When an unhandled `try` can fail, the checker infers an effective `Result` signature, and each caller uses `try` or `catch`. The [Results and error handling guide](../site/src/content/docs/results.md) explains propagation, structured errors, and recovery.
 
 ## Make decisions
 

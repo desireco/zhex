@@ -66,7 +66,9 @@ go build -o bin/zhex ./cmd/zhex
 | --- | --- |
 | [Composition](examples/composition.zhex) | Typed words, inferred locals, and a flow that prints `32`. |
 | [Records](examples/records.zhex) | A nominal named type, positional constructor, and immutable fields. |
-| [Lists and arrays](examples/collections.zhex) | Shared list storage, checked indexing, dual-binding iteration, row-major arrays, and overlap-preserving resize. |
+| [Choices](examples/choices.zhex) | Declare concrete and one-parameter alternatives and handle them with a match. |
+| [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, row-major arrays, and overlap-preserving resize. |
+| [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
 | [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
 | [FizzBuzz](examples/fizzbuzz.zhex) | Decisions, remainders, and a bounded loop. |
 | [Fibonacci](examples/fibonacci.zhex) | Explicitly mutable locals and iterative calculation. |
@@ -83,7 +85,7 @@ The [example guide](docs/syntax-examples.md) records expected output and edge ca
 
 ## What works today
 
-The interpreter supports typed word definitions, named parameters, inferred or explicitly annotated local types, immutable `let` bindings, mutable `var` bindings, nominal records, shared mutable lists and arrays, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in. Programs split across files: `use math` imports the sibling `math.zhex`, its words and types are callable qualified (`math.gcd`, `model.Customer`), and a leading underscore keeps a word or type private to its file. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words, values, types, and adopted modules across the session.
+The interpreter supports typed word definitions, named parameters, inferred or explicitly annotated local types, immutable `let` bindings, mutable `var` bindings, nominal records and one-parameter choices with exhaustive matching, shared mutable lists, arrays, and maps, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, and streamed file reads are built in. Programs split across files: `use math` imports the sibling `math.zhex`, its words and types are callable qualified (`math.gcd`, `model.Customer`), and a leading underscore keeps a word or type private to its file. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words, values, types, and adopted modules across the session.
 
 The whole file is checked before execution, including unused word bodies. Static errors do not prompt or consume input. Runtime errors report a source location; integer overflow, division by zero, invalid input, and end-of-input are handled explicitly.
 
@@ -91,7 +93,7 @@ The whole file is checked before execution, including unused word bodies. Static
 
 We want a readable, modular language for command-line tools, games, web applications and servers, HTML/text processing, and database software. High performance is a goal to establish through implementation and measurement.
 
-The current interpreter defines and tests behavior. Additional named-type forms such as choices and aliases, maps, temporal values, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md). Further [language presentation research](docs/language-presentation-research.md) explores how to explain the language through readable examples.
+The current interpreter defines and tests behavior. Generic records and words, aliases and other named-type forms, temporal values, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md). Further [language presentation research](docs/language-presentation-research.md) explores how to explain the language through readable examples.
 
 ## Tests are part of the language
 
