@@ -63,7 +63,7 @@ While editing, Ctrl-C cancels the current entry and returns to the top-level pro
 
 When a program uses `read-line`, the terminal reader also supplies its input. It reads the typed line as data, without source auto-indentation or Tab expansion.
 
-Only a missing indented block continues an entry. Parentheses and incomplete expressions do not continue a line, and statements do not span lines. The source grammar is unchanged.
+An open `()`, `[]`, or `{}` keeps an entry open across lines, including blank and comment-only lines. Closing the delimiter submits a completed top-level expression immediately. If the expression is inside a pending indented block, the block still needs a blank line to submit. The same delimiter rules apply to piped source; an unclosed delimiter at piped EOF is an error. Angle brackets in types do not continue an entry.
 
 ## Results and errors
 

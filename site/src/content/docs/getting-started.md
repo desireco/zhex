@@ -97,7 +97,9 @@ Hello, Ada!
 
 The spaces shown after `....>` are editable. Tab inserts four spaces; Backspace removes one character; press it four times to dedent one level. An empty or spaces-only continuation line submits the entry. While editing, Ctrl-C cancels the current entry. Ctrl-D on an empty top-level line exits; in a pending entry, Ctrl-D on an empty or spaces-only continuation line discards it and exits.
 
-Auto-indentation applies to interactive terminal input. Piped REPL input keeps the existing source format, so include the leading four spaces yourself. Pasted code keeps its source indentation; tabs and non-ASCII whitespace outside strings or comments are still rejected by the language. A program's `read-line` prompt reads input as data, without source auto-indentation or Tab expansion. The language grammar is unchanged.
+An open `()`, `[]`, or `{}` also continues an entry. Blank and comment-only lines inside it do not submit. Closing a top-level expression submits it; if it is inside a pending block, a blank line still submits the block. This works in source files and the REPL.
+
+Auto-indentation applies to interactive terminal input. Piped REPL input keeps the existing source format, so include the leading four spaces yourself. Pasted code keeps its source indentation; tabs and non-ASCII whitespace outside strings or comments are still rejected by the language. A program's `read-line` prompt reads input as data, without source auto-indentation or Tab expansion.
 
 Words and values stay available in later entries. Ctrl-D exits with status 0; you can also call `bye()` to exit.
 

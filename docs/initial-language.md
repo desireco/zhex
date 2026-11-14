@@ -6,7 +6,7 @@ The runnable corpus is grouped into language basics and algorithms. The [Game of
 
 ## Source and blocks
 
-Source is valid UTF-8. Blocks use four spaces per indentation level; tabs outside strings and comments are rejected. Blank lines and `#` comments are ignored. Statements end at a newline; parentheses do not introduce multiline continuation in this version. Syntax nesting and expression-tree depth are limited to 256 to report overly deep source as a language error.
+Source is valid UTF-8. Blocks use four spaces per indentation level; tabs outside strings and comments are rejected. Blank lines and `#` comments are ignored. Statements end at a newline except within an open `()`, `[]`, or `{}` expression, which may continue across lines; blank and comment-only lines inside the delimiters are allowed. Angle brackets in type syntax do not open a continuation, and trailing commas are not accepted. Syntax nesting and expression-tree depth are limited to 256 to report overly deep source as a language error.
 
 Names use ASCII letters, digits, and underscores, starting with a letter or underscore. Hyphen-separated name segments beginning with a letter or underscore are allowed, as in `is-palindrome`. Dots qualify operation names: a dot names the type or module that owns the word. A dot after a record value reads a field, as in `customer.name`; field paths may be nested. A leading underscore marks a word or type module-private (see Modules). Consequently `a-b` is a name, while `a - b` is subtraction: use spaces around subtraction between names. Keywords cannot be binding or word names; `use`, `choice`, `match`, and `case` are among them. Strings use double quotes and Go-style escapes, and must decode to valid UTF-8.
 
@@ -20,7 +20,7 @@ Precedence, from lowest to highest: `or`, `and`, `== !=`, `< <= > >=`, `+ -`, `*
 
 ## Records and named types
 
-`type Customer = record` declares a nominal record type followed by indented `field: Type` declarations. A record value is constructed positionally in declaration order, as `Customer("Ada", 36)`, and its immutable fields are read with `customer.name`. Fields can contain shared mutable collections. A record declaration is not a type alias. See [records and named types](../site/src/content/docs/records.md).
+`type Customer = record` declares a nominal record type followed by indented `field: Type` declarations. A record value is constructed positionally in declaration order, as `Customer("Ada", 36)`, or with named fields, as `Customer(age: 36, name: "Ada")`; its immutable fields are read with `customer.name`. Fields can contain shared mutable collections. A record declaration is not a type alias. See [records and named types](../site/src/content/docs/records.md).
 
 ## Choices and matching
 
@@ -90,7 +90,7 @@ The `text` words operate on `String` values, Unicode-safe by code point. `text.l
 
 `type Names = alias List<String>` creates a transparent alternate name, with no constructor or new identity. Aliases follow module privacy and cannot hide Result obligations; generic alias declarations and cycles are rejected.
 
-Record fields can have defaults, such as `retries: Int = 3`. Required fields precede defaulted fields, and constructors may omit trailing defaults. Supplied arguments run first, then omitted defaults evaluate in field order in the declaring module, afresh for every construction. Defaults cannot access caller bindings or fields and cannot propagate Result failures. Explicitly supplied collections retain their sharing.
+Record fields can have defaults, such as `retries: Int = 3`. Required fields precede defaulted fields, and constructors may omit trailing defaults. Constructors accept either positional arguments in field order or named arguments in any field order; a call cannot mix the forms. Named constructor arguments are specific to records, not words, built-ins, or choice alternatives. Supplied arguments run once in source order, then omitted defaults evaluate in field order in the declaring module, afresh for every construction. Defaults cannot access caller bindings or fields and cannot propagate Result failures. Explicitly supplied collections retain their sharing.
 
 ## Dates and time zones
 
@@ -112,6 +112,6 @@ The [example guide](syntax-examples.md) defines line endings, integer parsing, E
 
 ## Commands and validation
 
-Run `go run ./cmd/zhex run examples/fibonacci.zhex`, or build with `go build -o bin/zhex ./cmd/zhex` and run `./bin/zhex run examples/fibonacci.zhex`. The runner requires a source file; `zhex repl [--trace]` instead starts an interactive session whose words and values persist across entries — a blank line ends a multi-line entry, bare expressions echo their value, errors print a diagnostic without ending the session, and `words` lists signatures.
+Run `go run ./cmd/zhex run examples/fibonacci.zhex`, or build with `go build -o bin/zhex ./cmd/zhex` and run `./bin/zhex run examples/fibonacci.zhex`. The runner requires a source file; `zhex repl [--trace]` instead starts an interactive session whose words and values persist across entries — a blank line submits an entry when no delimiter is open, bare expressions echo their value, errors print a diagnostic without ending the session, and `words` lists signatures.
 
 Run `go test ./...` for the executable language cases and CLI tests. Run `go vet ./...` for Go checks. The [test catalog](tests.md) maps syntax and behavior to those tests. Generic words and records, broader resource scopes, and native compilation remain later work.

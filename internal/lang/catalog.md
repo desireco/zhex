@@ -51,7 +51,7 @@ A keyword appears where a name is required. `word`, `let`, `var`, `if`, and the 
 A type name is not one of `Int`, `Bool`, `String`, `Unit`, `Buffer`, or `File`. Check the spelling; there are no user-defined types yet.
 
 ## expected-indent
-A construct needs an indented block on the following lines. Indent the body four spaces; parentheses do not continue a line.
+A construct needs an indented block on the following lines. Indent the body four spaces. Open `()`, `[]`, and `{}` delimiters can continue expressions across lines, but do not replace a required block body.
 
 ## empty-block
 A block header is followed by nothing. Every block needs at least one statement.

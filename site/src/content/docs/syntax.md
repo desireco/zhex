@@ -5,19 +5,30 @@ section: Language
 order: 10
 ---
 
-Zhex source is UTF-8 text. Statements end at a newline, and indentation marks blocks. The parser checks the whole file before the interpreter runs it.
+Zhex source is UTF-8 text. Newlines end statements except while an expression is open inside `()`, `[]`, or `{}`; indentation marks blocks. The parser checks the whole file before the interpreter runs it.
 
 ## Indentation and lines
 
-Use four spaces for each block level. Tabs outside strings and comments are rejected. Parentheses do not continue an expression onto another line.
+Use four spaces for each block level. Tabs outside strings and comments are rejected. Expressions inside parentheses, brackets, and braces can continue across lines:
 
 ```zhex
-let ready = true
-if ready
-    print("Starting")
-else
-    print("Waiting")
+let names = [
+    "Ada",
+
+    # Blank lines and comments are allowed before the delimiter closes.
+    "Grace"
+]
+let scores = {
+    "Ada": 10,
+    "Grace": 9
+}
+print(list.length(
+    names
+))
+print(map.length(scores))
 ```
+
+This prints `2` and `2`. The delimiter may wrap call arguments, collection elements, and indexed expressions. A blank or comment line inside an open delimiter is still part of the expression. Do not add a trailing comma after the final item; trailing commas are not accepted. Angle brackets in a type such as `List<Int>` do not open a multiline expression.
 
 Blank lines are ignored. A `#` starts a comment through the end of that line:
 
@@ -47,7 +58,7 @@ let message = "first line\nsecond line"
 print(message)
 ```
 
-Zhex does not join arbitrary adjacent source lines into one expression. The block forms described above continue only through their indented body; keep ordinary expressions on one line.
+Zhex does not join arbitrary adjacent source lines into one expression. Only an indented block or an open `()`, `[]`, or `{}` continues across lines; keep ordinary expressions on one line.
 
 ## Expression shape
 
