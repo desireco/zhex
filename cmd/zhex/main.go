@@ -118,6 +118,7 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	fmt.Fprintln(output, "Zhex REPL — end multi-line entries with a blank line; bye() or Ctrl-D exits.")
 	buffer, pending := "", false
+	blockPending, openDelimiter := false, false
 	listWords := func() {
 		if words := session.Words(); len(words) == 0 {
 			fmt.Fprintln(output, "no words defined")
@@ -155,7 +156,7 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			line, cancelled, err = editor.readLine(prompt, indent, false)
 			if cancelled {
 				fmt.Fprintln(output, "^C")
-				buffer, pending = "", false
+				buffer, pending, blockPending, openDelimiter = "", false, false, false
 				continue
 			}
 		} else {
@@ -163,10 +164,20 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			line, err = reader.ReadString('\n')
 		}
 		if err != nil {
-			// A final line without its newline still runs; anything that
-			// would keep collecting lines is discarded at EOF.
+			// Preserve the existing block-EOF behavior. Piped unclosed
+			// delimiters receive a diagnostic, including a final partial line.
 			line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
-			_, cerr := lang.Compile("repl", line+"\n")
+			candidate := line + "\n"
+			if pending {
+				candidate = buffer + candidate
+			}
+			_, cerr := lang.Compile("repl", candidate)
+			if editor == nil {
+				if _, open := lang.DelimiterIndent(candidate, cerr); open {
+					fmt.Fprintln(diagnostics, cerr)
+					return 0
+				}
+			}
 			switch {
 			case pending || line == "":
 			case line == "words":
@@ -182,11 +193,22 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		}
 		line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
 		if pending {
-			if line != "" && (editor == nil || strings.Trim(line, " ") != "") {
+			blank := line == "" || (editor != nil && strings.Trim(line, " ") == "")
+			if !blank || openDelimiter {
 				buffer += line + "\n"
-				continue
+				_, cerr := lang.Compile("repl", buffer)
+				_, openDelimiter = lang.DelimiterIndent(buffer, cerr)
+				if openDelimiter || blockPending {
+					continue
+				}
+				if lang.IsIncomplete(cerr) {
+					blockPending = true
+					continue
+				}
+				pending = false
+			} else {
+				pending, blockPending = false, false
 			}
-			pending = false
 		} else {
 			if line == "" {
 				continue
@@ -197,6 +219,8 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			}
 			buffer = line + "\n"
 			if _, cerr := lang.Compile("repl", buffer); lang.IsIncomplete(cerr) {
+				_, openDelimiter = lang.DelimiterIndent(buffer, cerr)
+				blockPending = !openDelimiter
 				pending = true
 				continue
 			}

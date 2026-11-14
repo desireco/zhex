@@ -37,6 +37,7 @@ const (
 	CodeTabCharacter        Code = "tab-character"
 	CodeIndentation         Code = "indentation"
 	CodeUnterminatedString  Code = "unterminated-string"
+	CodeUnclosedDelimiter   Code = "unclosed-delimiter"
 	CodeStringEscape        Code = "string-escape"
 	CodeUnexpectedCharacter Code = "unexpected-character"
 
@@ -100,7 +101,7 @@ const (
 var diagnosticCodes = []Code{
 	CodeDateParse, CodeTimeParse, CodeDurationParse, CodeTemporalInvalid, CodeTemporalRange, CodeInstantParse, CodeTimezoneLoad,
 	CodeErrorNoCause, CodeExitStatus, CodeJSONSyntax, CodeJSONType, CodeJSONField, CodeJSONRange, CodeJSONDepth, CodeArrayRange, CodeArrayRank, CodeArrayShape, CodeListRange, CodeCollectionLimit, CodeCollectionIterating,
-	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeStringEscape, CodeUnexpectedCharacter,
+	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeUnclosedDelimiter, CodeStringEscape, CodeUnexpectedCharacter,
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,
 	CodeIntegerLiteralRange, CodeExpectedExpression, CodeFlowStep,
 	CodeUnknownName, CodeDuplicateName, CodeDuplicateWord, CodeWordResult, CodeImmutableName, CodeAssignmentType,

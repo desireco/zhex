@@ -8,13 +8,24 @@ import (
 	"strings"
 )
 
-// IsIncomplete reports whether err says the source stopped right where an
-// indented block should follow — the REPL's cue to keep reading lines.
-// Parentheses and dangling expressions never continue a line, so only the
-// missing-block diagnostic counts.
+// IsIncomplete reports a missing block or a still-open delimiter.
 func IsIncomplete(err error) bool {
 	d, ok := err.(*diagnostic)
-	return ok && d.code == CodeExpectedIndent
+	return ok && (d.code == CodeExpectedIndent || d.code == CodeUnclosedDelimiter)
+}
+
+// DelimiterIndent reports the editable continuation indentation for an open delimiter.
+func DelimiterIndent(source string, err error) (int, bool) {
+	d, ok := err.(*diagnostic)
+	if !ok || d.code != CodeUnclosedDelimiter {
+		return 0, false
+	}
+	lines := strings.Split(source, "\n")
+	if d.pos.line < 1 || d.pos.line > len(lines) {
+		return 0, false
+	}
+	line := lines[d.pos.line-1]
+	return len(line) - len(strings.TrimLeft(line, " ")) + 4, true
 }
 
 // Session is a REPL: an interactive run whose word definitions, top-level

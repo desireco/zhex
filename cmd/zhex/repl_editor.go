@@ -14,10 +14,14 @@ import (
 // continuationIndent follows the current block depth and adds a level only
 // when the parser is waiting for a nested body.
 func continuationIndent(source string) int {
+	_, err := lang.Compile("repl", source)
+	if indent, ok := lang.DelimiterIndent(source, err); ok {
+		return indent
+	}
 	lines := strings.Split(strings.TrimSuffix(source, "\n"), "\n")
 	last := lines[len(lines)-1]
 	indent := len(last) - len(strings.TrimLeft(last, " "))
-	if _, err := lang.Compile("repl", source); lang.IsIncomplete(err) {
+	if lang.IsIncomplete(err) {
 		indent += 4
 	}
 	return indent

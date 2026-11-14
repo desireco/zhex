@@ -265,3 +265,7 @@ An instant string is invalid. Include a date, time, and explicit RFC 3339 offset
 ## timezone-load
 
 A named time zone is invalid or unavailable. Use UTC or an IANA time zone name.
+
+## unclosed-delimiter
+
+An opening parenthesis, bracket, or brace has no matching closing delimiter.

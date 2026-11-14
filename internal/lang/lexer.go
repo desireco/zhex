@@ -14,6 +14,11 @@ type token struct {
 
 func lex(file, source string) ([]token, error) {
 	var tokens []token
+	type delimiter struct {
+		open rune
+		pos  position
+	}
+	var delimiters []delimiter
 	indent := 0
 	lines := strings.Split(source, "\n")
 	for lineIndex, line := range lines {
@@ -33,16 +38,18 @@ func lex(file, source string) ([]token, error) {
 		if i == len(runes) || runes[i] == '#' {
 			continue
 		}
-		if i%4 != 0 || i > indent+4 {
-			return nil, errorAt(pos, CodeIndentation, "indentation must use four spaces per level")
+		if len(delimiters) == 0 {
+			if i%4 != 0 || i > indent+4 {
+				return nil, errorAt(pos, CodeIndentation, "indentation must use four spaces per level")
+			}
+			if i > indent {
+				tokens = append(tokens, token{kind: "indent", pos: pos})
+			}
+			for level := indent; level > i; level -= 4 {
+				tokens = append(tokens, token{kind: "dedent", pos: pos})
+			}
+			indent = i
 		}
-		if i > indent {
-			tokens = append(tokens, token{kind: "indent", pos: pos})
-		}
-		for level := indent; level > i; level -= 4 {
-			tokens = append(tokens, token{kind: "dedent", pos: pos})
-		}
-		indent = i
 		for i < len(runes) {
 			pos = position{file, lineIndex + 1, i + 1}
 			c := runes[i]
@@ -110,6 +117,19 @@ func lex(file, source string) ([]token, error) {
 				}
 			}
 			if strings.ContainsRune("()[]{}+-*/%<>=:,", c) {
+				if strings.ContainsRune("([{", c) {
+					if len(delimiters) >= 256 {
+						return nil, errorAt(pos, CodeNestingLimit, "delimiter nesting limit exceeded")
+					}
+					delimiters = append(delimiters, delimiter{open: c, pos: pos})
+				} else if strings.ContainsRune(")]}", c) && len(delimiters) > 0 {
+					last := delimiters[len(delimiters)-1]
+					expected := map[rune]rune{'(': ')', '[': ']', '{': '}'}[last.open]
+					if c != expected {
+						return nil, errorAt(pos, CodeExpectedToken, "expected %s, found %q", string(expected), string(c))
+					}
+					delimiters = delimiters[:len(delimiters)-1]
+				}
 				i++
 				end := position{file, lineIndex + 1, i + 1}
 				tokens = append(tokens, token{kind: string(c), text: string(c), pos: pos, end: end})
@@ -117,7 +137,13 @@ func lex(file, source string) ([]token, error) {
 			}
 			return nil, errorAt(pos, CodeUnexpectedCharacter, "unexpected character %q", c)
 		}
-		tokens = append(tokens, token{kind: "newline", pos: position{file, lineIndex + 1, len(runes) + 1}})
+		if len(delimiters) == 0 {
+			tokens = append(tokens, token{kind: "newline", pos: position{file, lineIndex + 1, len(runes) + 1}})
+		}
+	}
+	if len(delimiters) > 0 {
+		last := delimiters[len(delimiters)-1]
+		return nil, errorAt(last.pos, CodeUnclosedDelimiter, "unclosed delimiter %q", string(last.open))
 	}
 	end := position{file, len(lines), 1}
 	for ; indent > 0; indent -= 4 {
