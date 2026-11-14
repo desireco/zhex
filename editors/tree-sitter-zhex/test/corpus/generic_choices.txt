@@ -1,0 +1,56 @@
+==================
+Generic choice and match
+==================
+type Maybe<T> = choice
+    None
+    Some(value: T)
+let empty: Maybe<Int> = Maybe.None
+let present = Maybe.Some(3)
+match present
+    case Maybe.None
+        print(0)
+    case Maybe.Some(value)
+        print(value)
+
+---
+
+(source_file
+  (choice_definition
+    (identifier)
+    (identifier))
+  (expression_statement
+    (identifier))
+  (variant_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type
+        (identifier))))
+  (binding
+    (identifier)
+    (type
+      (identifier)
+      (type))
+    (identifier))
+  (binding
+    (identifier)
+    (call_expression
+      (identifier)
+      (integer)))
+  (expression_statement
+    (match_expression
+      (identifier)))
+  (case_header
+    (identifier))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (integer)))
+  (case_header
+    (call_expression
+      (identifier)
+      (identifier)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (identifier))))
