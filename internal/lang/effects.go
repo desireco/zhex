@@ -6,23 +6,7 @@ import "sort"
 // Module imports are acyclic and checked in dependency order; the fixed point
 // below covers forward and recursive calls within each file.
 func (c *checker) inferWordEffects(words []*word) error {
-	effects := make(map[*word]map[string]bool, len(words))
-	for _, w := range words {
-		effects[w] = map[string]bool{}
-	}
-	for changed := true; changed; {
-		changed = false
-		for _, w := range words {
-			found := map[string]bool{}
-			c.effectBlock(w.body, map[string]string{}, effects, found)
-			for family := range found {
-				if !effects[w][family] {
-					effects[w][family] = true
-					changed = true
-				}
-			}
-		}
-	}
+	effects := c.collectWordEffects(words)
 	for _, w := range words {
 		if isResult(w.result) {
 			continue
@@ -42,6 +26,28 @@ func (c *checker) inferWordEffects(words []*word) error {
 		}
 	}
 	return nil
+}
+
+// collectWordEffects computes the fixed point without modifying word signatures.
+func (c *checker) collectWordEffects(words []*word) map[*word]map[string]bool {
+	effects := make(map[*word]map[string]bool, len(words))
+	for _, w := range words {
+		effects[w] = map[string]bool{}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, w := range words {
+			found := map[string]bool{}
+			c.effectBlock(w.body, map[string]string{}, effects, found)
+			for family := range found {
+				if !effects[w][family] {
+					effects[w][family] = true
+					changed = true
+				}
+			}
+		}
+	}
+	return effects
 }
 
 func (c *checker) effectResult(x *expression, env map[string]string, effects map[*word]map[string]bool) []string {
