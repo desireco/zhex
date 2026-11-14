@@ -250,3 +250,22 @@ let b = x - y
 (source_file
   (binding (identifier) (index_expression (identifier) (integer)))
   (binding (identifier) (binary_expression (identifier) (identifier))))
+
+==================
+Function types and explicit holes
+==================
+word apply(op: (Int) -> Result<Int, Error>, n: Int) -> Result<Int, Error>
+    op(n)
+let f: (Int) -> Int = add _, 5
+
+---
+
+(source_file
+  (word_definition
+    (identifier)
+    (parameter (identifier) (type (function_type (type) (result_type (type) (error_type)))))
+    (parameter (identifier) (type))
+    (result_type (type) (error_type)))
+  (expression_statement (call_expression (identifier) (identifier)))
+  (binding (identifier) (type (function_type (type) (type)))
+    (bare_call (identifier) (identifier) (integer))))
