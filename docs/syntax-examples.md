@@ -2,7 +2,7 @@
 
 These source files are runnable Zhex programs validated by the interpreter's test suite. They exercise readable composition, named values, conditions, loops, console input/output, records, choices, collections, and explicit error handling. The [initial language contract](initial-language.md) defines their syntax and semantics.
 
-## Example programs
+## Language basics
 
 | File | Input | Result after the prompt | Purpose |
 | --- | --- | --- | --- |
@@ -13,16 +13,25 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [maps.zhex](../examples/maps.zhex) | None | `1`, `3`, `Ada: 11`, `Morgan has no score`, `Ada: 11`, `Grace: 9`, `Nancy: 23`, `4`, `4` | Inferred and empty typed maps, optional lookups, insertion order, update/removal, and map operations composed in flows. |
 | [json-config.zhex](../examples/json-config.zhex) | None | `3`, `true`, `{"retries":3,"verbose":true}` | Decode a typed record with a default for a missing field, then encode the complete value. |
 | [hello.zhex](../examples/hello.zhex) | `Ada` | `Hello, Ada!` | Read a whole line, build a string, print it. |
+| [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [recovery.zhex](../examples/recovery.zhex) | None | A fallback message, then `Retries: 3` | Catch invalid numeric text and continue with a default value. |
+| [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
+| [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
+
+## Algorithms
+
+These programs use the same checked values, loops, words, and flows to express familiar algorithms. Each source is shown in full and runs in the test suite.
+
+| File | Input | Result after the prompt | Purpose |
+| --- | --- | --- | --- |
 | [fizzbuzz.zhex](../examples/fizzbuzz.zhex) | `15` | The sequence below | Remainders, ordered conditions, bounded iteration, formatting. |
 | [fibonacci.zhex](../examples/fibonacci.zhex) | `10` | `55` | Explicit local mutation and iterative computation. |
 | [factorial.zhex](../examples/factorial.zhex) | `5` | `120` | Accumulation, empty loops, integer limits. |
 | [palindrome.zhex](../examples/palindrome.zhex) | `racecar` | `Palindrome` | String input, comparison, and a text-library operation. |
 | [gcd.zhex](../examples/gcd.zhex) | `48`, `18` | `6` | Euclid's algorithm by recursion and a flow seeded with a computed call. |
 | [times-table.zhex](../examples/times-table.zhex) | `7` | `7 x 1 = 7` through `7 x 10 = 70` | A bounded loop building each line from integers and strings. |
-| [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
-| [recovery.zhex](../examples/recovery.zhex) | None | A fallback message, then `Retries: 3` | Catch invalid numeric text and continue with a default value. |
-| [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
-| [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
+| [life.zhex](../examples/life.zhex) | None | Five generations of a 7×7 glider | Apply Conway's neighbor rules to a rectangular array; cells beyond the board are dead. |
+| [edit-distance.zhex](../examples/edit-distance.zhex) | None | `kitten → sitting: 3`, `empty → abc: 3`, `café → cafe: 1` | Fill a dynamic-programming table for insertion, deletion, and substitution distance over Unicode code points. |
 
 Each result line ends with a newline. The interactive programs print a prompt before reading. For FizzBuzz with input `15`, the result lines are:
 

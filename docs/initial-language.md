@@ -2,6 +2,8 @@
 
 This contract defines the first Go interpreter and the executable examples used to validate it. Zhex is a Forth-inspired language with named values and checked composition. The initial implementation executes a checked syntax tree; it does not generate native code.
 
+The runnable corpus is grouped into language basics and algorithms. The [Game of Life](../examples/life.zhex) evolves a finite array with a dead exterior; [edit distance](../examples/edit-distance.zhex) fills a dynamic-programming table using Unicode code-point comparisons. See [syntax-examples.md](syntax-examples.md) for their expected output and the rest of the corpus.
+
 ## Source and blocks
 
 Source is valid UTF-8. Blocks use four spaces per indentation level; tabs outside strings and comments are rejected. Blank lines and `#` comments are ignored. Statements end at a newline; parentheses do not introduce multiline continuation in this version. Syntax nesting and expression-tree depth are limited to 256 to report overly deep source as a language error.

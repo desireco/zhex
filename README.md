@@ -46,6 +46,8 @@ go run ./cmd/zhex run examples/factorial.zhex
 go run ./cmd/zhex run examples/palindrome.zhex
 go run ./cmd/zhex run examples/gcd.zhex
 go run ./cmd/zhex run examples/times-table.zhex
+go run ./cmd/zhex run examples/life.zhex
+go run ./cmd/zhex run examples/edit-distance.zhex
 go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
 ```
 
@@ -62,6 +64,10 @@ go build -o bin/zhex ./cmd/zhex
 
 ## Learn through examples
 
+The [examples page](https://desireco.github.io/zhex/examples.html) groups complete, inline source programs into language basics and algorithms.
+
+### Language basics
+
 | Example | What it demonstrates |
 | --- | --- |
 | [Composition](examples/composition.zhex) | Typed words, inferred locals, and a flow that prints `32`. |
@@ -71,16 +77,23 @@ go build -o bin/zhex ./cmd/zhex
 | [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
 | [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |
 | [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
+| [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
+| [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
+| [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
+| [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library and keeps one helper underscore-private. |
+
+### Algorithms
+
+| Example | What it demonstrates |
+| --- | --- |
 | [FizzBuzz](examples/fizzbuzz.zhex) | Decisions, remainders, and a bounded loop. |
 | [Fibonacci](examples/fibonacci.zhex) | Explicitly mutable locals and iterative calculation. |
 | [Factorial](examples/factorial.zhex) | Accumulation and integer boundaries. |
 | [Palindrome](examples/palindrome.zhex) | Text input, comparison, and Unicode code-point reversal. |
 | [GCD](examples/gcd.zhex) | Euclid's algorithm by recursion, seeded into a flow. |
 | [Times table](examples/times-table.zhex) | A bounded loop building strings from integers. |
-| [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
-| [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
-| [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
-| [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library, calls its words qualified, and keeps one helper underscore-private. |
+| [Game of Life](examples/life.zhex) | Advance a finite grid with array indexing, loops, and explicit state; cells beyond the board are dead. |
+| [Edit distance](examples/edit-distance.zhex) | Use a two-dimensional dynamic-programming table to compare strings by Unicode code point. |
 
 The [example guide](docs/syntax-examples.md) records expected output and edge cases. The [language contract](docs/initial-language.md) defines the current rules.
 

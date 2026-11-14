@@ -1,0 +1,32 @@
+# Levenshtein distance counts insertions, deletions, and substitutions.
+word distance(left: String, right: String) -> Int
+    let rows = text.length(left)
+    let columns = text.length(right)
+    let costs: Array<Int> = array.new([rows + 1, columns + 1], 0) try
+
+    for row in range(0, rows + 1)
+        costs[row, 0] = row
+    for column in range(0, columns + 1)
+        costs[0, column] = column
+
+    for row in range(1, rows + 1)
+        for column in range(1, columns + 1)
+            let deletion = costs[row - 1, column] try + 1
+            let insertion = costs[row, column - 1] try + 1
+            var change = 0
+            if text.slice(left, row - 1, row) != text.slice(right, column - 1, column)
+                change = 1
+            let substitution = costs[row - 1, column - 1] try + change
+
+            var best = deletion
+            if insertion < best
+                best = insertion
+            if substitution < best
+                best = substitution
+            costs[row, column] = best
+
+    costs[rows, columns] try
+
+print("kitten → sitting: " + int.to-string(distance("kitten", "sitting") try))
+print("empty → abc: " + int.to-string(distance("", "abc") try))
+print("café → cafe: " + int.to-string(distance("café", "cafe") try))

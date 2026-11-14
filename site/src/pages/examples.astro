@@ -1,6 +1,10 @@
 ---
 import Base from "../layouts/Base.astro";
 import data from "../../data.json";
+const groups = ["Language basics", "Algorithms"].map(name => ({
+  name,
+  examples: data.Examples.filter(example => example.Group === name),
+}));
 ---
 <Base title="Examples — Zhex" description="Read, download, and run Zhex examples." current="examples">
   <main id="main" class="wrap">
@@ -10,28 +14,41 @@ import data from "../../data.json";
       <p class="lede">Read every program, see its output, and run it yourself.</p>
     </section>
 
-    <nav class="example-index" aria-label="Jump to an example">
-      <h2>Jump to an example</h2>
-      <ul>{data.Examples.map(e => <li><a href={`#${e.ID}`}>{e.Title}</a></li>)}</ul>
+    <nav class="example-index" aria-label="Browse examples by group">
+      <h2>Browse examples</h2>
+      {groups.map(group => (
+        <section aria-label={group.name}>
+          <h3>{group.name}</h3>
+          <ul>{group.examples.map(e => <li><a href={`#${e.ID}`}>{e.Title}</a></li>)}</ul>
+        </section>
+      ))}
     </nav>
 
     <div class="programs">
-    {data.Examples.map(e => (
-      <section class="program" id={e.ID} aria-labelledby={`${e.ID}-title`}>
-        <header class="program-heading"><h2 id={`${e.ID}-title`}>{e.Title}</h2><p>{e.Description}</p></header>
-        <div class="program-body">
-          <div class="program-code">
-            <div class="code-label"><span>{e.File}</span><a href={e.SourceURL} download>Download source ↓</a></div>
-            <pre><code><Fragment set:html={e.Highlighted} /></code></pre>
-            {(e.Modules || []).map(m => (<div class="code-label"><span>{m.File}</span><a href={m.URL} download>Download source ↓</a></div>
-            <pre><code><Fragment set:html={m.Highlighted} /></code></pre>))}
+    {groups.map(group => (
+      <section class="example-group" aria-labelledby={`${group.name.toLowerCase().replaceAll(" ", "-")}-title`}>
+        <header class="example-group-heading">
+          <h2 id={`${group.name.toLowerCase().replaceAll(" ", "-")}-title`}>{group.name}</h2>
+          <p>{group.name === "Language basics" ? "Small programs for learning Zhex values, words, and effects." : "Complete programs that use those language tools to solve a problem."}</p>
+        </header>
+        {group.examples.map(e => (
+        <section class="program" id={e.ID} aria-labelledby={`${e.ID}-title`}>
+          <header class="program-heading"><h3 id={`${e.ID}-title`}>{e.Title}</h3><p>{e.Description}</p></header>
+          <div class="program-body">
+            <div class="program-code">
+              <div class="code-label"><span>{e.File}</span><a href={e.SourceURL} download>Download source ↓</a></div>
+              <pre><code><Fragment set:html={e.Highlighted} /></code></pre>
+              {(e.Modules || []).map(m => (<div class="code-label"><span>{m.File}</span><a href={m.URL} download>Download source ↓</a></div>
+              <pre><code><Fragment set:html={m.Highlighted} /></code></pre>))}
+            </div>
+            <div class="program-result">
+              <h4>Run</h4><pre><code>{e.Command}</code></pre>
+              {e.Input && <><h4>Sample input</h4><pre><samp>{e.Input}</samp></pre></>}
+              <h4>Output</h4><pre><samp>{e.Output}</samp></pre>
+            </div>
           </div>
-          <div class="program-result">
-            <h3>Run</h3><pre><code>{e.Command}</code></pre>
-            {e.Input && <><h3>Sample input</h3><pre><samp>{e.Input}</samp></pre></>}
-            <h3>Output</h3><pre><samp>{e.Output}</samp></pre>
-          </div>
-        </div>
+        </section>
+        ))}
       </section>
     ))}
     </div>

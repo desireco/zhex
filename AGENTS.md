@@ -6,7 +6,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 
 - `internal/lang` — the language implementation: `syntax.go`, `lexer.go`, `parser.go`, `check.go`, `eval.go`, `host.go`, `session.go`. Tests in that directory are the executable specification (see `docs/tests.md`).
 - `cmd/zhex` — the CLI: `go run ./cmd/zhex run <file>`.
-- `examples/*.zhex` — validated example corpus (hello, fizzbuzz, fibonacci, gcd, times-table, factorial, palindrome, composition, records, choices, collections, maps, json-config, text-stats, recovery, exit-status, and the two-file program under `modules/`). The website executes every registered example at build time; a broken example fails the build.
+- `examples/*.zhex` — validated example corpus split on the website into language basics and algorithms (including Game of Life and edit distance), plus the two-file program under `modules/`. The website executes every registered example at build time; a broken example fails the build.
 - `docs/` — the language contract (`initial-language.md`), getting-started guide, and research notes.
 - `site/` + `tools/site-data` — Astro pages and build-time executable example data; `site/design/` ships the design system verbatim.
 - `editors/` — syntax highlighting for Vim/Neovim, VS Code, and Zed.
@@ -32,7 +32,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 
 REPL sessions: `zhex repl [--trace]` keeps words and values across entries. A blank line ends a multi-line entry — only a missing indented block continues, so statements never span lines. Redefining a word with the same effective signature replaces it and prints `redefined <name>`; an incompatible inferred-signature change is rejected transactionally, and `let` shadows silently. `words` lists effective signatures — a module's words qualified after `use math` adopts it for the session — and bare ordinary expressions echo their value; naked Results must be handled with `try` or `catch` in the same entry. Errors print the annotated diagnostic and the session survives; a runtime error keeps the entry's earlier effects. Ctrl-D exits 0, a final line without its newline still runs, and the `words` command shadows a user binding of that name.
 
-Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seeded with a computed call, `choices` declares alternatives and handles them with a match, `times-table` shows bounded loops and string building, and `text-stats` reads a file two ways (whole-buffer counts and a streamed uppercased echo) as the first real application — and on the website's docs page (desireco.github.io/zhex/docs.html).
+Canonical patterns live in `examples/` — `gcd` shows recursion and a flow seeded with a computed call, `choices` declares alternatives and handles them with a match, `times-table` shows bounded loops and string building, `life` updates a finite grid generation by generation, `edit-distance` fills a dynamic-programming table, and `text-stats` reads a file two ways (whole-buffer counts and a streamed uppercased echo) as the first real application — and on the website's examples page (desireco.github.io/zhex/examples.html).
 
 ## Reading checker errors
 

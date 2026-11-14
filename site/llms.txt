@@ -31,5 +31,5 @@
 
 - [Language contract](https://github.com/desireco/zhex/blob/main/docs/initial-language.md): the authoritative syntax and semantics the interpreter enforces.
 - [Agent guide](https://github.com/desireco/zhex/blob/main/AGENTS.md): rules for writing correct Zhex and verifying changes with the executable test suite.
-- [Example sources](https://desireco.github.io/zhex/examples/hello.zhex): downloadable `.zhex` files — swap the filename for fizzbuzz, fibonacci, gcd, times-table, factorial, palindrome, composition, records, choices, collections, maps, json-config, text-stats, recovery, or exit-status; the two-file modules program lives at examples/modules/main.zhex with its math.zhex beside it.
+- [Example sources](https://desireco.github.io/zhex/examples/hello.zhex): downloadable `.zhex` files — swap the filename for fizzbuzz, fibonacci, gcd, times-table, factorial, palindrome, composition, records, choices, collections, maps, json-config, life, edit-distance, text-stats, recovery, or exit-status; the two-file modules program lives at examples/modules/main.zhex with its math.zhex beside it.
 - [Project board](https://github.com/users/desireco/projects/8): the backlog and delivered work as issues on a public Kanban board.

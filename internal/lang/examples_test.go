@@ -19,6 +19,8 @@ func TestExamples(t *testing.T) {
 	}{
 		{name: "json-config", want: "3\ntrue\n{\"retries\":3,\"verbose\":true}\n"},
 		{name: "maps", want: "1\n3\nAda: 11\nMorgan has no score\nAda: 11\nGrace: 9\nNancy: 23\n4\n4\n"},
+		{name: "life", want: "Generation 0\n.......\n.......\n...#...\n....#..\n..###..\n.......\n.......\nGeneration 1\n.......\n.......\n.......\n..#.#..\n...##..\n...#...\n.......\nGeneration 2\n.......\n.......\n.......\n....#..\n..#.#..\n...##..\n.......\nGeneration 3\n.......\n.......\n.......\n...#...\n....##.\n...##..\n.......\nGeneration 4\n.......\n.......\n.......\n....#..\n.....#.\n...###.\n.......\n"},
+		{name: "edit-distance", want: "kitten → sitting: 3\nempty → abc: 3\ncafé → cafe: 1\n"},
 		{name: "choices", want: "running\nCould not start: network unavailable\n7\n0\n"},
 		{name: "records", want: "Ada, age 36\n"},
 		{name: "collections", want: "3\nGrace\n0: Ada\ncollection-iterating\n1: Grace\ncollection-iterating\n2: Lin\ncollection-iterating\n0,0: 1\n0,1: 2\n0,2: 3\n1,0: 4\n1,1: 5\n1,2: 6\n6\n7\n12\n"},

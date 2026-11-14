@@ -488,10 +488,16 @@ pre {
 .examples-intro h1 { font-size: clamp(2.75rem, 6vw, 5rem); }
 .example-index { padding: 0 0 2rem; }
 .example-index h2 { margin: 0 0 .75rem; font-size: 1rem; }
+.example-index section + section { margin-top: .8rem; }
+.example-index h3 { margin: 0 0 .3rem; font: 750 12px/1.5 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .example-index ul { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: 0; padding: 0; list-style: none; }
 .example-index a { display: inline-block; padding-block: .25rem; }
+.example-group + .example-group { margin-top: 2rem; }
+.example-group-heading { padding: 1.75rem .75rem .5rem; }
+.example-group-heading h2 { margin: 0; font-size: clamp(1.8rem, 3vw, 2.6rem); }
+.example-group-heading p { margin: .35rem 0 0; color: var(--muted); }
 .program-heading { padding: 2rem .75rem 1.5rem; }
-.program-heading h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); }
+.program-heading h3 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); }
 .program-heading p { margin: .35rem 0 0; color: var(--muted); font-size: 17px; overflow-wrap: anywhere; }
 
 .program-body {
@@ -513,7 +519,7 @@ pre {
 
 .program-result { min-width: 0; }
 
-.program-result h3 {
+.program-result h4 {
   margin: 0 0 .55rem;
   color: var(--accent-strong);
   font: 750 12px/1.5 var(--mono);
@@ -690,7 +696,7 @@ pre {
   .example-index ul { flex-wrap: nowrap; overflow-x: auto; }
   .example-index a { white-space: nowrap; }
   .program-heading { padding: 1.5rem .25rem 1rem; }
-  .program-heading h2 { font-size: 1.6rem; }
+  .program-heading h3 { font-size: 1.6rem; }
   .program-heading p { font-size: 15px; line-height: 1.5; }
   .program-body { gap: 1.25rem; padding-inline: .25rem; }
   .program-result pre { margin-bottom: 1rem; }
