@@ -566,7 +566,9 @@ func (r *runtime) invoke(x *expression, args []value, env frame) (value, error) 
 	if len(remaining) != 0 {
 		return value{function: &partialValue{target: closure.target, values: values, holes: remaining}}, nil
 	}
-	return r.call(closure.target, values)
+	target := *closure.target
+	target.pos, target.end = x.pos, x.end
+	return r.call(&target, values)
 }
 
 func (r *runtime) call(x *expression, args []value) (value, error) {

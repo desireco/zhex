@@ -563,3 +563,35 @@ print(wrap(0, 7) try)
 		t.Fatal(out.String())
 	}
 }
+
+func TestPartialFailuresPointAtInvocation(t *testing.T) {
+	cases := []struct {
+		source string
+		line   int
+	}{
+		{"let values = [1]\nlet push = list.append(values, _)\nfor n in values\n    push(2)\n", 4},
+		{"let values = [1]\nlet append: (List<Int>, Int) -> Unit = list.append(_, _)\nlet push = append(values, _)\nfor n in values\n    push(2)\n", 5},
+	}
+	for _, tc := range cases {
+		err := Run("test.zhex", tc.source, strings.NewReader(""), &bytes.Buffer{})
+		if d, ok := err.(*diagnostic); !ok || d.code != CodeCollectionIterating || d.pos.line != tc.line {
+			t.Errorf("expected call site line %d, got %v", tc.line, err)
+		}
+	}
+}
+
+func TestPartialTraceAndBodyFailuresKeepCorrectLocations(t *testing.T) {
+	files := mapResolver(map[string]string{"math.zhex": "word divide(n: Int) -> Int\n    1 / n\n"})
+	program, err := CompileModules("main.zhex", "use math\nlet f = math.divide(_)\nf(0)\n", files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out, trace bytes.Buffer
+	err = program.RunWithTrace(strings.NewReader(""), &out, &trace)
+	if d, ok := err.(*diagnostic); !ok || d.code != CodeDivisionZero || d.pos.file != "math.zhex" || d.pos.line != 2 {
+		t.Fatalf("wrong body error: %v", err)
+	}
+	if !strings.Contains(trace.String(), `"event":"word-call","word":"math.divide","file":"main.zhex","line":3`) {
+		t.Fatalf("wrong call trace: %s", trace.String())
+	}
+}
