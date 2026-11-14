@@ -465,3 +465,21 @@ print n
 		t.Fatal(out.String())
 	}
 }
+
+func TestCallableEffectsRejectMultipleFamilies(t *testing.T) {
+	source := `word parse(raw: String) -> Result<Int, ParseError>
+    ok(text.to-int(raw) try)
+word load(path: String) -> Result<String, FileError>
+    ok(file.read-all(path) try)
+word run(raw: String)
+    let parse-later = parse _
+    let load-later = load _
+    let n = parse-later(raw) try
+    let text = load-later(raw) try
+    n
+`
+	_, err := Compile("test.zhex", source)
+	if d, ok := err.(*diagnostic); !ok || d.code != CodeTryInput {
+		t.Fatalf("expected incompatible error families, got %v", err)
+	}
+}
