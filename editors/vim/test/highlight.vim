@@ -23,6 +23,8 @@ function! s:Check(needle, offset, expected) abort
 endfunction
 
 call s:Check('# word', 2, 'zhexComment')
+call s:Check('Map<String', 0, 'zhexType')
+call s:Check('map.put(', 0, 'zhexBuiltin')
 call s:Check('= choice', 2, 'zhexKeyword')
 call s:Check('match Status.Ready', 0, 'zhexKeyword')
 call s:Check('case Status.Ready', 0, 'zhexKeyword')

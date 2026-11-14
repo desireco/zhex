@@ -1,0 +1,61 @@
+==================
+Maps and optional lookup
+==================
+let scores: Map<String, Int> = {"Ada": 10}
+scores["Grace"] = 11
+match scores["Ada"]
+    case Option.Some(score)
+        print(score)
+    case Option.None
+        print(0)
+flow scores
+    map.put("Nancy", 23)
+    map.length
+    print
+
+---
+
+(source_file
+  (binding
+    (identifier)
+    (type
+      (type)
+      (type))
+    (map_literal
+      (string)
+      (integer)))
+  (indexed_assignment
+    (index_expression
+      (identifier)
+      (string))
+    (integer))
+  (expression_statement
+    (match_expression
+      (index_expression
+        (identifier)
+        (string))))
+  (case_header
+    (call_expression
+      (identifier)
+      (identifier)))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (identifier)))
+  (case_header
+    (identifier))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (integer)))
+  (flow_header
+    (identifier))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (string)
+      (integer)))
+  (expression_statement
+    (identifier))
+  (expression_statement
+    (identifier)))

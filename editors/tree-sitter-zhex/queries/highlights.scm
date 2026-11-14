@@ -14,6 +14,6 @@
 ["word" "type" "record" "choice" "match" "case" "use" "let" "var" "if" "elif" "for" "in" "flow" "try" "catch" "return"] @keyword
 (else_header) @keyword
 ["and" "or" "not" "+" "-" "*" "/" "%" "==" "!=" "<" "<=" ">" ">=" "=" "->"] @operator
-["(" ")" "[" "]"] @punctuation.bracket
+["(" ")" "[" "]" "{" "}"] @punctuation.bracket
 ["," ":"] @punctuation.delimiter
 "range" "file.lines" @function

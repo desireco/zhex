@@ -38,3 +38,7 @@ type Status = choice
 match Status.Ready
     case Status.Ready
         print("ready")
+let scores: Map<String, Int> = {"Ada": 10}
+scores["Grace"] = 11
+flow scores
+    map.put("Nancy", 23)
