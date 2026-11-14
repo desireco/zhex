@@ -1,13 +1,11 @@
-# Conway's Game of Life on a 7 by 7 board. Reads beyond the board recover as dead cells.
+# Conway's Game of Life on a 7 by 7 board with a fixed-dead exterior.
 word next-cell(grid: Array<Int>, row: Int, column: Int) -> Int
-    let current = grid[row, column] try
+    let current = grid[row, column]
     var around = 0
     for r in range(row - 1, row + 2)
         for c in range(column - 1, column + 2)
-            if r != row or c != column
-                let neighbor = grid[r, c] catch
-                    0
-                if neighbor == 1
+            if r >= 0 and r < 7 and c >= 0 and c < 7 and (r != row or c != column)
+                if grid[r, c] == 1
                     around = around + 1
 
     if current == 1
@@ -22,51 +20,38 @@ word next-cell(grid: Array<Int>, row: Int, column: Int) -> Int
             0
 
 word advance(grid: Array<Int>) -> Array<Int>
-    let following: Array<Int> = array.new([7, 7], 0) try
+    let following: Array<Int> = array.new([7, 7], 0)
     for row in range(0, 7)
         for column in range(0, 7)
-            following[row, column] = next-cell(grid, row, column) try
+            following[row, column] = next-cell(grid, row, column)
     following
 
-word show(grid: Array<Int>) -> Unit
+word show(grid: Array<Int>, generation: Int) -> Array<Int>
+    print("Generation " + int.to-string(generation))
     for row in range(0, 7)
         var line = ""
         for column in range(0, 7)
-            if grid[row, column] try == 1
+            if grid[row, column] == 1
                 line = line + "#"
             else
                 line = line + "."
         print(line)
+    grid
 
-let start: Array<Int> = array.new([7, 7], 0) try
+let start: Array<Int> = array.new([7, 7], 0)
 start[2, 3] = 1
 start[3, 4] = 1
 start[4, 2] = 1
 start[4, 3] = 1
 start[4, 4] = 1
 
-print("Generation 0")
 flow start
-    show try
-print("Generation 1")
-flow start
-    advance try
-    show try
-print("Generation 2")
-flow start
-    advance try
-    advance try
-    show try
-print("Generation 3")
-flow start
-    advance try
-    advance try
-    advance try
-    show try
-print("Generation 4")
-flow start
-    advance try
-    advance try
-    advance try
-    advance try
-    show try
+    show(0)
+    advance
+    show(1)
+    advance
+    show(2)
+    advance
+    show(3)
+    advance
+    show(4)

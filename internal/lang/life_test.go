@@ -12,33 +12,33 @@ func TestLifeBlockBlinkerAndGliderOracles(t *testing.T) {
 		t.Fatal(err)
 	}
 	oracles := `
-let block: Array<Int> = array.new([7, 7], 0) try
+let block: Array<Int> = array.new([7, 7], 0)
 block[2, 2] = 1
 block[2, 3] = 1
 block[3, 2] = 1
 block[3, 3] = 1
-let block-next = advance(block) try
+let block-next = advance(block)
 print("BLOCK")
-show(block-next) try
+show(block-next, 1)
 
-let blinker: Array<Int> = array.new([7, 7], 0) try
+let blinker: Array<Int> = array.new([7, 7], 0)
 blinker[3, 2] = 1
 blinker[3, 3] = 1
 blinker[3, 4] = 1
-let blinker-vertical = advance(blinker) try
-let blinker-horizontal = advance(blinker-vertical) try
+let blinker-vertical = advance(blinker)
+let blinker-horizontal = advance(blinker-vertical)
 print("BLINKER 1")
-show(blinker-vertical) try
+show(blinker-vertical, 1)
 print("BLINKER 2")
-show(blinker-horizontal) try
+show(blinker-horizontal, 2)
 
-let edge: Array<Int> = array.new([7, 7], 0) try
+let edge: Array<Int> = array.new([7, 7], 0)
 edge[3, 0] = 1
 edge[3, 1] = 1
 edge[3, 2] = 1
-let edge-next = advance(edge) try
+let edge-next = advance(edge)
 print("EDGE")
-show(edge-next) try
+show(edge-next, 1)
 `
 	var output bytes.Buffer
 	if err := Run("life-oracle.zhex", string(source)+oracles, bytes.NewBuffer(nil), &output); err != nil {
@@ -85,6 +85,7 @@ Generation 4
 ...###.
 .......
 BLOCK
+Generation 1
 .......
 .......
 ..##...
@@ -93,6 +94,7 @@ BLOCK
 .......
 .......
 BLINKER 1
+Generation 1
 .......
 .......
 ...#...
@@ -101,6 +103,7 @@ BLINKER 1
 .......
 .......
 BLINKER 2
+Generation 2
 .......
 .......
 .......
@@ -109,6 +112,7 @@ BLINKER 2
 .......
 .......
 EDGE
+Generation 1
 .......
 .......
 .#.....

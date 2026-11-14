@@ -26,7 +26,7 @@ func TestEditDistanceAgainstRuneReference(t *testing.T) {
 	var expected = "kitten → sitting: 3\nempty → abc: 3\ncafé → cafe: 1\n"
 	var cases string
 	for _, pair := range pairs {
-		cases += fmt.Sprintf("print(int.to-string(distance(%q, %q) try))\n", pair.left, pair.right)
+		cases += fmt.Sprintf("print(int.to-string(distance(%q, %q)))\n", pair.left, pair.right)
 		expected += fmt.Sprintf("%d\n", referenceDistance(pair.left, pair.right))
 	}
 	var output bytes.Buffer
