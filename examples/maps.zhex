@@ -1,0 +1,36 @@
+let scores = {"Ada": 10, "Grace": 9}
+let empty: Map<String, Int> = {}
+flow empty
+    map.put("Iris", 8)
+    map.length
+    print
+
+scores["Ada"] = 11
+
+flow scores
+    map.put("Nancy", 23)
+    map.length
+    print
+
+match scores["Ada"]
+    case Option.Some(score)
+        print("Ada: " + int.to-string(score))
+    case Option.None
+        print("Ada has no score")
+
+match scores["Morgan"]
+    case Option.Some(score)
+        print("Morgan: " + int.to-string(score))
+    case Option.None
+        print("Morgan has no score")
+
+for name, score in scores
+    print(name + ": " + int.to-string(score))
+
+flow {"Lin": 12}
+    map.into(scores)
+    map.length
+    print
+
+map.remove(scores, "Missing")
+print(map.length(scores))
