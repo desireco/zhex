@@ -9,7 +9,7 @@ and `hint:` line are additive detail. Machine readers use
 The list index is negative or outside its current length. Use a valid zero-based index.
 
 ## collection-limit
-A collection would exceed the runtime limit of 1,000,000 elements. Reduce its size.
+A list or array would exceed the runtime limit of 1,000,000 elements. Reduce its size.
 
 ## collection-iterating
 An active iteration prevents mutation of the traversed collection. Mutate a different collection or wait until traversal finishes.
