@@ -651,3 +651,19 @@ flow 7
 		t.Fatalf("missing flow trace: %s", trace.String())
 	}
 }
+
+func TestTraceSupportsBuiltinPartialFlowStep(t *testing.T) {
+	source := `let values = [1]
+let append = flow values
+    list.append _
+append(2)
+print(list.length(values))
+`
+	var out, trace bytes.Buffer
+	if err := RunWithTrace("test.zhex", source, strings.NewReader(""), &out, &trace); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "2\n" || !strings.Contains(trace.String(), `"event":"flow-step"`) {
+		t.Fatalf("output %q trace %s", out.String(), trace.String())
+	}
+}
