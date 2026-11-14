@@ -35,6 +35,18 @@ func suggestWordHint(name string, candidates []string) string {
 // known name, else the hyphenated-name gotcha, since hyphens join one
 // identifier and subtraction needs spaces.
 func nameHint(name string, candidates []string) string {
+	if suffix, ok := strings.CutPrefix(name, "print"); ok {
+		digits := true
+		for _, c := range suffix {
+			if c < '0' || c > '9' {
+				digits = false
+				break
+			}
+		}
+		if digits {
+			return "write print(expression) to call print"
+		}
+	}
 	if hint := suggestHint(name, candidates); hint != "" {
 		return hint
 	}

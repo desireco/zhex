@@ -195,3 +195,10 @@ func TestResultTypeParsingHandlesNestedGenericCommas(t *testing.T) {
 		t.Fatalf("family %q", family)
 	}
 }
+
+func TestUnknownPrintNameSuggestsCallSyntax(t *testing.T) {
+	got := runError(t, "print1+1\n")
+	if !strings.HasPrefix(got, `bad.zhex:1:1: unknown name "print1"`) || !strings.Contains(got, "write print(expression)") {
+		t.Fatalf("missing call syntax hint: %s", got)
+	}
+}
