@@ -202,3 +202,10 @@ func TestUnknownPrintNameSuggestsCallSyntax(t *testing.T) {
 		t.Fatalf("missing call syntax hint: %s", got)
 	}
 }
+
+func TestPrintWithWhitespaceSuggestsParentheses(t *testing.T) {
+	got := runError(t, "print 1 + 1\n")
+	if !strings.HasPrefix(got, `bad.zhex:1:7: expected newline, found "1"`) || !strings.Contains(got, "write print(expression)") {
+		t.Fatalf("missing call syntax hint: %s", got)
+	}
+}

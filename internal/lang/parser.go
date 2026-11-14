@@ -350,6 +350,9 @@ func (p *parser) statementExpression(allowAssignment bool) *expression {
 		}
 		return &expression{kind: "catch", pos: t.pos, end: t.end, text: name, left: x, handler: p.block()}
 	}
+	if x.kind == "name" && x.text == "print" && !p.at("newline") {
+		panic(withHint(errorAt(p.current().pos, CodeExpectedToken, "expected newline, found %q", p.current().text), "write print(expression) to call print"))
+	}
 	p.require("newline")
 	return x
 }
