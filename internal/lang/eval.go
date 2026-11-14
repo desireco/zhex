@@ -23,6 +23,7 @@ type value struct {
 	array   *arrayValue
 	choice  *choiceValue
 	mapping *mapValue
+	moment  time.Time
 }
 
 const maxCollectionElements = 1000000

@@ -59,6 +59,7 @@ type checker struct {
 }
 
 var hostWords = []string{
+	"date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string",
 	"json.decode", "json.encode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
@@ -123,7 +124,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "date", "time", "duration"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -238,7 +239,7 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 			}
 			if reservedModule(u.name) {
 				return withSpanRange(withHint(errorAt(u.pos, CodeUseReserved, "module name %q is reserved", u.name),
-					"rename the module file — a module cannot be named text, int, buffer, file, console, error, list, array, map, or json"), u.pos, u.end)
+					"rename the module file — a module cannot use a built-in namespace such as text, json, date, time, or duration"), u.pos, u.end)
 			}
 			src, ok := ModuleSource{}, false
 			if resolve != nil {
@@ -1439,6 +1440,33 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				result = args[1]
 			}
 			params = args
+		case "date.new", "time.new":
+			params = []valueType{intType, intType, intType}
+			result = dateType
+			if x.text == "time.new" {
+				result = timeType
+			}
+		case "date.parse", "time.parse", "duration.parse":
+			params = []valueType{stringType}
+			result = "Result<Date, Error>"
+			if x.text == "time.parse" {
+				result = "Result<Time, Error>"
+			}
+			if x.text == "duration.parse" {
+				result = "Result<Duration, Error>"
+			}
+		case "date.to-string", "time.to-string", "duration.to-string":
+			params, result = []valueType{dateType}, stringType
+			if x.text == "time.to-string" {
+				params[0] = timeType
+			}
+			if x.text == "duration.to-string" {
+				params[0] = durationType
+			}
+		case "date.add-days":
+			params, result = []valueType{dateType, intType}, dateType
+		case "duration.new":
+			params, result = []valueType{intType}, durationType
 		case "array.new", "array.resize", "array.shape", "array.rank", "array.length":
 			count := 1
 			if x.text == "array.new" {

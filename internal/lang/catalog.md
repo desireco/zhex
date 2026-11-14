@@ -237,3 +237,23 @@ A JSON integer or collection exceeds the supported range. Correct the value or r
 ## json-depth
 
 JSON nesting exceeds the supported depth of 256. Reduce the nesting.
+
+## date-parse
+
+A date string is invalid. Use a Gregorian date in `YYYY-MM-DD` form.
+
+## time-parse
+
+A time string is invalid. Use `HH:MM:SS`, optionally followed by fractional seconds.
+
+## duration-parse
+
+A duration string is invalid or outside the supported nanosecond range.
+
+## temporal-invalid
+
+Numeric date or time components are outside their valid range.
+
+## temporal-range
+
+Temporal arithmetic produced a value outside the supported range.

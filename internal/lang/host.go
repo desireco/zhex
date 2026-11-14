@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -26,6 +27,8 @@ func (r *runtime) write(pos position, text string) error {
 
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
+	case "date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string":
+		return temporalBuiltin(x, args)
 	case "json.decode":
 		return decodeJSON(x.pos, args[0].text, args[1], x.jsonSchema), nil
 	case "json.encode":
@@ -276,6 +279,12 @@ func formatValue(v value, typ valueType) string {
 		return fmt.Sprintf("buffer(%d lines)", len(v.buffer.lines))
 	case fileType:
 		return fmt.Sprintf("file(%q)", v.file.path)
+	case dateType:
+		return v.moment.Format("2006-01-02")
+	case timeType:
+		return v.moment.Format("15:04:05.999999999")
+	case durationType:
+		return time.Duration(v.number).String()
 	}
 	if v.mapping != nil {
 		return fmt.Sprintf("map(%d entries)", len(v.mapping.entries))

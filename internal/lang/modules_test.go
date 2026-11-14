@@ -179,7 +179,7 @@ func TestUseReservedModuleNames(t *testing.T) {
 		if !strings.Contains(got, "\n    "+strings.Repeat("^", len("use ")+len(name))+"\nhint:") {
 			t.Fatalf("caret must span the use statement: %q", got)
 		}
-		if !strings.Contains(got, "hint: rename the module file — a module cannot be named text, int, buffer, file, console, error, list, array, map, or json") {
+		if !strings.Contains(got, "hint: rename the module file — a module cannot use a built-in namespace such as text, json, date, time, or duration") {
 			t.Fatalf("missing hint: %q", got)
 		}
 	}

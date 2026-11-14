@@ -122,7 +122,7 @@ func (c *checker) normalizeTypeSeen(typ valueType, seen map[*recordType]bool) (v
 		return valueType("Result<" + string(normalized) + ", " + resultFamily(typ) + ">"), true
 	}
 	switch typ {
-	case intType, boolType, stringType, unitType, bufferType, fileType, errorType:
+	case intType, boolType, stringType, unitType, bufferType, fileType, errorType, dateType, timeType, durationType:
 		return typ, true
 	}
 	if record := c.types.visible[string(typ)]; record != nil && record.typeParam == "" {

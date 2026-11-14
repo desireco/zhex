@@ -13,6 +13,11 @@ type Code string
 // this list, the constructors' usage, and catalog.md in sync — the test in
 // codes_test.go fails when they drift.
 const (
+	CodeDateParse           Code = "date-parse"
+	CodeTimeParse           Code = "time-parse"
+	CodeDurationParse       Code = "duration-parse"
+	CodeTemporalInvalid     Code = "temporal-invalid"
+	CodeTemporalRange       Code = "temporal-range"
 	CodeJSONSyntax          Code = "json-syntax"
 	CodeJSONType            Code = "json-type"
 	CodeJSONField           Code = "json-field"
@@ -91,6 +96,7 @@ const (
 )
 
 var diagnosticCodes = []Code{
+	CodeDateParse, CodeTimeParse, CodeDurationParse, CodeTemporalInvalid, CodeTemporalRange,
 	CodeErrorNoCause, CodeExitStatus, CodeJSONSyntax, CodeJSONType, CodeJSONField, CodeJSONRange, CodeJSONDepth, CodeArrayRange, CodeArrayRank, CodeArrayShape, CodeListRange, CodeCollectionLimit, CodeCollectionIterating,
 	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeStringEscape, CodeUnexpectedCharacter,
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,

@@ -65,7 +65,7 @@ func (c *checker) effectResult(x *expression, env map[string]string, effects map
 			return []string{"FileError"}
 		case "buffer.line", "buffer.set-line":
 			return []string{"BufferError"}
-		case "list.append", "array.new", "array.resize", "error.cause", "json.decode", "json.encode":
+		case "list.append", "array.new", "array.resize", "error.cause", "json.decode", "json.encode", "date.parse", "time.parse", "duration.parse":
 			return []string{"Error"}
 		}
 		if w, _ := c.resolveWord(x.text); w != nil {
