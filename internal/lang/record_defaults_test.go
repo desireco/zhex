@@ -102,3 +102,21 @@ print(config.second)
 		t.Fatal(out.String())
 	}
 }
+
+func TestRecordDefaultCanCallHelperThatHandlesFailure(t *testing.T) {
+	source := `word fallback() -> Int
+    text.to-int("bad") catch
+        3
+type Config = record
+    retries: Int = fallback()
+let c = Config()
+print(c.retries)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "3\n" {
+		t.Fatal(out.String())
+	}
+}
