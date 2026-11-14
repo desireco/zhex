@@ -21,6 +21,7 @@ type value struct {
 	record  *recordValue
 	list    *listValue
 	array   *arrayValue
+	choice  *choiceValue
 }
 
 const maxCollectionElements = 1000000
@@ -28,6 +29,12 @@ const maxCollectionElements = 1000000
 type listValue struct {
 	items  []value
 	active int
+}
+
+type choiceValue struct {
+	name    string
+	variant int
+	fields  []value
 }
 
 type arrayValue struct {
@@ -350,11 +357,31 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 	case "string":
 		return value{text: x.text}, nil
 	case "name":
+		if x.record != nil && x.record.choice {
+			return value{choice: &choiceValue{name: x.record.id() + "." + x.record.variants[x.variant].name, variant: x.variant}}, nil
+		}
 		v := env[x.binding]
 		for _, index := range x.fields {
 			v = v.record.fields[index]
 		}
 		return v, nil
+	case "match":
+		subject, err := r.expression(x.left, env)
+		if err != nil {
+			return value{}, err
+		}
+		for _, arm := range x.arms {
+			if arm.variant < 0 || arm.variant == subject.choice.variant {
+				for i, b := range arm.bindings {
+					if b != nil {
+						env[b] = subject.choice.fields[i]
+						r.traceBinding(arm.pos, b, subject.choice.fields[i])
+					}
+				}
+				return r.block(arm.body, env)
+			}
+		}
+		return value{}, errorAt(x.pos, CodeUnsupportedCode, "unmatched choice")
 	case "call":
 		if x.text == "error.set-reporter" {
 			r.reporter = &expression{word: x.word, text: x.args[0].text, pos: x.pos, inputType: errorType}
@@ -430,6 +457,9 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 
 func (r *runtime) call(x *expression, args []value) (value, error) {
 	if x.record != nil {
+		if x.record.choice {
+			return value{choice: &choiceValue{name: x.record.id() + "." + x.record.variants[x.variant].name, variant: x.variant, fields: args}}, nil
+		}
 		return value{record: &recordValue{name: x.record.id(), fields: args}}, nil
 	}
 	if x.word == nil {

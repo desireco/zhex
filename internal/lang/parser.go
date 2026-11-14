@@ -65,7 +65,7 @@ func (p *parser) require(kind string) token {
 // Reserved reports whether name is a Zhex keyword.
 func Reserved(name string) bool {
 	switch name {
-	case "word", "type", "record", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "catch", "return", "and", "or", "not", "true", "false":
+	case "word", "type", "record", "choice", "match", "case", "use", "let", "var", "if", "elif", "else", "for", "in", "flow", "try", "catch", "return", "and", "or", "not", "true", "false":
 		return true
 	}
 	return false
@@ -112,21 +112,42 @@ func (p *parser) parseRecord() *recordType {
 	p.require("type")
 	name := p.name()
 	p.require("=")
-	p.require("record")
+	choice := p.accept("choice")
+	if !choice {
+		p.require("record")
+	}
 	p.require("newline")
 	if !p.at("indent") {
 		panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented block"))
 	}
 	p.require("indent")
-	result := &recordType{name: name.text, pos: name.pos}
+	result := &recordType{name: name.text, pos: name.pos, choice: choice}
 	for !p.at("dedent") && !p.at("eof") {
 		field := p.name()
-		p.require(":")
-		result.fields = append(result.fields, parameter{name: field.text, pos: field.pos, typ: p.parseType()})
+		if choice {
+			variant := choiceVariant{name: field.text, pos: field.pos}
+			if p.accept("(") {
+				if !p.at(")") {
+					for {
+						n := p.name()
+						p.require(":")
+						variant.fields = append(variant.fields, parameter{name: n.text, pos: n.pos, typ: p.parseType()})
+						if !p.accept(",") {
+							break
+						}
+					}
+				}
+				p.require(")")
+			}
+			result.variants = append(result.variants, variant)
+		} else {
+			p.require(":")
+			result.fields = append(result.fields, parameter{name: field.text, pos: field.pos, typ: p.parseType()})
+		}
 		p.require("newline")
 	}
 	p.require("dedent")
-	if len(result.fields) == 0 {
+	if len(result.fields) == 0 && len(result.variants) == 0 {
 		panic(errorAt(name.pos, CodeEmptyBlock, "record requires at least one field"))
 	}
 	return result
@@ -274,6 +295,9 @@ func (p *parser) parseStatement() *statement {
 
 // statementExpression accepts an indented catch as the whole statement value.
 func (p *parser) statementExpression() *expression {
+	if p.at("match") {
+		return p.parseMatch()
+	}
 	x := p.expression(0)
 	if p.at("catch") {
 		t := p.take()
@@ -284,6 +308,41 @@ func (p *parser) statementExpression() *expression {
 		return &expression{kind: "catch", pos: t.pos, end: t.end, text: name, left: x, handler: p.block()}
 	}
 	p.require("newline")
+	return x
+}
+
+func (p *parser) parseMatch() *expression {
+	t := p.require("match")
+	x := &expression{kind: "match", pos: t.pos, left: p.expression(0)}
+	p.require("newline")
+	p.require("indent")
+	p.depth++
+	defer func() { p.depth-- }()
+	if p.depth > 256 {
+		panic(errorAt(t.pos, CodeNestingLimit, "syntax nesting limit exceeded"))
+	}
+	for !p.at("dedent") && !p.at("eof") {
+		c := p.require("case")
+		name := p.name()
+		arm := matchArm{pos: c.pos, name: name.text}
+		if p.accept("(") {
+			if !p.at(")") {
+				for {
+					arm.names = append(arm.names, p.name().text)
+					if !p.accept(",") {
+						break
+					}
+				}
+			}
+			p.require(")")
+		}
+		arm.body = p.block()
+		x.arms = append(x.arms, arm)
+	}
+	p.require("dedent")
+	if len(x.arms) == 0 {
+		panic(errorAt(t.pos, CodeEmptyBlock, "match requires at least one case"))
+	}
 	return x
 }
 

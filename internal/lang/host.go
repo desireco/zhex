@@ -256,6 +256,9 @@ func formatValue(v value, typ valueType) string {
 	if v.list != nil {
 		return fmt.Sprintf("list(%d elements)", len(v.list.items))
 	}
+	if v.choice != nil {
+		return fmt.Sprintf("choice(%s)", v.choice.name)
+	}
 	if v.record != nil {
 		return fmt.Sprintf("record(%s)", v.record.name)
 	}

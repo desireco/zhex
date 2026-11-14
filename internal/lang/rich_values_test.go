@@ -473,3 +473,183 @@ func TestErrorValuedFlowSuggestsDirectCall(t *testing.T) {
 		t.Fatalf("missing actionable flow diagnostic: %v", err)
 	}
 }
+
+func TestChoicesConstructAndMatch(t *testing.T) {
+	source := "type Status = choice\n    Pending\n    Running\n    Failed(message: String)\nword describe(status: Status) -> String\n    match status\n        case Status.Pending\n            \"pending\"\n        case Status.Running\n            \"running\"\n        case Status.Failed(message)\n            message\nlet status = Status.Failed(\"offline\")\nprint(describe(status))\nlet text = match Status.Pending\n    case Status.Pending\n        \"waiting\"\n    case _\n        \"other\"\nprint(text)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "offline\nwaiting\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
+
+func TestChoicesRequireExhaustiveAndValidPatterns(t *testing.T) {
+	prefix := "type Status = choice\n    Pending\n    Failed(message: String)\nlet status = Status.Pending\n"
+	for _, body := range []string{"match status\n    case Status.Pending\n        print(1)\n", "match status\n    case Status.Pending\n        print(1)\n    case Status.Pending\n        print(2)\n    case _\n        print(3)\n", "match status\n    case Status.Failed\n        print(1)\n    case _\n        print(2)\n", "match status\n    case _\n        print(1)\n    case Status.Pending\n        print(2)\n"} {
+		if _, err := Compile("test.zhex", prefix+body); err == nil {
+			t.Errorf("accepted invalid match %q", body)
+		}
+	}
+}
+
+func TestChoiceModulePrivacyAndREPL(t *testing.T) {
+	modules := map[string]ModuleSource{"model": {Path: "model.zhex", Source: "type Status = choice\n    Ready\n    Failed(message: String)\ntype _Hidden = choice\n    Secret\nword create() -> Status\n    Status.Failed(\"bad\")\n"}}
+	resolve := func(name string) (ModuleSource, bool) { m, ok := modules[name]; return m, ok }
+	source := "use model\nlet status = model.create()\nmatch status\n    case model.Status.Ready\n        print(\"ready\")\n    case model.Status.Failed(message)\n        print(message)\n"
+	var out bytes.Buffer
+	if err := RunWithModules("main.zhex", source, strings.NewReader(""), &out, nil, nil, resolve); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "bad\n" {
+		t.Fatal(out.String())
+	}
+	if _, err := CompileModules("main.zhex", "use model\nlet x = model._Hidden.Secret\n", resolve); err == nil {
+		t.Fatal("private choice accessible")
+	} else if d, ok := err.(*diagnostic); !ok || d.code != CodePrivateUse {
+		t.Fatalf("wanted private-use: %v", err)
+	}
+	session := NewSession(strings.NewReader(""), &out, nil, resolve)
+	if _, err := session.Enter("type Mood = choice\n    Happy\n    Sad\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Enter("let m = Mood.Happy\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Enter("m\n"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestChoicePayloadAndMatchRestrictions(t *testing.T) {
+	cases := []string{
+		"type E = choice\n    Bad(reason: Error)\nlet x = text.to-int(\"bad\") catch problem\n    let e = E.Bad(problem)\n    0\n",
+		"type E = choice\n    Bad(problem: Result<Int, Error>)\n",
+		"type E = choice\n    A\n    A\n",
+		"type E = choice\n    A\nword E.A() -> Int\n    0\n",
+		"type E = choice\n    A\nlet x = E.A()\n",
+		"type E = choice\n    A(x: Int)\nlet a = E.A(2)\nmatch a\n    case E.A(x)\n        x = 3\n",
+		"type E = choice\n    A\nlet x = E.A\nprint(x)\n",
+		"type E = choice\n    A\nlet x = E.A\nprint(x == x)\n",
+		"type E = choice\n    A\n    B\nlet x = E.A\nmatch x\n    case E.A\n        1\n    case E.B\n        true\n",
+	}
+	for _, src := range cases {
+		if _, err := Compile("test.zhex", src); err == nil {
+			t.Errorf("accepted invalid choice:\n%s", src)
+		}
+	}
+}
+
+func TestMatchEvaluatesSubjectOnceAndSupportsNever(t *testing.T) {
+	source := "type Status = choice\n    Good(value: Int)\n    Missing\nlet calls = [0]\nword next(calls: List<Int>) -> Status\n    let count = calls[0] try\n    (calls[0] = count + 1) try\n    Status.Good(7)\nlet value = match next(calls)\n    case Status.Good(value)\n        value\n    case Status.Missing\n        console.exit(4)\nprint(value)\nprint(calls[0] try)\n"
+	// next needs a fallible signature for checked collection access.
+	source = strings.Replace(source, "word next(calls: List<Int>) -> Status", "word next(calls: List<Int>) -> Result<Status, Error>", 1)
+	source = strings.Replace(source, "    Status.Good(7)\n", "    ok(Status.Good(7))\n", 1)
+	source = strings.Replace(source, "match next(calls)\n", "match next(calls) try\n", 1)
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n1\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestChoiceTraceAndTypeNameShadow(t *testing.T) {
+	source := "type Status = choice\n    Ready\nlet Status = 4\nlet state = Status.Ready\nmatch state\n    case Status.Ready\n        print(Status)\n"
+	var out, trace bytes.Buffer
+	if err := RunWithTrace("test.zhex", source, strings.NewReader(""), &out, &trace); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "4\n" || !strings.Contains(trace.String(), "choice(Status.Ready)") {
+		t.Fatalf("output %q trace %q", out.String(), trace.String())
+	}
+}
+
+func TestMatchCanReturnResultWithoutDiscard(t *testing.T) {
+	source := "type Switch = choice\n    On\n    Off\nword convert(s: Switch) -> Result<Int, Error>\n    match s\n        case Switch.On\n            ok(1)\n        case Switch.Off\n            err(error.new(\"off\", \"off\"))\nprint(convert(Switch.On) try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n" {
+		t.Fatal(out.String())
+	}
+	bad := "type Switch = choice\n    On\nword run() -> Result<Int, Error>\n    for n in range(0, 1)\n        match Switch.On\n            case Switch.On\n                err(error.new(\"lost\", \"lost\"))\n    ok(1)\n"
+	if _, err := Compile("test.zhex", bad); err == nil {
+		t.Fatal("discarded Result from match in loop")
+	}
+}
+
+func TestMatchCannotEraseCaughtErrorFamily(t *testing.T) {
+	source := "type Status = choice\n    Ready\nlet n = text.to-int(\"bad\") catch problem\n    let erased = match Status.Ready\n        case Status.Ready\n            problem\n    let errors: List<Error> = [erased]\n    0\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("match erased caught error family")
+	}
+	safe := strings.Replace(source, "            problem\n", "            error.wrap(\"converted\", \"converted\", problem)\n", 1)
+	if _, err := Compile("test.zhex", safe); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMatchPropagatesExpectedTypeIntoBranches(t *testing.T) {
+	source := "type Flag = choice\n    On\n    Off\nlet xs: List<Int> = match Flag.On\n    case Flag.On\n        []\n    case Flag.Off\n        [1]\nprint(list.length(xs))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "0\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestMatchSupportsFlowAsBranchResult(t *testing.T) {
+	source := "type Status = choice\n    Ready(name: String)\n    Missing\nword label(status: Status) -> String\n    match status\n        case Status.Ready(name)\n            flow name\n                text.upper\n        case Status.Missing\n            \"unknown\"\nprint(label(Status.Ready(\"ada\")))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "ADA\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestChoiceConstructorCannotShadowImportedWord(t *testing.T) {
+	resolve := func(name string) (ModuleSource, bool) {
+		if name == "Status" {
+			return ModuleSource{Path: "Status.zhex", Source: "word Failed(message: String) -> String\n    message\n"}, true
+		}
+		return ModuleSource{}, false
+	}
+	source := "use Status\ntype Status = choice\n    Failed(message: String)\n"
+	if _, err := CompileModules("main.zhex", source, resolve); err == nil {
+		t.Fatal("choice constructor shadowed imported word")
+	}
+}
+
+func TestChoicesRejectPrivatePayloadLeakAndRecursiveGraph(t *testing.T) {
+	modules := map[string]ModuleSource{"model": {Path: "model.zhex", Source: "type _Hidden = record\n    value: Int\ntype Public = choice\n    Revealed(value: _Hidden)\n"}}
+	resolve := func(name string) (ModuleSource, bool) { m, ok := modules[name]; return m, ok }
+	if _, err := CompileModules("main.zhex", "use model\n", resolve); err == nil {
+		t.Fatal("public choice leaks private type")
+	}
+	for _, src := range []string{"type A = choice\n    Child(value: List<A>)\n", "type A = choice\n    Child(value: B)\ntype B = record\n    value: A\n"} {
+		if _, err := Compile("test.zhex", src); err == nil {
+			t.Errorf("accepted recursive choice graph: %q", src)
+		}
+	}
+}
+
+func TestChoiceConstructorCannotShadowImportedType(t *testing.T) {
+	resolve := func(name string) (ModuleSource, bool) {
+		if name == "Status" {
+			return ModuleSource{Path: "Status.zhex", Source: "type Failed = record\n    message: String\n"}, true
+		}
+		return ModuleSource{}, false
+	}
+	source := "use Status\ntype Status = choice\n    Failed(message: String)\n"
+	if _, err := CompileModules("main.zhex", source, resolve); err == nil {
+		t.Fatal("choice constructor shadowed imported record constructor")
+	}
+}

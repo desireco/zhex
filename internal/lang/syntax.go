@@ -237,10 +237,26 @@ type word struct {
 }
 
 type recordType struct {
-	module string
+	module   string
+	name     string
+	pos      position
+	fields   []parameter
+	choice   bool
+	variants []choiceVariant
+}
+
+type choiceVariant struct {
 	name   string
 	pos    position
 	fields []parameter
+}
+type matchArm struct {
+	pos      position
+	name     string
+	names    []string
+	bindings []*binding
+	variant  int
+	body     []*statement
 }
 
 func (r *recordType) id() string {
@@ -281,6 +297,8 @@ type expression struct {
 	word        *word
 	record      *recordType
 	fields      []int
+	arms        []matchArm
+	variant     int
 	handler     []*statement
 	propagate   bool
 }

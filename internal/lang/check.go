@@ -325,7 +325,8 @@ func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
 // duplicates and host collisions.
 func (c *checker) register(words []*word) error {
 	for _, w := range words {
-		if c.words[w.name] != nil || c.types.visible[w.name] != nil || HostWord(w.name) {
+		variant, _ := c.resolveVariant(w.name)
+		if c.words[w.name] != nil || c.types.visible[w.name] != nil || variant != nil || HostWord(w.name) {
 			return errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
 		}
 		c.words[w.name] = w
@@ -451,7 +452,24 @@ func blockReturnsConcreteError(body []*statement) bool {
 	if last.kind != "expression" || last.expr == nil {
 		return false
 	}
-	b := last.expr.binding
+	return expressionReturnsConcreteError(last.expr)
+}
+
+func expressionReturnsConcreteError(x *expression) bool {
+	if x == nil {
+		return false
+	}
+	if x.kind == "match" {
+		for _, arm := range x.arms {
+			if blockReturnsConcreteError(arm.body) {
+				return true
+			}
+		}
+	}
+	if x.kind == "catch" {
+		return blockReturnsConcreteError(x.handler)
+	}
+	b := x.binding
 	return b != nil && b.errorFamily != "" && b.errorFamily != "Error"
 }
 
@@ -498,7 +516,8 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 		if isResult(typ) {
 			constructor := s.kind == "expression" && s.expr.kind == "call" && (s.expr.text == "ok" || s.expr.text == "err")
 			flowConstructor := s.kind == "flow" && len(s.steps) > 0 && s.steps[len(s.steps)-1].text == "ok"
-			if i != len(body)-1 || !isResult(c.wordResult) || !(constructor || flowConstructor || s.kind == "if") {
+			matchConstructor := s.kind == "expression" && s.expr.kind == "match"
+			if i != len(body)-1 || !isResult(c.wordResult) || !(constructor || flowConstructor || matchConstructor || s.kind == "if") {
 				return "", withHint(errorAt(s.pos, CodeUnhandledResult, "Result must be handled or propagated"), "use try or catch")
 			}
 		}
@@ -772,6 +791,17 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	case "string":
 		typ = stringType
 	case "name":
+		if choice, module := c.privateVariant(x.text); choice != nil {
+			return "", errorAt(x.pos, CodePrivateUse, "%q is private to module %q", choice.name, module.name)
+		}
+		if choice, variant := c.resolveVariant(x.text); choice != nil {
+			if len(choice.variants[variant].fields) != 0 {
+				return "", errorAt(x.pos, CodeArgumentCount, "%s requires payload arguments", x.text)
+			}
+			x.record, x.variant = choice, variant
+			typ = valueType(choice.id())
+			break
+		}
 		x.binding = env.find(x.text)
 		if x.binding == nil {
 			parts := strings.Split(x.text, ".")
@@ -831,6 +861,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				params = append(params, param.typ)
 			}
 		}
+		if choice, variant := c.resolveVariant(x.text); choice != nil {
+			for _, field := range choice.variants[variant].fields {
+				params = append(params, field.typ)
+			}
+		}
 		if record := c.types.visible[x.text]; record != nil {
 			for _, field := range record.fields {
 				params = append(params, field.typ)
@@ -869,6 +904,81 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			}
 		}
 		return c.call(x, args)
+	case "match":
+		subject, err := c.expressionExpected(x.left, env, "")
+		if err != nil {
+			return "", err
+		}
+		choice := c.types.all[string(subject)]
+		if choice == nil || !choice.choice {
+			return "", errorAt(x.pos, CodeArgumentType, "match requires a choice value")
+		}
+		seen := make(map[int]bool)
+		hasDefault := false
+		branchType := valueType("")
+		for i := range x.arms {
+			arm := &x.arms[i]
+			scope := newScope(env)
+			arm.variant = -1
+			if arm.name == "_" {
+				if len(arm.names) > 0 || hasDefault || i != len(x.arms)-1 || len(seen) == len(choice.variants) {
+					return "", errorAt(arm.pos, CodeArgumentType, "default case must be last and reachable")
+				}
+				hasDefault = true
+			} else {
+				candidate, index := c.resolveVariant(arm.name)
+				if candidate != choice || index < 0 {
+					return "", errorAt(arm.pos, CodeArgumentType, "case %q is not a variant of %s", arm.name, subject)
+				}
+				if seen[index] {
+					return "", errorAt(arm.pos, CodeDuplicateName, "duplicate case %q", arm.name)
+				}
+				seen[index] = true
+				arm.variant = index
+				fields := choice.variants[index].fields
+				if len(arm.names) != len(fields) {
+					return "", errorAt(arm.pos, CodeArgumentCount, "case %s requires %d payload bindings", arm.name, len(fields))
+				}
+				arm.bindings = make([]*binding, len(fields))
+				for n, name := range arm.names {
+					if name == "_" {
+						continue
+					}
+					if strings.Contains(name, ".") {
+						return "", errorAt(arm.pos, CodeExpectedName, "case binding must be a simple name")
+					}
+					b, err := scope.define(arm.pos, name, fields[n].typ, false)
+					if err != nil {
+						return "", err
+					}
+					arm.bindings[n] = b
+				}
+			}
+			previousExpected := c.blockExpected
+			c.blockExpected = c.expected
+			result, err := c.block(arm.body, scope)
+			c.blockExpected = previousExpected
+			if err != nil {
+				return "", err
+			}
+			if result == errorType && blockReturnsConcreteError(arm.body) {
+				return "", errorAt(arm.pos, CodeArgumentType, "convert concrete errors with error.wrap before returning them from match")
+			}
+			if result != neverType {
+				if branchType == "" {
+					branchType = result
+				} else if branchType != result {
+					return "", errorAt(arm.pos, CodeBranchType, "match case result types must match: %s and %s", branchType, result)
+				}
+			}
+		}
+		if !hasDefault && len(seen) != len(choice.variants) {
+			return "", errorAt(x.pos, CodeArgumentType, "match must cover every variant or have a default case")
+		}
+		if branchType == "" {
+			branchType = neverType
+		}
+		typ = branchType
 	case "try":
 		inner, err := c.expression(x.left, env)
 		if err != nil {
@@ -977,10 +1087,29 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 	var params []valueType
 	var result valueType
+	if choice, module := c.privateVariant(x.text); choice != nil {
+		return "", errorAt(x.pos, CodePrivateUse, "%q is private to module %q", choice.name, module.name)
+	}
 	if record, module := c.privateRecord(x.text); record != nil {
 		return "", withHint(errorAt(x.pos, CodePrivateUse, "%q is private to module %q", record.name, module.name), fmt.Sprintf("remove the leading underscore in %s to export it", module.path))
 	}
-	if record := c.types.visible[x.text]; record != nil {
+	if choice, index := c.resolveVariant(x.text); choice != nil {
+		fields := choice.variants[index].fields
+		if len(fields) == 0 {
+			return "", errorAt(x.pos, CodeArgumentCount, "nullary variant %s is a value, not a call", x.text)
+		}
+		x.record, x.variant = choice, index
+		result = valueType(choice.id())
+		for i, field := range fields {
+			params = append(params, field.typ)
+			if i < len(x.args) && field.typ == errorType && x.args[i].binding != nil && x.args[i].binding.errorFamily != "" && x.args[i].binding.errorFamily != "Error" {
+				return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+			}
+		}
+	} else if record := c.types.visible[x.text]; record != nil {
+		if record.choice {
+			return "", errorAt(x.pos, CodeArgumentType, "construct a variant of %s", x.text)
+		}
 		for i, arg := range x.args {
 			if i < len(record.fields) && record.fields[i].typ == errorType && arg.binding != nil && arg.binding.errorFamily != "" && arg.binding.errorFamily != "Error" {
 				return "", errorAt(arg.pos, CodeArgumentType, "convert %s explicitly with error.wrap before storing it as Error", arg.binding.errorFamily)

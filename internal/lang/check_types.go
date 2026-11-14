@@ -123,6 +123,45 @@ func (c *checker) registerRecords(records []*recordType) error {
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
 	}
 	for _, record := range records {
+		variants := make(map[string]bool)
+		for i := range record.variants {
+			variant := &record.variants[i]
+			if strings.Contains(variant.name, ".") || variants[variant.name] {
+				return errorAt(variant.pos, CodeDuplicateName, "variant %q is invalid or already defined", variant.name)
+			}
+			variants[variant.name] = true
+			if c.used(record.name) && !strings.HasPrefix(variant.name, "_") {
+				if module := c.modules[record.name]; module != nil {
+					if module.words[variant.name] != nil {
+						return errorAt(variant.pos, CodeDuplicateName, "variant %q conflicts with an imported word", variant.name)
+					}
+					for _, imported := range module.recordOrder {
+						if imported.name == variant.name {
+							return errorAt(variant.pos, CodeDuplicateName, "variant %q conflicts with an imported type", variant.name)
+						}
+					}
+				}
+			}
+			if c.words[record.name+"."+variant.name] != nil {
+				return errorAt(variant.pos, CodeDuplicateName, "variant %q conflicts with a word", variant.name)
+			}
+			names := make(map[string]bool)
+			for j := range variant.fields {
+				field := &variant.fields[j]
+				if strings.Contains(field.name, ".") || names[field.name] {
+					return errorAt(field.pos, CodeDuplicateName, "payload %q is invalid or already defined", field.name)
+				}
+				names[field.name] = true
+				typ, ok := c.normalizeType(field.typ)
+				if !ok || isResult(typ) {
+					return c.typeError(field.pos, field.typ)
+				}
+				field.typ = typ
+				if record.module != "" && !strings.HasPrefix(record.name, "_") && privateTypeInModule(typ, record.module) {
+					return privateTypeLeak(field.pos, typ)
+				}
+			}
+		}
 		fields := make(map[string]bool)
 		for i := range record.fields {
 			field := &record.fields[i]
@@ -157,7 +196,11 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 		active[record.id()] = true
 		height := 1
-		for _, field := range record.fields {
+		fields := append([]parameter(nil), record.fields...)
+		for _, variant := range record.variants {
+			fields = append(fields, variant.fields...)
+		}
+		for _, field := range fields {
 			typ := field.typ
 			for {
 				_, inner, ok := collectionInner(typ)
@@ -185,4 +228,40 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 	}
 	return nil
+}
+
+// resolveVariant finds a visible nominal choice constructor by its full name.
+func (c *checker) resolveVariant(name string) (*recordType, int) {
+	i := strings.LastIndex(name, ".")
+	if i < 0 {
+		return nil, -1
+	}
+	choice := c.types.visible[name[:i]]
+	if choice == nil || !choice.choice {
+		return nil, -1
+	}
+	for n, variant := range choice.variants {
+		if variant.name == name[i+1:] {
+			return choice, n
+		}
+	}
+	return nil, -1
+}
+
+// privateVariant identifies an inaccessible choice without exposing it to lookup.
+func (c *checker) privateVariant(name string) (*recordType, *module) {
+	i := strings.LastIndex(name, ".")
+	if i < 0 {
+		return nil, nil
+	}
+	choice, module := c.privateRecord(name[:i])
+	if choice == nil || !choice.choice {
+		return nil, nil
+	}
+	for _, variant := range choice.variants {
+		if variant.name == name[i+1:] {
+			return choice, module
+		}
+	}
+	return nil, nil
 }
