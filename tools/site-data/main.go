@@ -237,10 +237,10 @@ var exampleSpecs = []struct {
 	files                                []string // labeled library files beside the entry (a module)
 }{
 	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", "Language basics", nil, nil},
-	{"partials", "Explicit partial application", "Capture arguments with holes, then call the resulting word value.", "", "Language basics", nil, nil},
+	{"composition", "Composition", "Build larger operations from small typed words.", "", "Language basics", nil, nil},
 	{"calls", "Calls and defaults", "Call words with or without parentheses and compose them in flows.", "", "Language basics", nil, nil},
 	{"word-defaults", "Word defaults", "Use inferred parameter defaults and fresh values for each call.", "", "Language basics", nil, nil},
-	{"composition", "Composition", "Build larger operations from small typed words.", "", "Language basics", nil, nil},
+	{"partials", "Explicit partial application", "Capture arguments with holes, then call the resulting word value.", "", "Language basics", nil, nil},
 	{"records", "Named records", "Group related values in a checked named type.", "", "Language basics", nil, nil},
 	{"choices", "Choices and matching", "Select and handle alternatives with a checked match.", "", "Language basics", nil, nil},
 	{"collections", "Lists and arrays", "Build and safely iterate lists and rectangular arrays.", "", "Language basics", nil, nil},
