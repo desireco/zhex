@@ -604,6 +604,13 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 	}
 	r.depth++
 	defer func() { r.depth-- }()
+	for i := len(args); i < len(x.word.params); i++ {
+		v, err := r.expression(x.word.params[i].defaultExpr, make(frame))
+		if err != nil {
+			return value{}, err
+		}
+		args = append(args, v)
+	}
 	r.traceWordCall(x, args)
 	env := make(frame, len(x.word.params))
 	for i, p := range x.word.params {

@@ -189,6 +189,11 @@ func (p *parser) parseWord() *word {
 			if p.accept(":") {
 				param.typ = p.parseType()
 			}
+			if p.accept("=") {
+				param.defaultExpr = p.expression(0)
+			} else if len(w.params) > 0 && w.params[len(w.params)-1].defaultExpr != nil {
+				panic(errorAt(n.pos, CodeArgumentCount, "required parameters must precede parameters with defaults"))
+			}
 			w.params = append(w.params, param)
 			if !p.accept(",") {
 				break

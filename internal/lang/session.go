@@ -305,6 +305,9 @@ func (s *Session) Words() []string {
 		params := make([]string, len(w.params))
 		for i, param := range w.params {
 			params[i] = fmt.Sprintf("%s: %s", param.name, param.typ)
+			if param.defaultExpr != nil {
+				params[i] += " = ..."
+			}
 		}
 		sigs = append(sigs, fmt.Sprintf("%s(%s) -> %s", name, strings.Join(params, ", "), w.result))
 	}

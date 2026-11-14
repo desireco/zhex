@@ -205,6 +205,9 @@ func (s *returnInference) infer(words []*word) error {
 			} else {
 				env[param.name] = termFromType(param.typ)
 			}
+			if param.defaultExpr != nil {
+				s.equal(env[param.name], s.expr(param.defaultExpr, inferScope{}, false), param.pos)
+			}
 		}
 		value := s.block(w.body, env)
 		if value.root().name != string(neverType) {

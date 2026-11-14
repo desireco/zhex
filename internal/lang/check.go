@@ -328,6 +328,34 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 	return byName, order, nil
 }
 
+// checkWordDefaults checks omitted-argument expressions in the declaration's
+// module scope, before any user code executes.
+func (c *checker) checkWordDefaults(words []*word) error {
+	previousResult, previousExpected := c.wordResult, c.blockExpected
+	c.wordResult, c.blockExpected = "", ""
+	defer func() { c.wordResult, c.blockExpected = previousResult, previousExpected }()
+	for _, w := range words {
+		for _, param := range w.params {
+			if param.defaultExpr == nil {
+				continue
+			}
+			effects := map[string]bool{}
+			c.effectExpr(param.defaultExpr, map[string]string{}, nil, effects)
+			if len(effects) != 0 {
+				return errorAt(param.pos, CodeTryInput, "word default cannot propagate a Result")
+			}
+			typ, err := c.expressionExpected(param.defaultExpr, newScope(nil), param.typ)
+			if err != nil {
+				return err
+			}
+			if typ != param.typ && typ != neverType {
+				return errorAt(param.pos, CodeArgumentType, "default for %s requires %s, found %s", param.name, param.typ, typ)
+			}
+		}
+	}
+	return nil
+}
+
 // useMissing reports a use no resolver could supply; the searched path is the
 // sibling <name>.zhex next to the importing file.
 func useMissing(u use, importingPath string) error {
@@ -455,6 +483,9 @@ func (c *checker) checkWords(words []*word) error {
 		}
 	}
 	if err := c.inferWordEffects(words); err != nil {
+		return err
+	}
+	if err := c.checkWordDefaults(words); err != nil {
 		return err
 	}
 	for _, w := range words {
@@ -1818,6 +1849,11 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	}
 	minimum := len(params)
+	if x.word != nil {
+		for minimum > 0 && x.word.params[minimum-1].defaultExpr != nil {
+			minimum--
+		}
+	}
 	if x.record != nil && !x.record.choice && len(x.argNames) == 0 {
 		for minimum > 0 && x.record.fields[minimum-1].defaultExpr != nil {
 			minimum--
