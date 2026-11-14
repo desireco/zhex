@@ -17,6 +17,7 @@ func TestExamples(t *testing.T) {
 		exited            bool
 		exitCode          int
 	}{
+		{name: "json-config", want: "3\ntrue\n{\"retries\":3,\"verbose\":true}\n"},
 		{name: "maps", want: "1\n3\nAda: 11\nMorgan has no score\nAda: 11\nGrace: 9\nNancy: 23\n4\n4\n"},
 		{name: "choices", want: "running\nCould not start: network unavailable\n7\n0\n"},
 		{name: "records", want: "Ada, age 36\n"},

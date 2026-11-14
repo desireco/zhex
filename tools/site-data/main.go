@@ -247,6 +247,7 @@ var exampleSpecs = []struct {
 	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", nil, []string{"math.zhex"}},
 	{"records", "Named records", "Group related values in a checked named type.", "", nil, nil},
 	{"choices", "Choices and matching", "Select and handle alternatives with a checked match.", "", nil, nil},
+	{"json-config", "Typed JSON configuration", "Decode configuration with typed defaults and encode it again.", "", nil, nil},
 	{"maps", "Maps and lookup", "Store keyed values, match optional lookups, and merge maps.", "", nil, nil},
 	{"collections", "Lists and arrays", "Build and safely iterate lists and rectangular arrays.", "", nil, nil},
 	{"recovery", "Error recovery", "Catch invalid numeric input and continue with a useful fallback.", "", nil, nil},

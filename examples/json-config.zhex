@@ -1,0 +1,8 @@
+type Settings = record
+    retries: Int
+    verbose: Bool
+
+let settings = json.decode("{\"verbose\":true}", Settings(3, false)) try
+print(settings.retries)
+print(settings.verbose)
+print(json.encode(settings) try)
