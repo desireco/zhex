@@ -233,3 +233,14 @@ func TestMapAndOptionTypeNamesAreReserved(t *testing.T) {
 		}
 	}
 }
+
+func TestMapAssignmentEvaluatesKeyAndValueOnceInOrder(t *testing.T) {
+	source := "word key() -> String\n    print(\"key\")\n    \"Ada\"\nword score() -> Int\n    print(\"value\")\n    11\nlet scores: Map<String, Int> = {}\nscores[key()] = score()\nmatch scores[\"Ada\"]\n    case Option.Some(value)\n        print(value)\n    case Option.None\n        print(0)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "key\nvalue\n11\n" {
+		t.Fatal(out.String())
+	}
+}
