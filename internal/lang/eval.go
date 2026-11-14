@@ -406,11 +406,18 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 				}
 				return result, nil
 			}
-			return listRead(x.pos, receiver.list, indices[0]), nil
+			result := listRead(x.pos, receiver.list, indices[0])
+			if !x.checkedIndex {
+				return plainReadResult(result)
+			}
+			return result, nil
 		}
 		result := arrayIndex(x.pos, receiver.array, indices, item, x.kind == "index-write")
 		if x.kind == "index-write" && x.plainWrite {
 			return plainWriteResult(result)
+		}
+		if x.kind == "index" && !x.checkedIndex {
+			return plainReadResult(result)
 		}
 		return result, nil
 	case "int":

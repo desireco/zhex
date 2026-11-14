@@ -275,7 +275,7 @@ func TestListFailuresAreCheckedAndAtomic(t *testing.T) {
 	if out.String() != "list-range\n5\nlist-range\n2\n" {
 		t.Fatalf("output %q", out.String())
 	}
-	for _, bad := range []string{"let x = [1]\nx[0]\n", "let x = [1]\n(x[0] = \"bad\") try\n", "let x = [1]\nlist.append(x, \"bad\") try\n", "let x = [1]\nprint(x[true] try)\n"} {
+	for _, bad := range []string{"let x = [1]\n(x[0] = \"bad\") try\n", "let x = [1]\nlist.append(x, \"bad\") try\n", "let x = [1]\nprint(x[true] try)\n"} {
 		if _, err := Compile("test.zhex", bad); err == nil {
 			t.Errorf("accepted invalid list operation %q", bad)
 		}

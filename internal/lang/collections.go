@@ -131,3 +131,10 @@ func plainWriteResult(result value) (value, error) {
 	}
 	return value{}, nil
 }
+
+func plainReadResult(result value) (value, error) {
+	if result.result.err != nil {
+		return value{}, result.result.err
+	}
+	return result.result.value, nil
+}

@@ -899,8 +899,13 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				return "", errorAt(arg.pos, CodeArgumentType, "index must have type Int")
 			}
 		}
-		typ = valueType("Result<" + string(element) + ", Error>")
+		if x.checkedIndex {
+			typ = valueType("Result<" + string(element) + ", Error>")
+		} else {
+			typ = element
+		}
 	case "index-write":
+		x.left.checkedIndex = true
 		indexed, err := c.expressionExpected(x.left, env, "")
 		if err != nil {
 			return "", err
@@ -1183,6 +1188,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		}
 		typ = branchType
 	case "try":
+		if x.left.kind == "index" {
+			x.left.checkedIndex = true
+		}
 		inner, err := c.expression(x.left, env)
 		if err != nil {
 			return "", err
@@ -1196,6 +1204,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		}
 		typ = unwrapped
 	case "catch":
+		if x.left.kind == "index" {
+			x.left.checkedIndex = true
+		}
 		result, err := c.expression(x.left, env)
 		if err != nil {
 			return "", err
