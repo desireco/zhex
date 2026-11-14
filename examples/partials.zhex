@@ -1,0 +1,27 @@
+word add left: Int, right: Int -> Int
+    left + right
+
+let plus-five = add _, 5
+let five-plus: (Int) -> Int = add 5, _
+print plus-five(7)
+let right-hole-result = five-plus 7
+print right-hole-result
+
+var offset = 5
+let plus-offset = add _, offset
+offset = 100
+let captured-result = plus-offset 7
+print captured-result
+
+word append-and-count(item: Int, values: List<Int> = []) -> Int
+    list.append(values, item)
+    list.length(values)
+
+let add-to-fresh-list = append-and-count _
+print add-to-fresh-list(1)
+let second-length = add-to-fresh-list 2
+print second-length
+
+flow 7
+    plus-five
+    print
