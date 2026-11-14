@@ -75,6 +75,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Choices](examples/choices.zhex) | Declare concrete and one-parameter alternatives and handle them with a match. |
 | [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, row-major arrays, and overlap-preserving resize. |
 | [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
+| [Dates and time zones](examples/temporal.zhex) | Compare a calendar day and 24 elapsed hours across a daylight-saving transition. |
 | [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |
 | [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
 | [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |

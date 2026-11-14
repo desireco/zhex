@@ -92,6 +92,10 @@ The `text` words operate on `String` values, Unicode-safe by code point. `text.l
 
 Record fields can have defaults, such as `retries: Int = 3`. Required fields precede defaulted fields, and constructors may omit trailing defaults. Supplied arguments run first, then omitted defaults evaluate in field order in the declaring module, afresh for every construction. Defaults cannot access caller bindings or fields and cannot propagate Result failures. Explicitly supplied collections retain their sharing.
 
+## Dates and time zones
+
+`Date`, `Time`, `Duration`, `Instant`, `TimeZone`, and `ZonedDateTime` are distinct built-in types. Numeric constructors and calendar/elapsed operations use ordinary values and report invalid components or range overflow as runtime diagnostics. Text parsing and IANA time-zone lookup return Results. Local time resolution chooses the earlier occurrence in an overlap and shifts forward by the actual gap when a time does not exist. Calendar days preserve wall time, while elapsed durations preserve their length. Years 1 through 9999 are supported; use explicit formatting. See [dates and time zones](../site/src/content/docs/temporal.md) for operations and exact syntax.
+
 ## JSON
 
 `json.decode(raw, defaults)` returns `Result<T, Error>` where `T` is the defaults value's type. Missing record fields use corresponding values from `defaults`; unknown or duplicate fields and supplied values of the wrong type fail rather than falling back. `json.encode(value)` returns a compact JSON string as `Result<String, Error>`. The codec supports `Int`, `Bool`, `String`, records, `List<T>`, `Map<String, T>`, and `Option<T>` in nested combinations, except directly nested `Option<Option<T>>`. JSON `null` decodes as `Option.None`; omitting an Option field uses its default. Present lists and maps replace defaults, and mutable defaults are freshly copied for each decoded result.
@@ -110,4 +114,4 @@ The [example guide](syntax-examples.md) defines line endings, integer parsing, E
 
 Run `go run ./cmd/zhex run examples/fibonacci.zhex`, or build with `go build -o bin/zhex ./cmd/zhex` and run `./bin/zhex run examples/fibonacci.zhex`. The runner requires a source file; `zhex repl [--trace]` instead starts an interactive session whose words and values persist across entries — a blank line ends a multi-line entry, bare expressions echo their value, errors print a diagnostic without ending the session, and `words` lists signatures.
 
-Run `go test ./...` for the executable language cases and CLI tests. Run `go vet ./...` for Go checks. The [test catalog](tests.md) maps syntax and behavior to those tests. Generic words and records, temporal values, broader resource scopes, and native compilation remain later work.
+Run `go test ./...` for the executable language cases and CLI tests. Run `go vet ./...` for Go checks. The [test catalog](tests.md) maps syntax and behavior to those tests. Generic words and records, broader resource scopes, and native compilation remain later work.

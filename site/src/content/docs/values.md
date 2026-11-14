@@ -15,6 +15,7 @@ Every expression has a checked type. Local binding types are inferred from their
 | `Bool` | `true` or `false`. |
 | `String` | Valid UTF-8 text. |
 | `Unit` | The result of statements such as assignment, loops, and `print`. |
+| Temporal values | `Date`, `Time`, `Duration`, `Instant`, `TimeZone`, and `ZonedDateTime` represent distinct calendar and elapsed-time concepts. See [dates and time zones](temporal.html). |
 | `Buffer` | A mutable sequence of string lines. See [buffers](buffers.html). |
 | `File` | An open file handle. See [files](files.html). |
 | Result values | Built-ins that can fail return `Result<T, E>`. User words declare a success type; an escaping `try` makes the checker infer the effective Result signature. Explicit `Result<T, E>` signatures remain supported. Results cannot be used as ordinary values and must be handled immediately with `try` or `catch`. User-defined error types are not supported. See [results](results.html). |
