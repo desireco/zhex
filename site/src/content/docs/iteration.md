@@ -20,7 +20,7 @@ for index, name in names
 
 ```zhex
 let shape: List<Int> = [2, 3]
-let grid: Array<Int> = array.new(shape, 0) try
+let grid: Array<Int> = array.new(shape, 0)
 grid[0, 0] = 10
 grid[0, 1] = 20
 grid[1, 0] = 30
@@ -29,8 +29,8 @@ grid[0, 2] = 50
 grid[1, 2] = 60
 
 for coordinates, value in grid
-    let row = coordinates[0] try
-    let column = coordinates[1] try
+    let row = coordinates[0]
+    let column = coordinates[1]
     print(int.to-string(row) + "," + int.to-string(column) + ": " + int.to-string(value))
 ```
 
@@ -45,7 +45,7 @@ for name, score in scores
     print(name + ": " + int.to-string(score))
 ```
 
-Lists and arrays cannot be changed while one of their traversals is active, including through an alias. Nested traversals keep the guard active until the last one finishes. Attempts to append, resize, or write an indexed element during a loop fail with `collection-iterating` before the mutation takes effect. Append and resize return checked Results, and a parenthesized indexed assignment can be caught as a Result in the body:
+Lists and arrays cannot be changed while one of their traversals is active, including through an alias. Nested traversals keep the guard active until the last one finishes. Attempts to append, resize, or write an indexed element during a loop fail with `collection-iterating` before the mutation takes effect. Plain operations raise a runtime diagnostic; apply `try` or `catch` directly to append or resize, or parenthesize an indexed assignment to handle its failure as a Result:
 
 ```zhex
 let names: List<String> = ["Ada", "Grace"]

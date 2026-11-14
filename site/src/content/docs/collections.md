@@ -20,7 +20,7 @@ An empty list needs an expected element type:
 
 ```zhex
 let names: List<String> = []
-list.append(names, "Ada") try
+list.append(names, "Ada")
 print(list.length(names))
 ```
 
@@ -30,19 +30,19 @@ print(list.length(names))
 let empty: List<String> = list.new()
 ```
 
-`list.append` returns a Result and must be handled immediately. The list API is:
+Plain operations return ordinary values and raise runtime diagnostics when validation fails. Apply `try` or `catch` directly to a supported operation to handle its own failure as a Result. The list API is:
 
 | Operation | Result | Behavior |
 | --- | --- | --- |
 | `list.new()` | `List<T>` | Create an empty list when an expected `List<T>` type is available. |
-| `list.append(list, value)` | `Result<Unit, Error>` | Append a value of the list's element type; fails with `collection-limit` if the size limit would be exceeded. |
+| `list.append(list, value)` | `Unit` | Append a value of the list's element type; fails with `collection-limit` if the size limit would be exceeded. |
 | `list.length(list)` | `Int` | Return the number of elements. |
 
-Read and write a list element with one zero-based signed `Int` index. A read returns a `Result` and fails with `list-range` when the index is negative or outside the list. The error exposes `index` and `length` details. A plain indexed assignment returns `Unit`; an invalid index produces a runtime diagnostic. Parenthesize the assignment to handle that failure as a `Result<Unit, Error>` with `try` or `catch`:
+Read and write a list element with one zero-based signed `Int` index. A plain read returns the element and raises a `list-range` runtime diagnostic when the index is negative or outside the list. Write `items[i] try` or `items[i] catch` to handle that read as a Result. The error exposes `index` and `length` details. A plain indexed assignment returns `Unit`; an invalid index produces a runtime diagnostic. Parenthesize the assignment to handle that failure as a `Result<Unit, Error>` with `try` or `catch`:
 
 ```zhex
 let items: List<Int> = [10, 20]
-let second = items[1] try
+let second = items[1]
 items[0] = second
 (items[8] = 0) catch problem
     print(error.code(problem))
@@ -54,7 +54,7 @@ An array has a fixed rank and a shape: one nonnegative extent per dimension. `ar
 
 ```zhex
 let shape: List<Int> = [2, 3]
-let grid: Array<Int> = array.new(shape, 0) try
+let grid: Array<Int> = array.new(shape, 0)
 print(array.rank(grid))
 print(array.length(grid))
 ```
@@ -63,17 +63,17 @@ Rank is the number of dimensions; length is the total number of elements. Arrays
 
 | Operation | Result | Behavior |
 | --- | --- | --- |
-| `array.new(shape, fill)` | `Result<Array<T>, Error>` | Allocate a shaped array filled with `fill`; fails with `array-rank`, `array-shape`, or `collection-limit` for invalid dimensions or size. |
-| `array.resize(array, shape, fill)` | `Result<Unit, Error>` | Change the extents while keeping the rank; failed resizes leave the original array unchanged. |
+| `array.new(shape, fill)` | `Array<T>` | Allocate a shaped array filled with `fill`; fails with `array-rank`, `array-shape`, or `collection-limit` for invalid dimensions or size. |
+| `array.resize(array, shape, fill)` | `Unit` | Change the extents while keeping the rank; failed resizes leave the original array unchanged. |
 | `array.shape(array)` | `List<Int>` | Return the current extents in a fresh list. |
 | `array.rank(array)` | `Int` | Return the number of dimensions. |
 | `array.length(array)` | `Int` | Return the total element count. |
 
-Array reads and writes use zero-based bracket indexing. Use exactly one index for each axis. Reads return a Result and can be handled with `try` or `catch`. A plain indexed assignment returns `Unit`; an invalid rank or coordinate produces a runtime diagnostic. Parenthesize the assignment when the caller needs a recoverable `Result<Unit, Error>`:
+Array reads and writes use zero-based bracket indexing. Use exactly one index for each axis. Plain reads return the element and raise a runtime diagnostic on invalid rank or coordinates. Apply `try` or `catch` directly to a read to handle its failure as a Result. A plain indexed assignment returns `Unit`; an invalid rank or coordinate produces a runtime diagnostic. Parenthesize the assignment when the caller needs a recoverable `Result<Unit, Error>`:
 
 ```zhex
-let grid: Array<Int> = array.new([2, 3], 0) try
-let first = grid[0, 0] try
+let grid: Array<Int> = array.new([2, 3], 0)
+let first = grid[0, 0]
 grid[0, 1] = first + 1
 (grid[0, 3] = 9) catch problem
     print(error.code(problem))
@@ -83,6 +83,6 @@ An index is checked against every dimension and fails with `array-range` when it
 
 `array.resize` cannot change the rank. Invalid rank fails with `array-rank` (`rank`, `expected_rank`); rank errors while creating an array may also include `min_rank` and `max_rank`. Negative extents or other invalid dimensions fail with `array-shape` (`axis`, `extent`); an element count over the limit fails with `collection-limit` (`limit`). A checked shape/limit failure leaves existing collections unchanged. Process-level out-of-memory termination is not recoverable. Array dimensions are explicit `List<Int>` values; nested lists are not converted to arrays.
 
-List/array reads, list append, array creation and resize, and parenthesized indexed assignments return the common `Result<..., Error>` family where they can fail. Plain indexed assignments instead produce runtime diagnostics on invalid rank, bounds, or active-iteration guard failures. Collections cannot contain a `Result` value, so a fallible operation cannot hide an unhandled result obligation in an element. A caught concrete error cannot be hidden as an `Error` collection element or passed to a user word taking `Error` without first using `error.wrap`; built-in `error.*` operations accept it directly. Records and collections cannot be printed or compared directly; inspect fields/elements or construct text explicitly.
+Plain reads, append, array creation and resize return ordinary values and raise runtime diagnostics for their own validation failures. Directly applying `try` or `catch` selects the common `Result<..., Error>` family for these operations; a parenthesized indexed assignment has the same checked form. Guards cover that operation only, not failures in its receiver or arguments. A stored `let value = items[i]` is an element, so apply a guard directly to the read when recovery is needed. Collections cannot contain a `Result` value, so a fallible operation cannot hide an unhandled result obligation in an element. A caught concrete error cannot be hidden as an `Error` collection element or passed to a user word taking `Error` without first using `error.wrap`; built-in `error.*` operations accept it directly. Records and collections cannot be printed or compared directly; inspect fields/elements or construct text explicitly.
 
 Lists and arrays are shared mutable storage. See [collection iteration](iteration.html) for traversal order, positions, and mutation restrictions while iterating.
