@@ -131,6 +131,9 @@ func (c *checker) effectExpr(x *expression, env map[string]string, effects map[*
 	if x == nil {
 		return
 	}
+	if x.statement != nil {
+		c.effectBlock([]*statement{x.statement}, copyEffectsEnv(env), effects, found)
+	}
 	if x.kind == "try" {
 		for _, family := range c.effectResult(x.left, env, effects) {
 			if family != "?" {

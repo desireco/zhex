@@ -504,6 +504,9 @@ func expressionReturnsConcreteError(x *expression) bool {
 	if x.kind == "catch" {
 		return blockReturnsConcreteError(x.handler)
 	}
+	if x.kind == "statement-value" && x.statement.kind == "if" {
+		return blockReturnsConcreteError(x.statement.body) || blockReturnsConcreteError(x.statement.otherwise)
+	}
 	b := x.binding
 	return b != nil && b.errorFamily != "" && b.errorFamily != "Error"
 }
@@ -578,6 +581,11 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		s.annotation = typ
 	}
 	expected := s.annotation
+	if expected == "" && s.kind == "assign" {
+		if binding := env.find(s.name); binding != nil {
+			expected = binding.typ
+		}
+	}
 	if expected == "" {
 		expected = c.expected
 	}
@@ -788,6 +796,18 @@ func (c *checker) expressionExpected(x *expression, env *scope, expected valueTy
 func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	var typ valueType
 	switch x.kind {
+	case "statement-value":
+		oldBlock, oldFlow, oldExpected := c.blockExpected, c.flowExpected, c.expected
+		c.blockExpected, c.flowExpected, c.expected = c.expected, c.expected, ""
+		var err error
+		typ, err = c.statement(x.statement, env)
+		c.blockExpected, c.flowExpected, c.expected = oldBlock, oldFlow, oldExpected
+		if err != nil {
+			return "", err
+		}
+		if typ == errorType && expressionReturnsConcreteError(x) {
+			return "", errorAt(x.pos, CodeBranchType, "convert the concrete error explicitly with error.wrap before using it as Error")
+		}
 	case "flow-value":
 		typ = x.typ
 	case "map":

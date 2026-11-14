@@ -336,6 +336,7 @@ type expression struct {
 	checkedIndex      bool
 	checkedCollection bool
 	jsonSchema        *jsonSchema
+	statement         *statement
 }
 
 type statement struct {

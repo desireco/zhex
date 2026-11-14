@@ -340,6 +340,8 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 
 func (r *runtime) expression(x *expression, env frame) (value, error) {
 	switch x.kind {
+	case "statement-value":
+		return r.statement(x.statement, env)
 	case "map":
 		keyType, _, _ := mapTypes(x.typ)
 		m := &mapValue{keyType: keyType, index: make(map[mapKey]int)}

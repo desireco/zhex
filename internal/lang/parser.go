@@ -319,8 +319,12 @@ func (p *parser) parseStatement() *statement {
 		s.kind = "assign"
 		s.name = p.take().text
 		p.require("=")
-		s.expr = p.expression(0)
-		p.require("newline")
+		if p.at("if") || p.at("match") || p.at("flow") {
+			s.expr = p.statementExpression(false)
+		} else {
+			s.expr = p.expression(0)
+			p.require("newline")
+		}
 	default:
 		s.kind = "expression"
 		s.expr = p.statementExpression(true)
@@ -332,6 +336,10 @@ func (p *parser) parseStatement() *statement {
 func (p *parser) statementExpression(allowAssignment bool) *expression {
 	if p.at("match") {
 		return p.parseMatch()
+	}
+	if !allowAssignment && (p.at("if") || p.at("flow")) {
+		t := p.current()
+		return &expression{kind: "statement-value", pos: t.pos, end: t.end, statement: p.parseStatement()}
 	}
 	x := p.expression(0)
 	if allowAssignment && p.accept("=") {
@@ -361,6 +369,9 @@ func (p *parser) parseMatch() *expression {
 	t := p.require("match")
 	x := &expression{kind: "match", pos: t.pos, left: p.expression(0)}
 	p.require("newline")
+	if !p.at("indent") {
+		panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented match"))
+	}
 	p.require("indent")
 	p.depth++
 	defer func() { p.depth-- }()
