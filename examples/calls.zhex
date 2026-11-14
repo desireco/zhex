@@ -1,0 +1,25 @@
+word greet name: String = "Ada"
+    "Hello, " + name
+
+word add(left: Int, right: Int) -> Int
+    left + right
+
+word seven
+    7
+
+let default-greeting = greet
+let named-greeting = greet "Grace"
+let parenthesized-sum = add(1, 2)
+let bare-sum = add 1, 2
+let answer = seven
+
+print default-greeting
+print named-greeting
+print parenthesized-sum
+print bare-sum
+print answer
+print 1 + 1
+print(add(-1, 2))
+
+let values = [8, 5]
+print(values[0] - values[1])
