@@ -51,7 +51,7 @@ print value
 
 At a complete expression boundary, an accessible word name with no following arguments calls the word with zero supplied arguments. A local value with the same name resolves as a value. Thus `let answer = answer` can call the word only when there is no binding named `answer` already in scope.
 
-For one or more arguments, commas mark the argument boundaries: `add 1, 2` is equivalent to `add(1, 2)`. The short form can be a complete statement, a full right-hand side of a binding or assignment, the final expression in a word body, or a flow step. It does not turn whitespace into a general argument separator: `add 1 2` is invalid.
+For one or more arguments, commas mark the argument boundaries: `add 1, 2` is equivalent to `add(1, 2)`. Each comma-separated argument is an ordinary expression. The short form can be a complete statement, a full right-hand side of a binding or assignment, the final expression in a word body, or a flow step. It does not turn whitespace into a general argument separator: `add 1 2` is invalid.
 
 In a flow, the current value is the first argument and the short-form arguments follow it:
 
@@ -66,9 +66,29 @@ flow 4
 
 The `add 2` step is equivalent to `add(4, 2)`, so this prints `6`.
 
+## Handling a fallible call
+
+A trailing `try` or `catch` at a complete bare-call boundary handles that call's result. To handle a fallible argument separately, keep the outer call parenthesized and put `try` on the argument:
+
+```zhex
+word add(left: Int, right: Int) -> Int
+    left + right
+
+let parsed = text.to-int "4" try
+let total = add(1, text.to-int("2") try)
+let fallback = text.to-int "bad" catch problem
+    3
+
+print parsed
+print total
+print fallback
+```
+
+This prints `4`, `3`, and `3`. In the first binding, `try` guards the whole bare `text.to-int` call. In the second, it guards only the parenthesized call argument. A `catch` block can also supply a fallback for a bare call.
+
 ## Keep parentheses for nesting and ambiguity
 
-The short form consumes one ordinary argument expression. For example, `print 1 + 1` calls `print` with the result of `1 + 1`. When a call is nested in another expression, keep the nested call parenthesized, as in `print(add(1, 2))`. Whitespace alone does not tell the parser which nested call owns the arguments.
+Arguments retain normal operator precedence. For example, `print 1 + 1` calls `print` with the result of `1 + 1`. When a call is nested in another expression, keep the nested call parenthesized, as in `print(add(1, 2))`. Whitespace alone does not tell the parser which nested call owns the arguments.
 
 Parentheses also make ambiguous first arguments clear. Write `display(-1)` for a negative argument, or `first([7, 8])` for a list literal argument. Existing indexing remains indexing: `values [0]` still means the first element of `values`, not a call passing `[0]`.
 
