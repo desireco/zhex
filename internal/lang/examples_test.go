@@ -17,6 +17,7 @@ func TestExamples(t *testing.T) {
 		exited            bool
 		exitCode          int
 	}{
+		{name: "word-defaults", want: "Hello Grace\ndefault ran\nHello Ada\n1\n1\n"},
 		{name: "temporal", want: "2024-03-10T12:00:00-04:00[America/New_York]\n2024-03-10T13:00:00-04:00[America/New_York]\n"},
 		{name: "json-config", want: "3\ntrue\n{\"retries\":3,\"verbose\":true}\n"},
 		{name: "maps", want: "1\n3\nAda: 11\nMorgan has no score\nAda: 11\nGrace: 9\nNancy: 23\n4\n4\n"},

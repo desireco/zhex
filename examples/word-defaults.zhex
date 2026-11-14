@@ -1,0 +1,15 @@
+word default-name()
+    print("default ran")
+    "Ada"
+
+word greet(prefix: String, name = default-name())
+    prefix + " " + name
+
+word append-one(values: List<Int> = [])
+    list.append(values, 1)
+    list.length(values)
+
+print(greet("Hello", "Grace"))
+print(greet("Hello"))
+print(append-one())
+print(append-one())
