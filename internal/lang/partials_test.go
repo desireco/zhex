@@ -612,3 +612,21 @@ print(map.length(scores))
 		t.Fatal(out.String())
 	}
 }
+
+func TestRecursivePartialDispatchRespectsDepthLimit(t *testing.T) {
+	source := `word recur(callbacks: List<(Int) -> Int>, n: Int) -> Int
+    if n == 0
+        0
+    else
+        let next = callbacks[0]
+        next(n - 1)
+let callbacks: List<(Int) -> Int> = []
+let f = recur(callbacks, _)
+list.append(callbacks, f)
+print(f(300))
+`
+	err := Run("test.zhex", source, strings.NewReader(""), &bytes.Buffer{})
+	if d, ok := err.(*diagnostic); !ok || d.code != CodeDepthLimit {
+		t.Fatalf("expected depth limit, got %v", err)
+	}
+}
