@@ -72,6 +72,37 @@ word greet(name: String) -> String
 print(greet("Ada"))
 ```
 
+## Default parameters
+
+Parameters with defaults must come after required parameters. Calls stay positional and may omit only the trailing defaulted arguments:
+
+```zhex
+word default-name()
+    print("default ran")
+    "Ada"
+
+word greet(prefix: String, name = default-name())
+    prefix + " " + name
+
+print(greet("Hello", "Grace"))
+print(greet("Hello"))
+```
+
+This prints `Hello Grace`, then `default ran`, then `Hello Ada`. The default expression runs only when its argument is omitted. Supplied arguments evaluate once from left to right first; omitted defaults then evaluate in parameter order. A default can infer its parameter's type, as `name` does here. You can also annotate it explicitly (`name: String = default-name()`). Word calls do not support named arguments; named constructor arguments apply only to record constructors, as described in [records](records.html).
+
+Defaults are evaluated in the word's declaring module. They cannot read parameters, globals, or caller bindings, and they cannot let a `Result` failure escape; a default may call a helper that handles its own failure. Each invocation evaluates omitted defaults afresh, so mutable defaults are not shared between calls:
+
+```zhex
+word append-one(values: List<Int> = [])
+    list.append(values, 1)
+    list.length(values)
+
+print(append-one())
+print(append-one())
+```
+
+This prints `1` twice because each call gets a new empty list. The [word defaults example](../examples.html#word-defaults) also shows lazy evaluation and inferred parameter types.
+
 ## Compose a flow
 
 A `flow` evaluates its seed expression, then passes the current value to each step on the next indented lines. A bare word step uses that value as its only argument. Each step's input type must match the preceding value; the flow result is the final step's result. A fallible step must be marked `try`, just like a direct call.

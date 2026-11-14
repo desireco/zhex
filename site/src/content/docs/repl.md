@@ -95,7 +95,22 @@ identity(value: Int) -> Int
 parse(s: String) -> Result<Int, ParseError>
 ```
 
+Defaults appear as `= ...` in a word's effective signature. Calls stay positional and can omit trailing defaulted parameters:
+
+```text
+zhex> word greet(name = "Ada")
+....>     "Hello " + name
+....>
+zhex> words
+bye() -> Unit
+greet(name: String = ...) -> String
+zhex> greet()
+Hello Ada
+```
+
 `let` can shadow an earlier value silently. Redefining a word with the same effective signature replaces it and prints `redefined name`. A redefinition that changes a word's effective Result signature is rejected transactionally, so the previous word and its callers remain available. The `words` command lists signatures in name order; `words` is a command even if a user has a binding with that name.
+
+After a compatible redefinition, callers already checked against the earlier word keep using that definition and its defaults. New entries use the replacement.
 
 Ctrl-D exits with status 0; `bye()` does the same. A final input line without a newline still runs. `use name` resolves `name.zhex` in the working directory and adopts that module's qualified words for the rest of the session.
 

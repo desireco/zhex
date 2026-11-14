@@ -77,6 +77,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
 | [Dates and time zones](examples/temporal.zhex) | Compare a calendar day and 24 elapsed hours across a daylight-saving transition. |
 | [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |
+| [Word defaults](examples/word-defaults.zhex) | Infer a parameter type from its default, evaluate defaults lazily, and create fresh mutable defaults per call. |
 | [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
 | [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
 | [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
@@ -108,7 +109,7 @@ The whole file is checked before execution, including unused word bodies. Static
 
 We want a readable, modular language for command-line tools, games, web applications and servers, HTML/text processing, and database software. High performance is a goal to establish through implementation and measurement.
 
-The current interpreter defines and tests behavior. Generic records and words, aliases and other named-type forms, temporal values, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md). Further [language presentation research](docs/language-presentation-research.md) explores how to explain the language through readable examples.
+The current interpreter defines and tests behavior. Generic records and words, resource scopes, and native compilation are future work. Zhex is inspired by Forth; it does not aim for Forth compatibility. Mirth, Factor, and 8th also inform the [design research](docs/forth-implementation-research.md). Further [language presentation research](docs/language-presentation-research.md) explores how to explain the language through readable examples.
 
 ## Tests are part of the language
 
