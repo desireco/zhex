@@ -164,3 +164,21 @@ func TestTemporalInvalidComponentDetailsAndOrigin(t *testing.T) {
 		t.Fatalf("error %v, report %+v", err, report)
 	}
 }
+
+func TestTimezoneNamePreservesLoadedIdentity(t *testing.T) {
+	source := `let utc = timezone.load("UTC") try
+print(timezone.name(utc))
+let zone = timezone.load("America/New_York") try
+print(timezone.name(zone))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "UTC\nAmerica/New_York\n" {
+		t.Fatalf("zone names %q", out.String())
+	}
+	if _, err := Compile("test.zhex", "print(timezone.name(\"UTC\"))\n"); err == nil {
+		t.Fatal("accepted String in place of TimeZone")
+	}
+}

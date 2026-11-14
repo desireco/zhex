@@ -48,6 +48,8 @@ Where each shipped feature family is documented, and which tests pin it. The cat
 | Example corpus and text-stats | [README.md](../README.md), [getting-started.md](getting-started.md), [syntax-examples.md](syntax-examples.md), the [site examples page](../site/src/pages/examples.astro), [llms.txt](../site/llms.txt) | `TestExamples` in [examples_test.go](../internal/lang/examples_test.go) |
 | Benchmarks | [AGENTS.md](../AGENTS.md), [measurements.md](measurements.md), this catalog | [bench_test.go](../internal/lang/bench_test.go) |
 
+The [standard-library inventory and proposed plan](standard-library-plan.md) maps all 84 host names to the references and test families. `TestTimezoneNamePreservesLoadedIdentity` adds direct named-zone/UTC identity and wrong-type coverage found during that inventory audit. Proposed APIs in that plan are not executable specifications yet.
+
 ## Language behavior catalog
 
 | Test | Executable specification |
