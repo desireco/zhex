@@ -164,7 +164,7 @@ func TestInteractiveReplPreservesQueuedProgramInput(t *testing.T) {
 	s.send(t, "let who = read-line(\"Name: \") try\rAda\rprint(who)\r")
 	first := s.until(t, "zhex> ")
 	second := s.until(t, "zhex> ")
-	if !strings.Contains(first+second, "Ada\r\n") || strings.Contains(first+second, "unknown") {
+	if !strings.Contains(second, "Ada\r\n") || strings.Contains(first+second, "unknown") {
 		t.Fatalf("queued input: %q", first+second)
 	}
 	s.send(t, "\x04")
