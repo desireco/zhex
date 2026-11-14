@@ -1,4 +1,10 @@
 # Levenshtein distance counts insertions, deletions, and substitutions.
+word min(left: Int, right: Int) -> Int
+    if left < right
+        left
+    else
+        right
+
 word distance(left: String, right: String) -> Int
     let rows = text.length left
     let columns = text.length right
@@ -17,13 +23,7 @@ word distance(left: String, right: String) -> Int
             if text.slice(left, row - 1, row) != text.slice(right, column - 1, column)
                 change = 1
             let substitution = costs[row - 1, column - 1] + change
-
-            var best = deletion
-            if insertion < best
-                best = insertion
-            if substitution < best
-                best = substitution
-            costs[row, column] = best
+            costs[row, column] = min(min(deletion, insertion), substitution)
 
     costs[rows, columns]
 
