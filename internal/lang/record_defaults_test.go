@@ -82,3 +82,23 @@ func TestRecordDefaultArityDiagnosticIncludesOptionalRange(t *testing.T) {
 		t.Fatalf("unexpected diagnostic: %v", err)
 	}
 }
+
+func TestRecordDefaultEvaluationOrder(t *testing.T) {
+	source := `word announce(label: String) -> Int
+    print(label)
+    1
+type Config = record
+    required: Int
+    first: Int = announce("first")
+    second: Int = announce("second")
+let config = Config(announce("argument"))
+print(config.second)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "argument\nfirst\nsecond\n1\n" {
+		t.Fatal(out.String())
+	}
+}
