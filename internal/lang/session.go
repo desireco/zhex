@@ -140,7 +140,7 @@ func (s *Session) Enter(source string) (string, error) {
 	for _, record := range s.records {
 		all[record.id()] = record
 	}
-	c := checker{words: words, records: records, allRecords: all, modules: modules, uses: uses}
+	c := checker{words: words, types: namedTypeRegistry{visible: records, all: all}, modules: modules, uses: uses}
 	env := newScope(s.scope)
 	typ, err := c.checkProgram(p, env)
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *Session) Enter(source string) (string, error) {
 		r.report(err, "unhandled", position{})
 		return "", annotateSource(err, sources)
 	}
-	s.words, s.records, s.modules, s.uses, s.sources = words, c.records, modules, uses, sources
+	s.words, s.records, s.modules, s.uses, s.sources = words, c.types.visible, modules, uses, sources
 	s.scope = env
 	for _, name := range redefined {
 		fmt.Fprintf(s.output, "redefined %s\n", name)
@@ -179,10 +179,10 @@ func (s *Session) adopt(fresh []use, words map[string]*word, redefined *[]string
 	if err != nil {
 		return nil, annotateSource(err, sources)
 	}
-	c := &checker{modules: modules, allRecords: collectRecords(modules)}
+	c := &checker{modules: modules, types: namedTypeRegistry{all: collectRecords(modules)}}
 	for _, m := range order {
 		c.module, c.words, c.uses = m.name, m.words, m.uses
-		c.records = c.importedRecords(m.uses)
+		c.types.visible = c.importedRecords(m.uses)
 		if err := c.registerRecords(m.recordOrder); err != nil {
 			return nil, annotateSource(err, sources)
 		}

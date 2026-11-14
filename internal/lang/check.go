@@ -46,8 +46,7 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 // view from the REPL's accumulated words and modules.
 type checker struct {
 	words         map[string]*word
-	records       map[string]*recordType
-	allRecords    map[string]*recordType
+	types         namedTypeRegistry
 	modules       map[string]*module
 	uses          []string
 	module        string // the module being checked; "" for the entry file and the REPL
@@ -85,7 +84,7 @@ func (c *checker) wordNames() []string {
 	for name := range c.words {
 		names = append(names, name)
 	}
-	for name := range c.records {
+	for name := range c.types.visible {
 		names = append(names, name)
 	}
 	for _, use := range c.uses {
@@ -149,11 +148,11 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 	if err != nil {
 		return nil, annotateSource(err, sources)
 	}
-	c := &checker{words: make(map[string]*word), modules: modules, allRecords: collectRecords(modules)}
+	c := &checker{words: make(map[string]*word), modules: modules, types: namedTypeRegistry{all: collectRecords(modules)}}
 	// Modules check in load order — dependencies first — and the entry last.
 	for _, m := range order {
 		c.module, c.words, c.uses = m.name, m.words, m.uses
-		c.records = c.importedRecords(m.uses)
+		c.types.visible = c.importedRecords(m.uses)
 		if err := c.registerRecords(m.recordOrder); err != nil {
 			return nil, annotateSource(err, sources)
 		}
@@ -165,7 +164,7 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 		}
 	}
 	c.module, c.words, c.uses = "", make(map[string]*word), useNames(p)
-	c.records = c.importedRecords(c.uses)
+	c.types.visible = c.importedRecords(c.uses)
 	if err = c.registerRecords(p.records); err != nil {
 		return nil, annotateSource(err, sources)
 	}
@@ -322,186 +321,11 @@ func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
 	return c.block(p.body, top)
 }
 
-func collectRecords(modules map[string]*module) map[string]*recordType {
-	all := make(map[string]*recordType)
-	for _, module := range modules {
-		for _, record := range module.recordOrder {
-			all[record.id()] = record
-		}
-	}
-	return all
-}
-
-func (c *checker) importedRecords(uses []string) map[string]*recordType {
-	records := make(map[string]*recordType)
-	for _, name := range uses {
-		if module := c.modules[name]; module != nil {
-			for _, record := range module.recordOrder {
-				if !strings.HasPrefix(record.name, "_") {
-					records[record.id()] = record
-				}
-			}
-		}
-	}
-	return records
-}
-
-func (c *checker) privateRecord(name string) (*recordType, *module) {
-	prefix, local, ok := strings.Cut(name, ".")
-	if !ok || !strings.HasPrefix(local, "_") || !c.used(prefix) {
-		return nil, nil
-	}
-	module := c.modules[prefix]
-	if module != nil {
-		for _, record := range module.recordOrder {
-			if record.name == local {
-				return record, module
-			}
-		}
-	}
-	return nil, nil
-}
-
-func (c *checker) typeError(pos position, typ valueType) error {
-	for {
-		if inner, ok := resultInner(typ); ok {
-			typ = inner
-			continue
-		}
-		if _, inner, ok := collectionInner(typ); ok {
-			typ = inner
-			continue
-		}
-		break
-	}
-	if record, module := c.privateRecord(string(typ)); record != nil {
-		return withHint(errorAt(pos, CodePrivateUse, "%q is private to module %q", record.name, module.name), fmt.Sprintf("remove the leading underscore in %s to export it", module.path))
-	}
-	return errorAt(pos, CodeUnknownType, "unknown type %q", typ)
-}
-
-func (c *checker) normalizeType(typ valueType) (valueType, bool) {
-	if kind, inner, ok := collectionInner(typ); ok {
-		normalized, found := c.normalizeType(inner)
-		if !found || isResult(normalized) {
-			return "", false
-		}
-		return valueType(kind + "<" + string(normalized) + ">"), true
-	}
-	if inner, ok := resultInner(typ); ok {
-		normalized, found := c.normalizeType(inner)
-		if !found {
-			return "", false
-		}
-		return valueType("Result<" + string(normalized) + ", " + resultFamily(typ) + ">"), true
-	}
-	switch typ {
-	case intType, boolType, stringType, unitType, bufferType, fileType, errorType:
-		return typ, true
-	}
-	if record := c.records[string(typ)]; record != nil {
-		return valueType(record.id()), true
-	}
-	return "", false
-}
-func (c *checker) validType(typ valueType) bool { _, ok := c.normalizeType(typ); return ok }
-
-func privateTypeInModule(typ valueType, module string) bool {
-	if _, inner, ok := collectionInner(typ); ok {
-		return privateTypeInModule(inner, module)
-	}
-	if inner, ok := resultInner(typ); ok {
-		return privateTypeInModule(inner, module)
-	}
-	return module != "" && strings.HasPrefix(string(typ), module+"._")
-}
-func privateTypeLeak(pos position, typ valueType) error {
-	return withHint(errorAt(pos, CodePrivateUse, "public declaration exposes private type %s", typ), "make this declaration private or use a public type")
-}
-
-func (c *checker) registerRecords(records []*recordType) error {
-	if c.records == nil {
-		c.records = make(map[string]*recordType)
-	}
-	if c.allRecords == nil {
-		c.allRecords = make(map[string]*recordType)
-	}
-	for _, record := range records {
-		if record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.records[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
-			return errorAt(record.pos, CodeDuplicateName, "type %q is invalid or already defined", record.name)
-		}
-		c.records[record.name], c.records[record.id()], c.allRecords[record.id()] = record, record, record
-	}
-	for _, record := range records {
-		fields := make(map[string]bool)
-		for i := range record.fields {
-			field := &record.fields[i]
-			if strings.Contains(field.name, ".") || fields[field.name] {
-				return errorAt(field.pos, CodeDuplicateName, "field %q is invalid or already defined", field.name)
-			}
-			fields[field.name] = true
-			typ, ok := c.normalizeType(field.typ)
-			if !ok {
-				return c.typeError(field.pos, field.typ)
-			}
-			field.typ = typ
-			if record.module != "" && !strings.HasPrefix(record.name, "_") && privateTypeInModule(typ, record.module) {
-				return privateTypeLeak(field.pos, typ)
-			}
-		}
-	}
-	active, done := map[string]bool{}, map[string]int{}
-	var visit func(*recordType, int) error
-	visit = func(record *recordType, depth int) error {
-		if depth > 256 {
-			return errorAt(record.pos, CodeNestingLimit, "type nesting limit exceeded")
-		}
-		if active[record.id()] {
-			return errorAt(record.pos, CodeUnknownType, "recursive record type %q is not supported", record.id())
-		}
-		if height := done[record.id()]; height > 0 {
-			if depth+height-1 > 256 {
-				return errorAt(record.pos, CodeNestingLimit, "type nesting limit exceeded")
-			}
-			return nil
-		}
-		active[record.id()] = true
-		height := 1
-		for _, field := range record.fields {
-			typ := field.typ
-			for {
-				_, inner, ok := collectionInner(typ)
-				if !ok {
-					break
-				}
-				typ = inner
-			}
-			if dep := c.allRecords[string(typ)]; dep != nil {
-				if err := visit(dep, depth+1); err != nil {
-					return err
-				}
-				if candidate := 1 + done[dep.id()]; candidate > height {
-					height = candidate
-				}
-			}
-		}
-		delete(active, record.id())
-		done[record.id()] = height
-		return nil
-	}
-	for _, record := range records {
-		if err := visit(record, 1); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // register adds a file's own words to the current view, rejecting
 // duplicates and host collisions.
 func (c *checker) register(words []*word) error {
 	for _, w := range words {
-		if c.words[w.name] != nil || c.records[w.name] != nil || HostWord(w.name) {
+		if c.words[w.name] != nil || c.types.visible[w.name] != nil || HostWord(w.name) {
 			return errorAt(w.pos, CodeDuplicateWord, "word %q is already defined", w.name)
 		}
 		c.words[w.name] = w
@@ -956,7 +780,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				if x.binding != nil {
 					typ := x.binding.typ
 					for _, part := range parts[1:] {
-						record := c.allRecords[string(typ)]
+						record := c.types.all[string(typ)]
 						index := -1
 						if record != nil {
 							for i, field := range record.fields {
@@ -1007,7 +831,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				params = append(params, param.typ)
 			}
 		}
-		if record := c.records[x.text]; record != nil {
+		if record := c.types.visible[x.text]; record != nil {
 			for _, field := range record.fields {
 				params = append(params, field.typ)
 			}
@@ -1156,7 +980,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 	if record, module := c.privateRecord(x.text); record != nil {
 		return "", withHint(errorAt(x.pos, CodePrivateUse, "%q is private to module %q", record.name, module.name), fmt.Sprintf("remove the leading underscore in %s to export it", module.path))
 	}
-	if record := c.records[x.text]; record != nil {
+	if record := c.types.visible[x.text]; record != nil {
 		for i, arg := range x.args {
 			if i < len(record.fields) && record.fields[i].typ == errorType && arg.binding != nil && arg.binding.errorFamily != "" && arg.binding.errorFamily != "Error" {
 				return "", errorAt(arg.pos, CodeArgumentType, "convert %s explicitly with error.wrap before storing it as Error", arg.binding.errorFamily)
