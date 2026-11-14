@@ -238,3 +238,15 @@ flow 2
   (expression_statement (bare_call (identifier) (identifier)))
   (flow_header (integer))
   (expression_statement (bare_call (identifier) (integer))))
+
+==================
+Indexing and subtraction stay expressions
+==================
+let a = values [0]
+let b = x - y
+
+---
+
+(source_file
+  (binding (identifier) (index_expression (identifier) (integer)))
+  (binding (identifier) (binary_expression (identifier) (identifier))))
