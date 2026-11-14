@@ -70,16 +70,17 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 
 | Example | What it demonstrates |
 | --- | --- |
+| [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
 | [Composition](examples/composition.zhex) | Typed words, inferred locals, and a flow that prints `32`. |
 | [Calls](examples/calls.zhex) | Define a word and call it with either parentheses or the simple comma-separated form. |
+| [Word defaults](examples/word-defaults.zhex) | Infer a parameter type from its default, evaluate defaults lazily, and create fresh mutable defaults per call. |
+| [Partial calls](examples/partials.zhex) | Leave explicit argument holes to create a reusable function value, then call it or use it in a flow. |
 | [Records](examples/records.zhex) | A nominal named type, positional constructor, and immutable fields. |
 | [Choices](examples/choices.zhex) | Declare concrete and one-parameter alternatives and handle them with a match. |
 | [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, row-major arrays, and overlap-preserving resize. |
 | [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
 | [Dates and time zones](examples/temporal.zhex) | Compare a calendar day and 24 elapsed hours across a daylight-saving transition. |
 | [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |
-| [Word defaults](examples/word-defaults.zhex) | Infer a parameter type from its default, evaluate defaults lazily, and create fresh mutable defaults per call. |
-| [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
 | [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
 | [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
 | [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |

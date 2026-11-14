@@ -6,16 +6,17 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 
 | File | Input | Result after the prompt | Purpose |
 | --- | --- | --- | --- |
-| [calls.zhex](../examples/calls.zhex) | None | `Hello, Ada`, `Hello, Grace`, `3`, `3`, `7`, `2`, `1`, `3` | Simple and parenthesized calls, defaults, zero-argument words, and cases that still need parentheses. |
+| [hello.zhex](../examples/hello.zhex) | `Ada` | `Hello, Ada!` | Read a whole line, build a string, print it. |
 | [composition.zhex](../examples/composition.zhex) | None | `32` | Typed words, inferred locals, flow composition. |
+| [calls.zhex](../examples/calls.zhex) | None | `Hello, Ada`, `Hello, Grace`, `3`, `3`, `7`, `2`, `1`, `3` | Simple and parenthesized calls, defaults, zero-argument words, and cases that still need parentheses. |
+| [word-defaults.zhex](../examples/word-defaults.zhex) | None | `Hello Grace`, `default ran`, `Hello Ada`, `1`, `1` | Infer a parameter type from a default, evaluate it only when omitted, and give each call a fresh mutable default. |
+| [partials.zhex](../examples/partials.zhex) | None | `12`, `12`, `12`, `1`, `1`, `12` | Explicit left/right holes, function values, captured arguments, fresh deferred defaults, and a partial flow step. |
 | [records.zhex](../examples/records.zhex) | None | `Ada, age 36` | A nominal record declaration, a positional constructor, typed binding, field reads, and a word that accepts the record. |
 | [choices.zhex](../examples/choices.zhex) | None | `running`, `Could not start: network unavailable`, `7`, `0` | Concrete and one-parameter alternatives, payload binding, contextual nullary types, and exhaustive matching with a default. |
 | [collections.zhex](../examples/collections.zhex) | None | List indices and array coordinates, each append reports `collection-iterating`, then `6`, `7`, `12` after resize | Shared list mutation and indexing, dual-binding traversal, row-major array access, pre-mutation guards, overlap-preserving resize, and fill values. |
 | [maps.zhex](../examples/maps.zhex) | None | `1`, `3`, `Ada: 11`, `Morgan has no score`, `Ada: 11`, `Grace: 9`, `Nancy: 23`, `4`, `4` | Inferred and empty typed maps, optional lookups, insertion order, update/removal, and map operations composed in flows. |
 | [temporal.zhex](../examples/temporal.zhex) | None | Noon and 1 p.m. after the DST transition | Calendar-day and elapsed-duration arithmetic in a named zone. |
 | [json-config.zhex](../examples/json-config.zhex) | None | `3`, `true`, `{"retries":3,"verbose":true}` | Decode a typed record with a default for a missing field, then encode the complete value. |
-| [word-defaults.zhex](../examples/word-defaults.zhex) | None | `Hello Grace`, `default ran`, `Hello Ada`, `1`, `1` | Infer a parameter type from a default, evaluate it only when omitted, and give each call a fresh mutable default. |
-| [hello.zhex](../examples/hello.zhex) | `Ada` | `Hello, Ada!` | Read a whole line, build a string, print it. |
 | [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
 | [recovery.zhex](../examples/recovery.zhex) | None | A fallback message, then `Retries: 3` | Catch invalid numeric text and continue with a default value. |
 | [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |

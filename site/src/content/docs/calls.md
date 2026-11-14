@@ -66,6 +66,47 @@ flow 4
 
 The `add 2` step is equivalent to `add(4, 2)`, so this prints `6`.
 
+## Explicit partial application
+
+Use `_` in an argument position to leave that argument for later. Each hole becomes a required parameter of the resulting function, in left-to-right order. Every other required argument must be supplied now: `add 5` is a missing-argument error, not an automatic partial. `_` is a slot on its own, not an anonymous function body. Supplied arguments are evaluated once, from left to right, and captured when the partial is created:
+
+```zhex
+word add left: Int, right: Int -> Int
+    left + right
+
+let plus-five = add _, 5
+let five-plus: (Int) -> Int = add 5, _
+print plus-five(7)
+let result = five-plus 7
+print result
+```
+
+This prints `12` twice. The first partial leaves the left argument open; the second leaves the right argument open. The optional `(Int) -> Int` annotation describes the one argument still required. A function value can use either call form, and explicit parentheses remain useful in nested expressions.
+
+A partial can also be a flow step, or keep a defaulted parameter deferred until invocation:
+
+```zhex
+word add left: Int, right: Int -> Int
+    left + right
+
+word append-and-count(item: Int, values: List<Int> = []) -> Int
+    list.append(values, item)
+    list.length(values)
+
+let plus-five = add _, 5
+let add-to-fresh-list = append-and-count _
+
+print add-to-fresh-list(1)
+let next-length = add-to-fresh-list 2
+print next-length
+
+flow 7
+    plus-five
+    print
+```
+
+This prints `1`, `1`, and `12`. Each invocation gets a new empty list because the default is evaluated when the partial is called. The [partial application example](../examples.html#partials) also shows a captured integer value: rebinding its original `var` does not change the value the partial captured.
+
 ## Handling a fallible call
 
 A trailing `try` or `catch` at a complete bare-call boundary handles that call's result. To handle a fallible argument separately, keep the outer call parenthesized and put `try` on the argument:
