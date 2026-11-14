@@ -196,7 +196,7 @@ func TestInferredReturnDoesNotExposePrivateModuleType(t *testing.T) {
 }
 
 func TestInferredReturnsPreserveUnknownNameDiagnostics(t *testing.T) {
-	for _, expression := range []string{"unknown", "unknown()"} {
+	for _, expression := range []string{"unknown", "unknown()", "true + 1"} {
 		source := "word broken() -> Int\n    " + expression + "\n"
 		_, original := Compile("test.zhex", source)
 		_, combined := Compile("test.zhex", source+"word inferred()\n    1\n")

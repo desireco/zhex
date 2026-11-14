@@ -366,6 +366,15 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 		return namedType(required)
 	case "binary":
 		left, right := s.expr(x.left, env, false), s.expr(x.right, env, false)
+		if leftType, leftOK := constraintType(left); leftOK {
+			if rightType, rightOK := constraintType(right); rightOK && leftType != rightType && s.err == nil {
+				nLeft, nRight := x.left, x.right
+				if isResult(rightType) && !isResult(leftType) {
+					nLeft, nRight = nRight, nLeft
+				}
+				s.err = valueError(x.pos, x, CodeOperandTypes, fmt.Sprintf("operator %q has incompatible operand types %s and %s", x.text, leftType, rightType), tryHint(leftType, rightType), nLeft, nRight)
+			}
+		}
 		s.equal(left, right, x.pos)
 		switch x.text {
 		case "and", "or":
