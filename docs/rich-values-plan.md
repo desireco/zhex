@@ -34,7 +34,7 @@ let numbers: List<Int> = [1, 2, 3]
 let empty: List<String> = []
 list.append(numbers, 4) try
 let first = numbers[0] try
-(numbers[1] = 7) try
+numbers[1] = 7
 ```
 
 List<T> is homogeneous and one-dimensional. Nonempty literals infer one checked element type; mixed element types fail. Empty literals and `list.new()` require an expected List<T>, supplied by an annotation or another declared type context. This is ordinary checked inference, not conversion or a dynamic heterogeneous table.
@@ -45,6 +45,7 @@ List<T> is homogeneous and one-dimensional. Nonempty literals infer one checked 
 | `list.length(values)` | Int |
 | `list.append(values, value)` | Result<Unit, Error> |
 | `values[index]` | Result<T, Error> |
+| `values[index] = value` | Unit; failure is a runtime diagnostic |
 | `(values[index] = value)` | Result<Unit, Error> |
 
 Indices are zero-based signed Ints. Negative or out-of-range access/write fails with `list-range`. A receiver, each index, and the write value evaluate exactly once, left to right; validate before committing a mutation. Failed writes/append do not change data or length. All returned Results follow #23's explicit handling/propagation rules.
@@ -56,7 +57,7 @@ List assignment and parameter passing share mutable storage, as Buffer does. `le
 ```text
 let grid: Array<Int> = array.new([2, 3], 0) try
 let cell = grid[1, 2] try
-(grid[1, 2] = 7) try
+grid[1, 2] = 7
 array.resize(grid, [3, 4], 0) try
 ```
 
@@ -70,6 +71,7 @@ Array<T> is rectangular and has runtime rank at least two. Its type does not enc
 | `array.length(values)` | Int total cell count |
 | `array.resize(values, dimensions, fill)` | Result<Unit, Error> |
 | `values[i, j, ...]` | Result<T, Error> |
+| `values[i, j, ...] = value` | Unit; failure is a runtime diagnostic |
 | `(values[i, j, ...] = value)` | Result<Unit, Error> |
 
 Rank must be 2..32. Extents are nonnegative; any zero extent makes the array empty. Check rank, dimensions, product overflow, and the runtime element limit before allocation or mutation. The initial maximum is 1,000,000 elements per list/array. These are explicit runtime safety limits, not type-level capacities or a promise to recover from process-level out-of-memory termination.
@@ -86,7 +88,7 @@ Record fields and collection elements cannot hold Result values and hide unhandl
 
 Passing a caught concrete-family error to any user word also requires explicit `error.wrap`, including a word that only formats its argument today. A helper can return an aggregate or mutate shared storage, so checking only direct constructor/append/write expressions would allow implicit family conversion. This conservative boundary avoids adding effect analysis. Built-in error inspection, reporting, and wrapping operations still accept the caught error directly. Error-valued user flow steps are conservatively rejected even after wrapping; use a direct call, where argument provenance is checked.
 
-Checked collection operations return Result<T, Error> or Result<Unit, Error>. Type/name/field/constructor errors are checker diagnostics before effects. Index/rank/shape/limit and active-iteration failures are source-located Result failures; callers must use try/catch. There is no silent default value for failed access and no implicit result discard.
+Checked collection operations return Result<T, Error> or Result<Unit, Error>. Type/name/field/constructor errors are checker diagnostics before effects. Reads, parenthesized checked writes, append and resize expose source-located Result failures that require try/catch. Plain indexed writes instead raise runtime diagnostics on failure, as detailed in #40 below. There is no silent default value for failed access and no implicit ordinary Result discard.
 
 ## Collection loops (#31)
 
@@ -112,7 +114,7 @@ Value-only traversal does not copy/snapshot the collection. Array coordinate tra
 
 ### Mutation is rejected before the write
 
-An iterator increments an active traversal count on the collection object's identity and releases it on every exit. All checked mutators of that same object return `collection-iterating` **before changing it**, even when reached through aliases. Failed mutation leaves the object unchanged and can be caught inside the body. Modifying a separate output collection is allowed. Nested traversals of one object retain the guard until all of them finish.
+An iterator increments an active traversal count on the collection object's identity and releases it on every exit. Checked mutators of that same object return `collection-iterating` **before changing it**, even when reached through aliases; the checked failure can be caught inside the body. Plain indexed writes raise the corresponding runtime diagnostic instead. Failed mutation leaves the object unchanged. Modifying a separate output collection is allowed. Nested traversals of one object retain the guard until all of them finish.
 
 Guard release must cover normal completion, early Result return, propagated Result failure, runtime fault, console.exit and console.fail. Deliberate control flow must not be replaced by a mutation/cleanup error. Existing guaranteed file.lines cleanup remains intact. This is a pre-mutation guard, not post-write invalidation or a hidden whole-collection snapshot.
 
@@ -210,3 +212,20 @@ All mutation attempts on an actively traversed target diagnose before changing i
 Flow steps may now be named calls with explicit extra arguments. Prepend the prior flowing value as argument one; evaluate explicit arguments once left to right after producing that value. Bare unary steps stay compatible. Reuse ordinary argument/context checking, including generic constructors and empty collections, while preserving Error provenance. Both postfix step try and try inside explicit arguments contribute their normal escaping effects. No placeholder or partial function object is introduced.
 
 Map/flow code examples in this section are implemented and independently reviewed. Release still follows the required validation, push and green deployment gates. JSON/interchange policy remains a separate unresolved part of #33; map core alone does not complete that story.
+
+## Approved opt-in indexed-write guards (#40)
+
+The owner subsequently requested ordinary indexed assignment without mandatory guard plumbing while retaining explicit recovery. Both forms are supported:
+
+```text
+grid[0, 1] = 7
+(grid[0, 1] = 8) try
+(grid[0, 1] = 9) catch problem
+    print(error.code(problem))
+```
+
+For List/Array, a plain indexed assignment statement yields Unit and turns a bounds, rank or active-traversal failure into a source-located runtime diagnostic. A parenthesized indexed-write expression keeps Result<Unit,Error>; try propagates and catch handles that failure. The parser distinguishes these forms. This narrow intrinsic rule does not permit silently discarded ordinary Results.
+
+Both forms evaluate receiver, indices and value once left to right, then validate before mutation. Neither leaks an unchecked Go indexing panic or changes storage on failure. The active-identity guard applies to aliases and no-op attempts in the selected failure mode, and releases on every exit. Plain assignment has no inferred Result effect; explicit checked try and tries in subexpressions retain their effects.
+
+Reads, list.append and array.resize keep their existing checked rules until a separate policy is accepted. Allocation dual-mode scope remains a decision; recoverable controlled/preflight failures must not be advertised as reliable recovery from Go process OOM. No bulk initializer API or arbitrary new capacity limit is introduced by this decision.
