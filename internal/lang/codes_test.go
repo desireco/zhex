@@ -83,6 +83,11 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		args                []string
 		resolve             func(string) (ModuleSource, bool) // set: compile main.zhex against these modules
 	}{
+		{"json-syntax", "json.decode(\"{\", 0) try\n", "", nil, nil},
+		{"json-type", "json.decode(\"false\", 0) try\n", "", nil, nil},
+		{"json-field", "type S = record\n    n: Int\njson.decode(\"{\\\"x\\\":1}\", S(0)) try\n", "", nil, nil},
+		{"json-range", "json.decode(\"1.0\", 0) try\n", "", nil, nil},
+		{"json-depth", "json.decode(\"" + strings.Repeat("[", 258) + "0" + strings.Repeat("]", 258) + "\", 0) try\n", "", nil, nil},
 		{"error-no-cause", "word fail() -> Result<Int, Error>\n    return err(error.new(\"domain\", \"message\"))\nlet n = fail() catch problem\n    let cause = error.cause(problem) try\n    0\n", "", nil, nil},
 		{"unhandled-result", "text.to-int(\"1\")\n", "", nil, nil},
 		{"console-exit-status", "console.exit(256)\n", "", nil, nil},

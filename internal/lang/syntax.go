@@ -322,6 +322,7 @@ type expression struct {
 	handler     []*statement
 	propagate   bool
 	plainWrite  bool
+	jsonSchema  *jsonSchema
 }
 
 type statement struct {

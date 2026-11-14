@@ -217,3 +217,23 @@ An array shape or index has the wrong rank.
 ## array-shape
 
 An array extent is negative.
+
+## json-syntax
+
+JSON text is invalid or contains more than one value. Correct the input syntax.
+
+## json-type
+
+A JSON value does not match the expected Zhex type. Inspect the path and correct the value.
+
+## json-field
+
+A JSON object has an unknown, duplicate, or missing required field. Inspect the path and reason.
+
+## json-range
+
+A JSON integer or collection exceeds the supported range. Correct the value or reduce the list size.
+
+## json-depth
+
+JSON nesting exceeds the supported depth of 256. Reduce the nesting.

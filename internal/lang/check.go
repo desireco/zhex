@@ -59,6 +59,7 @@ type checker struct {
 }
 
 var hostWords = []string{
+	"json.decode", "json.encode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
@@ -120,7 +121,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -229,7 +230,7 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 			}
 			if reservedModule(u.name) {
 				return withSpanRange(withHint(errorAt(u.pos, CodeUseReserved, "module name %q is reserved", u.name),
-					"rename the module file — a module cannot be named text, int, buffer, file, console, error, list, array, or map"), u.pos, u.end)
+					"rename the module file — a module cannot be named text, int, buffer, file, console, error, list, array, map, or json"), u.pos, u.end)
 			}
 			src, ok := ModuleSource{}, false
 			if resolve != nil {
@@ -1024,6 +1025,12 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 					expected = ""
 				}
 			}
+			if x.text == "json.decode" && i == 1 {
+				expected = c.expected
+				if inner, ok := resultInner(expected); ok {
+					expected = inner
+				}
+			}
 			if (x.text == "map.put" || x.text == "map.contains" || x.text == "map.remove") && i > 0 && len(args) > 0 {
 				key, val, ok := mapTypes(args[0])
 				if ok {
@@ -1323,6 +1330,32 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	} else {
 		switch x.text {
+		case "json.decode", "json.encode":
+			count := 1
+			if x.text == "json.decode" {
+				count = 2
+			}
+			if len(args) != count {
+				return "", errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments", x.text, count)
+			}
+			target := args[0]
+			if x.text == "json.decode" {
+				if args[0] != stringType {
+					return "", errorAt(x.pos, CodeArgumentType, "json.decode requires JSON text as its first argument")
+				}
+				target = args[1]
+			}
+			schema, err := c.makeJSONSchema(target, map[valueType]bool{})
+			if err != nil {
+				return "", withSpan(errorAt(x.pos, CodeArgumentType, "%s does not support type %s", x.text, target), x)
+			}
+			x.jsonSchema = schema
+			params = args
+			if x.text == "json.decode" {
+				result = valueType("Result<" + string(target) + ", Error>")
+			} else {
+				result = valueType("Result<String, Error>")
+			}
 		case "map.length", "map.contains", "map.remove", "map.put", "map.into":
 			count := 1
 			if x.text == "map.contains" || x.text == "map.remove" || x.text == "map.into" {

@@ -26,6 +26,10 @@ func (r *runtime) write(pos position, text string) error {
 
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	switch x.text {
+	case "json.decode":
+		return decodeJSON(x.pos, args[0].text, args[1], x.jsonSchema), nil
+	case "json.encode":
+		return encodeJSON(x.pos, args[0], x.jsonSchema), nil
 	case "map.length":
 		return value{number: int64(len(args[0].mapping.entries))}, nil
 	case "map.contains":
