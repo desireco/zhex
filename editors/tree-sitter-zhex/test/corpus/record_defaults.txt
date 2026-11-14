@@ -1,0 +1,26 @@
+==================
+Record field defaults
+==================
+type Settings = record
+    retries: Int = 3
+    tags: List<String> = []
+let settings = Settings()
+
+---
+
+(source_file
+  (record_definition
+    (identifier))
+  (field_definition
+    (identifier)
+    (type)
+    (integer))
+  (field_definition
+    (identifier)
+    (type
+      (type))
+    (list_literal))
+  (binding
+    (identifier)
+    (call_expression
+      (identifier))))

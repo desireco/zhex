@@ -15,7 +15,7 @@ module.exports = grammar({
     alias_definition: $ => seq('type', field('name', $.identifier), '=', 'alias', field('target', $.type)),
     choice_definition: $ => seq('type', field('name', $.identifier), optional(seq('<', $.identifier, '>')), '=', 'choice'),
     variant_definition: $ => seq(field('name', $.identifier), '(', $.parameter, repeat(seq(',', $.parameter)), ')'),
-    field_definition: $ => seq(field('name', $.identifier), ':', field('type', $.type)),
+    field_definition: $ => seq(field('name', $.identifier), ':', field('type', $.type), optional(seq('=', field('default', $._expression)))),
     use_statement: $ => seq('use', field('name', $.identifier)),
     parameter: $ => seq(field('name', $.identifier), ':', field('type', $.type)),
     type: $ => choice('Int', 'Bool', 'String', 'Unit', 'Buffer', 'File', 'Error', $.identifier, seq(choice('List', 'Array', 'Map', 'Option', $.identifier), '<', $.type, repeat(seq(',', $.type)), '>')),
