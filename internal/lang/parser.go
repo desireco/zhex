@@ -15,6 +15,12 @@ func parse(file, source string) (program *Program, err error) {
 	if err != nil {
 		return nil, err
 	}
+	// Positions retain their own source because REPL definitions outlive the
+	// entry that created them, while subsequent entries also use the name repl.
+	for i := range tokens {
+		tokens[i].pos.source = &source
+		tokens[i].end.source = &source
+	}
 	// Syntax failures unwind recursive descent; programming errors are never swallowed.
 	defer func() {
 		if caught := recover(); caught != nil {

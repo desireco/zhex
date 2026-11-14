@@ -368,6 +368,9 @@ func useMissing(u use, importingPath string) error {
 // Run annotates against the entry source only, so module files carry their own.
 func annotateSource(err error, sources map[string]string) error {
 	if d, ok := err.(*diagnostic); ok {
+		if d.pos.source != nil {
+			return annotate(err, *d.pos.source)
+		}
 		if source, found := sources[d.pos.file]; found {
 			return annotate(err, source)
 		}

@@ -22,7 +22,7 @@ func lex(file, source string) ([]token, error) {
 	indent := 0
 	lines := strings.Split(source, "\n")
 	for lineIndex, line := range lines {
-		pos := position{file, lineIndex + 1, 1}
+		pos := position{file: file, line: lineIndex + 1, column: 1}
 		if !utf8.ValidString(line) {
 			return nil, errorAt(pos, CodeSourceUTF8, "source must be valid UTF-8")
 		}
@@ -33,7 +33,7 @@ func lex(file, source string) ([]token, error) {
 			i++
 		}
 		if i < len(runes) && runes[i] == '\t' {
-			return nil, errorAt(position{file, lineIndex + 1, i + 1}, CodeTabCharacter, "tabs are not allowed outside strings")
+			return nil, errorAt(position{file: file, line: lineIndex + 1, column: i + 1}, CodeTabCharacter, "tabs are not allowed outside strings")
 		}
 		if i == len(runes) || runes[i] == '#' {
 			continue
@@ -51,7 +51,7 @@ func lex(file, source string) ([]token, error) {
 			indent = i
 		}
 		for i < len(runes) {
-			pos = position{file, lineIndex + 1, i + 1}
+			pos = position{file: file, line: lineIndex + 1, column: i + 1}
 			c := runes[i]
 			if c == ' ' {
 				i++
@@ -77,7 +77,7 @@ func lex(file, source string) ([]token, error) {
 					}
 					break
 				}
-				tokens = append(tokens, token{"name", string(runes[start:i]), pos, position{file, lineIndex + 1, i + 1}})
+				tokens = append(tokens, token{"name", string(runes[start:i]), pos, position{file: file, line: lineIndex + 1, column: i + 1}})
 				continue
 			}
 			if c >= '0' && c <= '9' {
@@ -85,7 +85,7 @@ func lex(file, source string) ([]token, error) {
 				for i < len(runes) && runes[i] >= '0' && runes[i] <= '9' {
 					i++
 				}
-				tokens = append(tokens, token{"number", string(runes[start:i]), pos, position{file, lineIndex + 1, i + 1}})
+				tokens = append(tokens, token{"number", string(runes[start:i]), pos, position{file: file, line: lineIndex + 1, column: i + 1}})
 				continue
 			}
 			if c == '"' {
@@ -104,14 +104,14 @@ func lex(file, source string) ([]token, error) {
 				if err != nil || !utf8.ValidString(decoded) {
 					return nil, errorAt(pos, CodeStringEscape, "invalid string escape or UTF-8")
 				}
-				tokens = append(tokens, token{"string", decoded, pos, position{file, lineIndex + 1, i + 1}})
+				tokens = append(tokens, token{"string", decoded, pos, position{file: file, line: lineIndex + 1, column: i + 1}})
 				continue
 			}
 			if i+1 < len(runes) {
 				pair := string(runes[i : i+2])
 				if pair == "->" || pair == "==" || pair == "!=" || pair == "<=" || pair == ">=" {
 					i += 2
-					end := position{file, lineIndex + 1, i + 1}
+					end := position{file: file, line: lineIndex + 1, column: i + 1}
 					tokens = append(tokens, token{kind: pair, text: pair, pos: pos, end: end})
 					continue
 				}
@@ -131,21 +131,21 @@ func lex(file, source string) ([]token, error) {
 					delimiters = delimiters[:len(delimiters)-1]
 				}
 				i++
-				end := position{file, lineIndex + 1, i + 1}
+				end := position{file: file, line: lineIndex + 1, column: i + 1}
 				tokens = append(tokens, token{kind: string(c), text: string(c), pos: pos, end: end})
 				continue
 			}
 			return nil, errorAt(pos, CodeUnexpectedCharacter, "unexpected character %q", c)
 		}
 		if len(delimiters) == 0 {
-			tokens = append(tokens, token{kind: "newline", pos: position{file, lineIndex + 1, len(runes) + 1}})
+			tokens = append(tokens, token{kind: "newline", pos: position{file: file, line: lineIndex + 1, column: len(runes) + 1}})
 		}
 	}
 	if len(delimiters) > 0 {
 		last := delimiters[len(delimiters)-1]
 		return nil, errorAt(last.pos, CodeUnclosedDelimiter, "unclosed delimiter %q", string(last.open))
 	}
-	end := position{file, len(lines), 1}
+	end := position{file: file, line: len(lines), column: 1}
 	for ; indent > 0; indent -= 4 {
 		tokens = append(tokens, token{kind: "dedent", pos: end})
 	}

@@ -202,7 +202,7 @@ func TestInferredReturnsPreserveUnknownNameDiagnostics(t *testing.T) {
 		_, combined := Compile("test.zhex", source+"word inferred()\n    1\n")
 		first, ok1 := original.(*diagnostic)
 		second, ok2 := combined.(*diagnostic)
-		if !ok1 || !ok2 || first.code != second.code || first.message != second.message || first.hint != second.hint || first.spanStart != second.spanStart || first.spanEnd != second.spanEnd {
+		if !ok1 || !ok2 || first.code != second.code || first.message != second.message || first.hint != second.hint || first.spanStart.line != second.spanStart.line || first.spanStart.column != second.spanStart.column || first.spanEnd.line != second.spanEnd.line || first.spanEnd.column != second.spanEnd.column {
 			t.Fatalf("%s: original %v, combined %v", expression, original, combined)
 		}
 	}
@@ -214,7 +214,7 @@ func TestInferredReturnsPreserveConditionDiagnostics(t *testing.T) {
 	_, combined := Compile("test.zhex", source+"word inferred()\n    1\n")
 	first, ok1 := original.(*diagnostic)
 	second, ok2 := combined.(*diagnostic)
-	if !ok1 || !ok2 || first.code != second.code || first.message != second.message || first.hint != second.hint || first.spanStart != second.spanStart || first.spanEnd != second.spanEnd {
+	if !ok1 || !ok2 || first.code != second.code || first.message != second.message || first.hint != second.hint || first.spanStart.line != second.spanStart.line || first.spanStart.column != second.spanStart.column || first.spanEnd.line != second.spanEnd.line || first.spanEnd.column != second.spanEnd.column {
 		t.Fatalf("original %v, combined %v", original, combined)
 	}
 }

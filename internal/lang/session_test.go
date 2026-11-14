@@ -76,6 +76,31 @@ func TestSessionKeepsDefinitionsAcrossEntries(t *testing.T) {
 	}
 }
 
+func TestSessionRuntimeDiagnosticUsesOriginalSource(t *testing.T) {
+	for _, tc := range []struct{ name, definition, call, want, wrong string }{
+		{"word", "word explode() -> Int\n    1 / 0\n", "if true\n    explode()\nelse\n    0\n", "1 / 0", "explode()"},
+		{"partial", "word divide(n: Int) -> Int\n    1 / n\nlet f = divide _\n", "if true\n    f(0)\nelse\n    0\n", "1 / n", "f(0)"},
+		{"record default", "type Box = record\n    n: Int = 1 / 0\n", "let box = Box()\n", "1 / 0", "Box()"},
+		{"word default", "word number(n: Int = 1 / 0) -> Int\n    n\n", "number()\n", "1 / 0", "number()"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := NewSession(strings.NewReader(""), io.Discard, nil, nil)
+			if _, err := s.Enter(tc.definition); err != nil {
+				t.Fatal(err)
+			}
+			_, err := s.Enter(tc.call)
+			if err == nil || !strings.Contains(err.Error(), tc.want) || strings.Contains(err.Error(), tc.wrong) {
+				t.Fatalf("diagnostic %v, want original %q and not %q", err, tc.want, tc.wrong)
+			}
+		})
+	}
+	s := NewSession(strings.NewReader(""), io.Discard, nil, nil)
+	_, err := s.Enter("if true\n    2 / 0\nelse\n    0\n")
+	if err == nil || !strings.Contains(err.Error(), "2 / 0") {
+		t.Fatalf("current entry diagnostic: %v", err)
+	}
+}
+
 func TestSessionWordRedefinitionReplacesWithNote(t *testing.T) {
 	var out bytes.Buffer
 	session := NewSession(strings.NewReader(""), &out, nil, nil)

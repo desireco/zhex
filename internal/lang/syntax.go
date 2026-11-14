@@ -9,6 +9,7 @@ import (
 type position struct {
 	file         string
 	line, column int
+	source       *string
 }
 
 type diagnostic struct {
@@ -86,6 +87,9 @@ func annotate(err error, source string) error {
 	d, ok := err.(*diagnostic)
 	if !ok || d.line != "" {
 		return err
+	}
+	if d.pos.source != nil {
+		source = *d.pos.source
 	}
 	lines := strings.Split(source, "\n")
 	if d.pos.line >= 1 && d.pos.line <= len(lines) {
