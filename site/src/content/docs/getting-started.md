@@ -99,7 +99,7 @@ The spaces shown after `....>` are editable. Tab inserts four spaces; Backspace 
 
 Auto-indentation applies to interactive terminal input. Piped REPL input keeps the existing source format, so include the leading four spaces yourself. Pasted code keeps its source indentation; tabs and non-ASCII whitespace outside strings or comments are still rejected by the language. A program's `read-line` prompt reads input as data, without source auto-indentation or Tab expansion. The language grammar is unchanged.
 
-Words and values stay available in later entries.
+Words and values stay available in later entries. Ctrl-D exits with status 0; you can also call `bye()` to exit.
 
 ## Where to go next
 

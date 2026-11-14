@@ -11,7 +11,7 @@ Start an interactive session with:
 zhex repl
 ```
 
-The REPL checks and runs each submitted entry. Defined words, values, and adopted modules persist across entries.
+The REPL checks and runs each submitted entry. Defined words, values, and adopted modules persist across entries. Use Ctrl-D or call the preloaded ordinary word `bye()` to exit with status 0. `bye()` appears in `words` and follows the usual word-redefinition rules; it is available only in the REPL.
 
 ## Enter a word
 
@@ -20,7 +20,7 @@ Calls use parentheses: enter `print(1 + 1)` to print `2`. The REPL does not acce
 In an interactive terminal, the continuation editor inserts four spaces after a block header. It carries the current indentation into nested blocks. Enter submits a line; a line containing only the suggested indentation is blank and submits the entry. Tab inserts four spaces at the cursor, and Backspace removes one character; press it four times to dedent one level before `else`:
 
 ```text
-Zhex REPL — end multi-line entries with a blank line; Ctrl-D exits.
+Zhex REPL — end multi-line entries with a blank line; bye() or Ctrl-D exits.
 zhex> print(1 + 1)
 2
 zhex> word positive(n: Int) -> Int
@@ -66,7 +66,7 @@ zhex> parse("9") try
 
 `let` can shadow an earlier value silently. Redefining a word with the same effective signature replaces it and prints `redefined name`. A redefinition that changes a word's effective Result signature is rejected transactionally, so the previous word and its callers remain available. The `words` command lists signatures in name order; `words` is a command even if a user has a binding with that name.
 
-Press Ctrl-D to exit with status 0. A final input line without a newline still runs. `use name` resolves `name.zhex` in the working directory and adopts that module's qualified words for the rest of the session.
+Ctrl-D exits with status 0; `bye()` does the same. A final input line without a newline still runs. `use name` resolves `name.zhex` in the working directory and adopts that module's qualified words for the rest of the session.
 
 ## Trace a session
 
