@@ -41,6 +41,8 @@ print(greeting + " " + int.to-string(count))
 
 Bindings live in lexical block scope. A nested block may shadow an outer name; two bindings with the same name in one scope are an error. Word parameters are immutable. A word does not capture top-level local bindings; pass values through parameters instead.
 
+An `if`, `match`, or `flow` block may supply the entire right-hand side of a `let`, `var`, or assignment. See [words and flows](words-and-flows.html) for a complete example.
+
 ## Operators
 
 `+` adds two integers or concatenates two strings. `-`, `*`, `/`, and `%` operate on integers. Ordering operators require integers. Equality compares matching `Int`, `Bool`, or `String` values. `and`, `or`, and `not` operate on booleans.

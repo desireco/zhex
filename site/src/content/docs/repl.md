@@ -38,6 +38,27 @@ zhex> flow 3
 
 The spaces shown after `....>` are editable spaces supplied by the terminal editor. To enter `else`, press Backspace four times to remove one indentation level before you type it. The flow sends `3` to `positive`, then sends the result to `print`.
 
+An `if`, `match`, or `flow` block can be the whole value expression on the right side of a binding or assignment. The REPL keeps collecting an entry after a `match` header:
+
+```text
+zhex> let clean = flow "  ADA  "
+....>     text.trim
+....>     text.lower
+....>
+zhex> clean
+ada
+zhex> let value = match Option.Some(3)
+....>     case Option.Some(n)
+....>         n
+....>     case Option.None
+....>         0
+....>
+zhex> value
+3
+```
+
+The final value of each block supplies the binding. The block must be the entire right-hand side; it cannot be nested in a call or another expression.
+
 While editing, Ctrl-C cancels the current entry and returns to the top-level prompt. Ctrl-D on an empty top-level prompt exits with status 0; in a pending entry, Ctrl-D on an empty or spaces-only continuation line discards it and exits. Bracketed paste keeps the pasted source indentation, including literal tabs; tabs and non-ASCII whitespace outside strings or comments remain source errors. These editing conveniences apply only when both input and output are interactive terminals. Piped entries keep the existing line-based behavior and must include their own four-space indentation.
 
 When a program uses `read-line`, the terminal reader also supplies its input. It reads the typed line as data, without source auto-indentation or Tab expansion.

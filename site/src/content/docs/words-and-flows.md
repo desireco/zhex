@@ -18,7 +18,31 @@ word square(n: Int) -> Int
 print(square(7))
 ```
 
-Each parameter and success type needs a type. Bindings, assignments, and loops have type `Unit`; a word's declared success type must match its final statement's type. An `if` or a `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
+Each parameter and success type needs a type. Bindings, assignments, and loops have type `Unit`; a word's declared success type must match its final statement's type. An `if`, `match`, or `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
+
+`if`, `match`, and `flow` blocks can also supply the entire right-hand side of a `let`, `var`, or assignment. Their final value becomes the binding or assignment value:
+
+```zhex
+let normalized = flow "  ADA  "
+    text.trim
+    text.lower
+
+var selection = if true
+    "first"
+else
+    "second"
+
+selection = match Option.Some("updated")
+    case Option.Some(value)
+        value
+    case Option.None
+        "missing"
+
+print(normalized)
+print(selection)
+```
+
+This prints `ada` and `updated`. These are whole right-hand-side blocks; they do not become general nested expressions or arguments to calls.
 
 Definitions are top-level. Words may call later definitions in the same file, and a word may call itself recursively. Recursive execution has a depth limit of 256. Words do not capture top-level local values, so values a word needs must be passed as parameters.
 

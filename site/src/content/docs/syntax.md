@@ -47,11 +47,11 @@ let message = "first line\nsecond line"
 print(message)
 ```
 
-Zhex does not join adjacent source lines into one statement. Keep each expression on one line.
+Zhex does not join arbitrary adjacent source lines into one expression. The block forms described above continue only through their indented body; keep ordinary expressions on one line.
 
 ## Expression shape
 
-Expressions include literals, names, calls, unary operators, and binary operators. Calls use parentheses: `greet("Ada")`. `try` is postfix: `read-line("Name: ") try`.
+Expressions include literals, names, calls, unary operators, and binary operators. `if`, `match`, and `flow` are block forms; each can be used as the entire right-hand side of a `let`, `var`, or assignment, with its final value supplying the result. They are not general nested expressions or call arguments. Calls use parentheses: `greet("Ada")`. `try` is postfix: `read-line("Name: ") try`.
 
 Here is the operator precedence from lowest to highest:
 

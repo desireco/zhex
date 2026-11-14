@@ -8,6 +8,7 @@
 - [Docs](https://desireco.github.io/zhex/docs.html): a grouped guide to getting started, language concepts, the standard library, and tools, with separate topic pages.
 - [Getting started](https://desireco.github.io/zhex/docs/getting-started.html): install and run a first program.
 - [Language](https://desireco.github.io/zhex/docs/syntax.html): syntax, values, words, flows, control flow, Results, and modules.
+- Block values: `if`, `match`, and `flow` can be the entire right-hand side of a `let`, `var`, or assignment; the block's final value is used. They are not general nested expressions or call arguments.
 - [Records and named types](https://desireco.github.io/zhex/docs/records.html): nominal record declarations, positional construction, immutable fields, and explicit type annotations.
 - [Choices and matching](https://desireco.github.io/zhex/docs/choices.html): concrete named alternatives, payload binding, exhaustive cases, and a final `case _` default.
 - [Lists and arrays](https://desireco.github.io/zhex/docs/collections.html): homogeneous shared collections, checked indexing, resizing, limits, and failure handling.
