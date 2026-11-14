@@ -234,3 +234,15 @@ func TestBareBuiltinSuggestsCallSyntax(t *testing.T) {
 		}
 	}
 }
+
+func TestBareNamesNeverSuggestThemselves(t *testing.T) {
+	for _, tc := range []struct{ source, name string }{
+		{"type Config = record\n    n: Int\nConfig\n", "Config"},
+		{"file.lines\n", "file.lines"},
+	} {
+		got := runError(t, tc.source)
+		if strings.Contains(got, `did you mean "`+tc.name+`"`) {
+			t.Errorf("self-suggestion: %s", got)
+		}
+	}
+}

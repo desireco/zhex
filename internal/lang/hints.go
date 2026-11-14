@@ -66,6 +66,9 @@ func closestName(name string, candidates []string) (string, bool) {
 	}
 	best, bestDistance := "", limit+1
 	for _, candidate := range candidates {
+		if candidate == name {
+			continue
+		}
 		if d := editDistance(name, candidate); d < bestDistance {
 			best, bestDistance = candidate, d
 		}
