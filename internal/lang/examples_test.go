@@ -17,7 +17,7 @@ func TestExamples(t *testing.T) {
 		exited            bool
 		exitCode          int
 	}{
-		{name: "partials", want: "12\n12\n12\n1\n1\n12\n"},
+		{name: "partials", want: "12\n12\n12\n1\n1\n12\naDa\n7\n1\n8\ntext-to-int\n3\n"},
 		{name: "calls", want: "Hello, Ada\nHello, Grace\n3\n3\n7\n2\n1\n3\n"},
 		{name: "word-defaults", want: "Hello Grace\ndefault ran\nHello Ada\n1\n1\n"},
 		{name: "temporal", want: "2024-03-10T12:00:00-04:00[America/New_York]\n2024-03-10T13:00:00-04:00[America/New_York]\n"},

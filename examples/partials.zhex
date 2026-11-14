@@ -25,3 +25,23 @@ print second-length
 flow 7
     plus-five
     print
+
+let change = text.replace _, "A", "a"
+print(change("ADA"))
+let show: (Int) -> Unit = print _
+show 7
+let append-one = list.append _, 1
+let values: List<Int> = []
+append-one(values)
+print(list.length(values))
+
+word parse raw: String
+    text.to-int raw try
+
+let parse-later = parse _
+let parsed = parse-later "8" try
+print parsed
+let fallback = parse-later "bad" catch problem
+    print(error.code(problem))
+    3
+print fallback
