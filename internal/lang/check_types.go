@@ -231,7 +231,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 					}
 				}
 			}
-			if c.words[record.name+"."+variant.name] != nil {
+			if c.words[record.name+"."+variant.name] != nil || HostWord(record.name+"."+variant.name) {
 				return errorAt(variant.pos, CodeDuplicateName, "variant %q conflicts with a word", variant.name)
 			}
 			names := make(map[string]bool)

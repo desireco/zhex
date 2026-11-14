@@ -769,3 +769,18 @@ func TestResultsCannotHideInRecordFieldsOrWordParameters(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestChoiceVariantCannotShadowBuiltinOperation(t *testing.T) {
+	for _, source := range []string{
+		"type text = choice\n    to-int(raw: String)\n",
+		"type array = choice\n    new(shape: List<Int>, fill: Int)\n",
+		"type date = choice\n    new\n",
+	} {
+		if _, err := Compile("test.zhex", source); err == nil {
+			t.Errorf("accepted builtin collision: %s", source)
+		}
+	}
+	if _, err := Compile("test.zhex", "type text = choice\n    Custom\nlet v = text.Custom\n"); err != nil {
+		t.Fatal(err)
+	}
+}
