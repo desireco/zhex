@@ -33,6 +33,7 @@ type terminalInput struct {
 	inPaste      bool
 	touched      bool
 	content      bool
+	nonblank     bool
 	indent       int
 	deferred     int
 	cancelled    bool
@@ -43,7 +44,7 @@ type terminalInput struct {
 
 func (in *terminalInput) Write(p []byte) (int, error) { return in.output.Write(p) }
 func (in *terminalInput) prepare(indent int) {
-	in.touched, in.content, in.cancelled = false, false, false
+	in.touched, in.content, in.nonblank, in.cancelled = false, false, false, false
 	in.indent, in.deferred = indent, 0
 	if in.inPaste {
 		in.deferred = indent
@@ -118,17 +119,20 @@ func (in *terminalInput) Read(p []byte) (int, error) {
 				in.queued = append(in.queued, b)
 			} else {
 				in.cancelled = true
-				in.queued = append(in.queued, '\x15', '\r')
+				in.queued = append(in.queued, '\x05', '\x15', '\r')
 			}
 		case '\x04':
-			if !in.inPaste && !in.touched && in.indent > 0 {
-				in.queued = append(in.queued, '\x15')
+			if !in.inPaste && !in.nonblank {
+				in.queued = append(in.queued, '\x05', '\x15')
 			}
 			in.queued = append(in.queued, b)
 		default:
 			if b != '\r' && b != '\n' {
 				in.touched = true
 				in.content = true
+				if b != ' ' && b >= 32 {
+					in.nonblank = true
+				}
 			}
 			in.queued = append(in.queued, b)
 		}
@@ -175,7 +179,7 @@ func (e *replEditor) readLine(prompt string, indent int, programInput bool) (str
 		}
 		// x/term v0.30 otherwise discards typed runes at exactly 4096;
 		// retain long source lines rather than silently changing them.
-		if len(line) >= 4096 && utf8.RuneCountInString(line) == 4096 && key >= 32 {
+		if len(line) >= 4096 && utf8.RuneCountInString(line) == 4096 && key >= 32 && utf8.ValidRune(key) {
 			value := string(key)
 			return line[:pos] + value + line[pos:], pos + len(value), true
 		}

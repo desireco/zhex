@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -144,7 +145,7 @@ func TestInteractiveReplBracketedPasteAndCancellation(t *testing.T) {
 	}
 	s.send(t, "word cancelled() -> Int\r")
 	s.until(t, "....>     ")
-	s.send(t, "\x03")
+	s.send(t, "discard me\x1b[D\x1b[D\x03")
 	s.until(t, "zhex> ")
 	s.send(t, "1 + 1\r")
 	got = s.until(t, "zhex> ")
@@ -153,7 +154,7 @@ func TestInteractiveReplBracketedPasteAndCancellation(t *testing.T) {
 	}
 	s.send(t, "word discarded() -> Int\r")
 	s.until(t, "....>     ")
-	s.send(t, "\x04")
+	s.send(t, "\t\x04")
 	if err := s.cmd.Wait(); err != nil {
 		t.Fatalf("Ctrl-D: %v", err)
 	}
@@ -263,6 +264,24 @@ func TestInteractiveReplDoesNotTreatPastedNonASCIIWhitespaceAsBlank(t *testing.T
 	got := s.until(t, "zhex> ")
 	if !strings.Contains(got, "unexpected") {
 		t.Fatalf("pasted non-ASCII whitespace should remain a lexer error: %q", got)
+	}
+	s.send(t, "\x04")
+	if err := s.cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInteractiveReplUnknownKeyDoesNotAlterLongSource(t *testing.T) {
+	s := startPTY(t)
+	prefix := "let text = \""
+	count := 4096 - len(prefix)
+	s.send(t, prefix+strings.Repeat("a", count)+"\x1b[999~"+"bbbb\"\r")
+	s.until(t, "zhex> ")
+	s.send(t, "print(text.length(text))\r")
+	got := s.until(t, "zhex> ")
+	want := strconv.Itoa(count+4) + "\r\n"
+	if !strings.Contains(got, want) {
+		t.Fatalf("unknown key changed long source: %q", got)
 	}
 	s.send(t, "\x04")
 	if err := s.cmd.Wait(); err != nil {
