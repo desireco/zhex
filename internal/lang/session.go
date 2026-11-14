@@ -212,14 +212,39 @@ func (s *Session) Enter(source string) (string, error) {
 	if err != nil {
 		err = unwrapPropagation(err)
 		r.report(err, "unhandled", position{})
+		s.pruneFrame()
 		return "", annotateSource(err, sources)
 	}
 	s.words, s.records, s.modules, s.uses, s.sources = words, c.types.visible, modules, uses, sources
 	s.scope = env
+	s.pruneFrame()
 	for _, name := range redefined {
 		fmt.Fprintf(s.output, "redefined %s\n", name)
 	}
 	return traceValue(v, typ), nil
+}
+
+// pruneFrame drops values for bindings no longer visible to future entries.
+// Existing binding values and shared-object mutations survive runtime failures.
+func (s *Session) pruneFrame() {
+	visible := map[*binding]bool{}
+	bindings := map[string]*binding{}
+	for current := s.scope; current != nil; current = current.parent {
+		for name, binding := range current.bindings {
+			if bindings[name] == nil {
+				bindings[name] = binding
+				visible[binding] = true
+			}
+		}
+	}
+	for binding := range s.frame {
+		if !visible[binding] {
+			delete(s.frame, binding)
+		}
+	}
+	// Flattening also prevents empty and shadowed entry scopes from retaining
+	// old bindings indefinitely. Binding identities remain stable.
+	s.scope = &scope{bindings: bindings}
 }
 
 // adopt loads the entry's fresh use directives through the session's

@@ -453,3 +453,66 @@ func TestSessionNestedUseMissing(t *testing.T) {
 		t.Fatalf("session must survive: echo %q, err %v", echo, err)
 	}
 }
+
+func TestSessionReleasesUnreachableBindingsAfterEntries(t *testing.T) {
+	var out bytes.Buffer
+	s := NewSession(strings.NewReader(""), &out, nil, nil)
+	if _, err := s.Enter("var count = 0\nlet shared = [0]\n"); err != nil {
+		t.Fatal(err)
+	}
+	baseline := len(s.frame)
+	for i := 0; i < 8; i++ {
+		_, err := s.Enter("let unused = array.new([2, 2], 0)\ncount = count + 1\nshared[0] = count\n1 / 0\n")
+		if err == nil {
+			t.Fatal("expected runtime failure")
+		}
+		if len(s.frame) != baseline {
+			t.Fatalf("failed entry retained %d unreachable values", len(s.frame)-baseline)
+		}
+	}
+	if echo, err := s.Enter("count"); err != nil || echo != "8" {
+		t.Fatalf("count %q: %v", echo, err)
+	}
+	if echo, err := s.Enter("shared[0]"); err != nil || echo != "8" {
+		t.Fatalf("shared %q: %v", echo, err)
+	}
+	if _, err := s.Enter("unused"); err == nil {
+		t.Fatal("adopted failed binding")
+	}
+	for i := 0; i < 4; i++ {
+		if _, err := s.Enter("if true\n    let temporary = array.new([2, 2], 0)\n    1\nelse\n    1\n"); err != nil {
+			t.Fatal(err)
+		}
+		if len(s.frame) != baseline {
+			t.Fatalf("successful block retained %d unreachable values", len(s.frame)-baseline)
+		}
+	}
+	if _, err := s.Enter("let shared = [99]\n"); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.frame) != baseline {
+		t.Fatalf("shadowing retained unreachable value: %d vs %d", len(s.frame), baseline)
+	}
+}
+
+func TestSessionPruningKeepsPartialCapturesAndBoundsScopeChain(t *testing.T) {
+	var out bytes.Buffer
+	s := NewSession(strings.NewReader(""), &out, nil, nil)
+	if _, err := s.Enter("word size(values: List<Int>, n: Int) -> Int\n    list.length(values) + n\nlet shared = [1]\nlet f = size(shared, _)\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Enter("let shared = [1, 2]\n"); err != nil {
+		t.Fatal(err)
+	}
+	if echo, err := s.Enter("f(0)"); err != nil || echo != "1" {
+		t.Fatalf("captured value %q: %v", echo, err)
+	}
+	for i := 0; i < 100; i++ {
+		if _, err := s.Enter("1"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if s.scope == nil || s.scope.parent != nil {
+		t.Fatal("session retained an unbounded scope chain")
+	}
+}
