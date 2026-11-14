@@ -206,3 +206,14 @@ func TestRuntimeFaultInsideCatchIsNotAnInferredResult(t *testing.T) {
 		t.Fatalf("wanted division-zero runtime fault, got %v", err)
 	}
 }
+
+func TestInferredWordReturnsGenericChoice(t *testing.T) {
+	source := "type Maybe<T> = choice\n    None\n    Some(value: T)\nword parse(raw: String) -> Maybe<Int>\n    Maybe.Some(text.to-int(raw) try)\nmatch parse(\"12\") try\n    case Maybe.Some(value)\n        print(value)\n    case Maybe.None\n        print(0)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "12\n" {
+		t.Fatal(out.String())
+	}
+}

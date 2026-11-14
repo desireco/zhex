@@ -99,11 +99,13 @@ func (p *parser) parseType() valueType {
 		panic(errorAt(p.current().pos, CodeNestingLimit, "syntax nesting limit exceeded"))
 	}
 	t := p.require("name")
-	if t.text == "List" || t.text == "Array" {
-		p.require("<")
-		inner := p.parseType()
+	if p.accept("<") {
+		args := []string{string(p.parseType())}
+		for p.accept(",") {
+			args = append(args, string(p.parseType()))
+		}
 		p.require(">")
-		return valueType(t.text + "<" + string(inner) + ">")
+		return valueType(t.text + "<" + strings.Join(args, ", ") + ">")
 	}
 	return valueType(t.text)
 }
@@ -111,8 +113,16 @@ func (p *parser) parseType() valueType {
 func (p *parser) parseRecord() *recordType {
 	p.require("type")
 	name := p.name()
+	param := ""
+	if p.accept("<") {
+		param = p.name().text
+		p.require(">")
+	}
 	p.require("=")
 	choice := p.accept("choice")
+	if param != "" && !choice {
+		panic(errorAt(name.pos, CodeUnknownType, "type parameters require a choice declaration"))
+	}
 	if !choice {
 		p.require("record")
 	}
@@ -121,7 +131,7 @@ func (p *parser) parseRecord() *recordType {
 		panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented block"))
 	}
 	p.require("indent")
-	result := &recordType{name: name.text, pos: name.pos, choice: choice}
+	result := &recordType{name: name.text, pos: name.pos, choice: choice, typeParam: param}
 	for !p.at("dedent") && !p.at("eof") {
 		field := p.name()
 		if choice {

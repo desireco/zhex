@@ -810,6 +810,13 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			}
 			x.record, x.variant = choice, variant
 			typ = valueType(choice.id())
+			if choice.typeParam != "" {
+				x.typeArg = choiceTypeArg(choice, c.expected)
+				if x.typeArg == "" {
+					return "", errorAt(x.pos, CodeArgumentType, "%s requires an expected %s type", x.text, choice.name)
+				}
+				typ = valueType(choice.id() + "<" + string(x.typeArg) + ">")
+			}
 			break
 		}
 		x.binding = env.find(x.text)
@@ -886,11 +893,23 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				params = []valueType{inner}
 			}
 		}
+		genericChoice, genericVariant := c.resolveVariant(x.text)
+		if genericChoice != nil && genericChoice.typeParam != "" {
+			x.typeArg = choiceTypeArg(genericChoice, c.expected)
+		}
 		args := make([]valueType, len(x.args))
 		for i, arg := range x.args {
 			expected := valueType("")
 			if i < len(params) {
 				expected = params[i]
+			}
+			if genericChoice != nil && genericChoice.typeParam != "" && i < len(genericChoice.variants[genericVariant].fields) {
+				pattern := genericChoice.variants[genericVariant].fields[i].typ
+				if x.typeArg != "" {
+					expected = substituteType(pattern, genericChoice.typeParam, x.typeArg)
+				} else if typeContainsParam(pattern, genericChoice.typeParam) {
+					expected = ""
+				}
 			}
 			if (x.text == "array.new" && i == 0) || (x.text == "array.resize" && i == 1) {
 				expected = "List<Int>"
@@ -912,6 +931,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if err != nil {
 				return "", err
 			}
+			if genericChoice != nil && genericChoice.typeParam != "" && i < len(genericChoice.variants[genericVariant].fields) {
+				if !inferTypeArgument(genericChoice.variants[genericVariant].fields[i].typ, args[i], genericChoice.typeParam, &x.typeArg) {
+					return "", errorAt(arg.pos, CodeArgumentType, "inconsistent choice payload type")
+				}
+			}
 		}
 		return c.call(x, args)
 	case "match":
@@ -919,7 +943,12 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
-		choice := c.types.all[string(subject)]
+		baseType, typeArgs, applied := typeApplication(subject)
+		lookup := string(subject)
+		if applied {
+			lookup = baseType
+		}
+		choice := c.types.all[lookup]
 		if choice == nil || !choice.choice {
 			return "", errorAt(x.pos, CodeArgumentType, "match requires a choice value")
 		}
@@ -945,7 +974,12 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				}
 				seen[index] = true
 				arm.variant = index
-				fields := choice.variants[index].fields
+				fields := append([]parameter(nil), choice.variants[index].fields...)
+				if choice.typeParam != "" && len(typeArgs) == 1 {
+					for i := range fields {
+						fields[i].typ = substituteType(fields[i].typ, choice.typeParam, typeArgs[0])
+					}
+				}
 				if len(arm.names) != len(fields) {
 					return "", errorAt(arm.pos, CodeArgumentCount, "case %s requires %d payload bindings", arm.name, len(fields))
 				}
@@ -1110,7 +1144,19 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 		x.record, x.variant = choice, index
 		result = valueType(choice.id())
+		if choice.typeParam != "" {
+			if x.typeArg == "" {
+				return "", errorAt(x.pos, CodeArgumentType, "cannot infer type argument for %s", x.text)
+			}
+			if containsResultType(x.typeArg) {
+				return "", errorAt(x.pos, CodeUnhandledResult, "a Result cannot be stored in a choice")
+			}
+			result = valueType(choice.id() + "<" + string(x.typeArg) + ">")
+		}
 		for i, field := range fields {
+			if choice.typeParam != "" {
+				field.typ = substituteType(field.typ, choice.typeParam, x.typeArg)
+			}
 			params = append(params, field.typ)
 			if i < len(x.args) && field.typ == errorType && x.args[i].binding != nil && x.args[i].binding.errorFamily != "" && x.args[i].binding.errorFamily != "Error" {
 				return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")

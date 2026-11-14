@@ -653,3 +653,87 @@ func TestChoiceConstructorCannotShadowImportedType(t *testing.T) {
 		t.Fatal("choice constructor shadowed imported record constructor")
 	}
 }
+
+func TestGenericChoiceInfersPayloadAndContextualNullary(t *testing.T) {
+	source := "type Maybe<T> = choice\n    None\n    Some(value: T)\nlet value = Maybe.Some(7)\nlet empty: Maybe<Int> = Maybe.None\nword describe(m: Maybe<Int>) -> Int\n    match m\n        case Maybe.Some(value)\n            value\n        case Maybe.None\n            0\nprint(describe(value))\nprint(describe(empty))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n0\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestGenericChoiceRejectsUnknownAndConflictingTypes(t *testing.T) {
+	prefix := "type Maybe<T> = choice\n    None\n    Some(value: T)\n    Pair(left: T, right: T)\n"
+	for _, src := range []string{"let x = Maybe.None\n", "let x = Maybe.Pair(1, \"x\")\n", "let x: Maybe<String> = Maybe.Some(1)\n", "let x: Maybe<Result<Int, Error>> = Maybe.None\n"} {
+		if _, err := Compile("test.zhex", prefix+src); err == nil {
+			t.Errorf("accepted %q", src)
+		}
+	}
+}
+
+func TestGenericChoiceNestedInferenceAndEmptyContext(t *testing.T) {
+	source := "type Maybe<T> = choice\n    None\n    Some(value: T)\n    Pair(left: T, right: T)\nlet lists: Maybe<List<Int>> = Maybe.Some([])\nlet pair = Maybe.Pair([2], [3])\nmatch pair\n    case Maybe.Pair(a, b)\n        print(a[0] try)\n        print(b[0] try)\n    case _\n        print(0)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "2\n3\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestGenericChoicePrivacyCyclesAndErrorFamily(t *testing.T) {
+	modules := map[string]ModuleSource{"model": {Path: "model.zhex", Source: "type _Secret = record\n    n: Int\ntype Maybe<T> = choice\n    None\n    Some(value: T)\ntype Public = record\n    item: Maybe<_Secret>\n"}}
+	resolve := func(name string) (ModuleSource, bool) { m, ok := modules[name]; return m, ok }
+	if _, err := CompileModules("main.zhex", "use model\n", resolve); err == nil {
+		t.Fatal("generic argument leaked private type")
+	}
+	for _, src := range []string{"type Maybe<T> = choice\n    Again(item: Maybe<T>)\n", "type Maybe<Int> = choice\n    Some(value: Int)\n", "type Maybe<T> = choice\n    Some(value: T)\nlet n = text.to-int(\"bad\") catch problem\n    let x = Maybe.Some(problem)\n    0\n"} {
+		if _, err := Compile("test.zhex", src); err == nil {
+			t.Errorf("accepted invalid generic choice:\n%s", src)
+		}
+	}
+}
+
+func TestGenericChoiceModulesAndInferredWord(t *testing.T) {
+	modules := map[string]ModuleSource{"model": {Path: "model.zhex", Source: "type Maybe<T> = choice\n    None\n    Some(value: T)\nword get() -> Maybe<Int>\n    Maybe.Some(4)\n"}}
+	resolve := func(name string) (ModuleSource, bool) { m, ok := modules[name]; return m, ok }
+	source := "use model\nlet empty: model.Maybe<Int> = model.Maybe.None\nlet value = model.get()\nmatch value\n    case model.Maybe.Some(n)\n        print(n)\n    case model.Maybe.None\n        print(0)\n"
+	var out bytes.Buffer
+	if err := RunWithModules("main.zhex", source, strings.NewReader(""), &out, nil, nil, resolve); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "4\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestPrivateTypeInsideGenericArgumentIsPrivateUse(t *testing.T) {
+	resolve := func(name string) (ModuleSource, bool) {
+		if name == "model" {
+			return ModuleSource{Path: "model.zhex", Source: "type _Secret = record\n    n: Int\ntype Maybe<T> = choice\n    None\n    Some(value: T)\n"}, true
+		}
+		return ModuleSource{}, false
+	}
+	_, err := CompileModules("main.zhex", "use model\nlet x: model.Maybe<model._Secret> = model.Maybe.None\n", resolve)
+	if d, ok := err.(*diagnostic); !ok || d.code != CodePrivateUse {
+		t.Fatalf("wanted private-use: %v", err)
+	}
+}
+
+func TestGenericChoiceCannotHideResultObligation(t *testing.T) {
+	prefix := "type Maybe<T> = choice\n    Some(value: T)\n"
+	if _, err := Compile("test.zhex", prefix+"let x = Maybe.Some(text.to-int(\"bad\"))\n"); err == nil {
+		t.Fatal("generic choice hid Result")
+	}
+	var out bytes.Buffer
+	if err := Run("test.zhex", prefix+"let x = Maybe.Some(text.to-int(\"7\") try)\nmatch x\n    case Maybe.Some(value)\n        print(value)\n", strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n" {
+		t.Fatal(out.String())
+	}
+}

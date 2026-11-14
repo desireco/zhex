@@ -53,24 +53,39 @@ func (c *checker) privateRecord(name string) (*recordType, *module) {
 }
 
 func (c *checker) typeError(pos position, typ valueType) error {
-	for {
-		if inner, ok := resultInner(typ); ok {
-			typ = inner
-			continue
+	var findPrivate func(valueType) (*recordType, *module)
+	findPrivate = func(t valueType) (*recordType, *module) {
+		base, args, ok := typeApplication(t)
+		if ok {
+			if record, module := c.privateRecord(base); record != nil {
+				return record, module
+			}
+			for _, arg := range args {
+				if record, module := findPrivate(arg); record != nil {
+					return record, module
+				}
+			}
+			return nil, nil
 		}
-		if _, inner, ok := collectionInner(typ); ok {
-			typ = inner
-			continue
-		}
-		break
+		return c.privateRecord(string(t))
 	}
-	if record, module := c.privateRecord(string(typ)); record != nil {
+	if record, module := findPrivate(typ); record != nil {
 		return withHint(errorAt(pos, CodePrivateUse, "%q is private to module %q", record.name, module.name), fmt.Sprintf("remove the leading underscore in %s to export it", module.path))
 	}
 	return errorAt(pos, CodeUnknownType, "unknown type %q", typ)
 }
 
 func (c *checker) normalizeType(typ valueType) (valueType, bool) {
+	if base, args, ok := typeApplication(typ); ok && base != "Result" && base != "List" && base != "Array" {
+		if record := c.types.visible[base]; record != nil && record.typeParam != "" && len(args) == 1 {
+			inner, ok := c.normalizeType(args[0])
+			if !ok || isResult(inner) {
+				return "", false
+			}
+			return valueType(record.id() + "<" + string(inner) + ">"), true
+		}
+		return "", false
+	}
 	if kind, inner, ok := collectionInner(typ); ok {
 		normalized, found := c.normalizeType(inner)
 		if !found || isResult(normalized) {
@@ -89,7 +104,7 @@ func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 	case intType, boolType, stringType, unitType, bufferType, fileType, errorType:
 		return typ, true
 	}
-	if record := c.types.visible[string(typ)]; record != nil {
+	if record := c.types.visible[string(typ)]; record != nil && record.typeParam == "" {
 		return valueType(record.id()), true
 	}
 	return "", false
@@ -97,11 +112,16 @@ func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 func (c *checker) validType(typ valueType) bool { _, ok := c.normalizeType(typ); return ok }
 
 func privateTypeInModule(typ valueType, module string) bool {
-	if _, inner, ok := collectionInner(typ); ok {
-		return privateTypeInModule(inner, module)
-	}
-	if inner, ok := resultInner(typ); ok {
-		return privateTypeInModule(inner, module)
+	if base, args, ok := typeApplication(typ); ok {
+		if module != "" && strings.HasPrefix(base, module+"._") {
+			return true
+		}
+		for _, arg := range args {
+			if privateTypeInModule(arg, module) {
+				return true
+			}
+		}
+		return false
 	}
 	return module != "" && strings.HasPrefix(string(typ), module+"._")
 }
@@ -123,6 +143,9 @@ func (c *checker) registerRecords(records []*recordType) error {
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
 	}
 	for _, record := range records {
+		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "List" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
+			return errorAt(record.pos, CodeDuplicateName, "invalid type parameter %q", record.typeParam)
+		}
 		variants := make(map[string]bool)
 		for i := range record.variants {
 			variant := &record.variants[i]
@@ -152,7 +175,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 					return errorAt(field.pos, CodeDuplicateName, "payload %q is invalid or already defined", field.name)
 				}
 				names[field.name] = true
-				typ, ok := c.normalizeType(field.typ)
+				typ, ok := c.normalizeTemplate(field.typ, record.typeParam)
 				if !ok || isResult(typ) {
 					return c.typeError(field.pos, field.typ)
 				}
@@ -200,22 +223,33 @@ func (c *checker) registerRecords(records []*recordType) error {
 		for _, variant := range record.variants {
 			fields = append(fields, variant.fields...)
 		}
-		for _, field := range fields {
-			typ := field.typ
-			for {
-				_, inner, ok := collectionInner(typ)
-				if !ok {
-					break
-				}
-				typ = inner
+		var visitType func(valueType) error
+		visitType = func(typ valueType) error {
+			base, args, applied := typeApplication(typ)
+			name := string(typ)
+			if applied {
+				name = base
 			}
-			if dep := c.types.all[string(typ)]; dep != nil {
+			if dep := c.types.all[name]; dep != nil {
 				if err := visit(dep, depth+1); err != nil {
 					return err
 				}
 				if candidate := 1 + done[dep.id()]; candidate > height {
 					height = candidate
 				}
+			}
+			if applied {
+				for _, arg := range args {
+					if err := visitType(arg); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+		for _, field := range fields {
+			if err := visitType(field.typ); err != nil {
+				return err
 			}
 		}
 		delete(active, record.id())
@@ -264,4 +298,142 @@ func (c *checker) privateVariant(name string) (*recordType, *module) {
 		}
 	}
 	return nil, nil
+}
+
+// typeApplication splits nested type arguments without confusing inner commas.
+func typeApplication(typ valueType) (string, []valueType, bool) {
+	text := string(typ)
+	i := strings.IndexByte(text, '<')
+	if i <= 0 || !strings.HasSuffix(text, ">") {
+		return "", nil, false
+	}
+	body := text[i+1 : len(text)-1]
+	depth, start := 0, 0
+	var args []valueType
+	for at, r := range body {
+		switch r {
+		case '<':
+			depth++
+		case '>':
+			depth--
+			if depth < 0 {
+				return "", nil, false
+			}
+		case ',':
+			if depth == 0 {
+				args = append(args, valueType(strings.TrimSpace(body[start:at])))
+				start = at + 1
+			}
+		}
+	}
+	if depth != 0 {
+		return "", nil, false
+	}
+	args = append(args, valueType(strings.TrimSpace(body[start:])))
+	for _, arg := range args {
+		if arg == "" {
+			return "", nil, false
+		}
+	}
+	return text[:i], args, true
+}
+func substituteType(typ valueType, param string, arg valueType) valueType {
+	if string(typ) == param {
+		return arg
+	}
+	base, args, ok := typeApplication(typ)
+	if !ok {
+		return typ
+	}
+	parts := make([]string, len(args))
+	for i, a := range args {
+		parts[i] = string(substituteType(a, param, arg))
+	}
+	return valueType(base + "<" + strings.Join(parts, ", ") + ">")
+}
+func inferTypeArgument(pattern, actual valueType, param string, found *valueType) bool {
+	if string(pattern) == param {
+		if *found == "" {
+			*found = actual
+			return true
+		}
+		return *found == actual
+	}
+	pbase, pargs, pok := typeApplication(pattern)
+	abase, aargs, aok := typeApplication(actual)
+	if !pok || !aok {
+		return pattern == actual
+	}
+	if pbase != abase || len(pargs) != len(aargs) {
+		return false
+	}
+	for i := range pargs {
+		if !inferTypeArgument(pargs[i], aargs[i], param, found) {
+			return false
+		}
+	}
+	return true
+}
+func (c *checker) normalizeTemplate(typ valueType, param string) (valueType, bool) {
+	if string(typ) == param && param != "" {
+		return typ, true
+	}
+	base, args, ok := typeApplication(typ)
+	if !ok {
+		return c.normalizeType(typ)
+	}
+	normalized := make([]string, len(args))
+	for i, arg := range args {
+		v, ok := c.normalizeTemplate(arg, param)
+		if !ok || isResult(v) {
+			return "", false
+		}
+		normalized[i] = string(v)
+	}
+	if (base == "List" || base == "Array") && len(args) == 1 {
+		return valueType(base + "<" + normalized[0] + ">"), true
+	}
+	if record := c.types.visible[base]; record != nil && record.typeParam != "" && len(args) == 1 {
+		return valueType(record.id() + "<" + normalized[0] + ">"), true
+	}
+	return "", false
+}
+
+func typeContainsParam(typ valueType, param string) bool {
+	if string(typ) == param {
+		return true
+	}
+	_, args, ok := typeApplication(typ)
+	if !ok {
+		return false
+	}
+	for _, arg := range args {
+		if typeContainsParam(arg, param) {
+			return true
+		}
+	}
+	return false
+}
+func choiceTypeArg(choice *recordType, typ valueType) valueType {
+	base, args, ok := typeApplication(typ)
+	if ok && base == choice.id() && len(args) == 1 {
+		return args[0]
+	}
+	return ""
+}
+
+func containsResultType(typ valueType) bool {
+	if isResult(typ) {
+		return true
+	}
+	_, args, ok := typeApplication(typ)
+	if !ok {
+		return false
+	}
+	for _, arg := range args {
+		if containsResultType(arg) {
+			return true
+		}
+	}
+	return false
 }

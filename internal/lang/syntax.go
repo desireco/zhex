@@ -255,12 +255,13 @@ type word struct {
 }
 
 type recordType struct {
-	module   string
-	name     string
-	pos      position
-	fields   []parameter
-	choice   bool
-	variants []choiceVariant
+	module    string
+	name      string
+	pos       position
+	fields    []parameter
+	choice    bool
+	typeParam string
+	variants  []choiceVariant
 }
 
 type choiceVariant struct {
@@ -317,6 +318,7 @@ type expression struct {
 	fields      []int
 	arms        []matchArm
 	variant     int
+	typeArg     valueType
 	handler     []*statement
 	propagate   bool
 }
