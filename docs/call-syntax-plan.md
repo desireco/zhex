@@ -70,7 +70,7 @@ Do not interpret `print distance "one", "two"` by guessing which call owns the c
 
 Trailing `try` or an indented `catch` at a whole bare-call boundary guards that call's result. For a guard on a captured/ordinary argument, use the existing unambiguous parenthesized argument/call form or place it before a separating comma. `let value = parse raw try` means `parse(raw) try`; `parse(read-line("N: ") try)` guards its argument separately. A guard on a partial function value itself is an error, not deferred handling.
 
-Named record constructors retain their existing parentheses, including `Settings(verbose: true)`. Choice constructors retain their existing qualified syntax; nullary alternatives remain values. Constructors are not made curried/partial by this story. Ordinary words, callable values and suitable monomorphic builtins participate; loop-only `range`/`file.lines` and special named-reporter registration are not ordinary partial-call targets.
+Named record constructors retain their existing parentheses, including `Settings(verbose: true)`. Choice constructors retain their existing qualified syntax; nullary alternatives remain values. Constructors are not made curried/partial by this story. Ordinary words, callable values and suitable monomorphic builtins participate; loop-only `range`/`file.lines` and special named-reporter registration are not ordinary partial-call targets. Direct partials of `console.exit`/`console.fail` are also rejected initially: their internal non-returning result has no public function-type spelling. Their direct calls and ordinary explicitly typed wrapper words remain available; this feature does not introduce a public `Never` type.
 
 ## Identifier and callable resolution
 
