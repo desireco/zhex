@@ -246,7 +246,14 @@ func (s *Session) adopt(fresh []use, words map[string]*word, redefined *[]string
 	if err := inferModuleParameters(p, modules, order, context); err != nil {
 		return nil, annotateSource(err, sources)
 	}
-	c := &checker{modules: modules, types: namedTypeRegistry{all: collectRecords(modules)}}
+	allRecords := collectRecords(modules)
+	for _, record := range s.records {
+		allRecords[record.id()] = record
+	}
+	for _, record := range p.records {
+		allRecords[record.id()] = record
+	}
+	c := &checker{modules: modules, types: namedTypeRegistry{all: allRecords}}
 	for _, m := range order {
 		c.module, c.words, c.uses = m.name, m.words, m.uses
 		c.types.visible = c.importedRecords(m.uses)

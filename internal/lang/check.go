@@ -180,7 +180,11 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 	if err := inferModuleParameters(p, modules, order, nil); err != nil {
 		return nil, annotateSource(err, sources)
 	}
-	c := &checker{words: make(map[string]*word), modules: modules, types: namedTypeRegistry{all: collectRecords(modules)}}
+	allRecords := collectRecords(modules)
+	for _, record := range p.records {
+		allRecords[record.id()] = record
+	}
+	c := &checker{words: make(map[string]*word), modules: modules, types: namedTypeRegistry{all: allRecords}}
 	// Modules check in load order — dependencies first — and the entry last.
 	for _, m := range order {
 		c.module, c.words, c.uses = m.name, m.words, m.uses
@@ -390,6 +394,9 @@ func (c *checker) checkWords(words []*word) error {
 		}
 		if w.result != "" {
 			typ, ok := c.normalizeType(w.result)
+			if w.inferredReturnType {
+				typ, ok = c.normalizeInferredType(w.result)
+			}
 			if !ok {
 				return c.typeError(w.pos, w.result)
 			}
@@ -408,6 +415,9 @@ func (c *checker) checkWords(words []*word) error {
 				return privateTypeLeak(param.pos, param.typ)
 			}
 			typ, ok := c.normalizeType(param.typ)
+			if param.inferredType {
+				typ, ok = c.normalizeInferredType(param.typ)
+			}
 			if !ok {
 				return c.typeError(param.pos, param.typ)
 			}

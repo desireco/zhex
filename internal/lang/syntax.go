@@ -243,22 +243,24 @@ type binding struct {
 }
 
 type parameter struct {
-	name        string
-	typ         valueType
-	pos         position
-	binding     *binding
-	defaultExpr *expression
+	name         string
+	typ          valueType
+	inferredType bool
+	pos          position
+	binding      *binding
+	defaultExpr  *expression
 }
 
 type word struct {
-	name     string
-	module   string // owning module's use name; "" in the entry file and the REPL
-	pos      position
-	params   []parameter
-	result   valueType
-	success  valueType // declared success type of an inferred fallible word
-	inferred bool
-	body     []*statement
+	name               string
+	module             string // owning module's use name; "" in the entry file and the REPL
+	pos                position
+	params             []parameter
+	result             valueType
+	inferredReturnType bool
+	success            valueType // declared success type of an inferred fallible word
+	inferred           bool
+	body               []*statement
 }
 
 type recordType struct {

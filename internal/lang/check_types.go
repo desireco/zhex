@@ -80,6 +80,22 @@ func (c *checker) typeError(pos position, typ valueType) error {
 func (c *checker) normalizeType(typ valueType) (valueType, bool) {
 	return c.normalizeTypeSeen(typ, map[*recordType]bool{})
 }
+
+// Inferred signatures can contain canonical public types from their callers;
+// source-written names still resolve only in their declaring module's view.
+func (c *checker) normalizeInferredType(typ valueType) (valueType, bool) {
+	copy := *c
+	visible := make(map[string]*recordType, len(c.types.visible)+len(c.types.all))
+	for name, record := range c.types.visible {
+		visible[name] = record
+	}
+	for name, record := range c.types.all {
+		visible[name] = record
+	}
+	copy.types.visible = visible
+	return copy.normalizeType(typ)
+}
+
 func (c *checker) normalizeTypeSeen(typ valueType, seen map[*recordType]bool) (valueType, bool) {
 	if base, args, ok := typeApplication(typ); ok && base == "Map" {
 		if len(args) != 2 {
@@ -147,6 +163,23 @@ func (c *checker) normalizeTypeSeen(typ valueType, seen map[*recordType]bool) (v
 	return "", false
 }
 func (c *checker) validType(typ valueType) bool { _, ok := c.normalizeType(typ); return ok }
+
+func privateInferredType(typ valueType, records map[string]*recordType) bool {
+	base, args, applied := typeApplication(typ)
+	name := string(typ)
+	if applied {
+		name = base
+	}
+	if record := records[name]; record != nil && strings.HasPrefix(record.name, "_") {
+		return true
+	}
+	for _, arg := range args {
+		if privateInferredType(arg, records) {
+			return true
+		}
+	}
+	return false
+}
 
 func privateTypeInModule(typ valueType, module string) bool {
 	if base, args, ok := typeApplication(typ); ok {

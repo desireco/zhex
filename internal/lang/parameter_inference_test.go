@@ -214,3 +214,71 @@ func TestInferredParametersAlongsideExistingExamples(t *testing.T) {
 		})
 	}
 }
+
+func TestInferredParametersUseCallerNominalType(t *testing.T) {
+	files := mapResolver(map[string]string{
+		"util.zhex":  "word identity(value)\n    value\n",
+		"model.zhex": "type Person = record\n    age: Int\n",
+	})
+	for _, uses := range []string{"use util\nuse model\n", "use model\nuse util\n"} {
+		program, err := CompileModules("main.zhex", uses+"let p = util.identity(model.Person(7))\nprint(p.age)\n", files)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		if err := program.Run(strings.NewReader(""), &out); err != nil {
+			t.Fatal(err)
+		}
+		if out.String() != "7\n" {
+			t.Fatal(out.String())
+		}
+	}
+}
+
+func TestInferredModuleParameterAcceptsEntryRecord(t *testing.T) {
+	files := mapResolver(map[string]string{"util.zhex": "word identity(value)\n    value\n"})
+	source := "use util\ntype Person = record\n    age: Int\nlet p = util.identity(Person(7))\nprint(p.age)\n"
+	if _, err := CompileModules("main.zhex", source, files); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInferredModuleSignatureDoesNotExposeCallerPrivateType(t *testing.T) {
+	files := mapResolver(map[string]string{"util.zhex": "word identity(value)\n    value\n"})
+	source := "use util\ntype _Secret = record\n    age: Int\nutil.identity(_Secret(7))\n"
+	if _, err := CompileModules("main.zhex", source, files); err == nil {
+		t.Fatal("accepted public signature exposing a private type")
+	} else if d, ok := err.(*diagnostic); !ok || d.code != CodePrivateUse {
+		t.Fatalf("expected private-use, got %v", err)
+	}
+}
+
+func TestInferredModuleParameterAcceptsREPLRecord(t *testing.T) {
+	var out bytes.Buffer
+	s := NewSession(strings.NewReader(""), &out, nil, mapResolver(map[string]string{"util.zhex": "word identity(value)\n    value\n"}))
+	if _, err := s.Enter("type Person = record\n    age: Int\n"); err != nil {
+		t.Fatal(err)
+	}
+	if echo, err := s.Enter("use util\nlet p = util.identity(Person(7))\np.age\n"); err != nil || echo != "7" {
+		t.Fatalf("echo %q error %v", echo, err)
+	}
+}
+
+func TestInferredParametersCarryNestedCallerNominalTypes(t *testing.T) {
+	files := mapResolver(map[string]string{
+		"util.zhex":  "word identity(value)\n    value\n",
+		"model.zhex": "type Person = record\n    age: Int\n",
+	})
+	source := "use util\nuse model\nlet people = util.identity([model.Person(7)])\nprint(list.length(people))\n"
+	program, err := CompileModules("main.zhex", source, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := program.Run(strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n" {
+		t.Fatal(out.String())
+	}
+}

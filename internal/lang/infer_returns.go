@@ -272,10 +272,11 @@ func (s *returnInference) infer(words []*word) error {
 			if !ok || typ == neverType || containsResultType(typ) {
 				return withHint(errorAt(param.pos, CodeArgumentType, "cannot infer type of parameter %q", param.name), "add an explicit parameter annotation")
 			}
-			if w.module != "" && !strings.HasPrefix(w.name, "_") && privateTypeInModule(typ, w.module) {
+			if w.module != "" && !strings.HasPrefix(w.name, "_") && (privateTypeInModule(typ, w.module) || privateInferredType(typ, s.checker.types.all)) {
 				return privateTypeLeak(param.pos, typ)
 			}
 			param.typ = typ
+			param.inferredType = true
 		}
 		if w.result != "" {
 			continue
@@ -284,10 +285,11 @@ func (s *returnInference) infer(words []*word) error {
 		if !ok || result == neverType {
 			return withHint(errorAt(w.pos, CodeWordResult, "cannot infer return type of %q", w.name), "add an explicit return annotation")
 		}
-		if w.module != "" && !strings.HasPrefix(w.name, "_") && privateTypeInModule(result, w.module) {
+		if w.module != "" && !strings.HasPrefix(w.name, "_") && (privateTypeInModule(result, w.module) || privateInferredType(result, s.checker.types.all)) {
 			return privateTypeLeak(w.pos, result)
 		}
 		w.result = result
+		w.inferredReturnType = true
 	}
 	return nil
 }
