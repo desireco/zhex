@@ -23,6 +23,9 @@ function! s:Check(needle, offset, expected) abort
 endfunction
 
 call s:Check('# word', 2, 'zhexComment')
+call s:Check('= choice', 2, 'zhexKeyword')
+call s:Check('match Status.Ready', 0, 'zhexKeyword')
+call s:Check('case Status.Ready', 0, 'zhexKeyword')
 call s:Check('type Customer', 0, 'zhexKeyword')
 call s:Check('List<Int>', 0, 'zhexType')
 call s:Check('Array<Int>', 0, 'zhexType')

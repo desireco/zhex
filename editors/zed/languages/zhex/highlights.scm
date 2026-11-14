@@ -11,7 +11,7 @@
 (escape_sequence) @string.escape
 (comment) @comment
 
-["word" "type" "record" "use" "let" "var" "if" "elif" "for" "in" "flow" "try" "catch" "return"] @keyword
+["word" "type" "record" "choice" "match" "case" "use" "let" "var" "if" "elif" "for" "in" "flow" "try" "catch" "return"] @keyword
 (else_header) @keyword
 ["and" "or" "not" "+" "-" "*" "/" "%" "==" "!=" "<" "<=" ">" ">=" "=" "->"] @operator
 ["(" ")" "[" "]"] @punctuation.bracket

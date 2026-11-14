@@ -10,7 +10,7 @@ syntax match zhexFunction /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\
 syntax match zhexDefinition /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*/ contained
 syntax match zhexParameter /[A-Za-z_][A-Za-z0-9_]*\%([-\.][A-Za-z_][A-Za-z0-9_]*\)*\ze\s*:/
 syntax keyword zhexKeyword word nextgroup=zhexDefinition skipwhite
-syntax keyword zhexKeyword type record use let var if elif else for in flow try catch return
+syntax keyword zhexKeyword type record choice match case use let var if elif else for in flow try catch return
 syntax keyword zhexType Int Bool String Unit Buffer File Error Result List Array InputError ParseError FileError BufferError
 syntax keyword zhexBoolean true false
 syntax keyword zhexOperator and or not

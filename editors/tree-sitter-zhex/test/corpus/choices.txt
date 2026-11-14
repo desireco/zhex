@@ -1,0 +1,50 @@
+==================
+Choice and matching
+==================
+type Status = choice
+    Pending
+    Failed(message: String)
+let status = Status.Failed("offline")
+let label = match status
+    case Status.Pending
+        "pending"
+    case Status.Failed(message)
+        message
+    case _
+        "unknown"
+
+---
+
+(source_file
+  (choice_definition
+    (identifier))
+  (expression_statement
+    (identifier))
+  (variant_definition
+    (identifier)
+    (parameter
+      (identifier)
+      (type)))
+  (binding
+    (identifier)
+    (call_expression
+      (identifier)
+      (string)))
+  (binding
+    (identifier)
+    (match_expression
+      (identifier)))
+  (case_header
+    (identifier))
+  (expression_statement
+    (string))
+  (case_header
+    (call_expression
+      (identifier)
+      (identifier)))
+  (expression_statement
+    (identifier))
+  (case_header
+    (identifier))
+  (expression_statement
+    (string)))

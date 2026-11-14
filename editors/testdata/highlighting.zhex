@@ -32,3 +32,9 @@ type Customer = record
 let grid: Array<Int> = array.new([2, 2], 0) try
 for coordinates, value in grid
     print(value)
+type Status = choice
+    Ready
+    Failed(message: String)
+match Status.Ready
+    case Status.Ready
+        print("ready")
