@@ -92,3 +92,24 @@ func TestCheckedIndexedWriteCanRecoverFromIterationGuard(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestPlainWritePropagatesReceiverAndValueEffects(t *testing.T) {
+	source := "word values() -> List<Int>\n    let n = text.to-int(\"1\") try\n    [n]\nword value() -> Int\n    text.to-int(\"4\") try\nword update() -> Unit\n    (values() try)[0] = value() try\nupdate() try\nprint(\"done\")\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "done\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestPlainWriteDiagnosticKeepsOriginAndDetails(t *testing.T) {
+	source := "let values = [1]\nvalues[4] = 9\n"
+	var out bytes.Buffer
+	err := Run("sample.zhex", source, strings.NewReader(""), &out)
+	d, ok := err.(*diagnostic)
+	if !ok || d.code != CodeListRange || d.pos.file != "sample.zhex" || d.pos.line != 2 || d.operation != "list.set" || d.details["index"] != "4" || d.details["length"] != "1" {
+		t.Fatalf("diagnostic %#v", err)
+	}
+}
