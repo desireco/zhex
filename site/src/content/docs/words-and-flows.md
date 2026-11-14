@@ -1,24 +1,24 @@
 ---
 title: Words and flows
-description: Define typed words and compose them with flows that carry values and explicit arguments.
+description: Define words with typed parameters and inferred or explicit return types, then compose them with flows.
 section: Language
 order: 30
 ---
 
-A word is a named operation with typed parameters and a result type. The type checker checks every word body, including words the program never calls.
+A word is a named operation with typed parameters and a success type. The type checker checks every word body, including words the program never calls.
 
 ## Define a word
 
-Write the parameter names and types, the result type, then an indented body. The final statement supplies the result:
+Write parameter names and types, then an indented body. A return annotation is optional; if omitted, the checker infers the word's success type from its body:
 
 ```zhex
-word square(n: Int) -> Int
+word square(n: Int)
     n * n
 
 print(square(7))
 ```
 
-Each parameter and success type needs a type. Bindings, assignments, and loops have type `Unit`; a word's declared success type must match its final statement's type. An `if`, `match`, or `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
+Parameters always need types. `square` has inferred success type `Int`; if the body does not determine one concrete type, add a return annotation. For example, an unbounded recursive cycle or an empty list result needs an explicit type such as `-> Int` or `-> List<Int>`. Bindings, assignments, and loops have type `Unit`; an explicit return type must match the final statement's type. An `if`, `match`, or `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
 
 `if`, `match`, and `flow` blocks can also supply the entire right-hand side of a `let`, `var`, or assignment. Their final value becomes the binding or assignment value:
 
@@ -124,7 +124,7 @@ This prints `49`. Give a value a name when you reuse it or when the name clarifi
 An ordinary result type such as `Int` names a word's success value. If a `try` inside the word can fail, the checker infers the escaping error family and exposes an effective `Result` signature. Mark the call with `try` at each caller:
 
 ```zhex
-word parse(raw: String) -> Int
+word parse(raw: String)
     flow raw
         text.trim
         text.to-int try
@@ -134,6 +134,6 @@ flow "42"
     print
 ```
 
-`parse` is displayed to callers as `Result<Int, ParseError>`. The flow trims the input, parses it, then prints the successful integer. A bare `parse` step is rejected because it would discard a possible failure. See [results and error handling](results.html) for inferred effects, explicit `Result` signatures, propagation, and recovery.
+The body infers success type `Int`; because parsing can fail, `parse` is displayed to callers as `Result<Int, ParseError>`. The flow trims the input, parses it, then prints the successful integer. A bare `parse` step is rejected because it would discard a possible failure. See [results and error handling](results.html) for inferred return types and effects, explicit `Result` signatures, propagation, and recovery.
 
 See [modules](modules.html) for qualified word calls and [control flow](control-flow.html) for using flows inside loops.

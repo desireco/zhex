@@ -137,7 +137,7 @@ print(number * number)
 
 `read-line` preserves spaces and accepts an empty line. `text.to-int` trims surrounding whitespace and requires a signed 64-bit decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
 
-User words declare their success type. When an unhandled `try` can fail, the checker infers an effective `Result` signature, and each caller uses `try` or `catch`. The [Results and error handling guide](../site/src/content/docs/results.md) explains propagation, structured errors, and recovery.
+Word parameters remain explicitly typed, but a return annotation can be omitted when the body determines one concrete success type. When an unhandled `try` can fail, the checker infers an effective `Result` signature, and each caller uses `try` or `catch`. The [Results and error handling guide](../site/src/content/docs/results.md) explains propagation, structured errors, and recovery.
 
 ## Make decisions
 

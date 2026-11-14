@@ -114,7 +114,7 @@ zhex run examples/modules/main.zhex
 
 ## Syntax exercised by the examples
 
-- Named word parameters and success types are explicit. An escaping `try` infers a user word's effective `Result<T, E>` signature; explicit Result signatures remain available for `ok`/`err` construction. Local types and flow intermediate types are inferred.
+- Word parameter types are explicit; a return annotation is optional when the body determines one concrete success type. An escaping `try` infers a user word's effective `Result<T, E>` signature; explicit Result signatures remain available for `ok`/`err` construction. Local types and flow intermediate types are inferred.
 - `let` binds an immutable local. `var` explicitly permits reassignment within lexical scope; assignment preserves its type. Naming a value does not dictate its eventual machine representation.
 - Blocks use indentation. A word's final expression supplies its result; an `if` used as a value has compatible branch result types. Statement branches in these top-level programs return `Unit`.
 - Calls use parentheses. Qualify type- and module-owned operations such as `text.reverse`, `math.gcd`, and `error.code`; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.

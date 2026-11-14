@@ -73,10 +73,10 @@ Checker and runtime errors print an annotated diagnostic, and the session remain
 
 ## Inferred word signatures
 
-When a word's body lets a built-in failure escape through `try`, the REPL lists its effective Result signature, even though the source declares the success type:
+The REPL lists inferred return and error types under `words`. Parameters still need annotations; the return type can be omitted when the body determines it:
 
 ```text
-zhex> word parse(s: String) -> Int
+zhex> word parse(s: String)
 ....>     text.to-int(s) try
 ....>
 zhex> words

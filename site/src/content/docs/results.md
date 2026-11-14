@@ -5,10 +5,10 @@ section: Language
 order: 50
 ---
 
-Built-in operations that can fail return a `Result` containing either a success value or an error. For user words, write the success type in the signature. When a `try` can let a built-in error escape, the checker infers the word's effective `Result<T, E>` signature. A pure word keeps its declared type. Successful values are wrapped once at the word boundary, so ordinary words do not need `ok(...)` around their final value.
+Built-in operations that can fail return a `Result` containing either a success value or an error. User word parameters always have types; the return annotation may be omitted when the body determines one concrete success type. When a `try` can let a built-in error escape, the checker infers the word's effective `Result<T, E>` signature. A pure word keeps its inferred or declared success type. Successful values are wrapped once at the word boundary, so ordinary words do not need `ok(...)` around their final value.
 
 ```zhex
-word parse-count(raw: String) -> Int
+word parse-count(raw: String)
     flow raw
         text.trim
         text.to-int try
@@ -18,7 +18,7 @@ flow " 12 "
     print
 ```
 
-This prints `12`. The written signature says that success produces an `Int`; `text.to-int try` can fail with `ParseError`, so callers see `parse-count(raw: String) -> Result<Int, ParseError>` and must use `try` or `catch`.
+This prints `12`. The body infers the success type `Int`; `text.to-int try` can fail with `ParseError`, so callers see `parse-count(raw: String) -> Result<Int, ParseError>` and must use `try` or `catch`. If a body does not determine one concrete success type—for example, an unconstrained recursive cycle or an empty list result—add a return annotation.
 
 The supported built-in error families are `InputError`, `ParseError`, `FileError`, `BufferError`, and the common `Error` family. User-defined error types are not part of the language. Input and parsing built-ins keep their explicit `Result<T, E>` signatures; selected collection operations offer checked forms.
 

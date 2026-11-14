@@ -26,7 +26,7 @@ zhex run examples/text-stats.zhex examples/text-stats-sample.txt
 
 In this invocation, `console.args-count() -> Int` returns `1`, and `console.arg(0) -> Result<String, InputError>` returns a result containing the sample file path. Use `try` with `console.arg`; a negative or out-of-range index fails with `argument-missing`.
 
-These signatures show built-in return values. User words declare a success type; an escaping `try` makes the checker infer the effective Result signature. Explicit `Result<T, E>` signatures remain supported; see [Results and error handling](results.html).
+These signatures show built-in return values. User words can omit a return annotation when the body determines one concrete success type; an escaping `try` also makes the checker infer the effective Result signature. Explicit return and `Result<T, E>` signatures remain supported; see [Results and error handling](results.html).
 
 ```zhex
 let path = console.arg(0) try
