@@ -43,7 +43,9 @@ func (r *runtime) traceWordCall(x *expression, args []value) {
 	rendered := make([]string, len(args))
 	for i, a := range args {
 		typ := x.inputType
-		if i < len(x.args) {
+		if x.word != nil && i < len(x.word.params) {
+			typ = x.word.params[i].typ
+		} else if i < len(x.args) {
 			typ = x.args[i].typ
 		}
 		rendered[i] = formatValue(a, typ)

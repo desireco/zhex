@@ -507,3 +507,45 @@ func TestOverloadedPartialDoesNotGuessFromFirstCall(t *testing.T) {
 		t.Fatalf("ran before rejecting conflict: %q", out.String())
 	}
 }
+
+func TestPartialTraceDoesNotTraverseCapturedCyclesOrCallEarly(t *testing.T) {
+	source := `word count(values: List<(Int) -> Int>, n: Int) -> Int
+    list.length(values) + n
+let values: List<(Int) -> Int> = []
+let f = count(values, _)
+list.append(values, f)
+print(f(7))
+`
+	var out, trace bytes.Buffer
+	if err := RunWithTrace("test.zhex", source, strings.NewReader(""), &out, &trace); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "8\n" {
+		t.Fatal(out.String())
+	}
+	if n := strings.Count(trace.String(), `"event":"word-call","word":"count"`); n != 1 {
+		t.Fatalf("got %d calls: %s", n, trace.String())
+	}
+	if !strings.Contains(trace.String(), "function(count, 1 remaining)") {
+		t.Fatalf("missing concise function trace: %s", trace.String())
+	}
+}
+
+func TestTraceFormatsDefaultArgumentsByParameterType(t *testing.T) {
+	source := `word greet(n: Int = 1, text: String = "hello") -> String
+    text
+print(greet())
+let later = greet _
+print(later(2))
+`
+	var out, trace bytes.Buffer
+	if err := RunWithTrace("test.zhex", source, strings.NewReader(""), &out, &trace); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "hello\nhello\n" {
+		t.Fatal(out.String())
+	}
+	if !strings.Contains(trace.String(), `"args":["1","hello"]`) || !strings.Contains(trace.String(), `"args":["2","hello"]`) {
+		t.Fatalf("incorrect trace: %s", trace.String())
+	}
+}
