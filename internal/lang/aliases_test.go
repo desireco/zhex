@@ -127,3 +127,15 @@ func TestAliasExpandedTypeDepthIsBounded(t *testing.T) {
 		t.Fatal("accepted alias expansion deeper than type nesting limit")
 	}
 }
+
+func TestImportedAliasExpansionRespectsNestingLimit(t *testing.T) {
+	inner := strings.Repeat("List<", 130) + "Int" + strings.Repeat(">", 130)
+	resolve := func(name string) (ModuleSource, bool) {
+		return ModuleSource{Path: "model.zhex", Source: "type Base = alias " + inner + "\ntype Public = alias Base\n"}, name == "model"
+	}
+	outer := strings.Repeat("List<", 130) + "model.Public" + strings.Repeat(">", 130)
+	_, err := CompileModules("main.zhex", "use model\ntype TooDeep = alias "+outer+"\n", resolve)
+	if err == nil {
+		t.Fatal("accepted excessive nesting through imported alias")
+	}
+}

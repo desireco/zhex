@@ -593,7 +593,13 @@ func (c *checker) validateAliases(records []*recordType) error {
 			}
 			return nil
 		}
-		if err := walk(alias.aliasSource, 0); err != nil {
+		target := alias.aliasSource
+		// Imported aliases have already been resolved in their defining module;
+		// their original names need not be visible from this module.
+		if alias.aliasResolved {
+			target = alias.aliasTarget
+		}
+		if err := walk(target, 0); err != nil {
 			return err
 		}
 		delete(active, alias)
