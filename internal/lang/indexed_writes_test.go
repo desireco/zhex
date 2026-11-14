@@ -81,3 +81,14 @@ func TestPlainIndexedWriteEvaluatesOperandsOnce(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestCheckedIndexedWriteCanRecoverFromIterationGuard(t *testing.T) {
+	source := "let values = [1]\nfor value in values\n    (values[0] = 9) catch problem\n        print(error.code(problem))\nprint(values[0] try)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "collection-iterating\n1\n" {
+		t.Fatal(out.String())
+	}
+}
