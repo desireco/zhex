@@ -7,7 +7,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 - `internal/lang` — the language implementation: `syntax.go`, `lexer.go`, `parser.go`, `check.go`, `eval.go`, `host.go`, `session.go`. Tests in that directory are the executable specification (see `docs/tests.md`).
 - `cmd/zhex` — the CLI: `go run ./cmd/zhex run <file>`.
 - `examples/*.zhex` — validated example corpus split on the website into language basics and algorithms (including simple calls, word defaults, explicit partials, Game of Life, and edit distance), plus the two-file program under `modules/`. The website executes every registered example at build time; a broken example fails the build.
-- Standard-library proposals and the current inventory live in `docs/standard-library-plan.md`; proposed signatures there are not implemented APIs. Create implementation tickets only after the plan is agreed.
+- Standard-library proposals and the current inventory live in `docs/standard-library-plan.md`; proposed signatures there are not implemented APIs. Stories #57–64 are approved for one-by-one review and filed in Inbox; review and claim a selected story before implementation.
 - `docs/` — the language contract (`initial-language.md`), getting-started guide, and research notes.
 - `site/` + `tools/site-data` — Astro pages and build-time executable example data; `site/design/` ships the design system verbatim.
 - `editors/` — syntax highlighting for Vim/Neovim, VS Code, and Zed.

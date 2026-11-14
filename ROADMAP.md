@@ -28,7 +28,7 @@ The first language milestone runs real programs with checked types and console i
 
 Grow the language's reach: a dedicated domain and funding. This is the proposed order; each step needs working examples and tests.
 
-- Standard library: review the six-language research and phased draft stories in `docs/standard-library-plan.md` (#30); agree the first text/report batch before filing implementation stories. Proposed operations are not shipped.
+- Standard library: review Inbox stories #57–64 one by one, starting with literal text operations and report output. The six-language research and dependency order live in `docs/standard-library-plan.md` (#30); proposed operations are not shipped.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Funding: enable GitHub Sponsors or Open Collective with a sponsor section on the site, and pursue the researched grant and visibility channels (#26).
 
@@ -36,6 +36,7 @@ Grow the language's reach: a dedicated domain and funding. This is the proposed 
 
 These are directions to explore. Their order and implementation remain open, and there are no delivery dates yet.
 
+- Dogfooding: investigate a Zhex-written REPL front end over the Go session engine (#65), beginning with a bounded prototype and explicit host/input boundaries; full interpreter self-hosting is not in scope.
 - Rich values: generic records and words, and user-defined error types with readable operations and formatting.
 - Compiled execution: evaluate a native backend, including C as a possible target, and measure composition, text processing, and allocation behavior.
 - WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output.

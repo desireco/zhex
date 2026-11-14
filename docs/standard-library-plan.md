@@ -1,6 +1,6 @@
 # Standard library research and proposed plan
 
-Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. This is a proposal for discussion, not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation tickets will be created in Inbox with no status after the plan is agreed.
+Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 are filed in Inbox with no status; review and select each before implementation.
 
 ## Recommendation
 
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable story drafts, not scheduled or implemented tickets. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories filed in Inbox, not scheduled or implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -188,4 +188,21 @@ Directory listing/metadata belongs in a separate story with deterministic orderi
 
 Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6 and the deliberately separate S7. S8 and other optional capabilities stay proposals.
 
-Agreement is needed on the first batch and proposed edge contracts before implementation tickets are filed. Research completion does not authorize these APIs or change the current reference. Track agreement and subsequent Inbox stories on #30; keep the roadmap explicit about what is shipped versus proposed.
+The owner approved story creation and one-by-one review. The stories are filed in Inbox with no status; their unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference.
+
+| Order | Story | Dependency |
+| --- | --- | --- |
+| S1 | [#57 — Literal text split/join and prefix/suffix](https://github.com/desireco/zhex/issues/57) | Establish line-filter workload |
+| S2 | [#58 — Persist a text report](https://github.com/desireco/zhex/issues/58) | #57 report workload; Life snapshot is another validation option |
+| S3 | [#59 — Simplify edit-distance minimum](https://github.com/desireco/zhex/issues/59) | Independent |
+| S4 | [#60 — List map/filter/fold](https://github.com/desireco/zhex/issues/60) | #57 workload and existing callable support |
+| S5 | [#61 — Short-circuit find/any/all](https://github.com/desireco/zhex/issues/61) | #60 callback contract |
+| S6 | [#62 — Stable copied sort/sort-by](https://github.com/desireco/zhex/issues/62) | #60 callback contract |
+| S7 | [#63 — Explicit fallible try-map](https://github.com/desireco/zhex/issues/63) | #60 plus callback-effect design |
+| S8 | [#64 — Paths/environment for batch reports](https://github.com/desireco/zhex/issues/64) | #57/#58 and a multi-file workload; later phase |
+
+No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
+
+## Additional dogfooding exploration
+
+After approving the eight library stories, the owner also approved [#65 — a Zhex-written REPL front end](https://github.com/desireco/zhex/issues/65) as a bounded investigation/prototype. Zhex would own prompt, buffer, and dispatch policy over the existing Go Session engine; lexing, checking, evaluation, and terminal machinery stay host-owned. The story must examine a minimal typed session bridge, indefinite input without recursive stack growth, EOF/cancellation, and shared program/source input. Transcript parity comes before any production cutover, with terminal parity a separate later gate. This is not a promise to rewrite the interpreter in Zhex. It is filed in Inbox with no status and can inform library gaps without depending on every earlier story.
