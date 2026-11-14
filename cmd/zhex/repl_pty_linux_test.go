@@ -256,3 +256,16 @@ func TestInteractiveProgramInputPreservesTab(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInteractiveReplDoesNotTreatPastedNonASCIIWhitespaceAsBlank(t *testing.T) {
+	s := startPTY(t)
+	s.send(t, "\x1b[200~word invalid() -> Int\n\u00a0\n    1\n\n\x1b[201~")
+	got := s.until(t, "zhex> ")
+	if !strings.Contains(got, "unexpected") {
+		t.Fatalf("pasted non-ASCII whitespace should remain a lexer error: %q", got)
+	}
+	s.send(t, "\x04")
+	if err := s.cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+}

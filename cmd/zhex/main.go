@@ -178,7 +178,7 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		}
 		line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
 		if pending {
-			if line != "" && (editor == nil || strings.Contains(line, "\t") || strings.TrimSpace(line) != "") {
+			if line != "" && (editor == nil || strings.Trim(line, " ") != "") {
 				buffer += line + "\n"
 				continue
 			}
