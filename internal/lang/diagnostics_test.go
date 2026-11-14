@@ -209,3 +209,28 @@ func TestPrintWithWhitespaceSuggestsParentheses(t *testing.T) {
 		t.Fatalf("missing call syntax hint: %s", got)
 	}
 }
+
+func TestBareKnownWordSuggestsCall(t *testing.T) {
+	for _, tc := range []struct{ source, first, hint string }{
+		{"word bye() -> Unit\n    print(1)\nbye\n", `bad.zhex:3:1: unknown name "bye"`, "call bye()"},
+		{"word greet(name: String) -> Unit\n    print(name)\ngreet\n", `bad.zhex:3:1: unknown name "greet"`, "call greet(...)"},
+	} {
+		got := runError(t, tc.source)
+		if !strings.HasPrefix(got, tc.first) || !strings.Contains(got, tc.hint) || strings.Contains(got, `did you mean`) {
+			t.Errorf("unexpected diagnostic: %s", got)
+		}
+	}
+	var out strings.Builder
+	if err := Run("test.zhex", "word bye() -> Unit\n    print(1)\nlet bye = 3\nprint(bye)\n", strings.NewReader(""), &out); err != nil || out.String() != "3\n" {
+		t.Fatalf("binding shadow: %q %v", out.String(), err)
+	}
+}
+
+func TestBareBuiltinSuggestsCallSyntax(t *testing.T) {
+	for _, tc := range []struct{ source, hint string }{{"instant.now\n", "call instant.now()"}, {"text.lower\n", "call text.lower(...)"}} {
+		got := runError(t, tc.source)
+		if !strings.Contains(got, tc.hint) {
+			t.Errorf("missing hint: %s", got)
+		}
+	}
+}

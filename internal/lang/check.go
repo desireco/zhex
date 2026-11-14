@@ -1012,7 +1012,21 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			}
 		}
 		if x.binding == nil {
-			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), nameHint(x.text, append(env.names(), c.wordNames()...))), x)
+			hint := nameHint(x.text, append(env.names(), c.wordNames()...))
+			if word, private := c.resolveWord(x.text); word != nil && private == nil {
+				args := "..."
+				if len(word.params) == 0 {
+					args = ""
+				}
+				hint = fmt.Sprintf("call %s(%s)", x.text, args)
+			} else if HostWord(x.text) && x.text != "print" && x.text != "range" && x.text != "file.lines" {
+				args := "..."
+				if x.text == "buffer.new" || x.text == "list.new" || x.text == "console.args-count" || x.text == "instant.now" {
+					args = ""
+				}
+				hint = fmt.Sprintf("call %s(%s)", x.text, args)
+			}
+			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownName, "unknown name %q", x.text), hint), x)
 		}
 		typ = x.binding.typ
 		if isResult(typ) {
