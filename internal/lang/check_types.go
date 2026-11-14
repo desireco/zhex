@@ -563,31 +563,37 @@ func (c *checker) validateAliases(records []*recordType) error {
 		}
 		active[alias] = true
 		height := 1
-		var walk func(valueType) error
-		walk = func(t valueType) error {
+		var walk func(valueType, int) error
+		walk = func(t valueType, nesting int) error {
+			if depth+nesting > 256 {
+				return errorAt(alias.pos, CodeNestingLimit, "type nesting limit exceeded")
+			}
 			base, args, applied := typeApplication(t)
 			name := string(t)
 			if applied {
 				name = base
 			}
 			if dep := c.types.visible[name]; dep != nil && dep.alias {
-				if err := visit(dep, depth+1); err != nil {
+				if err := visit(dep, depth+nesting+1); err != nil {
 					return err
 				}
-				if candidate := 1 + done[dep]; candidate > height {
+				if candidate := nesting + 1 + done[dep]; candidate > height {
 					height = candidate
 				}
 			}
 			if applied {
+				if nesting+2 > height {
+					height = nesting + 2
+				}
 				for _, arg := range args {
-					if err := walk(arg); err != nil {
+					if err := walk(arg, nesting+1); err != nil {
 						return err
 					}
 				}
 			}
 			return nil
 		}
-		if err := walk(alias.aliasSource); err != nil {
+		if err := walk(alias.aliasSource, 0); err != nil {
 			return err
 		}
 		delete(active, alias)

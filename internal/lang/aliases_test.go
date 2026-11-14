@@ -116,3 +116,14 @@ func TestAliasDepthLimit(t *testing.T) {
 		t.Fatalf("wanted nesting-limit, got %v", err)
 	}
 }
+
+func TestAliasExpandedTypeDepthIsBounded(t *testing.T) {
+	var source strings.Builder
+	for i := 0; i < 130; i++ {
+		fmt.Fprintf(&source, "type A%d = alias List<List<A%d>>\n", i, i+1)
+	}
+	source.WriteString("type A130 = alias Int\n")
+	if _, err := Compile("test.zhex", source.String()); err == nil {
+		t.Fatal("accepted alias expansion deeper than type nesting limit")
+	}
+}
