@@ -149,7 +149,7 @@ func (s *Session) Enter(source string) (string, error) {
 			seen[u.name] = true
 		}
 	}
-	modules, err := s.adopt(fresh, words, &redefined, sources)
+	modules, err := s.adopt(fresh, words, &redefined, sources, p)
 	if err != nil {
 		return "", err
 	}
@@ -229,13 +229,21 @@ func (s *Session) Enter(source string) (string, error) {
 // transitively is already in the map when a later use names it directly. A
 // qualified name that replaces an existing session word is noted in
 // redefined — the REPL replaces instead of rejecting.
-func (s *Session) adopt(fresh []use, words map[string]*word, redefined *[]string, sources map[string]string) (map[string]*module, error) {
+func (s *Session) adopt(fresh []use, words map[string]*word, redefined *[]string, sources map[string]string, p *Program) (map[string]*module, error) {
 	known := make(map[string]*module, len(s.modules))
 	for name, m := range s.modules {
 		known[name] = m
 	}
 	modules, order, err := loadModules(fresh, known, "", s.resolve, missingInWorkingDirectory, sources)
 	if err != nil {
+		return nil, annotateSource(err, sources)
+	}
+	uses := append([]string{}, s.uses...)
+	for _, use := range fresh {
+		uses = append(uses, use.name)
+	}
+	context := &inferenceSession{words: words, records: s.records, scope: s.scope, uses: uses}
+	if err := inferModuleParameters(p, modules, order, context); err != nil {
 		return nil, annotateSource(err, sources)
 	}
 	c := &checker{modules: modules, types: namedTypeRegistry{all: collectRecords(modules)}}

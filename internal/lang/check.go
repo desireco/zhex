@@ -45,17 +45,19 @@ func (s *scope) define(pos position, name string, typ valueType, mutable bool) (
 // per file; modules stays for the whole compile. session.go builds the same
 // view from the REPL's accumulated words and modules.
 type checker struct {
-	words         map[string]*word
-	types         namedTypeRegistry
-	modules       map[string]*module
-	uses          []string
-	module        string // the module being checked; "" for the entry file and the REPL
-	wordResult    valueType
-	consuming     *binding
-	blockDepth    int
-	expected      valueType
-	blockExpected valueType
-	flowExpected  valueType
+	words          map[string]*word
+	types          namedTypeRegistry
+	modules        map[string]*module
+	uses           []string
+	module         string // the module being checked; "" for the entry file and the REPL
+	wordResult     valueType
+	consuming      *binding
+	blockDepth     int
+	expected       valueType
+	blockExpected  valueType
+	flowExpected   valueType
+	inferenceBody  []*statement
+	inferenceScope *scope
 }
 
 var hostWords = []string{
@@ -175,6 +177,9 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 	if err != nil {
 		return nil, annotateSource(err, sources)
 	}
+	if err := inferModuleParameters(p, modules, order, nil); err != nil {
+		return nil, annotateSource(err, sources)
+	}
 	c := &checker{words: make(map[string]*word), modules: modules, types: namedTypeRegistry{all: collectRecords(modules)}}
 	// Modules check in load order — dependencies first — and the entry last.
 	for _, m := range order {
@@ -204,6 +209,7 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 	if err = c.checkAdopted(useNames(p)); err != nil {
 		return nil, annotateSource(err, sources)
 	}
+	c.inferenceBody, c.inferenceScope = p.body, newScope(nil)
 	if err = c.checkWords(p.words); err != nil {
 		return nil, annotateSource(err, sources)
 	}
@@ -348,6 +354,7 @@ func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
 	if err := c.register(p.words); err != nil {
 		return "", err
 	}
+	c.inferenceBody, c.inferenceScope = p.body, top
 	if err := c.checkWords(p.words); err != nil {
 		return "", err
 	}
@@ -373,6 +380,7 @@ func (c *checker) register(words []*word) error {
 // checkWords type-checks word bodies against the current file's view.
 func (c *checker) checkWords(words []*word) error {
 	hasOmitted := false
+	hasOmittedParam := false
 	for _, w := range words {
 		if w.result == "" {
 			hasOmitted = true
@@ -392,6 +400,10 @@ func (c *checker) checkWords(words []*word) error {
 		}
 		for i := range w.params {
 			param := &w.params[i]
+			if param.typ == "" {
+				hasOmitted, hasOmittedParam = true, true
+				continue
+			}
 			if w.module != "" && !strings.HasPrefix(w.name, "_") && c.rawPrivateType(param.typ, w.module) {
 				return privateTypeLeak(param.pos, param.typ)
 			}
@@ -409,13 +421,24 @@ func (c *checker) checkWords(words []*word) error {
 		}
 	}
 	if hasOmitted {
-		inference := &returnInference{checker: c, results: map[*word]*typeConstraint{}, effects: c.collectWordEffects(words)}
+		inference := &returnInference{checker: c, results: map[*word]*typeConstraint{}, params: map[*word][]*typeConstraint{}, effects: c.collectWordEffects(words)}
 		for _, w := range words {
+			for _, param := range w.params {
+				if param.typ == "" {
+					inference.params[w] = append(inference.params[w], freshType())
+				} else {
+					inference.params[w] = append(inference.params[w], termFromType(param.typ))
+				}
+			}
 			if w.result == "" {
 				inference.results[w] = freshType()
 			} else {
 				inference.results[w] = termFromType(w.result)
 			}
+		}
+		if hasOmittedParam {
+			inference.entry = c.inferenceBody
+			inference.entryScope = c.inferenceScope
 		}
 		if err := inference.infer(words); err != nil {
 			return err

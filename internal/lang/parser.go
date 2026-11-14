@@ -185,8 +185,11 @@ func (p *parser) parseWord() *word {
 	if !p.at(")") {
 		for {
 			n := p.name()
-			p.require(":")
-			w.params = append(w.params, parameter{name: n.text, pos: n.pos, typ: p.parseType()})
+			param := parameter{name: n.text, pos: n.pos}
+			if p.accept(":") {
+				param.typ = p.parseType()
+			}
+			w.params = append(w.params, param)
 			if !p.accept(",") {
 				break
 			}

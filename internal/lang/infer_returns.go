@@ -8,13 +8,18 @@ import (
 // returnInference collects constraints on fresh terms, leaving the checked AST
 // untouched until all omitted signatures have concrete solutions.
 type returnInference struct {
-	checker *checker
-	results map[*word]*typeConstraint
-	effects map[*word]map[string]bool
-	current *word
-	err     error
-	pending []func() bool
-	allowed []allowedTypes
+	checker    *checker
+	results    map[*word]*typeConstraint
+	params     map[*word][]*typeConstraint
+	entry      []*statement
+	entryScope *scope
+	views      map[*word]*checker
+	entryView  *checker
+	effects    map[*word]map[string]bool
+	current    *word
+	err        error
+	pending    []func() bool
+	allowed    []allowedTypes
 }
 type allowedTypes struct {
 	value *typeConstraint
@@ -189,15 +194,36 @@ func (s *returnInference) unwrap(result *typeConstraint, pos position) *typeCons
 }
 func (s *returnInference) infer(words []*word) error {
 	for _, w := range words {
+		if view := s.views[w]; view != nil {
+			s.checker = view
+		}
 		s.current = w
 		env := inferScope{}
-		for _, param := range w.params {
-			env[param.name] = termFromType(param.typ)
+		for i, param := range w.params {
+			if terms := s.params[w]; i < len(terms) {
+				env[param.name] = terms[i]
+			} else {
+				env[param.name] = termFromType(param.typ)
+			}
 		}
 		value := s.block(w.body, env)
 		if value.root().name != string(neverType) {
 			s.equal(s.results[w], value, w.pos)
 		}
+	}
+	if len(s.entry) > 0 {
+		if s.entryView != nil {
+			s.checker = s.entryView
+		}
+		env := inferScope{}
+		for scope := s.entryScope; scope != nil; scope = scope.parent {
+			for name, b := range scope.bindings {
+				if env[name] == nil {
+					env[name] = termFromType(b.typ)
+				}
+			}
+		}
+		s.block(s.entry, env)
 	}
 	if s.err != nil {
 		return s.err
@@ -237,6 +263,20 @@ func (s *returnInference) infer(words []*word) error {
 		}
 	}
 	for _, w := range words {
+		for i := range w.params {
+			param := &w.params[i]
+			if param.typ != "" {
+				continue
+			}
+			typ, ok := constraintType(s.params[w][i])
+			if !ok || typ == neverType || containsResultType(typ) {
+				return withHint(errorAt(param.pos, CodeArgumentType, "cannot infer type of parameter %q", param.name), "add an explicit parameter annotation")
+			}
+			if w.module != "" && !strings.HasPrefix(w.name, "_") && privateTypeInModule(typ, w.module) {
+				return privateTypeLeak(param.pos, typ)
+			}
+			param.typ = typ
+		}
 		if w.result != "" {
 			continue
 		}
@@ -312,6 +352,17 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 		s.constrain(key, x.pos, "Int", "String", "Bool")
 		return namedType("Map", key, value)
 	case "call":
+		if x.text == "error.set-reporter" && len(x.args) == 1 && x.args[0].kind == "name" {
+			if word, private := s.checker.resolveWord(x.args[0].text); word != nil && private == nil && len(word.params) == 1 {
+				param := termFromType(word.params[0].typ)
+				if terms := s.params[word]; len(terms) == 1 {
+					param = terms[0]
+				}
+				s.equal(param, namedType("Error"), x.pos)
+				s.equal(s.wordResult(word), namedType("Unit"), x.pos)
+			}
+			return namedType("Unit")
+		}
 		args := make([]*typeConstraint, len(x.args))
 		for i, arg := range x.args {
 			args[i] = s.expr(arg, env, false)
@@ -673,7 +724,11 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		}
 		for i := range args {
 			if i < len(word.params) {
-				s.callArgument(x, args, i, termFromType(word.params[i].typ))
+				expected := termFromType(word.params[i].typ)
+				if terms := s.params[word]; i < len(terms) {
+					expected = terms[i]
+				}
+				s.callArgument(x, args, i, expected)
 			}
 		}
 		return s.wordResult(word)
