@@ -1,7 +1,7 @@
 ---
 const { title, description, current = '' } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-const links = [[`${base}/manifesto.html`, 'Manifesto', 'manifesto'], [`${base}/examples.html`, 'Examples', 'examples'], [`${base}/docs.html`, 'Docs', 'docs'], [`${base}/roadmap.html`, 'Roadmap', 'roadmap'], ['https://github.com/desireco/zhex', 'GitHub ↗', '']];
+const links = [[`${base}/docs/tldr.html`, 'TL;DR', 'tldr'], [`${base}/manifesto.html`, 'Manifesto', 'manifesto'], [`${base}/examples.html`, 'Examples', 'examples'], [`${base}/docs.html`, 'Docs', 'docs'], [`${base}/roadmap.html`, 'Roadmap', 'roadmap'], ['https://github.com/desireco/zhex', 'GitHub ↗', '']];
 ---
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content={description}><meta name="theme-color" content="#f6f3ec"><title>{title}</title><link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml"><link rel="stylesheet" href={`${base}/styles.css`}></head><body>
 

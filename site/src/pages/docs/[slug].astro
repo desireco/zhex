@@ -10,7 +10,7 @@ const { Content, headings } = await render(entry);
 const entries = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
-<Base title={`${entry.data.title} — Zhex`} description={entry.data.description} current="docs">
+<Base title={`${entry.data.title} — Zhex`} description={entry.data.description} current={entry.id === 'tldr' ? 'tldr' : 'docs'}>
   <main id="main" class="wrap docs-page">
     <section class="page-intro docs-intro"><p class="eyebrow"><a href={`${base}/docs.html`}>Docs</a> / {entry.data.section}</p><h1>{entry.data.title}</h1><p class="lede">{entry.data.description}</p></section>
     <div class="docs-layout">
