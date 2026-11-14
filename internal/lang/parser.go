@@ -313,8 +313,9 @@ func (p *parser) parseStatement() *statement {
 				p.callArguments(x)
 			} else if p.bareArgumentStart() && p.current().pos.line == x.end.line && p.current().pos.column > x.end.column {
 				x.args = p.bareArguments()
-				if last := x.args[len(x.args)-1]; last.kind == "try" {
-					x.args[len(x.args)-1] = last.left
+				last, guard := trailingBareTry(x.args[len(x.args)-1])
+				if guard != nil {
+					x.args[len(x.args)-1] = last
 					x.propagate = true
 				}
 			}
@@ -349,6 +350,27 @@ func (p *parser) bareArgumentStart() bool {
 	t := p.current()
 	return t.kind == "number" || t.kind == "string" || t.kind == "name" && (!Reserved(t.text) || t.text == "true" || t.text == "false" || t.text == "not")
 }
+
+// trailingBareTry extracts an ungrouped postfix try at the far right of the
+// final argument. Parentheses preserve an intentionally guarded argument.
+func trailingBareTry(x *expression) (*expression, *expression) {
+	if x == nil || x.grouped {
+		return x, nil
+	}
+	if x.kind == "try" {
+		return x.left, x
+	}
+	if x.kind == "binary" {
+		right, guard := trailingBareTry(x.right)
+		if guard != nil {
+			x.right = right
+			x.end = right.end
+			return x, guard
+		}
+	}
+	return x, nil
+}
+
 func (p *parser) bareArguments() []*expression {
 	var args []*expression
 	for {
@@ -364,11 +386,11 @@ func (p *parser) wholeExpression() *expression {
 	if x.kind == "name" && p.bareArgumentStart() && p.current().pos.line == x.end.line && p.current().pos.column > x.end.column {
 		x.kind = "call"
 		x.args = p.bareArguments()
-		last := x.args[len(x.args)-1]
+		last, guard := trailingBareTry(x.args[len(x.args)-1])
+		x.args[len(x.args)-1] = last
 		x.end = last.end
-		if last.kind == "try" {
-			x.args[len(x.args)-1] = last.left
-			return p.checkDepth(&expression{kind: "try", pos: last.pos, end: last.end, left: p.checkDepth(x)})
+		if guard != nil {
+			return p.checkDepth(&expression{kind: "try", pos: guard.pos, end: guard.end, left: p.checkDepth(x)})
 		}
 		return p.checkDepth(x)
 	}
@@ -603,6 +625,7 @@ func (p *parser) primary() *expression {
 			return p.checkDepth(&expression{kind: "index-write", pos: x.pos, end: end.end, left: x, right: right})
 		}
 		p.require(")")
+		x.grouped = true
 		return x
 	}
 	if t.kind == "number" {

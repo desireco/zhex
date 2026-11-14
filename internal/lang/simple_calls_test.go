@@ -124,3 +124,37 @@ func TestSimpleCallsWorkAcrossModulesAndFlowSeeds(t *testing.T) {
 		t.Fatal(out.String())
 	}
 }
+
+func TestBareCallTrailingTryGuardsWholeBinaryArgument(t *testing.T) {
+	source := `word parse raw: String
+    text.to-int(raw) try
+let n = parse "1" + "2" try
+print n
+flow "3"
+    text.replace "3", "4" + "5"
+    parse try
+    print
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "12\n45\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestBareCallKeepsGroupedArgumentTry(t *testing.T) {
+	source := `word add a: Int, b: Int
+    a + b
+let n = add 1, (text.to-int("2") try)
+print n
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "3\n" {
+		t.Fatal(out.String())
+	}
+}

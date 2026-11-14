@@ -318,6 +318,7 @@ type expression struct {
 	checkedIndex      bool
 	checkedCollection bool
 	bare              bool
+	grouped           bool
 	jsonSchema        *jsonSchema
 	statement         *statement
 }
