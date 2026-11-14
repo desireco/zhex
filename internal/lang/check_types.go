@@ -603,3 +603,27 @@ func (c *checker) validateAliases(records []*recordType) error {
 	}
 	return nil
 }
+
+// Record defaults execute in the declaration's module and cannot see caller bindings.
+func (c *checker) checkRecordDefaults(records []*recordType) error {
+	for _, record := range records {
+		for _, field := range record.fields {
+			if field.defaultExpr == nil {
+				continue
+			}
+			effects := map[string]bool{}
+			c.effectExpr(field.defaultExpr, map[string]string{}, nil, effects)
+			if len(effects) != 0 {
+				return errorAt(field.pos, CodeTryInput, "record default cannot propagate a Result")
+			}
+			typ, err := c.expressionExpected(field.defaultExpr, newScope(nil), field.typ)
+			if err != nil {
+				return err
+			}
+			if typ != field.typ && typ != neverType {
+				return errorAt(field.pos, CodeArgumentType, "default for %s requires %s, found %s", field.name, field.typ, typ)
+			}
+		}
+	}
+	return nil
+}

@@ -210,6 +210,9 @@ func (s *Session) adopt(fresh []use, words map[string]*word, redefined *[]string
 		if err := c.checkWords(m.order); err != nil {
 			return nil, annotateSource(err, sources)
 		}
+		if err := c.checkRecordDefaults(m.recordOrder); err != nil {
+			return nil, annotateSource(err, sources)
+		}
 	}
 	for _, u := range fresh {
 		m := modules[u.name]

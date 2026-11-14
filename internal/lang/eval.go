@@ -523,6 +523,13 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		if x.record.choice {
 			return value{choice: &choiceValue{name: x.record.id() + "." + x.record.variants[x.variant].name, variant: x.variant, fields: args}}, nil
 		}
+		for _, field := range x.record.fields[len(args):] {
+			v, err := r.expression(field.defaultExpr, make(frame))
+			if err != nil {
+				return value{}, err
+			}
+			args = append(args, v)
+		}
 		return value{record: &recordValue{name: x.record.id(), fields: args}}, nil
 	}
 	if x.word == nil {

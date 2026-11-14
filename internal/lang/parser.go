@@ -160,7 +160,13 @@ func (p *parser) parseRecord() *recordType {
 			result.variants = append(result.variants, variant)
 		} else {
 			p.require(":")
-			result.fields = append(result.fields, parameter{name: field.text, pos: field.pos, typ: p.parseType()})
+			f := parameter{name: field.text, pos: field.pos, typ: p.parseType()}
+			if p.accept("=") {
+				f.defaultExpr = p.expression(0)
+			} else if len(result.fields) > 0 && result.fields[len(result.fields)-1].defaultExpr != nil {
+				panic(errorAt(field.pos, CodeArgumentCount, "required fields must precede fields with defaults"))
+			}
+			result.fields = append(result.fields, f)
 		}
 		p.require("newline")
 	}

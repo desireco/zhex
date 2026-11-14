@@ -167,6 +167,9 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 		if err := c.checkWords(m.order); err != nil {
 			return nil, annotateSource(err, sources)
 		}
+		if err := c.checkRecordDefaults(m.recordOrder); err != nil {
+			return nil, annotateSource(err, sources)
+		}
 	}
 	c.module, c.words, c.uses = "", make(map[string]*word), useNames(p)
 	c.types.visible = c.importedRecords(c.uses)
@@ -180,6 +183,9 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 		return nil, annotateSource(err, sources)
 	}
 	if err = c.checkWords(p.words); err != nil {
+		return nil, annotateSource(err, sources)
+	}
+	if err = c.checkRecordDefaults(p.records); err != nil {
 		return nil, annotateSource(err, sources)
 	}
 	if _, err = c.block(p.body, newScope(nil)); err != nil {
@@ -321,6 +327,9 @@ func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
 		return "", err
 	}
 	if err := c.checkWords(p.words); err != nil {
+		return "", err
+	}
+	if err := c.checkRecordDefaults(p.records); err != nil {
 		return "", err
 	}
 	return c.block(p.body, top)
@@ -1618,7 +1627,13 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestWordHint(x.text, c.wordNames())), x)
 		}
 	}
-	if len(args) != len(params) {
+	minimum := len(params)
+	if x.record != nil && !x.record.choice {
+		for minimum > 0 && x.record.fields[minimum-1].defaultExpr != nil {
+			minimum--
+		}
+	}
+	if len(args) < minimum || len(args) > len(params) {
 		return "", withSpan(errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments, found %d", x.text, len(params), len(args)), x)
 	}
 	for i, typ := range args {

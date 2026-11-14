@@ -237,10 +237,11 @@ type binding struct {
 }
 
 type parameter struct {
-	name    string
-	typ     valueType
-	pos     position
-	binding *binding
+	name        string
+	typ         valueType
+	pos         position
+	binding     *binding
+	defaultExpr *expression
 }
 
 type word struct {
