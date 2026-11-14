@@ -2,6 +2,8 @@ package lang
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -192,5 +194,23 @@ print(first([3, 4]))
 	}
 	if out.String() != "7\n3\n" {
 		t.Fatal(out.String())
+	}
+}
+
+func TestInferredParametersAlongsideExistingExamples(t *testing.T) {
+	paths, err := filepath.Glob("../../examples/*.zhex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range paths {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			if _, err := Compile(path, string(source)+"\nword inference-probe(value)\n    value + 1\n"); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
