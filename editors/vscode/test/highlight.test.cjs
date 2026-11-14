@@ -30,6 +30,7 @@ test('Zhex TextMate scopes match real syntax', async () => {
     assert.ok(token?.scopes.includes(scope), `${needle}: expected ${scope}, got ${token?.scopes}`);
   }
   expectScope('# word', 2, 'comment.line.number-sign.zhex');
+  expectScope('json.decode(', 0, 'support.function.builtin.zhex');
   expectScope('Map<String', 0, 'support.type.builtin.zhex');
   expectScope('map.put(', 0, 'support.function.builtin.zhex');
   expectScope('= choice', 2, 'keyword.control.zhex');
