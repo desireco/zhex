@@ -175,3 +175,22 @@ func TestReporterRegistrationConstrainsUnusedParameter(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInferredParametersResolveDeferredRecordAndIndex(t *testing.T) {
+	source := `type Person = record
+    age: Int
+word age(person)
+    person.age
+word first(values)
+    values[0]
+print(age(Person(7)))
+print(first([3, 4]))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "7\n3\n" {
+		t.Fatal(out.String())
+	}
+}
