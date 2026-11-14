@@ -103,7 +103,12 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	if !ok {
 		reader = bufio.NewReader(input)
 	}
-	session := lang.NewSession(reader, output, trace, func(name string) (lang.ModuleSource, bool) {
+	editor := newReplEditor(input, reader, output)
+	var programInput io.Reader = reader
+	if editor != nil {
+		programInput = &replProgramInput{editor: editor}
+	}
+	session := lang.NewSession(programInput, output, trace, func(name string) (lang.ModuleSource, bool) {
 		return readModule(".", name)
 	})
 	session.SetDiagnostics(diagnostics)
@@ -134,8 +139,25 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		return 0, false
 	}
 	for {
-		fmt.Fprint(output, map[bool]string{true: "....> ", false: "zhex> "}[pending])
-		line, err := reader.ReadString('\n')
+		prompt := map[bool]string{true: "....> ", false: "zhex> "}[pending]
+		var line string
+		var err error
+		if editor != nil {
+			indent := 0
+			if pending {
+				indent = continuationIndent(buffer)
+			}
+			var cancelled bool
+			line, cancelled, err = editor.readLine(prompt, indent, false)
+			if cancelled {
+				fmt.Fprintln(output, "^C")
+				buffer, pending = "", false
+				continue
+			}
+		} else {
+			fmt.Fprint(output, prompt)
+			line, err = reader.ReadString('\n')
+		}
 		if err != nil {
 			// A final line without its newline still runs; anything that
 			// would keep collecting lines is discarded at EOF.
@@ -156,7 +178,7 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		}
 		line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
 		if pending {
-			if line != "" {
+			if line != "" && (editor == nil || strings.Contains(line, "\t") || strings.TrimSpace(line) != "") {
 				buffer += line + "\n"
 				continue
 			}
