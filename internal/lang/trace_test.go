@@ -189,3 +189,11 @@ func TestTraceUnitValue(t *testing.T) {
 		t.Fatalf("trace:\n%s\nwant:\n%s", trace.String(), want)
 	}
 }
+
+func TestPanickingTraceWriterDoesNotChangeProgram(t *testing.T) {
+	var out bytes.Buffer
+	err := RunWithTrace("test.zhex", "let n = 7\nprint(n)\n", strings.NewReader(""), &out, panicWriter{})
+	if err != nil || out.String() != "7\n" {
+		t.Fatalf("output %q error %v", out.String(), err)
+	}
+}

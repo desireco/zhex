@@ -111,5 +111,10 @@ func (r *runtime) emit(event any) {
 	if err != nil {
 		return
 	}
-	r.trace.Write(append(line, '\n'))
+	// A tracing sink is observational: even a panicking host writer must not
+	// change the program's result or prevent resource unwinding.
+	func() {
+		defer func() { _ = recover() }()
+		_, _ = r.trace.Write(append(line, '\n'))
+	}()
 }
