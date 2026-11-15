@@ -115,7 +115,7 @@ flow name
     print
 ```
 
-A **word** is a function with named, typed parameters. `greet` accepts a `String` and returns a `String`. Its final expression supplies the result. Blocks use four spaces, with no braces or semicolons. A contiguous block of `##` comment lines directly above a `word` declaration becomes that word's doc, shown by `words` beneath the signature.
+A **word** is a function with named, typed parameters. `greet` accepts a `String` and returns a `String`. Its final expression supplies the result. Blocks use four spaces, with no braces or semicolons. A contiguous block of `##` comment lines directly above a `word` declaration becomes that word's doc, shown by `words` beneath the signature. A doc line of the form `## > expression` is a doctest: `zhex doctests <file.zhex>` evaluates the expression in the word's own module scope and compares the doc lines that follow — until a blank doc line, the next `## >` line, or the doc's end — with the value as the REPL echoes it. A blank doc line ends the expected output, so prose after it is prose again; prose directly after an example reads as output and mismatches. `zhex run` never executes docs.
 
 `let` names an immutable value. Its type is inferred: the successful result of `read-line` is a string, so `name` is a `String` without another annotation.
 

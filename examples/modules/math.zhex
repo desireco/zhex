@@ -1,18 +1,33 @@
 # A small math library. gcd and lcm share one helper that stays in this
 # file: a leading underscore makes a word module-private.
 
+## Absolute value of n.
+## > abs(0 - 7)
+## 7
+## > abs(7)
+## 7
 word abs(n: Int) -> Int
     if n < 0
         0 - n
     else
         n
 
+## Greatest common divisor of a and b.
+## > gcd(12, 18)
+## 6
+## > gcd(7, 13)
+## 1
 word gcd(a: Int, b: Int) -> Int
     if b == 0
         a
     else
         gcd(b, a % b)
 
+## Least common multiple of a and b.
+## > lcm(4, 6)
+## 12
+## > lcm(3, 5)
+## 15
 word lcm(a: Int, b: Int) -> Int
     _normalize(a * b) / gcd(a, b)
 

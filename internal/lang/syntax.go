@@ -306,7 +306,8 @@ type Program struct {
 	records []*recordType
 	uses    []use
 	body    []*statement
-	sources map[string]string // every file in the program, keyed by path, for annotated errors
+	sources map[string]string  // every file in the program, keyed by path, for annotated errors
+	modules map[string]*module // every loaded module, for doctests in module scope
 }
 
 type expression struct {

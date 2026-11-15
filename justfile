@@ -3,9 +3,13 @@ default:
     @just --list
 
 # Run interpreter and website tests.
-test:
+test: doctests
     go test ./...
     npm --prefix site run build
+
+# Check every example's ## > doctests with one built binary.
+doctests: build
+    @for f in examples/*.zhex examples/modules/*.zhex examples/modules/*/*.zhex; do bin/zhex doctests "$f" || exit 1; done
 
 # Run tests with Go's race detector.
 test-race:

@@ -53,6 +53,21 @@ gcd(a: Int, b: Int) -> Int
 
 Only user words take docs — a module's words list qualified, as in `math.gcd(...)`, and records, choices, and built-ins get none. A doc lives on its word: redefining the word replaces the doc, and a doc-less redefinition clears it; a doc change alone never makes a redefinition incompatible. A blank doc line (`##` alone) renders as an empty line.
 
+A doc line of the form `## > expression` is a doctest, and the doc lines after it are its expected output until a blank doc line, the next `## >` line, or the end of the doc ends them: a blank line returns the doc to prose, while prose directly after an example reads as output and mismatches. `zhex doctests <file.zhex>` evaluates each expression in the owning module's scope (bare calls resolve inside the module), renders the value exactly as the REPL echoes a bare expression, and compares it with the expected output; `Unit` has no visible value, and a bare `Result` is rejected, so a fallible example uses `try`:
+
+```zhex
+## Greatest common divisor.
+## > gcd(12, 18)
+## 6
+word gcd(a: Int, b: Int) -> Int
+    if b == 0
+        a
+    else
+        gcd(b, a % b)
+```
+
+A mismatch or an expression that fails to check or evaluate prints a diagnostic pointing at the doc line, and any failure exits nonzero; passing doctests print nothing. `zhex run` never executes docs.
+
 `if`, `match`, and `flow` blocks can also supply the entire right-hand side of a `let`, `var`, or assignment. Their final value becomes the binding or assignment value:
 
 ```zhex

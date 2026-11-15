@@ -22,7 +22,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -33,6 +33,9 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	if len(args) >= 1 && args[0] == "repl" {
 		return repl(args[1:], input, output, diagnostics)
+	}
+	if len(args) >= 1 && args[0] == "doctests" {
+		return doctests(args[1:], input, output, diagnostics)
 	}
 	if len(args) < 2 || args[0] != "run" {
 		fmt.Fprintln(diagnostics, usage)
@@ -82,6 +85,53 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			}
 		}
 		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	return 0
+}
+
+// doctests runs the ## > examples in a file's word docs. Each failing
+// doctest prints its diagnostic — one JSON line each with --report=json —
+// and any failure exits 1; passing doctests print nothing.
+func doctests(args []string, input io.Reader, output, diagnostics io.Writer) int {
+	file, report := "", "text"
+	for _, arg := range args {
+		switch {
+		case arg == "--report=text" || arg == "--report=json":
+			report = strings.TrimPrefix(arg, "--report=")
+		case strings.HasPrefix(arg, "--"):
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		case file == "":
+			file = arg
+		default:
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		}
+	}
+	if file == "" {
+		fmt.Fprintln(diagnostics, usage)
+		return 2
+	}
+	source, err := os.ReadFile(file)
+	if err != nil {
+		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	dir := filepath.Dir(file)
+	failures := lang.RunDoctests(file, string(source), input, output, func(name string) (lang.ModuleSource, bool) {
+		return readModule(dir, name)
+	})
+	for _, failure := range failures {
+		if report == "json" {
+			if jsonReport, ok := lang.Report(failure); ok {
+				fmt.Fprintln(diagnostics, jsonReport)
+				continue
+			}
+		}
+		fmt.Fprintln(diagnostics, failure)
+	}
+	if len(failures) != 0 {
 		return 1
 	}
 	return 0

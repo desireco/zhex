@@ -47,7 +47,7 @@ Typos get did-you-mean suggestions drawn from the visible names and words. Hint 
 
 `zhex run <file> --trace` watches a run instead of its failures: it streams JSONL step events to stderr — word calls with rendered arguments, binding writes with values, flow steps, and word returns — before any diagnostic, and combines with `--report=json` (events, then the report). Agents: use it to see what a program did; the event vocabulary is documented in the site's llms.txt. Tracing never fails a run, and output without the flag is unchanged.
 
-To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking happens before execution, so a clean run means types and names resolved.
+To validate a program quickly, run `go run ./cmd/zhex run <file>` — checking happens before execution, so a clean run means types and names resolved. `zhex doctests <file>` runs the `## >` examples in word docs: the expression evaluates in the owning module's scope, the expected output is the doc lines after the `## >` line until a blank doc line or the next `## >` line ends them (a blank line returns the doc to prose; prose directly after an example reads as output and mismatches) compared with the value as the REPL echoes it, and plain `zhex run` never executes docs; `just doctests` sweeps every example and joins `just test`.
 
 ## Ticket workflow
 

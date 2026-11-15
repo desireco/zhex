@@ -112,6 +112,9 @@ const (
 	CodeEnvRead          Code = "env-read"
 	CodeEnvParse         Code = "env-parse"
 	CodeArgumentMissing  Code = "argument-missing"
+
+	CodeDoctestMismatch Code = "doctest-mismatch"
+	CodeDoctestCheck    Code = "doctest-check"
 )
 
 var diagnosticCodes = []Code{
@@ -128,6 +131,7 @@ var diagnosticCodes = []Code{
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
+	CodeDoctestMismatch, CodeDoctestCheck,
 }
 
 //go:embed catalog.md

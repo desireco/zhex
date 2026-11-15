@@ -322,3 +322,11 @@ A named time zone is invalid or unavailable. Use UTC or an IANA time zone name.
 ## unclosed-delimiter
 
 An opening parenthesis, bracket, or brace has no matching closing delimiter.
+
+## doctest-mismatch
+
+A `## >` example in a word's doc produced a different value than the expected output lines after it (they run until a blank doc line or the next `## >` line). Update the expected output, or fix the word. Checked by `zhex doctests <file>`; `zhex run` never executes docs.
+
+## doctest-check
+
+A `## >` example's expression failed to check or evaluate by itself. Fix the expression so it checks and evaluates — a naked fallible call needs `try`, and a Result cannot be echoed bare.
