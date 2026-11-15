@@ -6,16 +6,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 )
 
-// watOf compiles src through CompileWat; fence failures fail the test with
-// the diagnostic rendered.
+// watOf compiles src through CompileWat (browser skin, the default); fence
+// failures fail the test with the diagnostic rendered.
 func watOf(t *testing.T, src string) string {
 	t.Helper()
-	wat, err := CompileWat("repl", src, nil)
+	wat, err := CompileWat("repl", src, nil, WatSkinBrowser)
 	if err != nil {
 		t.Fatalf("CompileWat(%q): %v", src, err)
 	}
@@ -28,9 +27,6 @@ func requireTool(t *testing.T, name string) {
 		t.Skipf("%s is not installed; skipping", name)
 	}
 }
-
-// itoa keeps constant fail-code assertions literal-free in the table tests.
-func itoa(n int) string { return strconv.Itoa(n) }
 
 // ---------------------------------------------------------------- literals
 
@@ -504,7 +500,7 @@ print(1)
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := CompileWat("repl", tc.src, nil)
+			_, err := CompileWat("repl", tc.src, nil, WatSkinBrowser)
 			if err == nil {
 				t.Fatalf("expected a fence diagnostic")
 			}
@@ -526,7 +522,7 @@ print(1)
 }
 
 func TestWatCheckerErrorsPassThrough(t *testing.T) {
-	_, err := CompileWat("repl", `print(1 + true)`, nil)
+	_, err := CompileWat("repl", `print(1 + true)`, nil, WatSkinBrowser)
 	if err == nil {
 		t.Fatal("expected checker error")
 	}
@@ -556,7 +552,7 @@ print(fib(10))
 // ------------------------------------------------------------------ modules
 
 func TestWatModuleWordsEmitQualified(t *testing.T) {
-	wat, err := CompileWat("main.zhex", "use math\nprint(math.gcd(48, 18))\n", mapResolver(map[string]string{"math.zhex": mathModule}))
+	wat, err := CompileWat("main.zhex", "use math\nprint(math.gcd(48, 18))\n", mapResolver(map[string]string{"math.zhex": mathModule}), WatSkinBrowser)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -580,7 +576,7 @@ type Point = record
 word origin() -> Point
     Point(0, 0)
 `
-	wat, err := CompileWat("main.zhex", "use geom\nlet p = geom.origin()\nprint(p.x)\n", mapResolver(map[string]string{"geom.zhex": mod}))
+	wat, err := CompileWat("main.zhex", "use geom\nlet p = geom.origin()\nprint(p.x)\n", mapResolver(map[string]string{"geom.zhex": mod}), WatSkinBrowser)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -906,16 +902,16 @@ let doubled = list.map(numbers, double(_))
 print(doubled[0])
 `)
 	for _, want := range []string{
-		"ref.null eq",                          // the hole's env slot
+		"ref.null eq", // the hole's env slot
 		"array.new_fixed " + watTypeArrRef + " 1", // env of target arity
-		"ref.func $zcthunk",                    // site-local thunk
+		"ref.func $zcthunk",                       // site-local thunk
 		"struct.new " + watTypeClosure,
 		"call " + watListMap(watSpecI64, watSpecI64),
-		"(func $zcthunk",                       // the thunk is a plain function
+		"(func $zcthunk", // the thunk is a plain function
 		"(param $clo (ref " + watTypeClosure + "))",
-		"(param $a0 i64)",                      // the hole is the callback param
+		"(param $a0 i64)", // the hole is the callback param
 		"(result i64)",
-		"call $zw_double",                      // direct call, no enter of its own
+		"call $zw_double", // direct call, no enter of its own
 	} {
 		if !strings.Contains(wat, want) {
 			t.Errorf("missing %q", want)
@@ -1294,8 +1290,8 @@ print(n)
 `)
 	for _, want := range []string{
 		"(func $zw_echo (param $p0_d i64) (result i64)", // Duration params and results are i64
-		"i64.const 3",           // passthrough: the argument flows straight through
-		"(local $l1_held i64)",  // a Duration binding stores i64
+		"i64.const 3",               // passthrough: the argument flows straight through
+		"(local $l1_held i64)",      // a Duration binding stores i64
 		"struct.new $zhex_some_i64", // a Duration Result payload boxes like Int's
 	} {
 		if !strings.Contains(wat, want) {
@@ -1339,14 +1335,47 @@ match tree
 		"struct.new $zt_Json_Object",
 		"ref.test (ref $zt_Json_Text)", // arms test their variants in source order
 		"ref.test (ref $zt_Json_Object)",
-		"struct.get $zt_Json_Text $f0", // payload bindings read $f0 like user choices
+		"struct.get $zt_Json_Text $f0",                // payload bindings read $f0 like user choices
 		"call " + watMapPut(watMapKeyStr, watSpecRef), // Object payload is Map<String, Json> (ref values)
 	} {
 		if !strings.Contains(wat, want) {
 			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
 		}
 	}
-	if strings.Contains(wat, "(type $zt_Json") {
-		t.Errorf("the prelude owns the Json variant structs; the emitter must not redeclare them:\n%s", wat)
+	// the prelude declares the Json variant structs; the program section must
+	// not redeclare them
+	program := wat[strings.Index(wat, ";; program types"):]
+	if strings.Contains(program, "(type $zt_Json") {
+		t.Errorf("the emitter must not redeclare the prelude's Json structs:\n%s", program)
+	}
+}
+
+// ------------------------------------------------------------------- skins
+
+// The skin selects the host layer: browser keeps the fifteen env.* imports,
+// WASI imports wasi_snapshot_preview1 instead; the program section (types,
+// words, main, exports) is byte-identical for both (DESIGN-M3 §1).
+func TestWatSkinSelectsHostLayer(t *testing.T) {
+	src := `print(1 + 1)`
+	browser, err := CompileWat("repl", src, nil, WatSkinBrowser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wasi, err := CompileWat("repl", src, nil, WatSkinWASI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(browser, `"env" "fs_read_file"`) {
+		t.Errorf("browser skin must import the env surface")
+	}
+	if !strings.Contains(wasi, "wasi_snapshot_preview1") || strings.Contains(wasi, `"env" "fs_read_file"`) {
+		t.Errorf("wasi skin must import wasi_snapshot_preview1 instead of env.*")
+	}
+	if b, w := browser[strings.Index(browser, ";; program types"):], wasi[strings.Index(wasi, ";; program types"):]; b != w {
+		t.Errorf("program section must be byte-identical across skins")
+	}
+	// main seeds the module-side environment before any statement (§7).
+	if !strings.Contains(browser, "call "+watEnvInit) {
+		t.Errorf("$zhex_main must call %s as its first statement", watEnvInit)
 	}
 }

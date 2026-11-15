@@ -6,12 +6,13 @@ import (
 )
 
 // CompileWat checks the program exactly like CompileModules (checker errors
-// return unchanged) and emits the full WebAssembly text: the runtime prelude,
-// program-specific types, one wasm function per word, zhex_main for the
-// top-level statements, and the exports (internal/wasm/DESIGN.md §1, §7).
-// Constructs outside the compiled subset fail with a positioned
-// not-available-in-build diagnostic.
-func CompileWat(entryPath, entrySource string, resolve func(string) (ModuleSource, bool)) (wat string, err error) {
+// return unchanged) and emits the full WebAssembly text: the skin's host
+// imports, the runtime preludes, the skin's host layer, program-specific
+// types, one wasm function per word, zhex_main for the top-level statements,
+// and the exports (internal/wasm/DESIGN.md §1, §7; DESIGN-M3 §1). Constructs
+// outside the compiled subset fail with a positioned not-available-in-build
+// diagnostic. The skin selects the host layer (browser by default, D4).
+func CompileWat(entryPath, entrySource string, resolve func(string) (ModuleSource, bool), skin WatSkin) (wat string, err error) {
 	p, cerr := CompileModules(entryPath, entrySource, resolve)
 	if cerr != nil {
 		return "", cerr
@@ -25,7 +26,7 @@ func CompileWat(entryPath, entrySource string, resolve func(string) (ModuleSourc
 			panic(r)
 		}
 	}()
-	e := &watEmitter{p: p}
+	e := &watEmitter{p: p, skin: skin}
 	return e.emit(), nil
 }
 
@@ -51,6 +52,7 @@ type watEmitter struct {
 	depth   int
 	pos     position
 	idCount int
+	skin    WatSkin
 
 	words    []*word
 	seenWord map[*word]bool
@@ -161,8 +163,12 @@ func (e *watEmitter) walkExpr(x *expression) {
 func (e *watEmitter) emit() string {
 	e.collect()
 	var out strings.Builder
-	out.WriteString(watPrelude)
-	out.WriteString(watPreludeM2)
+	// Imports precede every definition (wasm-tools rule); the prelude trio is
+	// byte-identical for both skins with the browser-seam defs stripped, and
+	// only the host layer differs (DESIGN-M3 §1, watnames_m3's emit recipe).
+	out.WriteString(watHostImports(e.skin))
+	out.WriteString(watStripSeamDefs(watPrelude + watPreludeM2 + watPreludeM3))
+	out.WriteString(watHostFuncs(e.skin))
 	out.WriteString("\n;; program types\n")
 	for _, r := range e.records {
 		e.emitRecordType(&out, r)
@@ -309,6 +315,7 @@ func (e *watEmitter) emitTail(body []*statement, w *word) {
 func (e *watEmitter) mainFunction() string {
 	e.pos = position{}
 	e.resetFunc("", false)
+	e.line("call " + watEnvInit) // seed the module-side env first (DESIGN-M3 §7)
 	e.line("block $zhex_ret")
 	e.depth++
 	for _, s := range e.p.body {
