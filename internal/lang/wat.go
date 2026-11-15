@@ -568,7 +568,7 @@ func (e *watEmitter) statementValue(s *statement) {
 	case "for-lines":
 		watFence(s.pos, "file.stream")
 	case "while":
-		watFence(s.pos, "while")
+		e.whileStatement(s)
 	default:
 		watFence(s.pos, s.kind)
 	}
@@ -653,6 +653,35 @@ func (e *watEmitter) forRange(s *statement) {
 	e.line("br $loop" + k)
 	e.depth--
 	e.line("end")
+	e.depth--
+	e.line("end")
+	e.depth--
+	e.line("end")
+}
+
+// whileStatement emits `while cond` — a Unit statement with no break or
+// continue. The condition is evaluated before the first pass and again after
+// every pass, and the loop consumes no depth budget: the interpreter's while
+// touches neither the counter nor any limit (DESIGN-M2 §5). A return inside
+// the body branches to $zhex_ret, crossing the loop labels legally.
+func (e *watEmitter) whileStatement(s *statement) {
+	k := e.nextID()
+	c := e.temp("while"+k, "i32")
+	e.expr(s.expr)
+	e.line("local.set " + c)
+	e.line("block $exit" + k)
+	e.depth++
+	e.line("loop $loop" + k)
+	e.depth++
+	e.line("local.get " + c)
+	e.line("i32.eqz")
+	e.line("br_if $exit" + k)
+	for _, st := range s.body {
+		e.statementNeutral(st)
+	}
+	e.expr(s.expr)
+	e.line("local.set " + c)
+	e.line("br $loop" + k)
 	e.depth--
 	e.line("end")
 	e.depth--

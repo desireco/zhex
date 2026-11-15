@@ -395,11 +395,6 @@ func TestWatFencesOutOfSubsetConstructs(t *testing.T) {
 		want string
 	}{
 		{"builtin", `print(text.reverse("ab"))`, "text.reverse is not available in this build"},
-		{"while", `
-var n = 0
-while n < 3
-    n = n + 1
-`, "while is not available in this build"},
 		{"checked-append", `
 let xs: List<Int> = list.new()
 list.append(xs, 1) try
@@ -637,21 +632,88 @@ print(take() try)
 	}
 }
 
+// -------------------------------------------------------------------- while
+
+func TestWatWhileLoop(t *testing.T) {
+	wat := watOf(t, `
+var n = 0
+while n < 3
+    n = n + 1
+print(n)
+`)
+	for _, want := range []string{
+		"local.set $t_while", // condition cached in a local
+		"block $exit",
+		"loop $loop",
+		"i32.eqz",
+		"br_if $exit",
+		"br $loop",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT", want)
+		}
+	}
+	// The condition is evaluated before the first pass and again after every
+	// pass: its result is stored into the loop's condition local exactly
+	// twice (the prelude also contains lt_s, so count the store).
+	if got := strings.Count(wat, "local.set $t_while"); got != 2 {
+		t.Errorf("condition stores = %d, want 2", got)
+	}
+}
+
+func TestWatWhileInitiallyFalseAndNested(t *testing.T) {
+	wat := watOf(t, `
+var total = 0
+var i = 0
+while i < 0
+    total = total + 1
+while i < 2
+    var j = 0
+    while j < 2
+        total = total + 1
+        j = j + 1
+    i = i + 1
+print(total)
+`)
+	// Nested loops get distinct labels: loop1 and loop2 must each pair with
+	// their own exit block.
+	for _, want := range []string{"loop $loop1", "loop $loop2", "br_if $exit2"} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+// While must not consume recursion-depth budget: the interpreter's while
+// touches neither r.depth nor any counter, so a word containing one loop has
+// exactly the single depth check of its prologue.
+func TestWatWhileConsumesNoDepthBudget(t *testing.T) {
+	wat := watOf(t, `
+word count-to(limit: Int) -> Int
+    var n = 0
+    while n < limit
+        n = n + 1
+    n
+
+print(count-to(5000))
+`)
+	if got := strings.Count(wat, "call "+watEnter); got != 1 {
+		t.Errorf("enter calls = %d, want 1 (while must not consume depth budget)", got)
+	}
+	if got := strings.Count(wat, "call "+watLeave); got != 1 {
+		t.Errorf("leave calls = %d, want 1", got)
+	}
+}
+
 // ------------------------------------------------- assemble-and-run smoke
 
-// TestWatAssembleAndRunSmoke compiles, assembles with wasm-tools, and
-// executes under Node — including the amended Int Result payload round trip
-// (ok(2^31) try must print 2147483648, which ref.i31 boxing would corrupt).
-func TestWatAssembleAndRunSmoke(t *testing.T) {
+// assembleAndRun compiles WAT to wasm and executes zhex_main under Node,
+// returning stdout. It is the emitter's end-to-end witness; differential
+// fixtures live with Builder T.
+func assembleAndRun(t *testing.T, wat string) string {
+	t.Helper()
 	requireTool(t, "wasm-tools")
 	requireTool(t, "node")
-	wat := watOf(t, `
-word big() -> Result<Int, Error>
-    return ok(2147483648)
-
-print(1 + 1)
-print(big() try)
-`)
 	dir := t.TempDir()
 	watPath := filepath.Join(dir, "smoke.wat")
 	wasmPath := filepath.Join(dir, "smoke.wasm")
@@ -686,7 +748,36 @@ const fs = require("fs");
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("node run: %v\nstderr: %s", err, stderr.String())
 	}
-	if got, want := out.String(), "2\n2147483648\n"; got != want {
+	return out.String()
+}
+
+// TestWatWhileRunsManyIterations proves the depth counter stays untouched by
+// loop iteration: 5000 passes would trip the 256 limit if while consumed
+// budget (the ticket's collatz witness is Builder T's fixture).
+func TestWatWhileRunsManyIterations(t *testing.T) {
+	wat := watOf(t, `
+var n = 0
+while n < 5000
+    n = n + 1
+print(n)
+`)
+	if got, want := assembleAndRun(t, wat), "5000\n"; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+}
+
+// TestWatAssembleAndRunSmoke compiles, assembles with wasm-tools, and
+// executes under Node — including the amended Int Result payload round trip
+// (ok(2^31) try must print 2147483648, which ref.i31 boxing would corrupt).
+func TestWatAssembleAndRunSmoke(t *testing.T) {
+	wat := watOf(t, `
+word big() -> Result<Int, Error>
+    return ok(2147483648)
+
+print(1 + 1)
+print(big() try)
+`)
+	if got, want := assembleAndRun(t, wat), "2\n2147483648\n"; got != want {
 		t.Fatalf("stdout = %q, want %q (a 31-bit i31 box would corrupt the second line)", got, want)
 	}
 }
