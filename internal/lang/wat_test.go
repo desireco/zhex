@@ -1274,3 +1274,79 @@ print(l.text)
 		}
 	}
 }
+
+// ----------------------------------------------------------------- duration
+
+// Duration is Int's repr — unboxed i64 nanoseconds, a distinct checker type
+// (DESIGN-M3 §5); duration.new is a passthrough, so it emits no call.
+func TestWatDurationIsUnboxedAndNewPassthrough(t *testing.T) {
+	wat := watOf(t, `
+word echo(d: Duration) -> Duration
+    duration.new(3)
+
+word give() -> Result<Duration, Error>
+    return ok(duration.new(4))
+
+let held = duration.new(5)
+let got = give() try
+let n = text.to-int("1") try
+print(n)
+`)
+	for _, want := range []string{
+		"(func $zw_echo (param $p0_d i64) (result i64)", // Duration params and results are i64
+		"i64.const 3",           // passthrough: the argument flows straight through
+		"(local $l1_held i64)",  // a Duration binding stores i64
+		"struct.new $zhex_some_i64", // a Duration Result payload boxes like Int's
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	if strings.Contains(wat, "call $zhex_duration") {
+		t.Errorf("duration.new must not emit a prelude call:\n%s", wat)
+	}
+}
+
+// --------------------------------------------------------------- json tree
+
+// The Json tree is the host-predeclared choice: six prelude-owned padded
+// variant structs ($zt_Json_<Variant>), constructed with plain struct.news
+// and matched with the standard ref.test chain in source arm order
+// (DESIGN-M3 §6).
+func TestWatJsonTreeConstructorsAndMatch(t *testing.T) {
+	wat := watOf(t, `
+word kind(doc: Json) -> String
+    match doc
+        case Json.Text(value)
+            value
+        case Json.Object(fields)
+            "object"
+        case _
+            "other"
+
+let fields: Map<String, Json> = {}
+map.put(fields, "n", Json.Number("1.50"))
+let tree = Json.Object(fields)
+match tree
+    case Json.Object(fields)
+        print(kind(Json.Text("x")))
+    case _
+        print("no")
+`)
+	for _, want := range []string{
+		"struct.new $zt_Json_Text",
+		"struct.new $zt_Json_Number",
+		"struct.new $zt_Json_Object",
+		"ref.test (ref $zt_Json_Text)", // arms test their variants in source order
+		"ref.test (ref $zt_Json_Object)",
+		"struct.get $zt_Json_Text $f0", // payload bindings read $f0 like user choices
+		"call " + watMapPut(watMapKeyStr, watSpecRef), // Object payload is Map<String, Json> (ref values)
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	if strings.Contains(wat, "(type $zt_Json") {
+		t.Errorf("the prelude owns the Json variant structs; the emitter must not redeclare them:\n%s", wat)
+	}
+}

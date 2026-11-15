@@ -89,6 +89,10 @@ func (e *watEmitter) line(format string, args ...any) {
 func (e *watEmitter) collect() {
 	e.seenWord = map[*word]bool{}
 	e.byID = map[string]*recordType{}
+	// The host-predeclared Json tree resolves like a user choice for match
+	// and constructor emission; its variant structs are prelude-owned, so it
+	// is never added to e.records (DESIGN-M3 §6).
+	e.byID[builtinJSON.id()] = builtinJSON
 	for _, r := range e.p.records {
 		e.addRecord(r)
 	}
@@ -356,6 +360,8 @@ func (e *watEmitter) watValueType(t valueType) string {
 		return "i32"
 	case stringType:
 		return "(ref " + watTypeString + ")"
+	case durationType:
+		return "i64" // unboxed nanoseconds, Int's repr (DESIGN-M3 §5)
 	case errorType:
 		// Errors are the caught Result payload, an opaque eq reference in
 		// this build (DESIGN-M2 §2d); nothing compiles can read one yet.
@@ -393,10 +399,11 @@ func (e *watEmitter) watValueType(t valueType) string {
 }
 
 // watSpecOf is the element specialization of a collection or Option payload:
-// i64 for Int, i32 for Bool, ref for everything else including Unit.
+// i64 for Int and Duration (unboxed i64 ns), i32 for Bool, ref for everything
+// else including Unit.
 func watSpecOf(t valueType) watSpec {
 	switch t {
-	case intType:
+	case intType, durationType:
 		return watSpecI64
 	case boolType:
 		return watSpecI32
@@ -487,7 +494,7 @@ func (e *watEmitter) wrapSuccess(t valueType) {
 	e.line("i32.const 0")
 	e.line("local.get " + tmp)
 	switch t {
-	case intType:
+	case intType, durationType:
 		e.line("struct.new " + watSomeType(watSpecI64))
 	case boolType:
 		e.line("ref.i31")
@@ -500,7 +507,7 @@ func (e *watEmitter) wrapSuccess(t valueType) {
 // concrete struct type, choice payloads stay eq references).
 func (e *watEmitter) unboxPayload(t valueType) {
 	switch t {
-	case intType:
+	case intType, durationType:
 		e.line("ref.cast (ref " + watSomeType(watSpecI64) + ")")
 		e.line("struct.get " + watSomeType(watSpecI64) + " $value")
 	case boolType:
@@ -1276,7 +1283,7 @@ func watReprType(s watSpec) string {
 // every other repr is the reference itself (DESIGN-M2 §4b, M1 payload boxing).
 func (e *watEmitter) boxEnv(t valueType) {
 	switch t {
-	case intType:
+	case intType, durationType:
 		e.line("struct.new " + watSomeType(watSpecI64))
 	case boolType:
 		e.line("ref.i31")
@@ -1590,6 +1597,8 @@ func (e *watEmitter) builtinCall(x *expression) {
 	case "int.to-string":
 		e.expr(x.args[0])
 		e.line("call " + watIntToString)
+	case "duration.new":
+		e.expr(x.args[0]) // passthrough: Duration is Int's unboxed i64 repr
 	case "ok":
 		e.expr(x.args[0])
 		e.wrapSuccess(x.args[0].typ)
