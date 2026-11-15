@@ -363,6 +363,28 @@ print(flag() try)
 	}
 }
 
+// M2 §2d amended M1: eval's catch binds value{fault: v.result.err} — the err
+// payload — not the Result struct, so the handler's binding holds the opaque
+// payload (an eq reference nothing in this build can read).
+func TestWatCatchBindsErrPayload(t *testing.T) {
+	wat := watOf(t, `
+word give() -> Result<Int, Error>
+    ok(4)
+
+word fallback() -> Int
+    give() catch e
+        0
+
+print(fallback())
+`)
+	if !regexp.MustCompile(`local\.get \$t_res\n\s*struct\.get ` + regexp.QuoteMeta(watTypeResult) + ` \$payload\n\s*local\.set \$l\d+_e`).MatchString(wat) {
+		t.Errorf("catch must bind the payload (struct.get $payload feeding the binding local), got:\n%s", wat)
+	}
+	if !regexp.MustCompile(`\(local \$l\d+_e \(ref null eq\)\)`).MatchString(wat) {
+		t.Errorf("the caught error is an opaque eq reference, got:\n%s", wat)
+	}
+}
+
 // -------------------------------------------------------------------- flows
 
 func TestWatFlowSteps(t *testing.T) {

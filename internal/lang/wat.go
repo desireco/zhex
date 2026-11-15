@@ -344,8 +344,9 @@ func (e *watEmitter) watValueType(t valueType) string {
 	case stringType:
 		return "(ref " + watTypeString + ")"
 	case errorType:
-		// Error values are the opaque result struct in this build (§7 catch).
-		return "(ref " + watTypeResult + ")"
+		// Errors are the caught Result payload, an opaque eq reference in
+		// this build (DESIGN-M2 §2d); nothing compiles can read one yet.
+		return "(ref null eq)"
 	}
 	if isResult(t) {
 		return "(ref " + watTypeResult + ")"
@@ -418,8 +419,6 @@ func (e *watEmitter) refTarget(t valueType) string {
 	switch t {
 	case stringType:
 		return "(ref " + watTypeString + ")"
-	case errorType:
-		return "(ref " + watTypeResult + ")"
 	}
 	if isResult(t) {
 		return "(ref " + watTypeResult + ")"
@@ -1209,7 +1208,7 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.wrapSuccess(x.args[0].typ)
 	case "err":
 		e.expr(x.args[0])
-		tmp := e.temp("errarg", "(ref null "+watTypeResult+")")
+		tmp := e.temp("errarg", e.watLocalType(errorType))
 		e.line("local.set " + tmp)
 		e.line("i32.const 1")
 		e.line("local.get " + tmp)
@@ -1454,8 +1453,11 @@ func (e *watEmitter) catchExpr(x *expression) {
 	e.line("else")
 	e.depth++
 	if x.binding != nil {
+		// eval's catch binds the err payload — value{fault: v.result.err} —
+		// not the Result struct (DESIGN-M2 §2d); it stays opaque here.
 		e.line("local.get " + res)
-		e.line("local.set " + e.local(x.binding)) // the opaque Error value (§7)
+		e.line("struct.get " + watTypeResult + " $payload")
+		e.line("local.set " + e.local(x.binding))
 	}
 	e.blockValue(x.handler)
 	e.depth--
