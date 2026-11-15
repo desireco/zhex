@@ -578,6 +578,18 @@ func (r *runtime) invoke(x *expression, args []value, closure *partialValue) (va
 	return r.call(&target, values)
 }
 
+// callFunction invokes a captured function value with every hole filled; the
+// checker guarantees the argument count matches the holes.
+func (r *runtime) callFunction(fn *partialValue, pos position, args ...value) (value, error) {
+	values := append([]value(nil), fn.values...)
+	for i, at := range fn.holes {
+		values[at] = args[i]
+	}
+	target := *fn.target
+	target.pos, target.end = pos, pos
+	return r.call(&target, values)
+}
+
 func (r *runtime) call(x *expression, args []value) (value, error) {
 	if x.partial {
 		target := *x

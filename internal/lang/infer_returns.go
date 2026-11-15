@@ -906,6 +906,44 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		return result
 	case "list.new":
 		return namedType("List", freshType())
+	case "list.map":
+		element := freshType()
+		if len(args) > 0 {
+			s.equal(args[0], namedType("List", element), x.pos)
+		}
+		if len(args) > 1 {
+			mapped := freshType()
+			s.equal(args[1], namedType("@function", element, mapped), x.pos)
+			return namedType("List", mapped)
+		}
+		return freshType()
+	case "list.filter":
+		element := freshType()
+		if len(args) > 0 {
+			s.equal(args[0], namedType("List", element), x.pos)
+		}
+		if len(args) > 1 {
+			s.equal(args[1], namedType("@function", element, namedType("Bool")), x.pos)
+		}
+		return namedType("List", element)
+	case "list.fold":
+		element := freshType()
+		if len(args) > 0 {
+			s.equal(args[0], namedType("List", element), x.pos)
+		}
+		if len(args) < 2 {
+			return freshType()
+		}
+		// shortcut: a Result accumulator that resolves later than this point
+		// fails as an inference conflict instead of the checking pass's
+		// callback rejection; revisit if inference gains late Result checks.
+		if typ, known := constraintType(args[1]); known && isResult(typ) {
+			return args[1]
+		}
+		if len(args) > 2 {
+			s.equal(args[2], namedType("@function", args[1], element, args[1]), x.pos)
+		}
+		return args[1]
 	case "list.length", "list.append":
 		element := freshType()
 		if len(args) > 0 {

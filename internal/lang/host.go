@@ -85,6 +85,47 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{result: &inputResult{}}, nil
 	case "list.length":
 		return value{number: int64(len(args[0].list.items))}, nil
+	case "list.map":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		items := make([]value, 0, len(source.items))
+		for _, item := range source.items {
+			mapped, err := r.callFunction(args[1].function, x.pos, item)
+			if err != nil {
+				return value{}, err
+			}
+			items = append(items, mapped)
+		}
+		return value{list: &listValue{items: items}}, nil
+	case "list.filter":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		items := make([]value, 0, len(source.items))
+		for _, item := range source.items {
+			keep, err := r.callFunction(args[1].function, x.pos, item)
+			if err != nil {
+				return value{}, err
+			}
+			if keep.boolean {
+				items = append(items, item)
+			}
+		}
+		return value{list: &listValue{items: items}}, nil
+	case "list.fold":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		accumulator := args[1]
+		for _, item := range source.items {
+			next, err := r.callFunction(args[2].function, x.pos, accumulator, item)
+			if err != nil {
+				return value{}, err
+			}
+			accumulator = next
+		}
+		return accumulator, nil
 	case "ok":
 		return value{result: &inputResult{value: args[0]}}, nil
 	case "err":
