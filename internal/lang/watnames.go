@@ -34,15 +34,21 @@ const (
 	watGlobalDepth = "$zhex_depth"
 	watGlobalErr   = "$zhex_err"
 
-	watFail          = "$zhex_fail"
-	watEnter         = "$zhex_enter"
-	watLeave         = "$zhex_leave"
-	watIntToString   = "$zhex_int_to_string"
-	watStrEq         = "$zhex_str_eq"
-	watStrConcat     = "$zhex_str_concat"
-	watPrintStr      = "$zhex_print_str"
-	watPrintInt      = "$zhex_print_int"
-	watListNewPrefix = "$zhex_list_new_"
+	watFail        = "$zhex_fail"
+	watEnter       = "$zhex_enter"
+	watLeave       = "$zhex_leave"
+	watAdd         = "$zhex_add"
+	watSub         = "$zhex_sub"
+	watMul         = "$zhex_mul"
+	watNeg         = "$zhex_neg"
+	watDiv         = "$zhex_div"
+	watIntToString = "$zhex_int_to_string"
+	watStrEq       = "$zhex_str_eq"
+	watStrConcat   = "$zhex_str_concat"
+	watPrintStr    = "$zhex_print_str"
+	watPrintInt    = "$zhex_print_int"
+	watBoxI32      = "$zhex_box_i32"
+	watUnboxI32    = "$zhex_unbox_i32"
 )
 
 // Fail codes for $zhex_fail, mapping one-to-one onto the runner's stderr
@@ -73,18 +79,19 @@ const (
 )
 
 // Prelude helper names per specialization; X ∈ {i64, i32, ref}.
-func watArrType(s watSpec) string    { return "$zhex_arr_" + string(s) }
-func watListType(s watSpec) string   { return "$zhex_list_" + string(s) }
-func watArrayType(s watSpec) string  { return "$zhex_array_" + string(s) }
-func watSomeType(s watSpec) string   { return "$zhex_some_" + string(s) }
-func watListNew(s watSpec) string    { return "$zhex_list_new_" + string(s) }
-func watListAppend(s watSpec) string { return "$zhex_list_append_" + string(s) }
-func watListLength(s watSpec) string { return "$zhex_list_length_" + string(s) }
-func watListGet(s watSpec) string    { return "$zhex_list_get_" + string(s) }
-func watListSet(s watSpec) string    { return "$zhex_list_set_" + string(s) }
-func watArrayNew(s watSpec) string   { return "$zhex_array_new_" + string(s) }
-func watArrayGet(s watSpec) string   { return "$zhex_array_get_" + string(s) }
-func watArraySet(s watSpec) string   { return "$zhex_array_set_" + string(s) }
+func watArrType(s watSpec) string     { return "$zhex_arr_" + string(s) }
+func watListType(s watSpec) string    { return "$zhex_list_" + string(s) }
+func watArrayType(s watSpec) string   { return "$zhex_array_" + string(s) }
+func watSomeType(s watSpec) string    { return "$zhex_some_" + string(s) }
+func watListNew(s watSpec) string     { return "$zhex_list_new_" + string(s) }
+func watListAppend(s watSpec) string  { return "$zhex_list_append_" + string(s) }
+func watListLength(s watSpec) string  { return "$zhex_list_length_" + string(s) }
+func watListGet(s watSpec) string     { return "$zhex_list_get_" + string(s) }
+func watListSet(s watSpec) string     { return "$zhex_list_set_" + string(s) }
+func watArrayNew(s watSpec) string    { return "$zhex_array_new_" + string(s) }
+func watArrayGet(s watSpec) string    { return "$zhex_array_get_" + string(s) }
+func watArraySet(s watSpec) string    { return "$zhex_array_set_" + string(s) }
+func watArrayLength(s watSpec) string { return "$zhex_array_length_" + string(s) }
 
 // watMangle maps a Zhex qualified name injectively onto a WAT identifier:
 // each '_' becomes "_u", '-' becomes "_h", '.' becomes "_q"; every other

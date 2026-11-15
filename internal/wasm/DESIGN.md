@@ -81,9 +81,12 @@ Fixed types (owned by the prelude, always emitted; `X` ∈ {i64, i32, ref} speci
   payload fields in declaration order; payload-less variants get a fieldless struct.
   **Option** = `$zhex_some_X` per payload repr + one shared `$zhex_none`.
 - **Result** = the single `$zhex_result` struct: tag 0 ok / 1 err, payload boxed with
-  `ref.i31` for Int/Bool payloads, direct ref otherwise, null for Unit. One type suffices
-  because `err()` is unconstructible in the M1 subset (`error.new` is out of scope, and no
-  fallible builtin exists in scope), so the payload is never inspected.
+  `(struct.new $zhex_some_i64 v)` for Int payloads (amended 2026-11-14: `ref.i31` holds 31
+  bits and corrupts |v| ≥ 2^30; unbox = `ref.cast (ref $zhex_some_i64)` +
+  `struct.get $zhex_some_i64 $value`), `ref.i31` for Bool payloads, direct ref otherwise,
+  null for Unit. One type suffices because `err()` is unconstructible in the M1 subset
+  (`error.new` is out of scope, and no fallible builtin exists in scope), so the *err*
+  payload is never inspected.
 - **Records** are included (they fall out of the choice representation trivially): struct with
   fields in declaration order; positional and all-named construction (the checker has already
   resolved `argFields`), field reads via `struct.get` chains. Record field defaults are fenced.
@@ -267,7 +270,8 @@ suffix differs). No other flags in M1 (no `--report`).
 - String = GC array of i32 code points; print crosses to JS as UTF-8 bytes in linear memory via
   `env.print(ptr, len)` — no GC refs cross the boundary.
 - Collection element specialization (i64/i32/ref array types + list/array wrapper structs per
-  repr); no boxing except Result payloads (i31).
+  repr); no boxing except Result payloads (i31 for Bool; Int payloads box as `$zhex_some_i64` —
+  the 31-bit i31 corruption was found during prelude review, §2 amendment).
 - Choice = struct-per-variant, match = `ref.test` chain in source order; `Option` via per-repr
   `Some` + shared `None`.
 - Result = one `{tag, eqref}` struct; `try`-on-err traps fail 11 (defensive — `err()` is
