@@ -231,6 +231,9 @@ func highlight(source string) template.HTML {
 	return template.HTML(out.String())
 }
 
+// exampleSpecs is the human-facing manifest; its enforced twin is
+// corpusTable in internal/wasm/corpus_test.go — the manifest is the matrix,
+// that table is the gate; keep both in sync when an example's inputs change.
 var exampleSpecs = []struct {
 	id, title, description, input, group string
 	args                                 []string
