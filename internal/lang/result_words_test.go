@@ -94,6 +94,58 @@ func TestCatchRejectsMismatchedFallback(t *testing.T) {
 	}
 }
 
+func TestCatchOneLineFallbackEvaluates(t *testing.T) {
+	source := "let good = text.to-int(\"42\") catch 0\nvar bad = text.to-int(\"x\") catch 7\nprint(good)\nprint(bad)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "42\n7\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchOneLineHandlesStoredResult(t *testing.T) {
+	source := "let p = text.to-int(\"x\")\np catch 0\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("unexpected output = %q", out.String())
+	}
+}
+
+func TestCatchOneLineRejectsMismatchedFallback(t *testing.T) {
+	if _, err := Compile("test.zhex", "let n = text.to-int(\"x\") catch \"wrong\"\n"); err == nil {
+		t.Fatal("accepted mismatched one-line catch fallback")
+	}
+}
+
+// The disambiguation rule: any same-line content after catch is a one-line
+// fallback expression, except a lone name before the newline, which stays the
+// block form's error binding.
+func TestCatchOneLineSameLineContentWins(t *testing.T) {
+	source := "word fallback(n: Int) -> Int\n    n\nlet n = text.to-int(\"x\") catch fallback(2 * 3 + 1)\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "7\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchLoneNameBeforeNewlineStaysBlock(t *testing.T) {
+	// A name directly before the newline is the block form's error binding,
+	// not a fallback reference to a same-named value, so the indented handler
+	// stays required.
+	source := "let fallback = 5\nlet n = text.to-int(\"x\") catch fallback\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("a lone name after catch must keep the block form")
+	}
+}
+
 func TestCatchDoesNotInterceptRuntimeFaultInOperand(t *testing.T) {
 	source := "let n = text.to-int(int.to-string(1 / 0)) catch\n    3\nprint(n)\n"
 	var output bytes.Buffer

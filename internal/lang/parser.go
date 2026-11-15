@@ -521,7 +521,8 @@ func (p *parser) wholeExpression() *expression {
 	return x
 }
 
-// statementExpression accepts an indented catch as the whole statement value.
+// statementExpression accepts a catch as the whole statement value: an
+// indented handler block, or a fallback expression on the same line.
 func (p *parser) statementExpression(allowAssignment bool) *expression {
 	if p.at("match") {
 		return p.parseMatch()
@@ -542,8 +543,15 @@ func (p *parser) statementExpression(allowAssignment bool) *expression {
 	if p.at("catch") {
 		t := p.take()
 		name := ""
-		if p.current().kind == "name" {
+		// A lone name before the newline stays the block form's error binding;
+		// any other same-line content is a one-line fallback expression.
+		if p.current().kind == "name" && p.tokens[p.index+1].kind == "newline" {
 			name = p.name().text
+		} else if p.current().kind != "newline" {
+			fallback := p.expression(0)
+			p.require("newline")
+			return &expression{kind: "catch", pos: t.pos, end: t.end, left: x,
+				handler: []*statement{{kind: "expression", pos: fallback.pos, expr: fallback}}}
 		}
 		return &expression{kind: "catch", pos: t.pos, end: t.end, text: name, left: x, handler: p.block()}
 	}

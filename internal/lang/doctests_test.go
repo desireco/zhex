@@ -269,3 +269,16 @@ word unused() -> Unit
 		t.Fatalf("a try example evaluates to its success value: %q", doctestTexts(got))
 	}
 }
+
+// The one-line catch fallback lets a doctest show a word's failing path.
+func TestDoctestsCatchExampleEvaluatesFallback(t *testing.T) {
+	if got := runDoctests(t, `## > text.to-int("42") catch 0
+## 42
+## > text.to-int("x") catch 0
+## 0
+word parse-doc(s: String) -> Int
+    text.to-int(s) catch 0
+`, nil); len(got) != 0 {
+		t.Fatalf("a catch example evaluates to its fallback: %q", doctestTexts(got))
+	}
+}
