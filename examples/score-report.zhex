@@ -1,0 +1,36 @@
+# Trim and score embedded records with the list words: map, filter, fold, find, any, all.
+
+word add left: Int, right: Int -> Int
+    left + right
+
+word score entry: String -> Int
+    let raw = text.split(entry, ": ")[1]
+    text.to-int raw catch
+        print("unreadable score in: " + entry)
+        0
+
+word above threshold: Int, value: Int -> Bool
+    value > threshold
+
+let raw = "Ada: 36, Grace: 9, Lin: 41, Nancy: 23"
+
+let names = flow text.split(raw, ",")
+    list.map(text.trim(_))
+    text.join(" / ")
+print names
+
+let scores = flow text.split(raw, ",")
+    list.map(text.trim(_))
+    list.map(score(_))
+let passing = list.filter(scores, above(20, _))
+print("passing: " + int.to-string(list.length(passing)) + " of " + int.to-string(list.length(scores)))
+print("total: " + int.to-string(list.fold(passing, 0, add(_, _))))
+
+match list.find(scores, above(40, _))
+    case Option.Some(first)
+        print("first above 40: " + int.to-string(first))
+    case Option.None
+        print("nobody above 40")
+
+if list.any(scores, above(40, _)) and not list.all(scores, above(40, _))
+    print("someone is above 40, but not everyone")

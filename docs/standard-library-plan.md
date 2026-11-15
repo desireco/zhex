@@ -1,6 +1,6 @@
 # Standard library research and proposed plan
 
-Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57–59 have since shipped, #60 and #61 are in flight, and #62–64 await one-by-one review.
+Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57–61 have since shipped, #62 is in flight, and #63–64 await one-by-one review.
 
 ## Recommendation
 
@@ -10,14 +10,14 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57) and S2 (#58) have since shipped four text words and one file word. [`hostWords` in check.go](../internal/lang/check.go) registers **89 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), and S5 (#61) have since shipped four text words, one file word, and six list callback words. [`hostWords` in check.go](../internal/lang/check.go) registers **95 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
 | Bare | `print`, `range`, `read-line`, `ok`, `err` | [Console](../site/src/content/docs/console.md), [Results](../site/src/content/docs/results.md); `io_test.go`, `result_words_test.go`, `features_test.go` |
 | `int` | `to-string` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
 | `text` | `reverse`, `to-int`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace`, `split`, `join`, `starts-with`, `ends-with` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
-| `list` | `new`, `length`, `append` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |
+| `list` | `new`, `length`, `append`, `map`, `filter`, `fold`, `find`, `any`, `all` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go`, `list_words_test.go` |
 | `array` | `new`, `resize`, `shape`, `rank`, `length` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |
 | `map` | `length`, `contains`, `remove`, `put`, `into` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
 | `json` | `decode`, `encode` | [JSON](../site/src/content/docs/json.md); `json_test.go` |
@@ -32,7 +32,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57) and S2 (#58) have since shipp
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 89 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 95 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -40,7 +40,7 @@ Important current constraints:
 - `Int` is checked signed 64-bit. There is no Float, Decimal, BigInt, generic user word, or generic record.
 - Lists, arrays, maps, buffers, and files have shared identity. List/array iteration rejects mutations of the active container. A new outer list does not imply a deep copy of nested values.
 - Routine collection operations are plain with selected opt-in checked forms. Parsing and external input use Results. A Result cannot be deferred, stored inside a collection, or passed as a user-word parameter.
-- Explicit partial function values exist, but generic higher-order built-ins still need checker/runtime support and a callback-effect contract. Omitted parameter annotations infer one concrete type; they are not polymorphism.
+- Explicit partial function values exist and serve as callbacks to the shipped `list.` transformation and search words; a callback-effect design for fallible traversal stays open (S7). Omitted parameter annotations infer one concrete type; they are not polymorphism.
 - `use` loads sibling files, not installed standard packages. Generic source libraries and package resolution are separate future work; #30 decides content, not a new import mechanism.
 
 ## Comparison matrix
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), and S3 (#59) have shipped, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), and S5 (#61) have shipped, #62 is in flight, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -125,7 +125,7 @@ Shipped notes: named `file.write`, keeping data-first `contents, path` order —
 
 ### Phase 2 — reusable collection composition
 
-**S4. Pure-result list transformations.** Proposed checker-polymorphic host signatures (the `T`, `U`, `A` notation describes built-ins, not supported user generic syntax):
+**S4. Pure-result list transformations.** Shipped as [#60](https://github.com/desireco/zhex/issues/60); checker-polymorphic host signatures (the `T`, `U`, `A` notation describes built-ins, not supported user generic syntax):
 
 ```text
 list.map(values: List<T>, transform: (T) -> U) -> List<U>
@@ -135,7 +135,7 @@ list.fold(values: List<T>, initial: A, step: (A, T) -> A) -> A
 
 Demand: map and filter line-filter records and fold report totals without bespoke loops. Depends on S1 for the illustrative workload and on extending callable type constraints, not on generic user words. Accept existing explicit partials (`text.trim(_)`), not new lambda syntax. Reject callbacks whose return type is Result in this story. “Pure-result” does not mean effect-free: ordinary callbacks may print or mutate other values. Evaluate arguments once; invoke callbacks once per element left-to-right. Hold the source container's traversal guard, release it on all exits, and preserve side effects already performed before a runtime failure. New map/filter outer lists are fresh, nested values shared; folding may return the explicit accumulator object. Empty input gives empty output or the unchanged initial accumulator. Test nested aliasing, source mutation through aliases, callbacks with effects, inference failures/ambiguous empty collections, limits, and function values imported from modules.
 
-Proposed usage, intentionally not yet runnable:
+Usage:
 
 ```text
 flow text.split(" Ada , Grace ", ",")
@@ -144,7 +144,9 @@ flow text.split(" Ada , Grace ", ",")
     print
 ```
 
-**S5. Short-circuit search and predicates.** After S4's callback contract:
+Shipped notes: callbacks are existing function values — explicit partials (`text.trim(_)`), word-name partials, or let-bound callables — with no lambda syntax, and they may print or mutate unrelated values. Callbacks run once per element left to right; the source list holds its traversal guard (`collection-iterating`) across every exit, and side effects before a runtime failure remain. `list.map`/`list.filter` return a fresh outer list with shared elements and an unchanged source; `list.fold` returns the explicit accumulator. A callback whose return type is `Result`, or a `Result` fold accumulator, is rejected at check time with `a Result cannot be returned from a callback` under the `unhandled-result` code; no new diagnostic codes were added. The `score-report` example demonstrating the words is registered.
+
+**S5. Short-circuit search and predicates.** Shipped as [#61](https://github.com/desireco/zhex/issues/61), reusing S4's callback contract; host signatures:
 
 ```text
 list.find(values: List<T>, predicate: (T) -> Bool) -> Option<T>
@@ -153,6 +155,8 @@ list.all(values: List<T>, predicate: (T) -> Bool) -> Bool
 ```
 
 Demand: find the first malformed report record and check whether any/all rows match a rule. Return `None` for no match; empty any is false and empty all is true. Stop immediately when determined, including observable callback effects. Same alias/guard/type rules as S4. Keep this a separate story so ordinary transformation work does not expand into every Enumerable method.
+
+Shipped notes: `list.find` returns built-in `Option.Some` for the first match and `Option.None` otherwise, including for an empty list; `list.any` and `list.all` stop calling the predicate at the first decisive element, observable through callback effects, with empty `any` false and empty `all` true. The traversal guard is held until the answer is determined. No new diagnostic codes were added; the `score-report` example demonstrates these words alongside S4's.
 
 **S6. Deterministic copied sorting.** After S4:
 
@@ -192,15 +196,15 @@ Directory listing/metadata belongs in a separate story with deterministic orderi
 
 Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6 and the deliberately separate S7. S8 and other optional capabilities stay proposals.
 
-The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, and S3 (#59) shipped as source-level helper words without new host names.
+The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, S3 (#59) shipped as source-level helper words without new host names, and S4 (#60) with S5 (#61) have since added the list callback words to that inventory.
 
 | Order | Story | Dependency |
 | --- | --- | --- |
 | S1 | [#57 — Literal text split/join and prefix/suffix](https://github.com/desireco/zhex/issues/57) — shipped | Full line-filter application still open |
 | S2 | [#58 — Persist a text report](https://github.com/desireco/zhex/issues/58) — shipped | Atomic-save needs a later portability contract |
 | S3 | [#59 — Simplify edit-distance minimum](https://github.com/desireco/zhex/issues/59) — shipped | Local helper words; `int.min`/`int.max` promotion awaits a second workload |
-| S4 | [#60 — List map/filter/fold](https://github.com/desireco/zhex/issues/60) | #57 workload and existing callable support |
-| S5 | [#61 — Short-circuit find/any/all](https://github.com/desireco/zhex/issues/61) | #60 callback contract |
+| S4 | [#60 — List map/filter/fold](https://github.com/desireco/zhex/issues/60) — shipped | #57 workload and existing callable support |
+| S5 | [#61 — Short-circuit find/any/all](https://github.com/desireco/zhex/issues/61) — shipped | #60 callback contract |
 | S6 | [#62 — Stable copied sort/sort-by](https://github.com/desireco/zhex/issues/62) | #60 callback contract |
 | S7 | [#63 — Explicit fallible try-map](https://github.com/desireco/zhex/issues/63) | #60 plus callback-effect design |
 | S8 | [#64 — Paths/environment for batch reports](https://github.com/desireco/zhex/issues/64) | #57/#58 and a multi-file workload; later phase |

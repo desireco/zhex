@@ -37,6 +37,12 @@ Plain operations return ordinary values and raise runtime diagnostics when valid
 | `list.new()` | `List<T>` | Create an empty list when an expected `List<T>` type is available. |
 | `list.append(list, value)` | `Unit` | Append a value of the list's element type; fails with `collection-limit` if the size limit would be exceeded. |
 | `list.length(list)` | `Int` | Return the number of elements. |
+| `list.map(list, transform)` | `List<U>` | Call `transform` (`(T) -> U`) once per element, left to right; fresh outer list, shared elements, source unchanged. |
+| `list.filter(list, predicate)` | `List<T>` | Keep the elements whose `(T) -> Bool` predicate holds; same freshness rules as `list.map`. |
+| `list.fold(list, initial, step)` | `A` | Combine elements left to right with `step` (`(A, T) -> A`), starting from `initial`; return the final accumulator. |
+| `list.find(list, predicate)` | `Option<T>` | Return `Option.Some` for the first matching element and `Option.None` when nothing matches, including an empty list. |
+| `list.any(list, predicate)` | `Bool` | Stop at the first element whose predicate holds and return `true`; an empty list is `false`. |
+| `list.all(list, predicate)` | `Bool` | Stop at the first element whose predicate fails and return `false`; an empty list is `true`. |
 
 Read and write a list element with one zero-based signed `Int` index. A plain read returns the element and raises a `list-range` runtime diagnostic when the index is negative or outside the list. Write `items[i] try` or `items[i] catch` to handle that read as a Result. The error exposes `index` and `length` details. A plain indexed assignment returns `Unit`; an invalid index produces a runtime diagnostic. Parenthesize the assignment to handle that failure as a `Result<Unit, Error>` with `try` or `catch`:
 
@@ -46,6 +52,21 @@ let second = items[1]
 items[0] = second
 (items[8] = 0) catch problem
     print(error.code(problem))
+```
+
+The six callback words take ordinary function values — explicit partials such as `text.trim(_)`, word-name partials such as `passing(_)`, or let-bound callables; there is no lambda syntax. Callbacks run once per element, left to right, and may print or mutate unrelated values. A callback whose type returns a `Result` is rejected at check time, as is a `list.fold` accumulator, with `a Result cannot be returned from a callback` (`unhandled-result`). While callbacks run, the source list holds its traversal guard: mutating it, including through aliases, raises the `collection-iterating` runtime diagnostic before the change. `list.any` and `list.all` stop calling the predicate once the answer is determined, so effects from later elements' callbacks do not happen.
+
+```zhex
+word passing score: Int -> Bool
+    score > 10
+
+let scores: List<Int> = [3, 12, 7]
+print(list.length(list.filter(scores, passing(_))))
+match list.find(scores, passing(_))
+    case Option.Some(first)
+        print("first passing: " + int.to-string(first))
+    case Option.None
+        print("nobody passing")
 ```
 
 ## Arrays

@@ -21,6 +21,7 @@ func TestExamples(t *testing.T) {
 		{name: "calls", want: "Hello, Ada\nHello, Grace\n3\n3\n7\n2\n1\n3\n"},
 		{name: "word-defaults", want: "Hello Grace\ndefault ran\nHello Ada\n1\n1\n"},
 		{name: "line-filter", want: "shipped: inv-1042, inv-1044\n"},
+		{name: "score-report", want: "Ada: 36 / Grace: 9 / Lin: 41 / Nancy: 23\npassing: 3 of 4\ntotal: 100\nfirst above 40: 41\nsomeone is above 40, but not everyone\n"},
 		{name: "file-write", want: "Save failed: file-write\nNothing was written; the report stays in memory.\nIn-memory report:\ninvoices: 2\ncredits: 7\n\n"},
 		{name: "temporal", want: "2024-03-10T12:00:00-04:00[America/New_York]\n2024-03-10T13:00:00-04:00[America/New_York]\n"},
 		{name: "json-config", want: "3\ntrue\n{\"retries\":3,\"verbose\":true}\n"},

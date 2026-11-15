@@ -19,6 +19,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [json-config.zhex](../examples/json-config.zhex) | None | `3`, `true`, `{"retries":3,"verbose":true}` | Decode a typed record with a default for a missing field, then encode the complete value. |
 | [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
 | [line-filter.zhex](../examples/line-filter.zhex) | None | `shipped: inv-1042, inv-1044` | Split embedded records, select lines by literal prefix and suffix, and join the selected fields into a report. |
+| [score-report.zhex](../examples/score-report.zhex) | None | The joined names, then `passing: 3 of 4`, `total: 100`, `first above 40: 41`, and the any/all verdict | Trim and score embedded records through `list.map`, filter a subset, fold a total, and answer find, any, and all questions. |
 | [file-write.zhex](../examples/file-write.zhex) | None | `Save failed: file-write`, then the in-memory report | Attempt `file.write` on a path the host refuses, and inspect the caught failure with `error.code`. |
 | [recovery.zhex](../examples/recovery.zhex) | None | A fallback message, then `Retries: 3` | Catch invalid numeric text and continue with a default value. |
 | [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
