@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"unicode/utf8"
 )
@@ -51,6 +52,15 @@ var (
 	osReadDir   = os.ReadDir
 	osFreeSpace = freeSpaceBytes
 )
+
+// joinPath follows filepath.Join except that an absolute child replaces the
+// base (the Python PurePath rule), the safer composition for untrusted parts.
+func joinPath(base, child string) string {
+	if filepath.IsAbs(child) {
+		return filepath.Clean(child)
+	}
+	return filepath.Join(base, child)
+}
 
 // osFailureReason classifies an operating-system failure with the read-side
 // taxonomy shared by file-open and file-write.

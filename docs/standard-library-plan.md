@@ -10,7 +10,7 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; and S9 (#73) shipped four file inspect words. [`hostWords` in check.go](../internal/lang/check.go) registers **100 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; and S9 (#73) shipped four file inspect words, and S11 (#74) four lexical path words. [`hostWords` in check.go](../internal/lang/check.go) registers **104 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `map` | `length`, `contains`, `remove`, `put`, `into` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
 | `json` | `decode`, `encode` | [JSON](../site/src/content/docs/json.md); `json_test.go` |
 | `buffer` | `new`, `add-line`, `line-count`, `line`, `set-line`, `to-text` | [Buffers](../site/src/content/docs/buffers.md); `buffer_test.go` |
-| `file` | `read`, `open`, `read-line`, `close`, `write`, `stream`, `list`, `exists`, `size`, `free-space` | [Files](../site/src/content/docs/files.md); `file_test.go`, `file_inspect_test.go` |
+| `file` | `read`, `open`, `read-line`, `close`, `write`, `stream`, `list`, `exists`, `size`, `free-space`, `join`, `base`, `extension`, `directory-of` | [Files](../site/src/content/docs/files.md); `file_test.go`, `file_inspect_test.go`, `path_test.go` |
 | `console` | `arg`, `args-count`, `exit`, `fail` | [Console](../site/src/content/docs/console.md); `args_test.go`, CLI `main_test.go`, `reporting_test.go` |
 | `error` | `set-reporter`, `report`, `new`, `wrap`, `has-cause`, `cause`, `code`, `message`, `operation`, `file`, `line`, `column`, `detail` | [Results](../site/src/content/docs/results.md); `result_words_test.go`, `reporting_test.go` |
 | `date` | `new`, `parse`, `to-string`, `add-days` | [Temporal](../site/src/content/docs/temporal.md); `temporal_test.go`, `civil_time_test.go` |
@@ -32,7 +32,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 100 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 104 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73) has shipped from the folder-operations research below, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73) and S11 (#74) have shipped from the folder-operations research below, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -204,7 +204,7 @@ Decisions settled in review — the stances are recorded in the shipped notes be
 
 Non-goals: no recursive walk, no glob patterns, no entry-kind or symlink flag in v1 (names only), no watching, no trash/undo, no folder sizes, no total/capacity free-space variants.
 
-Shipped notes: `file.exists` took the plain-collection pattern — the plain call is a `Bool` where not-found is `false` and any other stat failure is a runtime diagnostic, and `try`/`catch` selects the checked `Result<Bool, FileError>`; return inference gained the checked-dependent solver case for it. Listing order is Go `os.ReadDir` default lexical byte order, and hidden dot entries are included — filtering is `list.filter` work. The one-million-element limit is enforced before materializing and fails inside the `Result` under the shared `collection-limit` code, the `text.split`/`array.new` precedent. New stable codes `file-list`, `file-exists`, `file-size`, and `file-free-space` reuse the not-found/permission-denied/other reason taxonomy and carry path and reason details like `file-open`/`file-write`. Free space shipped in this story per the owner's 2026-11-14 decision (below), not deferred. No example was registered: every candidate needs a real path with deterministic build-time output, so the example is deliberately deferred until S11's `file.make-folder` can create one deterministically.
+Shipped notes: `file.exists` took the plain-collection pattern — the plain call is a `Bool` where not-found is `false` and any other stat failure is a runtime diagnostic, and `try`/`catch` selects the checked `Result<Bool, FileError>`; return inference gained the checked-dependent solver case for it. Listing order is Go `os.ReadDir` default lexical byte order, and hidden dot entries are included — filtering is `list.filter` work. The one-million-element limit is enforced before materializing and fails inside the `Result` under the shared `collection-limit` code, the `text.split`/`array.new` precedent. New stable codes `file-list`, `file-exists`, `file-size`, and `file-free-space` reuse the not-found/permission-denied/other reason taxonomy and carry path and reason details like `file-open`/`file-write`. Free space shipped in this story per the owner's 2026-11-14 decision (below), not deferred. No example was registered: every candidate needs a real path with deterministic build-time output, so the example is deliberately deferred until #75's `file.make-folder` can create one deterministically.
 
 Free space: researched and deferred, then unparked — the owner decision of 2026-11-14 overruled the deferral ("I don't want it parked. I want it implemented... it should work everywhere") and it shipped in S9 above with the `golang.org/x/sys/windows` platform approach rather than an unsupported-platform diagnostic. The portability research behind the original deferral stands: Go's standard library has no portable free-space call — `syscall.Statfs` is Unix-only and Windows needs the out-of-tree `golang.org/x/sys/windows.GetDiskFreeSpaceEx`; of the six comparison languages only Python's `shutil.disk_usage` is portable stdlib (Ruby needs the Sys::Filesystem gem; Gleam's simplifile, Elm, and Haskell's core/directory have none).
 
@@ -223,7 +223,7 @@ Decisions to settle: whether `parents: true` tolerates an already-existing folde
 
 Non-goals: no copy word (a separate contract), no trash/undo, no atomic-replacement promise beyond what rename itself gives, no permission/mode words, no glob deletion.
 
-**S11. Lexical path words in the file namespace.** Proposed in #69, absorbing the path words the owner redirected out of S8/#64 on 2026-11-14; filed as [#74](https://github.com/desireco/zhex/issues/74), next in the approved order. Candidate host signatures:
+**S11. Lexical path words in the file namespace.** Proposed in #69, absorbing the path words the owner redirected out of S8/#64 on 2026-11-14; shipped as [#74](https://github.com/desireco/zhex/issues/74). Host signatures:
 
 ```text
 file.join(base: String, child: String) -> String
@@ -235,6 +235,8 @@ file.directory-of(path: String) -> String
 Demand: compose report paths from folder arguments and pick apart user-supplied paths without string surgery. All four are pure lexical operations on the host's native separator — no I/O, no existence checks, no containment guarantee ([filepath.Clean](https://pkg.go.dev/path/filepath#Clean) is lexical cleanup, not symlink resolution), following the pathlib PurePath-versus-Path split the plan already cites. Semantics default to Go's `path/filepath`: `join` concatenates with the OS separator and cleans the result; `base` returns the final element (`"/"` → `"/"`, `""` → `"."`, trailing separators removed); `extension` returns the final-dot suffix of the final element including the dot, empty when there is none; `directory-of` drops the final element (`"."` when there is none). One deliberate divergence to settle: Python's `PurePath` makes an absolute child replace the base (`join("a/b", "/c")` → `/c`) while Go's `filepath.Join` keeps it (`a/b/c`); the recommendation is the Python replace rule, the safer behavior when building paths from untrusted components. Namespace: `file.*` per ownership rule 1 (external filesystem work under `file`) — a second `folder.*` namespace for a handful of words fragments the vocabulary, `folder` stays out of the reserved-module list, and no `path.*` namespace is reserved, which resolves #64's redirected words without new reservation work. Tests: absolute-child, empty, root, and trailing-separator cases, dotfile extension behavior, lexical `..` cleaning, `directory-of`/`base` round-trips, and that no word touches the filesystem.
 
 Decisions to settle: absolute child replaces versus concatenates; whether `extension` treats a leading-dot name like `.bashrc` as extension `.bashrc` (Go) or no extension (common convention); whether a fifth word (lexical `file.clean`) is wanted now (recommendation: no — `join` already cleans).
+
+Shipped notes: the absolute child replaces the base — the recommended Python rule — so `file.join("a/b", "/c")` is `/c`; everything else is Go `path/filepath` on the host's native separator, with `join` cleaning lexically. `extension` keeps Go's `filepath.Ext` answer for leading-dot names (`.bashrc` → `.bashrc`), flagged in the claim for owner review; flipping to the Python/Rust no-extension convention stays a one-line change. No fifth word: `join` already cleans. All four return plain `String` — no `Result`, no filesystem access, no new diagnostic codes. One Go quirk is pinned in the tests and stated in the reference: a path ending in a separator has no final element, so `file.directory-of("/a/b/")` is `/a/b` while `file.base("/a/b/")` is `b`. The `paths` example — composing report paths and decomposing them without touching the disk — is registered, raising the example corpus to 28.
 
 Non-goals: no URL paths, no symlink resolution, no normalization to an absolute form, no `path.*` namespace, no filesystem access of any kind.
 
@@ -263,7 +265,8 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S6 | [#62 — Stable copied sort/sort-by](https://github.com/desireco/zhex/issues/62) — shipped | #60 callback contract |
 | S7 | [#63 — Explicit fallible try-map](https://github.com/desireco/zhex/issues/63) | #60 plus callback-effect design |
 | S8 | [#64 — Paths/environment for batch reports](https://github.com/desireco/zhex/issues/64) | #57/#58 and a multi-file workload; later phase |
-| S9 | [#73 — File: inspect — list, exists, size, and free space](https://github.com/desireco/zhex/issues/73) — shipped | #69 research; executable example deferred until S11's `file.make-folder` |
+| S9 | [#73 — File: inspect — list, exists, size, and free space](https://github.com/desireco/zhex/issues/73) — shipped | #69 research; executable example deferred until #75's `file.make-folder` |
+| S11 | [#74 — File: lexical path words — join, base, extension, directory-of](https://github.com/desireco/zhex/issues/74) — shipped | #69 research; the `paths` example registered |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
 

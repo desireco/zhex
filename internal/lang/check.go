@@ -70,6 +70,7 @@ var hostWords = []string{
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
 	"file.read", "file.open", "file.read-line", "file.close", "file.write", "file.stream", "file.list", "file.exists", "file.size", "file.free-space",
+	"file.join", "file.base", "file.extension", "file.directory-of",
 	"console.arg", "console.args-count", "console.exit", "console.fail",
 }
 
@@ -1956,6 +1957,12 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "file.size", "file.free-space":
 			params = []valueType{stringType}
 			result = intFileResultType
+		case "file.join":
+			params = []valueType{stringType, stringType}
+			result = stringType
+		case "file.base", "file.extension", "file.directory-of":
+			params = []valueType{stringType}
+			result = stringType
 		case "console.exit":
 			params = []valueType{intType}
 			result = neverType

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -408,6 +409,14 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			return value{result: &inputResult{err: inspectError(x.pos, CodeFileFreeSpace, "cannot get the free space for %q: %v", path, err)}}, nil
 		}
 		return value{result: &inputResult{value: value{number: avail}}}, nil
+	case "file.join":
+		return value{text: joinPath(args[0].text, args[1].text)}, nil
+	case "file.base":
+		return value{text: filepath.Base(args[0].text)}, nil
+	case "file.extension":
+		return value{text: filepath.Ext(args[0].text)}, nil
+	case "file.directory-of":
+		return value{text: filepath.Dir(args[0].text)}, nil
 	case "console.fail":
 		_, _ = io.WriteString(r.diagnostics, args[0].text+"\n")
 		return value{}, &ExitError{Status: 1}

@@ -86,6 +86,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Score report](examples/score-report.zhex) | Trim and score embedded records with `list.map`, `list.filter`, `list.fold`, `list.find`, `list.any`, and `list.all`. |
 | [Sorting](examples/sorting.zhex) | Rank records with `list.sort-by` and a named key word, and sort plain text with `list.sort`. |
 | [File write](examples/file-write.zhex) | Attempt a checked report write and handle the failed `Result` with `catch`. |
+| [Lexical paths](examples/paths.zhex) | Compose and decompose paths with `file.join`, `base`, `extension`, and `directory-of`. |
 | [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
 | [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
 | [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library and keeps one helper underscore-private. |

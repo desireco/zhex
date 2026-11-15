@@ -1,0 +1,16 @@
+# Compose and decompose paths lexically with the file path words; nothing
+# here reads or writes the disk.
+
+word report-path(folder: String, name: String) -> String
+    file.join(folder, name)
+
+let invoice = report-path("/tmp/zhex-out", "june/invoices.csv")
+print(invoice)
+print(file.directory-of(invoice))
+print(file.base(invoice))
+print(file.extension(invoice))
+
+# An absolute child replaces the base instead of nesting under it, and ..
+# is cleaned lexically; no word checks the disk.
+print(report-path("/tmp/zhex-out", "/var/run/state.json"))
+print(report-path("/tmp/zhex-out", "../archive/old.csv"))

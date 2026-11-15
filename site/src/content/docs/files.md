@@ -80,6 +80,32 @@ print(names)
 
 A listing that cannot be read fails `file-list`; a stat failure behind `file.exists` fails `file-exists`; size and free-space failures use `file-size` and `file-free-space`. Each names the path and the operating system's reason.
 
+## Composing and decomposing paths
+
+| Signature | Result and behavior |
+| --- | --- |
+| `file.join(String, String) -> String` | The two paths joined with the native separator and cleaned. |
+| `file.base(String) -> String` | The final path element. |
+| `file.extension(String) -> String` | The final element's final-dot suffix, dot included. |
+| `file.directory-of(String) -> String` | The path without its final element. |
+
+These four words are pure lexical operations: no file is read, written, or checked, and every one returns a plain `String` — never a `Result` — so no `try` or `catch` applies. Separators follow the host platform.
+
+`file.join(base, child)` concatenates and cleans: `file.join("a/b", "../c")` is `"a/c"`, and an empty side collapses to the other. An absolute child replaces the base — `file.join("a/b", "/c")` is `"/c"` — so an untrusted absolute component never nests under the base.
+
+`file.base(path)` returns the final element with trailing separators removed; the root is its own base (`"/"`), and the empty path yields `"."`. `file.extension(path)` returns the suffix from the final element's final dot, including the dot: `".gz"` for `report.tar.gz`, `".bashrc"` for the dotfile `.bashrc`, and empty when there is none. `file.directory-of(path)` drops the final element; a path ending in a separator has no final element to drop (`"/a/b/"` yields `"/a/b"`), the root is its own directory, and a path with nothing to drop yields `"."`.
+
+`..` passes through or cleans lexically — `file.join` resolves it during the clean, while `file.base` and `file.directory-of` treat it as an ordinary element. None of this is a containment guarantee.
+
+```zhex
+let invoice = file.join("/tmp/zhex-out", "june/invoices.csv")
+print(file.directory-of(invoice))
+print(file.base(invoice))
+print(file.extension(invoice))
+```
+
+See the [paths example](../examples.html#paths), which composes report paths and decomposes them again without touching the disk.
+
 ## Lines and failures
 
 Line reading removes one trailing line feed (`LF`) and removes an immediately preceding carriage return (`CR`) with it. A bare final `CR` without `LF` is retained. A final nonempty line without a newline is still read. An empty file produces no lines in a loop.
