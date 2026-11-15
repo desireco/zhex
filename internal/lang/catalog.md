@@ -265,6 +265,26 @@ A JSON integer or collection exceeds the supported range. Correct the value or r
 
 JSON nesting exceeds the supported depth of 256. Reduce the nesting.
 
+## xml-syntax
+
+XML text is invalid, carries a DTD or entity declaration, uses an undefined entity, or has more than one root element. Correct the input syntax.
+
+## xml-type
+
+An XML element or attribute does not match the expected Zhex type, or mixes text with child elements. Inspect the path and correct the value.
+
+## xml-field
+
+An XML element or attribute name is unknown, duplicated, missing, collides with its counterpart, or is namespace-qualified. Inspect the path and reason.
+
+## xml-range
+
+An XML integer or document exceeds the supported range. Correct the value or reduce the element count.
+
+## xml-depth
+
+XML nesting exceeds the supported depth of 256. Reduce the nesting.
+
 ## date-parse
 
 A date string is invalid. Use a Gregorian date in `YYYY-MM-DD` form.

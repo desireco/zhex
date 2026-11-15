@@ -10,7 +10,7 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words. [`hostWords` in check.go](../internal/lang/check.go) registers **111 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words; #79 shipped `xml.decode` on the stdlib encoding/xml tokenizer. [`hostWords` in check.go](../internal/lang/check.go) registers **112 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below added candidates S12/S14/S15 (S12 shipped, S14 shipped as the pure-Zhex `md` module [#77](https://github.com/desireco/zhex/issues/77)); the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below added candidates S12/S14/S15 (the XML typed decode shipped in its S12 slot as [#79](https://github.com/desireco/zhex/issues/79), S14 shipped as the pure-Zhex `md` module [#77](https://github.com/desireco/zhex/issues/77), and S15 remains a candidate awaiting owner triage); the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -273,20 +273,20 @@ Fit, defer, and exclude matrix:
 | JSON heterogeneous trees | Shipped | Owner decision: the tree type was designed now and filed as #76; it shipped there as `json.parse` with the host-predeclared `Json` tree and the `json-tree` example. |
 | YAML | Defer indefinitely | Owner decision: stay dependency-free. [goccy/go-yaml](https://github.com/goccy/go-yaml) was the researched candidate (MIT, active); [yaml.v3](https://github.com/go-yaml/yaml), archived 2025, is the cautionary precedent. |
 | TOML | Defer — preferred future candidate | Owner note: the preferred candidate if the dependency policy ever changes. Go's stdlib has no TOML either; [BurntSushi/toml](https://github.com/BurntSushi/toml) and [pelletier/go-toml/v2](https://github.com/pelletier/go-toml) are the maintained modules — equally dependency-carrying, better format determinism, healthier ecosystem. |
-| XML typed decode | Fit — S12 candidate | Dependency-free on stdlib [encoding/xml](https://pkg.go.dev/encoding/xml); see S12 below. |
+| XML typed decode | Shipped | [#79](https://github.com/desireco/zhex/issues/79) shipped `xml.decode` dependency-free on stdlib [encoding/xml](https://pkg.go.dev/encoding/xml); see the S12 section below. |
 | XML DOM, mixed content, namespaces-as-data | Defer behind the tree-type wall | #76 now partially addresses the wall by proving the host-predeclared tree pattern for JSON; reopen only when a concrete mixed-content or namespaces-as-data XML workload exists after #76 lands. |
 | Markdown generation | Fit — S14 candidate | Pure-Zhex sibling module; see S14 below. |
 | HTML generation | Fit — S15 candidate | Pure Zhex plus one promotion candidate; see S15 below. |
 | Markdown parsing | Exclude | Generation is the workload; [goldmark](https://github.com/yuin/goldmark) would add a dependency and a parsing contract this research does not support. |
 | Template engines | Exclude | No template syntax; composition stays Zhex words over fragments. |
 
-**S12. XML typed decode.** Candidate from the #66 research, awaiting owner triage; not filed as an issue. Proposed host signature:
+**S12. XML typed decode.** Shipped as [#79](https://github.com/desireco/zhex/issues/79) (this S12 label collides with the select-by-predicate story numbered S12 in the shipped table above, which is #70; renumbering is an owner decision left open here). Host signature:
 
 ```text
 xml.decode(text: String, defaults: Record) -> Result<Record, Error>
 ```
 
-Owner decision baked in: the common `Error` family with `xml-*` codes, not a new error family.
+Owner decision baked in: the common `Error` family with `xml-*` codes, not a new error family. Shipped 2026-11-14 with codes `xml-syntax`, `xml-type`, `xml-field`, `xml-range`, and `xml-depth`; the settled decisions from the issue body: attributes map onto record fields verbatim with collision-fails-decode, repeated elements decode into `List<T>`, absent elements use defaults or `Option<T>`, strict unknown-element rejection, predefined entities only with DTD/entity definitions rejected, no network ever, depth 256 and element limits on the JSON precedents, prefixed element names rejected, text-only elements decoding as `String`/`Int`. The `xml-config` example is registered.
 
 Demand: the #66 typed-configuration workload — read XML documents into declared records with the same strictness and immediate Result handling as `json.decode`, dependency-free on Go's [encoding/xml](https://pkg.go.dev/encoding/xml).
 
@@ -389,6 +389,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S12 | [#70 — Lists and arrays: select by predicate](https://github.com/desireco/zhex/issues/70) — shipped | #60 callback contract; `list.select` coexists with `list.filter` per owner decision |
 | S14 | [#77 — Markdown: report module as a pure-Zhex sibling module](https://github.com/desireco/zhex/issues/77) — shipped | #66/#67 research; owner-locked fragments and verbatim paragraphs, tables added by owner decision; no host words, so no inventory or editor changes; `modules/md-report/main` example registered |
 | — | [#72 — Language: while loop and read-line EOF reason](https://github.com/desireco/zhex/issues/72) — shipped | #65 prerequisite, ordered last in the queue; `while` is syntax (keyword), not a host word, so the inventory count is unchanged |
+| — | [#79 — XML: typed decode](https://github.com/desireco/zhex/issues/79) — shipped | #66 document research; common Error family with `xml-*` codes; `xml-config` example registered |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
 

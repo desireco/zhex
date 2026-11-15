@@ -35,6 +35,7 @@ func TestExamples(t *testing.T) {
 		{name: "temporal", want: "2024-03-10T12:00:00-04:00[America/New_York]\n2024-03-10T13:00:00-04:00[America/New_York]\n"},
 		{name: "json-config", want: "3\ntrue\n{\"retries\":3,\"verbose\":true}\n"},
 		{name: "json-tree", want: "nodes: 12\nservice = ingest\nretries = 1.5e1\nendpoints = list of 4\nflags = object of 1\n{\"service\":\"ingest\",\"retries\":1.5e1,\"endpoints\":[\"primary\",443,null,{\"host\":\"db\",\"port\":5432}],\"flags\":{\"dry-run\":true}}\n"},
+		{name: "xml-config", want: "ingest\n3\ntrue\n2\ndb:5432\nowner unset\n"},
 		{name: "maps", want: "1\n3\nAda: 11\nMorgan has no score\nAda: 11\nGrace: 9\nNancy: 23\n4\n4\n"},
 		{name: "life", want: "Generation 0\n.......\n.......\n...#...\n....#..\n..###..\n.......\n.......\nGeneration 1\n.......\n.......\n.......\n..#.#..\n...##..\n...#...\n.......\nGeneration 2\n.......\n.......\n.......\n....#..\n..#.#..\n...##..\n.......\nGeneration 3\n.......\n.......\n.......\n...#...\n....##.\n...##..\n.......\nGeneration 4\n.......\n.......\n.......\n....#..\n.....#.\n...###.\n.......\n"},
 		{name: "edit-distance", want: "kitten → sitting: 3\nempty → abc: 3\ncafé → cafe: 1\n"},

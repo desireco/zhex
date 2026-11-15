@@ -42,6 +42,8 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return encodeJSON(x.pos, args[0], x.jsonSchema), nil
 	case "json.parse":
 		return parseJSONTree(x.pos, args[0].text), nil
+	case "xml.decode":
+		return decodeXML(x.pos, args[0].text, args[1], x.jsonSchema), nil
 	case "map.length":
 		return value{number: int64(len(args[0].mapping.entries))}, nil
 	case "map.contains":

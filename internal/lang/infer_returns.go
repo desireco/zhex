@@ -1094,6 +1094,15 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			s.equal(target, args[1], x.pos)
 		}
 		return namedType("Result", target, namedType("Error"))
+	case "xml.decode":
+		if len(args) > 0 {
+			s.equal(args[0], namedType("String"), x.pos)
+		}
+		target := freshType()
+		if len(args) > 1 {
+			s.equal(target, args[1], x.pos)
+		}
+		return namedType("Result", target, namedType("Error"))
 	case "json.encode":
 		return namedType("Result", namedType("String"), namedType("Error"))
 	case "json.parse":

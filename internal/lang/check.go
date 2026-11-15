@@ -63,7 +63,7 @@ type checker struct {
 var hostWords = []string{
 	"date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string",
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
-	"json.decode", "json.encode", "json.parse",
+	"json.decode", "json.encode", "json.parse", "xml.decode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.sort", "list.sort-by", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
@@ -167,7 +167,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "date", "time", "duration", "instant", "timezone", "zoned"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "xml", "date", "time", "duration", "instant", "timezone", "zoned"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -1230,7 +1230,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 					expected = ""
 				}
 			}
-			if x.text == "json.decode" && i == 1 {
+			if (x.text == "json.decode" || x.text == "xml.decode") && i == 1 {
 				expected = c.expected
 				if inner, ok := resultInner(expected); ok {
 					expected = inner
@@ -1587,18 +1587,22 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "json.parse":
 			params = []valueType{stringType}
 			result = valueType("Result<Json, Error>")
-		case "json.decode", "json.encode":
+		case "json.decode", "json.encode", "xml.decode":
 			count := 1
-			if x.text == "json.decode" {
+			if x.text != "json.encode" {
 				count = 2
 			}
 			if len(args) != count {
 				return "", errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments", x.text, count)
 			}
 			target := args[0]
-			if x.text == "json.decode" {
+			if count == 2 {
+				label := "JSON"
+				if x.text == "xml.decode" {
+					label = "XML"
+				}
 				if args[0] != stringType {
-					return "", errorAt(x.pos, CodeArgumentType, "json.decode requires JSON text as its first argument")
+					return "", errorAt(x.pos, CodeArgumentType, "%s requires %s text as its first argument", x.text, label)
 				}
 				target = args[1]
 			}
@@ -1613,7 +1617,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			}
 			x.jsonSchema = schema
 			params = args
-			if x.text == "json.decode" {
+			if x.text != "json.encode" {
 				result = valueType("Result<" + string(target) + ", Error>")
 			} else {
 				result = valueType("Result<String, Error>")

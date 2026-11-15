@@ -25,6 +25,11 @@ const (
 	CodeJSONField           Code = "json-field"
 	CodeJSONRange           Code = "json-range"
 	CodeJSONDepth           Code = "json-depth"
+	CodeXMLSyntax           Code = "xml-syntax"
+	CodeXMLType             Code = "xml-type"
+	CodeXMLField            Code = "xml-field"
+	CodeXMLRange            Code = "xml-range"
+	CodeXMLDepth            Code = "xml-depth"
 	CodeArrayRange          Code = "array-range"
 	CodeArrayRank           Code = "array-rank"
 	CodeArrayShape          Code = "array-shape"
@@ -109,7 +114,7 @@ const (
 
 var diagnosticCodes = []Code{
 	CodeDateParse, CodeTimeParse, CodeDurationParse, CodeTemporalInvalid, CodeTemporalRange, CodeInstantParse, CodeTimezoneLoad,
-	CodeErrorNoCause, CodeExitStatus, CodeJSONSyntax, CodeJSONType, CodeJSONField, CodeJSONRange, CodeJSONDepth, CodeArrayRange, CodeArrayRank, CodeArrayShape, CodeListRange, CodeCollectionLimit, CodeCollectionIterating,
+	CodeErrorNoCause, CodeExitStatus, CodeJSONSyntax, CodeJSONType, CodeJSONField, CodeJSONRange, CodeJSONDepth, CodeXMLSyntax, CodeXMLType, CodeXMLField, CodeXMLRange, CodeXMLDepth, CodeArrayRange, CodeArrayRank, CodeArrayShape, CodeListRange, CodeCollectionLimit, CodeCollectionIterating,
 	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeUnclosedDelimiter, CodeStringEscape, CodeUnexpectedCharacter,
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,
 	CodeIntegerLiteralRange, CodeExpectedExpression, CodeFlowStep,

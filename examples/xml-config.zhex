@@ -1,0 +1,28 @@
+type Endpoint = record
+    host: String
+    port: Int
+
+type Service = record
+    name: String
+    retries: Int
+    dry-run: Bool
+    endpoints: List<Endpoint>
+    owner: Option<String>
+
+let config = "<service retries=\"3\" dry-run=\"true\"><name>ingest</name><endpoints><host>db</host><port>5432</port></endpoints><endpoints><host>web</host><port>443</port></endpoints></service>"
+
+let service = xml.decode(
+    config,
+    Service("backup", 1, false, [], Option.None)
+) try
+print service.name
+print service.retries
+print service.dry-run
+print(list.length(service.endpoints))
+let primary = service.endpoints[0] try
+print(primary.host + ":" + int.to-string(primary.port))
+match service.owner
+    case Option.None
+        print("owner unset")
+    case Option.Some(owner)
+        print("owner " + owner)

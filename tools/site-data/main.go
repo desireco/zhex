@@ -247,6 +247,7 @@ var exampleSpecs = []struct {
 	{"temporal", "Dates and time zones", "Compare calendar days with elapsed time across a daylight-saving transition.", "", "Language basics", nil, nil},
 	{"json-config", "Typed JSON configuration", "Decode configuration with typed defaults and encode it again.", "", "Language basics", nil, nil},
 	{"json-tree", "JSON trees", "Parse a heterogeneous payload into a Json tree, walk it recursively, and encode it back.", "", "Language basics", nil, nil},
+	{"xml-config", "Typed XML configuration", "Decode an embedded XML document with attribute fields, a list of endpoint records, and an optional owner.", "", "Language basics", nil, nil},
 	{"maps", "Maps and lookup", "Store keyed values, match optional lookups, and merge maps.", "", "Language basics", nil, nil},
 	{"recovery", "Error recovery", "Catch invalid numeric input and continue with a useful fallback.", "", "Language basics", nil, nil},
 	{"exit-status", "Exit status", "Choose a valid status; invalid input exits with status 2.", "0\n", "Language basics", nil, nil},
