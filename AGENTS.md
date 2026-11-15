@@ -5,7 +5,7 @@ Zhex is a Forth-inspired language with named values and checked composition. A G
 ## Repository map
 
 - `internal/lang` — the language implementation: `syntax.go`, `lexer.go`, `parser.go`, `check.go`, `eval.go`, `host.go`, `session.go`. Tests in that directory are the executable specification (see `docs/tests.md`).
-- `cmd/zhex` — the CLI: `go run ./cmd/zhex run <file>`.
+- `cmd/zhex` — the CLI: `go run ./cmd/zhex run <file>`; `go run ./cmd/zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi]` checks the same program and assembles a WebAssembly module (`docs/wasm-plan.md`).
 - `examples/*.zhex` — validated example corpus split on the website into language basics and algorithms (including simple calls, word defaults, explicit partials, Game of Life, and edit distance), plus the two-file programs under `modules/` (the math library, the pure-Zhex md Markdown report module, and the html composition module with its escaped-unless-raw contract). The website executes every registered example at build time; a broken example fails the build.
 - Standard-library proposals and the current inventory live in `docs/standard-library-plan.md`; proposed signatures there are not implemented APIs. Stories #57–64 are approved for one-by-one review and triaged to Todo; review and claim a selected story before implementation.
 - `docs/` — the language contract (`initial-language.md`), getting-started guide, research notes, and the versioning policy (`versioning.md`): no version numbers, tags, or CHANGELOG before the standard library's 0.1 release.
@@ -58,7 +58,7 @@ File every new ticket into the board's **Inbox** bucket with no status — never
 3. **Follow the plan** until every part of it is done; keep scope to what the ticket describes.
 4. **Return unfinished tickets.** If you cannot complete the ticket, stop, leave a comment with what is done and what remains, and move the card back to Todo. Never leave a ticket In Progress unattended.
 5. **Verify and record.** Make the functionality work (tests, build, deploy checks), then update everything that records truth wherever it lives: website docs, repository docs, AGENTS.md, ROADMAP.md, and the board. A new word, signature change, or rename/removal follows the checklist in `docs/vocabulary-checklist.md` — every surface from interpreter sync points to editors and truth surfaces, tests first.
-6. **Close last.** Commit and push, let the deploy go green, then move the card to Done and close the issue with a short ship note.
+6. **Close last.** A green build on the branch moves the card to Done and closes the issue with a short ship note. Pushing never gates ticket status; work ships when the arc merges.
 
 ## Verifying work
 
