@@ -1,0 +1,38 @@
+# Configure a batch report from a .env file: write the fixture, load it,
+# read each setting back as an Option, and clean up. The base folder is
+# the first program argument.
+
+let base = console.arg(0) try
+let env-path = base + "/report.env"
+
+file.make-folder(base, true) try
+
+# The title appears twice; the first assignment wins, so the report keeps
+# "Weekly status". An empty value after = is set, not missing.
+file.write("ZHEX_REPORT_TITLE=Weekly status\nZHEX_REPORT_TITLE=Daily drudgery\nZHEX_REPORT_MODE=\n", env-path) try
+
+env.load env-path try
+
+match env.get("ZHEX_REPORT_TITLE")
+    case Option.Some(title)
+        print("title: " + title)
+    case Option.None
+        print("title: unset")
+
+match env.get("ZHEX_REPORT_MODE")
+    case Option.Some(mode)
+        if mode == ""
+            print("mode: set but empty")
+        else
+            print("mode: " + mode)
+    case Option.None
+        print("mode: unset")
+
+match env.get("ZHEX_REPORT_LIMIT")
+    case Option.Some(limit)
+        print("limit: " + limit)
+    case Option.None
+        print("limit: not in the file")
+
+file.delete env-path try
+print("report configured")

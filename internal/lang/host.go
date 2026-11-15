@@ -480,8 +480,49 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{result: &inputResult{value: value{text: r.args[i]}}}, nil
 	case "console.args-count":
 		return value{number: int64(len(r.args))}, nil
+	case "env.get":
+		if text, ok := os.LookupEnv(args[0].text); ok {
+			return value{choice: &choiceValue{name: "Option.Some", variant: 1, fields: []value{{text: text}}}}, nil
+		}
+		return value{choice: &choiceValue{name: "Option.None", variant: 0}}, nil
+	case "env.load":
+		return loadEnvFile(x.pos, args[0].text), nil
 	}
 	return value{}, errorAt(x.pos, CodeUnsupportedCode, "unknown built-in operation %q", x.text)
+}
+
+// loadEnvFile reads KEY=VALUE lines into the process environment. Blank
+// lines and whole-line comments are skipped, one surrounding quote pair on
+// the value is stripped, and a key already present — in the environment or
+// set by an earlier line — keeps its value, so the first assignment wins.
+// Lines before a malformed one are already applied and stay applied.
+func loadEnvFile(pos position, path string) value {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		d := errorAt(pos, CodeEnvRead, "cannot read %q: %v", path, err).(*diagnostic)
+		d.details = map[string]string{"path": path, "reason": osFailureReason(err)}
+		return value{result: &inputResult{err: d}}
+	}
+	for i, line := range strings.Split(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, text, found := strings.Cut(line, "=")
+		key, text = strings.TrimSpace(key), strings.TrimSpace(text)
+		if !found || key == "" || strings.ContainsAny(key, " \t") {
+			d := errorAt(pos, CodeEnvParse, "line %d of %q is not a KEY=VALUE assignment: %q", i+1, path, line).(*diagnostic)
+			d.details = map[string]string{"path": path, "line": strconv.Itoa(i + 1)}
+			return value{result: &inputResult{err: d}}
+		}
+		if len(text) >= 2 && (text[0] == '"' || text[0] == '\'') && text[len(text)-1] == text[0] {
+			text = text[1 : len(text)-1]
+		}
+		if _, present := os.LookupEnv(key); !present {
+			os.Setenv(key, text)
+		}
+	}
+	return value{result: &inputResult{}}
 }
 
 func formatValue(v value, typ valueType) string {

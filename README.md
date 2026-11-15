@@ -50,6 +50,7 @@ go run ./cmd/zhex run examples/life.zhex
 go run ./cmd/zhex run examples/edit-distance.zhex
 go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
 go run ./cmd/zhex run examples/file-work.zhex .
+go run ./cmd/zhex run examples/env-config.zhex .
 ```
 
 Build an executable when you want to use it directly:
@@ -91,6 +92,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [File write](examples/file-write.zhex) | Attempt a checked report write and handle the failed `Result` with `catch`. |
 | [Lexical paths](examples/paths.zhex) | Compose and decompose paths with `file.join`, `base`, `extension`, and `directory-of`. |
 | [File work folder](examples/file-work.zhex) | Create a work folder, write reports into it, inspect them, and remove the whole tree. |
+| [Env configuration](examples/env-config.zhex) | Write a `.env` fixture, load it with `env.load`, and read each setting back as an `Option` match. |
 | [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
 | [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
 | [Filter tool](examples/filter.zhex) | The first end-to-end application: `zhex run examples/filter.zhex <pattern> <file>` prints the lines containing a literal, case-sensitive pattern; wrong arguments fail with a usage line and a missing file reports its natural `FileError`. Not a registered website example — it needs arguments to run. |

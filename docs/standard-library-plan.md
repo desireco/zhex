@@ -1,6 +1,6 @@
 # Standard library research and proposed plan
 
-Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57–62 have since shipped, #63 was declined and removed by the owner (2026-11-14), and #64 awaits one-by-one review.
+Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57–62 have since shipped, #63 was declined and removed by the owner (2026-11-14), and #64's environment half has since shipped, its path words moved to S11 (#74).
 
 ## Recommendation
 
@@ -10,7 +10,7 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words; #79 shipped `xml.decode` on the stdlib encoding/xml tokenizer. [`hostWords` in check.go](../internal/lang/check.go) registers **112 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words; #79 shipped `xml.decode` on the stdlib encoding/xml tokenizer; #64 shipped the two environment words. [`hostWords` in check.go](../internal/lang/check.go) registers **114 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
@@ -24,6 +24,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `buffer` | `new`, `add-line`, `line-count`, `line`, `set-line`, `to-text` | [Buffers](../site/src/content/docs/buffers.md); `buffer_test.go` |
 | `file` | `read`, `open`, `read-line`, `close`, `write`, `stream`, `list`, `exists`, `size`, `free-space`, `join`, `base`, `extension`, `directory-of` | [Files](../site/src/content/docs/files.md); `file_test.go`, `file_inspect_test.go`, `path_test.go` |
 | `console` | `arg`, `args-count`, `exit`, `fail` | [Console](../site/src/content/docs/console.md); `args_test.go`, CLI `main_test.go`, `reporting_test.go` |
+| `env` | `get`, `load` | [Environment](../site/src/content/docs/env.md); `env_test.go` |
 | `error` | `set-reporter`, `report`, `new`, `wrap`, `has-cause`, `cause`, `code`, `message`, `operation`, `file`, `line`, `column`, `detail` | [Results](../site/src/content/docs/results.md); `result_words_test.go`, `reporting_test.go` |
 | `date` | `new`, `parse`, `to-string`, `add-days` | [Temporal](../site/src/content/docs/temporal.md); `temporal_test.go`, `civil_time_test.go` |
 | `time` | `new`, `parse`, `to-string` | Same temporal reference/tests |
@@ -32,7 +33,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 111 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 114 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -94,7 +95,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below added candidates S12/S14/S15 (the XML typed decode shipped in its S12 slot as [#79](https://github.com/desireco/zhex/issues/79), S14 shipped as the pure-Zhex `md` module [#77](https://github.com/desireco/zhex/issues/77), and S15 shipped as [#78](https://github.com/desireco/zhex/issues/78), the html composition module, below); the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) has shipped its environment half (the path words shipped as S11/#74), and the document-libraries research below added candidates S12/S14/S15 (the XML typed decode shipped in its S12 slot as [#79](https://github.com/desireco/zhex/issues/79), S14 shipped as the pure-Zhex `md` module [#77](https://github.com/desireco/zhex/issues/77), and S15 shipped as [#78](https://github.com/desireco/zhex/issues/78), the html composition module, below); the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -181,7 +182,16 @@ Demand: parse all numeric report fields without silently dropping invalid input.
 
 ### Phase 3 — optional capabilities after evidence
 
-**S8. Paths and configuration for batch reports.** Stage behind a multi-file report example. Candidate host operations `path.join(base: String, child: String) -> String`, `path.base(path: String) -> String`, `path.extension(path: String) -> String`, and `env.get(name: String) -> Option<String>`. Define OS-native lexical semantics (not URLs), absolute-child behavior, empty/root/trailing-separator cases, invalid environment names/encoding, and missing versus empty values. No existence check hidden in cleanup, no containment guarantee, no process launching. Reserve namespaces only when shipping and assess compatibility with existing sibling modules.
+**S8. Environment configuration for batch reports.** The path words were redirected to S11 (#74) on 2026-11-14; the environment half shipped as [#64](https://github.com/desireco/zhex/issues/64). Host signatures:
+
+```text
+env.get(name: String) -> Option<String>
+env.load(path: String = ".env") -> Result<Unit, Error>
+```
+
+Demand: read configuration for batch reports from the process environment and a `.env` file, distinguishing missing keys from empty values, with no process launching. No existence check hidden in cleanup, no containment guarantee. The `env` namespace was reserved on shipping, matching the sibling module reservations.
+
+Shipped notes: `env.get` is total and never fails — Go's `os.LookupEnv` split, so an unset name is `Option.None` and a set-but-empty name is `Option.Some("")` — and is partially appliable like other value-returning built-ins. `env.load` reads KEY=VALUE lines into the process environment inside `Result<Unit, Error>`, the common-Error family (`json.parse` precedent): blank lines and whole-line `#` comments are skipped after leading trim, whitespace around key and value is trimmed, one matching pair of surrounding single or double quotes on the value is stripped, and `KEY=` sets the empty string. First assignment wins: a key already in the environment, or set by an earlier line of the same file, is preserved — never overridden — and any other line (missing `=`, empty key, key with spaces) fails `env-parse` naming the line number, with read failures failing `env-read`; lines before a malformed one stay applied, the single-pass rule of the file words. The `.env` trailing constant default behaves like `file.write`'s `append`: omitted defaults stay deferred for partials. No `export` prefix, inline comments, or escape processing. New stable codes `env-read` and `env-parse` joined the catalog. The registered `env-config` example — writing a report.env fixture, loading it, reading settings back through Option matches, and cleaning up — raised the example corpus to 35.
 
 Directory listing/metadata is now researched in the #69 candidates below; the `path.*` words moved there too (2026-11-14 owner decision on #64 — path operations align with the folder-operations vocabulary, and #64 proceeds with `env.*` only). CSV needs a real tabular interchange example and quoting/newline contract; split is not a CSV parser. Temporal extraction/comparison should follow a scheduling/report workload rather than another broad date API pass. A user-facing testing library should start from a failing real Zhex test suite and specify runner discovery, assertions, failure locations and exit status; keep the existing Go executable specification meanwhile.
 
@@ -365,9 +375,9 @@ Non-goals: no HTML parsing, no DOM, no template language, no CSS/JavaScript gene
 
 ## Decision and completion boundary
 
-Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6; the deliberately separate S7 was later declined and removed with #63. S8 and other optional capabilities stay proposals.
+Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6; the deliberately separate S7 was later declined and removed with #63. S8's environment half has since shipped as #64; the other optional capabilities stay proposals.
 
-The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, S3 (#59) shipped as source-level helper words without new host names, and S4 (#60) with S5 (#61) have since added the list callback words, and S6 (#62) the two list sorting words, to that inventory; S9 (#73) from the folder-operations research added the four file inspect words, and S10 (#75) the four destructive file words.
+The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, S3 (#59) shipped as source-level helper words without new host names, and S4 (#60) with S5 (#61) have since added the list callback words, and S6 (#62) the two list sorting words, to that inventory; S9 (#73) from the folder-operations research added the four file inspect words, S10 (#75) the four destructive file words, and S8 (#64) the two environment words, its path words shipped as S11 (#74).
 
 | Order | Story | Dependency |
 | --- | --- | --- |
@@ -378,7 +388,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S5 | [#61 — Short-circuit find/any/all](https://github.com/desireco/zhex/issues/61) — shipped | #60 callback contract |
 | S6 | [#62 — Stable copied sort/sort-by](https://github.com/desireco/zhex/issues/62) — shipped | #60 callback contract |
 | S7 | [#63 — Explicit fallible try-map](https://github.com/desireco/zhex/issues/63) — declined and removed | #60 plus callback-effect design; declined 2026-11-14, #70 drafts the replacement |
-| S8 | [#64 — Paths/environment for batch reports](https://github.com/desireco/zhex/issues/64) | #57/#58 and a multi-file workload; later phase |
+| S8 | [#64 — Paths/environment for batch reports](https://github.com/desireco/zhex/issues/64) — shipped | Environment half only; the path words moved to S11/#74; the `env-config` example registered |
 | S9 | [#73 — File: inspect — list, exists, size, and free space](https://github.com/desireco/zhex/issues/73) — shipped | #69 research; executable example deferred until S10's `file.make-folder` |
 | S11 | [#74 — File: lexical path words — join, base, extension, directory-of](https://github.com/desireco/zhex/issues/74) — shipped | #69 research; the `paths` example registered |
 | S10 | [#75 — File: destructive operations — make-folder, delete, delete-folder, move](https://github.com/desireco/zhex/issues/75) — shipped | #69 research; registered the deferred S9 example as `file-work` |

@@ -32,6 +32,9 @@ func TestExamples(t *testing.T) {
 		// zhex-work tree it creates, so the output is deterministic.
 		{name: "file-work", args: []string{filepath.Join(t.TempDir(), "base")}, want: "work folder: credits.txt, invoices.txt\ninvoices.txt: 12 bytes\nvolume still has space\nwork folder removed\n"},
 		{name: "file-work", wantErr: "argument-missing"},
+		// env-config writes its own .env fixture into the base folder and
+		// removes it, so the output is deterministic.
+		{name: "env-config", args: []string{filepath.Join(t.TempDir(), "base")}, want: "title: Weekly status\nmode: set but empty\nlimit: not in the file\nreport configured\n"},
 		{name: "temporal", want: "2024-03-10T12:00:00-04:00[America/New_York]\n2024-03-10T13:00:00-04:00[America/New_York]\n"},
 		{name: "json-config", want: "3\ntrue\n{\"retries\":3,\"verbose\":true}\n"},
 		{name: "json-tree", want: "nodes: 12\nservice = ingest\nretries = 1.5e1\nendpoints = list of 4\nflags = object of 1\n{\"service\":\"ingest\",\"retries\":1.5e1,\"endpoints\":[\"primary\",443,null,{\"host\":\"db\",\"port\":5432}],\"flags\":{\"dry-run\":true}}\n"},
