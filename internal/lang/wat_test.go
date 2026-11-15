@@ -428,10 +428,6 @@ list.append(xs, 1) try
 let xs: List<Int> = [1]
 print(xs[9] try)
 `, "checked index reads is not available in this build"},
-		{"map-literal", `
-let m: Map<String, Int> = {}
-print(1)
-`, "map literals is not available in this build"},
 		{"word-defaults", `
 word greet(name: String = "Ada") -> String
     name
@@ -735,6 +731,118 @@ print(n)
 		"struct.get " + watTypeErr + " " + watErrFieldMessage,
 		"i32.const " + itoa(watFailTextToInt),
 		"call " + watFailMsg,
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+// --------------------------------------------------------------------- maps
+
+func TestWatMapLiteralAndWords(t *testing.T) {
+	wat := watOf(t, `
+let scores: Map<String, Int> = {"Ada": 1, "Bob": 2}
+scores["Ada"] = 4
+map.remove(scores, "Bob")
+let updated = map.put(scores, "Cy", 3)
+print(map.length(updated))
+print(map.contains(scores, "Cy"))
+let base: Map<String, Int> = {}
+let merged = map.into(updated, base)
+print(map.length(merged))
+`)
+	for _, want := range []string{
+		"call " + watMapNew(watMapKeyStr, watSpecI64),
+		"call " + watMapPut(watMapKeyStr, watSpecI64), // literal pairs + explicit put + index write
+		"call " + watMapRemove(watMapKeyStr, watSpecI64),
+		"call " + watMapLength(watMapKeyStr, watSpecI64),
+		"call " + watMapContains(watMapKeyStr, watSpecI64),
+		"call " + watMapInto(watMapKeyStr, watSpecI64),
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	// Two literal pairs, the explicit map.put, and the index write: four put
+	// calls; the empty literal emits none.
+	if got := strings.Count(wat, "call "+watMapPut(watMapKeyStr, watSpecI64)); got != 4 {
+		t.Errorf("put calls = %d, want 4 (two literal pairs + map.put + index write)", got)
+	}
+}
+
+func TestWatMapIndexReadEmitsOptionLookup(t *testing.T) {
+	wat := watOf(t, `
+let scores: Map<String, Int> = {"Ada": 1}
+match scores["Ada"]
+    case Option.Some(score)
+        print(score)
+    case Option.None
+        print(-1)
+`)
+	if !strings.Contains(wat, "call "+watMapLookup(watMapKeyStr, watSpecI64)) {
+		t.Errorf("map index read must call the lookup helper")
+	}
+	if !strings.Contains(wat, "ref.test (ref $zhex_some_i64)") {
+		t.Errorf("the lookup result must flow into the Option match")
+	}
+}
+
+func TestWatMapIndexWriteDropsPutResult(t *testing.T) {
+	wat := watOf(t, `
+let scores: Map<String, Int> = {"Ada": 1}
+scores["Ada"] = 4
+`)
+	if !strings.Contains(wat, "call "+watMapPut(watMapKeyStr, watSpecI64)) {
+		t.Errorf("map write must call put (guard first, receiver/key/value order)")
+	}
+	putAt := strings.Index(wat, "call "+watMapPut(watMapKeyStr, watSpecI64))
+	if !regexp.MustCompile(`(?m)^\s*drop$`).MatchString(wat[putAt:]) {
+		t.Errorf("the write is Unit: put's pass-through map ref must be dropped")
+	}
+}
+
+// Single binding iterates values; dual binding binds key first, value second
+// (DESIGN-M2 §3d) — easy to get backwards.
+func TestWatMapIterationBindings(t *testing.T) {
+	wat := watOf(t, `
+let scores: Map<String, Int> = {"Ada": 1}
+for score in scores
+    print(score)
+for name, score in scores
+    print(name + "=" + int.to-string(score))
+`)
+	for _, want := range []string{
+		"struct.get " + watMapType(watMapKeyStr, watSpecI64) + " $keys",
+		"struct.get " + watMapType(watMapKeyStr, watSpecI64) + " $vals",
+		"array.get " + watTypeArrStr, // dual binding reads the key array
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	// Two traversals: increment and decrement each, nothing else touches it.
+	if got := strings.Count(wat, "struct.set "+watMapType(watMapKeyStr, watSpecI64)+" $active"); got != 4 {
+		t.Errorf("map active writes = %d, want 4", got)
+	}
+}
+
+func TestWatMapIntAndBoolKeySpecializations(t *testing.T) {
+	wat := watOf(t, `
+let by-id: Map<Int, String> = {1: "a"}
+let flags: Map<Bool, Int> = {true: 1}
+print(map.length(by-id))
+print(map.length(flags))
+match by-id[1]
+    case Option.Some(name)
+        print(name)
+    case Option.None
+        print("none")
+`)
+	for _, want := range []string{
+		"call " + watMapNew(watMapKeyI64, watSpecRef),
+		"call " + watMapNew(watMapKeyI32, watSpecI64),
+		"call " + watMapLookup(watMapKeyI64, watSpecRef),
 	} {
 		if !strings.Contains(wat, want) {
 			t.Errorf("missing %q", want)

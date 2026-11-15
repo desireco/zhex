@@ -357,9 +357,12 @@ func (e *watEmitter) watValueType(t valueType) string {
 		}
 		return "(ref " + watArrayType(watSpecOf(inner)) + ")"
 	}
-	if base, _, applied := typeApplication(t); applied {
+	if base, args, applied := typeApplication(t); applied {
 		if base == "Option" {
 			return "(ref null eq)" // Some_X and None share no named supertype
+		}
+		if base == "Map" && len(args) == 2 {
+			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecOf(args[1])) + ")"
 		}
 		watFence(e.pos, "generic type "+base)
 	}
@@ -429,8 +432,13 @@ func (e *watEmitter) refTarget(t valueType) string {
 		}
 		return "(ref " + watArrayType(watSpecOf(inner)) + ")"
 	}
-	if base, _, applied := typeApplication(t); applied && base == "Option" {
-		return ""
+	if base, args, applied := typeApplication(t); applied {
+		if base == "Option" {
+			return ""
+		}
+		if base == "Map" && len(args) == 2 {
+			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecOf(args[1])) + ")"
+		}
 	}
 	if r := e.byID[string(t)]; r != nil && !r.choice {
 		return "(ref " + watRecordName(r) + ")"
@@ -706,9 +714,13 @@ func (e *watEmitter) bumpActive(local, structType string, delta int) {
 // traversals of one collection work. Writes and appends during traversal
 // fail 10 inside the prelude helpers.
 func (e *watEmitter) forCollection(s *statement) {
+	if keyType, valType, isMap := mapTypes(s.expr.typ); isMap {
+		e.forMap(s, keyType, valType)
+		return
+	}
 	kind, inner, ok := collectionInner(s.expr.typ)
 	if !ok {
-		watFence(s.pos, "map iteration")
+		watFence(s.pos, string(s.expr.typ))
 	}
 	k := e.nextID()
 	spec := watSpecOf(inner)
@@ -779,6 +791,80 @@ func (e *watEmitter) forCollection(s *statement) {
 	e.line("end")
 	e.cleanups = e.cleanups[:len(e.cleanups)-1]
 	e.bumpActive(recv, recvType, -1)
+}
+
+// forMap emits `for v in m` (values) and `for k, v in m` (key first, value
+// second — eval's asymmetric binding order): snapshot the keys/vals arrays
+// into locals, raise the guard counter for the traversal, loop, restore
+// (DESIGN-M2 §3d). Mutating helpers fail 10 through the guard.
+func (e *watEmitter) forMap(s *statement, keyType, valType valueType) {
+	k := e.nextID()
+	kk, v := mapKeySpec(keyType), watSpecOf(valType)
+	mapT := watMapType(kk, v)
+	recv := e.temp("recv"+k, nullableRef("(ref "+mapT+")"))
+	keys := e.temp("items"+k, "(ref null "+mapKeyArrType(kk)+")")
+	vals := e.temp("vals"+k, "(ref null "+watArrType(v)+")")
+	i := e.temp("i"+k, "i32")
+	e.expr(s.expr)
+	e.line("local.set " + recv)
+	e.line("local.get " + recv)
+	e.line("struct.get " + mapT + " $keys")
+	e.line("local.set " + keys)
+	e.line("local.get " + recv)
+	e.line("struct.get " + mapT + " $vals")
+	e.line("local.set " + vals)
+	e.bumpActive(recv, mapT, 1)
+	e.cleanups = append(e.cleanups, watCleanup{recv, mapT})
+	e.line("i32.const 0")
+	e.line("local.set " + i)
+	e.line("block $exit" + k)
+	e.depth++
+	e.line("loop $loop" + k)
+	e.depth++
+	e.line("local.get " + i)
+	e.line("local.get " + keys)
+	e.line("array.len")
+	e.line("i32.lt_u")
+	e.line("if")
+	e.depth++
+	if s.secondBinding != nil {
+		// dual: key first (cast out of the keys array), value second
+		e.line("local.get " + keys)
+		e.line("local.get " + i)
+		e.line("array.get " + mapKeyArrType(kk))
+		e.castFromEqref(keyType)
+		e.line("local.set " + e.local(s.binding))
+		if !isUnitValue(valType) {
+			e.line("local.get " + vals)
+			e.line("local.get " + i)
+			e.line("array.get " + watArrType(v))
+			e.castFromEqref(valType)
+			e.line("local.set " + e.local(s.secondBinding))
+		}
+	} else if !isUnitValue(valType) {
+		// single: values only
+		e.line("local.get " + vals)
+		e.line("local.get " + i)
+		e.line("array.get " + watArrType(v))
+		e.castFromEqref(valType)
+		e.line("local.set " + e.local(s.binding))
+	}
+	for _, st := range s.body {
+		e.statementNeutral(st)
+	}
+	e.line("local.get " + i)
+	e.line("i32.const 1")
+	e.line("i32.add")
+	e.line("local.set " + i)
+	e.line("br $loop" + k)
+	e.depth--
+	e.line("end")
+	e.depth--
+	e.line("end")
+	e.depth--
+	e.line("end")
+	e.cleanups = e.cleanups[:len(e.cleanups)-1]
+	e.bumpActive(recv, mapT, -1)
 }
 
 // readElem pushes items[i]; Unit elements push nothing.
@@ -898,7 +984,7 @@ func (e *watEmitter) expr(x *expression) {
 			e.assertNonNull(e.flowCursorType)
 		}
 	case "map":
-		watFence(x.pos, "map literals")
+		e.mapLiteral(x)
 	default:
 		watFence(x.pos, x.kind)
 	}
@@ -973,6 +1059,56 @@ func (e *watEmitter) listLiteral(x *expression) {
 	e.line("array.new_fixed %s %d", watArrType(watSpecOf(inner)), len(x.args))
 	e.line("i32.const 0")
 	e.line("struct.new " + watListType(watSpecOf(inner)))
+}
+
+// mapKeySpec is a map key's specialization: Int → i64, Bool → i32,
+// String → str (DESIGN-M2 §3a); the checker allows only these key types.
+func mapKeySpec(t valueType) watMapKey {
+	switch t {
+	case intType:
+		return watMapKeyI64
+	case boolType:
+		return watMapKeyI32
+	}
+	return watMapKeyStr
+}
+
+// mapKeyArrType is the keys-array type of one key specialization.
+func mapKeyArrType(k watMapKey) string {
+	if k == watMapKeyStr {
+		return watTypeArrStr
+	}
+	return watArrType(watSpec(k))
+}
+
+// mapSpecs is the repr pair of a map.* call's receiver (params[0]).
+func (e *watEmitter) mapSpecs(x *expression) (watMapKey, watSpec) {
+	keyType, valType, _ := mapTypes(x.inputType)
+	return mapKeySpec(keyType), watSpecOf(valType)
+}
+
+// mapLiteral builds an empty map of the contextually checked repr pair,
+// then puts each pair left to right — key first, then value — so duplicate
+// constant keys behave as put (overwrite in place, DESIGN-M2 §3c).
+func (e *watEmitter) mapLiteral(x *expression) {
+	keyType, valType, _ := mapTypes(x.typ)
+	k, v := mapKeySpec(keyType), watSpecOf(valType)
+	m := e.temp("map"+e.nextID(), nullableRef("(ref "+watMapType(k, v)+")"))
+	e.line("call " + watMapNew(k, v))
+	e.line("local.set " + m)
+	for i := 0; i < len(x.args); i += 2 {
+		e.line("local.get " + m)
+		e.line("ref.as_non_null")
+		e.expr(x.args[i])
+		e.expr(x.args[i+1])
+		if isUnitValue(valType) {
+			e.line("ref.null eq")
+		}
+		e.line("call " + watMapPut(k, v))
+		e.line("local.set " + m) // put passes the same map through
+	}
+	e.line("local.get " + m)
+	e.line("ref.as_non_null")
 }
 
 func (e *watEmitter) binaryExpr(x *expression) {
@@ -1292,6 +1428,34 @@ func (e *watEmitter) builtinCall(x *expression) {
 	case "text.to-int":
 		e.expr(x.args[0])
 		e.line("call " + watTextToInt)
+	case "map.length":
+		k, v := e.mapSpecs(x)
+		e.expr(x.args[0])
+		e.line("call " + watMapLength(k, v))
+	case "map.contains":
+		k, v := e.mapSpecs(x)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watMapContains(k, v))
+	case "map.put":
+		k, v := e.mapSpecs(x)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.expr(x.args[2])
+		if isUnitValue(x.args[2].typ) {
+			e.line("ref.null eq")
+		}
+		e.line("call " + watMapPut(k, v)) // returns the same map (flows)
+	case "map.remove":
+		k, v := e.mapSpecs(x)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watMapRemove(k, v)) // Unit
+	case "map.into":
+		k, v := e.mapSpecs(x)
+		e.expr(x.args[0]) // source (guard targets only)
+		e.expr(x.args[1])
+		e.line("call " + watMapInto(k, v)) // returns the target
 	default:
 		watFence(x.pos, x.text)
 	}
@@ -1329,15 +1493,22 @@ func (e *watEmitter) printCall(x *expression) {
 	}
 }
 
-// indexExpr emits a plain list/array read; the checked (try/catch) form is
-// fenced. Map indexing is out of the M1 subset.
+// indexExpr emits a plain list/array read (or a map lookup returning an
+// Option); the checked (try/catch) form is fenced.
 func (e *watEmitter) indexExpr(x *expression) {
 	if x.checkedIndex {
 		watFence(x.pos, "checked index reads")
 	}
+	if keyType, valType, isMap := mapTypes(x.left.typ); isMap {
+		k, v := mapKeySpec(keyType), watSpecOf(valType)
+		e.expr(x.left)
+		e.expr(x.args[0])
+		e.line("call " + watMapLookup(k, v)) // Option as a plain eq reference
+		return
+	}
 	kind, inner, ok := collectionInner(x.left.typ)
 	if !ok {
-		watFence(x.pos, "map indexing")
+		watFence(x.pos, string(x.left.typ))
 	}
 	spec := watSpecOf(inner)
 	e.expr(x.left)
@@ -1356,16 +1527,31 @@ func (e *watEmitter) indexExpr(x *expression) {
 	}
 }
 
-// indexWrite emits a plain indexed write (`xs[i] = v`); the parenthesized
-// checked form is fenced (§6c).
+// indexWrite emits a plain indexed write (`xs[i] = v` or `m[k] = v`); the
+// parenthesized checked form is fenced (§6c).
 func (e *watEmitter) indexWrite(x *expression) {
 	if !x.plainWrite {
 		watFence(x.pos, "checked index writes")
 	}
 	idx := x.left
+	if keyType, valType, isMap := mapTypes(idx.left.typ); isMap {
+		// = put with operation map.set: the helper guards, then overwrites
+		// or appends; the write itself is Unit, so put's pass-through map
+		// ref is dropped (DESIGN-M2 §3b).
+		k, v := mapKeySpec(keyType), watSpecOf(valType)
+		e.expr(idx.left)
+		e.expr(idx.args[0])
+		e.expr(x.right)
+		if isUnitValue(valType) {
+			e.line("ref.null eq")
+		}
+		e.line("call " + watMapPut(k, v))
+		e.line("drop")
+		return
+	}
 	kind, inner, ok := collectionInner(idx.left.typ)
 	if !ok {
-		watFence(x.pos, "map writes")
+		watFence(x.pos, string(idx.left.typ))
 	}
 	e.expr(idx.left) // receiver, then indices, then the value (eval order)
 	if kind == "List" {
