@@ -30,6 +30,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
 | [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
 | [modules/md-report/main.zhex](../examples/modules/md-report/main.zhex) | None | The escaped heading and paragraph, the aligned pipe table, both lists, the link, and the fenced code block | A two-file program: `use md` imports the sibling `md.zhex` and renders records and lists into a Markdown report accumulated in a buffer. |
+| [modules/html-page/main.zhex](../examples/modules/html-page/main.zhex) | None | A complete HTML status page | A two-file program over the `html` composition module: `escape-text` and `attr` escape text by default, markup nests through `element` with one deliberate `html.raw`, and `link` rejects a `javascript:` target. |
 
 ## Algorithms
 
@@ -125,6 +126,7 @@ zhex run examples/text-stats.zhex examples/text-stats-sample.txt
 zhex run examples/recovery.zhex
 printf '0\n' | zhex run examples/exit-status.zhex
 zhex run examples/modules/main.zhex
+zhex run examples/modules/html-page/main.zhex
 ```
 
 ## Syntax exercised by the examples
@@ -133,7 +135,7 @@ zhex run examples/modules/main.zhex
 - `let` binds an immutable local. `var` explicitly permits reassignment within lexical scope; assignment preserves its type. Naming a value does not dictate its eventual machine representation.
 - Blocks use indentation. A word's final expression supplies its result; an `if` used as a value has compatible branch result types. Statement branches in these top-level programs return `Unit`.
 - Calls may use parentheses or the simple comma-separated form at a complete expression boundary. Qualify type- and module-owned operations such as `text.reverse`, `math.gcd`, and `error.code`; hyphenated words such as `is-palindrome` are identifiers. Use spaces around subtraction between names: `a-b` is a name, while `a - b` subtracts.
-- `+` supports integer addition or string concatenation with matching operand types; no automatic integer-to-string conversion occurs. `%` is integer remainder. `==` compares same-typed values by value. `or` combines booleans with short-circuit evaluation.
+- `+` supports integer addition or string concatenation with matching operand types; the one exception is the string-context Int — a `String` concatenated with an `Int` renders the Int as `int.to-string` does, and `print` accepts an `Int` directly (#83). `%` is integer remainder. `==` compares same-typed values by value. `or` combines booleans with short-circuit evaluation.
 - `range(start, end)` is an ascending integer iteration with an exclusive end. When `start >= end`, it performs no iterations. It should not require materializing a list of all integers.
 - `int.to-string` returns decimal text. `text.reverse` reverses a valid string by Unicode code points. These standard operations are predeclared.
 

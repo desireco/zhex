@@ -1,0 +1,22 @@
+# A status page composed from the html module: text values are escaped,
+# markup composes through element, and one javascript: link is rejected.
+
+use html
+
+# Each row introduces service text through escape-text; only the literal
+# divider is deliberate markup and enters through html.raw.
+word row(text: String) -> String
+    html.element("li", [], html.escape-text(text))
+
+let rows = flow ["api: 2 ms", "web: 9 ms", "db: 41 ms & <degraded>"]
+    list.map(row(_))
+    text.join("\n")
+
+let services = html.element("ul", [html.attr("class", "status \"live\" & <fresh>")], "\n" + rows + "\n")
+let intro = html.element("p", [], html.escape-text("Everything below is escaped unless it arrives through html.raw."))
+let divider = html.raw("<hr>")
+let home = html.link("project home", "https://example.io/zhex") try
+let blocked = html.link("run it", "javascript:alert(1)") catch
+    "(link rejected: javascript: is not an allowed scheme)"
+
+print(html.page("Zhex services — café & <status>", intro + "\n" + services + "\n" + divider + "\n" + home + " / " + blocked))

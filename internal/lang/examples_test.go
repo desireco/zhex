@@ -96,6 +96,10 @@ func TestExamples(t *testing.T) {
 		{name: "modules/main", input: "48\n18\n", want: "First number: Second number: 30\n6\n144\n"},
 		{name: "modules/main", input: "0\n5\n", want: "First number: Second number: Enter two positive integers.\n"},
 		{name: "modules/md-report/main", want: "## Weekly status \\& latency\n\nThree services reported\\; nothing is down\\.\n\n| service            | region   | latency |\n| ------------------ | -------- | ------- |\n| edge\\-cache        | eu\\-west | 12 ms   |\n| search\\-api \\(v2\\) | eu\\-west | 41 ms   |\n| auth               | us\\-east | 87 ms   |\n\n- no renderer\n- no template engine\\, just words\n\n[CommonMark](https://commonmark.org/help)\n\n```zhex\nlet title = md.heading(2, \"Weekly\")\nflow `inline code`\n    text.upper\n```\n"},
+		// html-page composes the html sibling module: escaped text by
+		// default, markup through element and one deliberate html.raw,
+		// and a rejected javascript: link target.
+		{name: "modules/html-page/main", want: "<!DOCTYPE html>\n<html>\n<head>\n<title>Zhex services — café &amp; &lt;status&gt;</title>\n</head>\n<body>\n<p>Everything below is escaped unless it arrives through html.raw.</p>\n<ul class=\"status &#34;live&#34; &amp; &lt;fresh&gt;\">\n<li>api: 2 ms</li>\n<li>web: 9 ms</li>\n<li>db: 41 ms &amp; &lt;degraded&gt;</li>\n</ul>\n<hr>\n<a href=\"https://example.io/zhex\">project home</a> / (link rejected: javascript: is not an allowed scheme)\n</body>\n</html>\n"},
 	}
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%s/%d", tc.name, i), func(t *testing.T) {

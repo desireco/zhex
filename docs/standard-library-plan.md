@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below added candidates S12/S14/S15 (the XML typed decode shipped in its S12 slot as [#79](https://github.com/desireco/zhex/issues/79), S14 shipped as the pure-Zhex `md` module [#77](https://github.com/desireco/zhex/issues/77), and S15 remains a candidate awaiting owner triage); the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below added candidates S12/S14/S15 (the XML typed decode shipped in its S12 slot as [#79](https://github.com/desireco/zhex/issues/79), S14 shipped as the pure-Zhex `md` module [#77](https://github.com/desireco/zhex/issues/77), and S15 shipped as [#78](https://github.com/desireco/zhex/issues/78), the html composition module, below); the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -263,7 +263,7 @@ The [#66 document research](https://github.com/desireco/zhex/issues/66) (JSON, Y
 5. Markdown paragraphs: verbatim — no normalization.
 6. HTML: `html.raw` included from v1, unmistakably unsafe — the module guarantee becomes "escaped unless raw".
 
-Story numbering continues the #69 sequence. S13 was the JSON heterogeneous-tree slot; the owner's mid-research decision filed it as #76, its design lives there, and it is not repeated here. It has since shipped: `json.parse` parses into the host-predeclared `Json` tree, `json.encode` accepts trees with byte-faithful round trips, and the `json-tree` example is registered. S12 shipped, S14 shipped as [#77](https://github.com/desireco/zhex/issues/77) with tables added by owner decision, and S15 remains a candidate awaiting owner triage.
+Story numbering continues the #69 sequence. S13 was the JSON heterogeneous-tree slot; the owner's mid-research decision filed it as #76, its design lives there, and it is not repeated here. It has since shipped: `json.parse` parses into the host-predeclared `Json` tree, `json.encode` accepts trees with byte-faithful round trips, and the `json-tree` example is registered. S12 shipped, S14 shipped as [#77](https://github.com/desireco/zhex/issues/77) with tables added by owner decision, and S15 shipped as [#78](https://github.com/desireco/zhex/issues/78).
 
 Fit, defer, and exclude matrix:
 
@@ -276,7 +276,7 @@ Fit, defer, and exclude matrix:
 | XML typed decode | Shipped | [#79](https://github.com/desireco/zhex/issues/79) shipped `xml.decode` dependency-free on stdlib [encoding/xml](https://pkg.go.dev/encoding/xml); see the S12 section below. |
 | XML DOM, mixed content, namespaces-as-data | Defer behind the tree-type wall | #76 now partially addresses the wall by proving the host-predeclared tree pattern for JSON; reopen only when a concrete mixed-content or namespaces-as-data XML workload exists after #76 lands. |
 | Markdown generation | Fit — S14 candidate | Pure-Zhex sibling module; see S14 below. |
-| HTML generation | Fit — S15 candidate | Pure Zhex plus one promotion candidate; see S15 below. |
+| HTML generation | Shipped — S15, as #78 | The pure-Zhex html composition module; see S15 below. |
 | Markdown parsing | Exclude | Generation is the workload; [goldmark](https://github.com/yuin/goldmark) would add a dependency and a parsing contract this research does not support. |
 | Template engines | Exclude | No template syntax; composition stays Zhex words over fragments. |
 
@@ -332,28 +332,25 @@ Decisions settled in review and pinned in the module: it lives beside the regist
 
 Non-goals: no Markdown parsing, no HTML output, no further extension syntax beyond tables, no text normalization, no Buffer mutation, no template engine.
 
-**S15. HTML generation module.** Candidate from the #67 research, awaiting owner triage; not filed as an issue. A pure-Zhex sibling module plus one promotion candidate: `html.escape-text` as a host word backed by Go's [html](https://pkg.go.dev/html) escaping, because correct context-free text escaping is subtle enough to earn the host boundary. Proposed module words:
+**S15. HTML generation module.** Shipped as #78 (2026-11-14): the pure-Zhex sibling module `examples/modules/html-page/html.zhex`, paired with the registered `modules/html-page/main` example and `html_module_test.go`. Shipped surface:
 
 ```text
-html.escape-text(text: String) -> String
-html.element(tag: String, attributes: Map<String, String>, content: String) -> String
+html.escape-text(value: String) -> String
+html.attr(name: String, value: String) -> String
+html.element(tag: String, attributes: List<String>, content: String) -> String
 html.page(title: String, body: String) -> String
-html.raw(markup: String) -> String
+html.raw(value: String) -> String
+html.link(label: String, href: String) -> Result<String, Error>
 ```
 
-Owner decision baked in: `html.raw` is included from v1, named unmistakably unsafe, and documented as bypassing every escaping property — the module guarantee becomes "escaped unless raw".
+Owner decision baked in: `html.raw` is included from v1, named unmistakably unsafe, and documented as bypassing every escaping property — the module guarantee is "escaped unless raw".
 
-Demand: the #67 report workload rendered as HTML — element and page composition from native records and lists, escaped text by default, and a deliberate, greppable raw escape hatch.
+Settled decisions:
 
-Acceptance criteria:
-
-- Every text and attribute value is escaped in every position unless the caller passes it through `html.raw`; `html.raw` returns its argument unchanged, and its reference documentation states it bypasses every escaping property.
-- URL scheme policy: `javascript:` and `data:` URLs are rejected in URL-valued positions instead of emitted.
-- `html.element` emits one well-formed element with escaped attribute values; `html.page` emits a complete minimal HTML document.
-- Fixtures cover the #67 list: Unicode, ampersands, angle brackets, quotes, empty content, and nested composition.
-- If the owner approves the `html.escape-text` promotion with this story, it follows the [vocabulary-change checklist](vocabulary-checklist.md); otherwise it stays a module word.
-
-Decisions to settle: the attribute representation (`Map<String, String>` versus pre-escaped `List<String>` pairs); which attribute names are URL-checked (`href`/`src` only or a wider set) and the exact blocklist beyond `javascript:`/`data:`; whether `html.escape-text` ships here or as its own small story.
+- Escaping: `html.escape-text` stays a module word — five chained `text.replace` calls (`&` first) reproduce Go's [html](https://pkg.go.dev/html) `EscapeString` over `&`, `<`, `>`, `'`, `"`, and the tests pin the outputs against the Go function directly. No second workload demonstrated reuse by implementation time, so the S3 host-promotion rule keeps it in the module.
+- Attribute shape: `html.attr(name, value)` builds one pre-escaped `name="value"` attribute and `html.element` joins a `List<String>` of them with spaces — a list, not a map, keeps duplicate attributes possible and emission order diffable.
+- Text versus markup: every text position escapes (`escape-text`, `attr` values, `link` label and target, `page` title); element content and the page body are composed markup, so nesting composes without double-escaping, and text enters through `escape-text`. `html.raw` is the identity bypass that marks deliberate markup.
+- URL policy: `html.link` is the only URL-valued position; it allowlists relative URLs and `http`, `https`, `mailto`, and rejects every other scheme (`javascript:`, `data:`, case tricks, anything else) with the `html-url-scheme` code instead of emitting anything.
 
 Non-goals: no HTML parsing, no DOM, no template language, no CSS/JavaScript generation, no sanitization claim (`html.raw` is a documented bypass, not a sanitizer), no network.
 

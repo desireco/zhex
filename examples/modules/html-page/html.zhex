@@ -1,0 +1,56 @@
+# HTML composition with one rule: escaped unless raw. Text values are
+# entity-escaped (&, <, >, ', ", matching Go's html.EscapeString) in every
+# text position — escape-text, attribute values, link labels and targets,
+# and the page title. Element content and the page body are composed
+# markup: introduce text with escape-text, and mark deliberate literal
+# markup with html.raw, the one bypass of every escaping property. The
+# module never sanitizes HTML, CSS, or JavaScript.
+
+# Entity-escape a text value for any position: & first so later entities stay literal.
+word escape-text(value: String) -> String
+    flow value
+        text.replace("&", "&amp;")
+        text.replace("<", "&lt;")
+        text.replace(">", "&gt;")
+        text.replace("'", "&#39;")
+        text.replace("\"", "&#34;")
+
+# One pre-escaped attribute; element joins these verbatim with spaces.
+word attr(name: String, value: String) -> String
+    name + "=\"" + escape-text(value) + "\""
+
+# unsafe: html.raw bypasses every escaping property; the module guarantee
+# "escaped unless raw" does not hold past this call.
+word raw(value: String) -> String
+    value
+
+# One element; attributes come from attr, content is composed markup.
+word element(tag: String, attributes: List<String>, content: String) -> String
+    let attrs = text.join(attributes, " ")
+    let head = "<" + tag
+    if attrs == ""
+        head + ">" + content + "</" + tag + ">"
+    else
+        head + " " + attrs + ">" + content + "</" + tag + ">"
+
+# A complete minimal document: the title is text and is escaped; the body
+# is composed markup emitted verbatim.
+word page(title: String, body: String) -> String
+    ("<!DOCTYPE html>\n<html>\n<head>\n<title>" + escape-text(title) + "</title>\n</head>\n<body>\n" + body + "\n</body>\n</html>")
+
+# The URL policy for link targets: relative URLs and http, https, and
+# mailto pass; any other scheme (javascript:, data:, ...) is rejected.
+word _blocked(url: String) -> Bool
+    let lower = text.lower(url)
+    let colon = text.index-of(lower, ":")
+    if colon < 0
+        false
+    else
+        let scheme = text.slice(lower, 0, colon)
+        scheme != "http" and scheme != "https" and scheme != "mailto"
+
+word link(label: String, href: String) -> Result<String, Error>
+    if _blocked(href)
+        err(error.new("html-url-scheme", "html.link allows only relative, http, https, and mailto URLs: " + href))
+    else
+        ok(element("a", [attr("href", href)], escape-text(label)))
