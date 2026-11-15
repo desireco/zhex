@@ -251,6 +251,7 @@ func TestDifferential(t *testing.T) {
 	for _, name := range []string{
 		"fib", "core", "lists", "choices", "arrays",
 		"text", "text-to-int", "maps", "callbacks", "sort", "while", "string-int", "array-select",
+		"fold-ref",
 	} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name)

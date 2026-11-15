@@ -1729,6 +1729,7 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.expr(x.args[1])
 		e.expr(x.args[2])
 		e.line("call " + watListFold(watSpecOf(in), watSpecOf(x.args[1].typ)))
+		e.castFromEqref(x.args[1].typ) // the fold helper returns (ref null eq)
 	case "list.find":
 		_, in, _ := collectionInner(x.inputType)
 		e.expr(x.args[0])
