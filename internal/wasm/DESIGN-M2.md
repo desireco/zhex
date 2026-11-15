@@ -377,6 +377,10 @@ run it with zhex run instead` (fence tests assert the new string). Fenced:
 - `quote` is ASCII-exact and passes non-ASCII through literally (§2b shortcut).
 - Case tables generated offline from Go's `unicode.CaseRanges` and pasted as
   delta-encoded constants; the generator is not part of the build.
+  (Amended 2026-11-15: the constants drifted across Go/Unicode versions — the
+  tables now generate at process start from the running toolchain's `unicode`
+  package, keeping compiled upper/lower identical to the interpreter built
+  from the same Go.)
 - `catch` binds the err payload (not the Result struct) — M1 behavior amended.
 - Fail codes 12–15; staged UTF-8 at offset 0 with an exported `zhex_msg_len()`.
 - Map guard is a counter checked before the operation, restored on every
