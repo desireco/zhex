@@ -20,14 +20,8 @@ func openFile(pos position, path string) (*fileValue, error) {
 }
 
 func fileOpenError(pos position, path string, cause error) error {
-	reason := "other"
-	if os.IsNotExist(cause) {
-		reason = "not-found"
-	} else if os.IsPermission(cause) {
-		reason = "permission-denied"
-	}
 	d := errorAt(pos, CodeFileOpen, "cannot open %q: %v", path, cause).(*diagnostic)
-	d.details = map[string]string{"path": path, "reason": reason}
+	d.details = map[string]string{"path": path, "reason": osFailureReason(cause)}
 	return d
 }
 
@@ -129,12 +123,6 @@ func writeTextFile(pos position, contents, path string, appendMode bool) value {
 // fileWriteError maps a failed write phase to file-write with the read-side
 // reason taxonomy (not-found, permission-denied, other) and the phase.
 func fileWriteError(pos position, path, phase string, cause error) error {
-	reason := "other"
-	if os.IsNotExist(cause) {
-		reason = "not-found"
-	} else if os.IsPermission(cause) {
-		reason = "permission-denied"
-	}
 	var message string
 	switch phase {
 	case "open":
@@ -145,7 +133,7 @@ func fileWriteError(pos position, path, phase string, cause error) error {
 		message = fmt.Sprintf("writing %q failed: %v", path, cause)
 	}
 	d := errorAt(pos, CodeFileWrite, "%s", message).(*diagnostic)
-	d.details = map[string]string{"path": path, "reason": reason, "phase": phase}
+	d.details = map[string]string{"path": path, "reason": osFailureReason(cause), "phase": phase}
 	return d
 }
 

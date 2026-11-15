@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -565,6 +566,23 @@ func TestFileOpsDefaultsAndPartials(t *testing.T) {
 	}
 	if out != "new\n" {
 		t.Fatalf("captured overwrite: got %q", out)
+	}
+}
+
+// TestBuiltinTrailingDefaultArity pins every trailing-default entry against
+// the checker's parameter count: the argument-count diagnostic names the
+// checked minimum and maximum, and both must match the eval-time table. A
+// drift would otherwise append defaults from a negative index and panic.
+func TestBuiltinTrailingDefaultArity(t *testing.T) {
+	for _, word := range []string{"file.write", "file.make-folder", "file.delete-folder", "file.move"} {
+		d := builtinTrailingDefaults[word]
+		if len(d.values) == 0 {
+			t.Fatalf("%s: trailing-default entry carries no values", word)
+		}
+		want := fmt.Sprintf("%s requires %d to %d arguments, found 0", word, d.arity-len(d.values), d.arity)
+		if got := runError(t, word+"() try\n"); !strings.Contains(got, want) {
+			t.Errorf("%s: checker/table arity drift: wanted %q, got %q", word, want, got)
+		}
 	}
 }
 
