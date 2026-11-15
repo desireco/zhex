@@ -68,7 +68,8 @@ type watEmitter struct {
 	flowCursor     string    // flow step's incoming value local; "" for Unit
 	flowCursorType valueType // the cursor value's Zhex type
 
-	thunks []string // site-local closure thunks, appended after $zhex_main
+	thunks     []string // site-local closure thunk texts, appended after $zhex_main
+	thunkNames []string // the thunks' function names, for the elem declare
 }
 
 func (e *watEmitter) line(format string, args ...any) {
@@ -157,6 +158,7 @@ func (e *watEmitter) emit() string {
 	e.collect()
 	var out strings.Builder
 	out.WriteString(watPrelude)
+	out.WriteString(watPreludeM2)
 	out.WriteString("\n;; program types\n")
 	for _, r := range e.records {
 		e.emitRecordType(&out, r)
@@ -171,6 +173,7 @@ func (e *watEmitter) emit() string {
 		for _, t := range e.thunks {
 			out.WriteString(t)
 		}
+		fmt.Fprintf(&out, "(elem declare func %s)\n", strings.Join(e.thunkNames, " "))
 	}
 	out.WriteString(`
 	(export "memory" (memory $zhex_mem))
@@ -1255,6 +1258,19 @@ func (e *watEmitter) call(x *expression) {
 	e.builtinCall(x)
 }
 
+// watReprType is the WAT type of one element repr in a closure signature:
+// closures are repr-level (DESIGN-M2 §4a), so ref params/results are
+// (ref null eq) and the thunk casts to concrete types where types are known.
+func watReprType(s watSpec) string {
+	switch s {
+	case watSpecI64:
+		return "i64"
+	case watSpecI32:
+		return "i32"
+	}
+	return "(ref null eq)"
+}
+
 // boxEnv boxes a captured value for the closure env array: Int as
 // $zhex_some_i64, Bool as i31, Unit pushes null (there is no value to box),
 // every other repr is the reference itself (DESIGN-M2 §4b, M1 payload boxing).
@@ -1351,15 +1367,11 @@ func (e *watEmitter) appendThunk(name string, x *expression, fnParams []valueTyp
 	}
 	params := []string{"(param $clo (ref " + watTypeClosure + "))"}
 	for i, t := range fnParams {
-		typ := "(ref null eq)" // Unit holes ride as a null eq (§2's Unit repr)
-		if !isUnitValue(t) {
-			typ = e.watLocalType(t)
-		}
-		params = append(params, fmt.Sprintf("(param $a%d %s)", i, typ))
+		params = append(params, fmt.Sprintf("(param $a%d %s)", i, watReprType(watSpecOf(t))))
 	}
 	result := ""
 	if !isUnitValue(fnResult) {
-		result = e.watValueType(fnResult)
+		result = watReprType(watSpecOf(fnResult))
 	}
 	for i, t := range paramTypes {
 		if at, isHole := holeAt[i]; isHole {
@@ -1391,6 +1403,7 @@ func (e *watEmitter) appendThunk(name string, x *expression, fnParams []valueTyp
 		e.builtinCore(x)
 	}
 	e.thunks = append(e.thunks, e.funcText(name, params, result))
+	e.thunkNames = append(e.thunkNames, name)
 }
 
 // closureInvoke emits a fully-applied call of a bound closure: the closure
@@ -2041,6 +2054,7 @@ func (e *watEmitter) emitResultUnwrap(res string, inner valueType) {
 		e.line("unreachable") // the trap never returns; satisfy the result type
 		e.depth--
 		e.line("end")
+		e.line("unreachable") // both inner paths trap; the outer arm never falls through
 	}
 	e.depth--
 	e.line("end")
