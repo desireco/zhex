@@ -78,7 +78,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Partial calls](examples/partials.zhex) | Use explicit holes with words and built-ins, capture values, and handle a fallible partial when it is invoked. |
 | [Records](examples/records.zhex) | A nominal named type, positional constructor, and immutable fields. |
 | [Choices](examples/choices.zhex) | Declare concrete and one-parameter alternatives and handle them with a match. |
-| [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, row-major arrays, and overlap-preserving resize. |
+| [Lists and arrays](examples/collections.zhex) | Shared storage, checked reads, concise indexed writes, dual-binding iteration, predicate selection of elements and rows, row-major arrays, and overlap-preserving resize. |
 | [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
 | [Dates and time zones](examples/temporal.zhex) | Compare a calendar day and 24 elapsed hours across a daylight-saving transition. |
 | [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |

@@ -10,7 +10,7 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type. [`hostWords` in check.go](../internal/lang/check.go) registers **109 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words. [`hostWords` in check.go](../internal/lang/check.go) registers **111 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 109 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 111 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below adds candidates S12/S14/S15 awaiting owner triage; the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below adds candidates S12/S14/S15 awaiting owner triage; the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -240,6 +240,18 @@ Shipped notes: the absolute child replaces the base — the recommended Python r
 
 Non-goals: no URL paths, no symlink resolution, no normalization to an absolute form, no `path.*` namespace, no filesystem access of any kind.
 
+**S12. Lists and arrays: select by predicate.** Frozen by the owner interview on 2026-11-14 and shipped as [#70](https://github.com/desireco/zhex/issues/70). Host signatures:
+
+```text
+list.select(values: List<T>, predicate: (T) -> Bool) -> List<T>
+array.select(values: Array<T>, predicate: (List<T>) -> Bool) -> Array<T>
+```
+
+Demand: keep the elements a predicate accepts, unmodified. The owner's frozen decision: "select takes a record, runs through expression and returns boolean, true or false, true is selected and those elements, unmodified are returned back." The previously drafted Option-returning transform was explicitly declined the same day, and column selection stays deferred until a workload demands it. Callbacks follow #60's contract — explicit partials and word names only, captured arguments evaluated once, predicate invoked once per element/row left to right, the traversal guard held and released on all exits, effects before a runtime failure observable — except that `select` visits every element: no early exit. Both words build a fresh outer collection with shared elements and leave the source unchanged; empty input and all-false give an empty list / zero-row array, all-true gives a fresh copy, order is preserved.
+
+Shipped notes: the rank finding from `arrayShape` in `internal/lang/collections.go` — the interpreter supports no rank-1 arrays (rank 2..32 is enforced), so the ticket's "rank 1 follows the list shape" branch is moot. `array.select` is rank-2 only: the predicate receives one row per call in row-major order as a fresh `List<T>` (a copy, so an append inside the predicate cannot overwrite the source's backing store), kept rows are returned unmodified with the rectangle (row width) preserved, and rank 3+ reports `array.select requires a rank-2 array, found rank N` at runtime under `array-rank` — same rationale as deferred columns, revisit on demand. `list.select` coexists with `list.filter` by the owner's conscious redundancy decision. Result-returning predicates are rejected at check time before any effects, like every #60 callback. No new diagnostic codes. No standalone example: the existing `collections` example gained a `select` demonstration instead, so the corpus count is unchanged.
+
+Non-goals: no Option- or Result-returning transforms, no column selection, no in-place mutation, no short-circuit or fold variants, no lambda syntax, no deep copy.
 ### Document libraries research (#66/#67, 2026-11-14)
 
 The [#66 document research](https://github.com/desireco/zhex/issues/66) (JSON, YAML, and XML as native data) and the [#67 generation research](https://github.com/desireco/zhex/issues/67) (Markdown and HTML around Buffer) completed on 2026-11-14. Six owner decisions from the research window are recorded verbatim-short and baked into the candidates below:
@@ -373,6 +385,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S11 | [#74 — File: lexical path words — join, base, extension, directory-of](https://github.com/desireco/zhex/issues/74) — shipped | #69 research; the `paths` example registered |
 | S10 | [#75 — File: destructive operations — make-folder, delete, delete-folder, move](https://github.com/desireco/zhex/issues/75) — shipped | #69 research; registered the deferred S9 example as `file-work` |
 | S13 | [#76 — Json: host-owned tree type with json.parse](https://github.com/desireco/zhex/issues/76) — shipped | #66 document research; owner-frozen design; `json-tree` example registered |
+| S12 | [#70 — Lists and arrays: select by predicate](https://github.com/desireco/zhex/issues/70) — shipped | #60 callback contract; `list.select` coexists with `list.filter` per owner decision |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
 

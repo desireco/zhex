@@ -1,4 +1,9 @@
-# Lists grow by append; arrays are rectangular and keep overlapping values on resize.
+# Lists grow by append; select keeps the elements a predicate accepts; arrays are rectangular, select whole rows, and keep overlapping values on resize.
+word short(name: String) -> Bool
+    text.length(name) < 5
+word big-first(row: List<Int>) -> Bool
+    row[0] > 1
+
 let names: List<String> = ["Ada", "Grace"]
 list.append(names, "Lin")
 print(list.length(names))
@@ -10,6 +15,10 @@ for index, name in names
     list.append(alias, "blocked") catch problem
         print(error.code(problem))
 
+let short-names = list.select(names, short(_))
+print(list.length(short-names))
+print(short-names[1])
+
 let grid: Array<Int> = array.new([2, 3], 0)
 grid[0, 0] = 1
 grid[0, 1] = 2
@@ -17,6 +26,9 @@ grid[0, 2] = 3
 grid[1, 0] = 4
 grid[1, 1] = 5
 grid[1, 2] = 6
+let big-rows = array.select(grid, big-first(_))
+print(array.shape(big-rows)[0])
+print(big-rows[0, 1])
 for coordinates, value in grid
     let row = coordinates[0]
     let column = coordinates[1]

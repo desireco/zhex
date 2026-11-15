@@ -79,6 +79,30 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{number: int64(len(args[0].array.shape))}, nil
 	case "array.length":
 		return value{number: int64(len(args[0].array.items))}, nil
+	case "array.select":
+		source := args[0].array
+		if len(source.shape) != 2 {
+			return value{}, errorAt(x.pos, CodeArrayRank, "array.select requires a rank-2 array, found rank %d", len(source.shape))
+		}
+		source.active++
+		defer func() { source.active-- }()
+		width := source.shape[1]
+		kept := make([]value, 0, len(source.items))
+		rows := 0
+		for row := int64(0); row < source.shape[0]; row++ {
+			// Each row is a fresh list; sharing the backing store would let an
+			// append inside the predicate overwrite the source array.
+			items := append([]value(nil), source.items[row*width:(row+1)*width]...)
+			keep, err := r.callFunction(args[1].function, x.pos, value{list: &listValue{items: items}})
+			if err != nil {
+				return value{}, err
+			}
+			if keep.boolean {
+				kept = append(kept, items...)
+				rows++
+			}
+		}
+		return value{array: &arrayValue{shape: []int64{int64(rows), width}, items: kept}}, nil
 	case "list.new":
 		return value{list: &listValue{}}, nil
 	case "list.append":
@@ -105,7 +129,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			items = append(items, mapped)
 		}
 		return value{list: &listValue{items: items}}, nil
-	case "list.filter":
+	case "list.filter", "list.select":
 		source := args[0].list
 		source.active++
 		defer func() { source.active-- }()
