@@ -1155,7 +1155,7 @@ func (e *watEmitter) constructorCall(x *expression) {
 		if r.fields[field].typ == unitType {
 			continue
 		}
-		tmps[field] = e.temp(fmt.Sprintf("ctor%d_%d", e.idCount, field), e.watLocalType(r.fields[field].typ))
+		tmps[field] = e.temp(fmt.Sprintf("ctor%s_%d", e.nextID(), field), e.watLocalType(r.fields[field].typ))
 		e.line("local.set " + tmps[field])
 	}
 	for i := range r.fields {

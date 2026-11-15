@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -687,5 +688,48 @@ const fs = require("fs");
 	}
 	if got, want := out.String(), "2\n2147483648\n"; got != want {
 		t.Fatalf("stdout = %q, want %q (a 31-bit i31 box would corrupt the second line)", got, want)
+	}
+}
+
+// Two all-named constructions in one word must not share temporaries: the
+// ctor key includes a per-construction id, otherwise the second struct.new
+// reads the first construction's locals at the wrong types (review S2).
+func TestWatNamedConstructorTemporariesAreDistinct(t *testing.T) {
+	wat := watOf(t, `
+type Point = record
+    x: Int
+    y: Int
+
+type Label = record
+    text: String
+    weight: Int
+
+let p = Point(y: 3, x: 1)
+let l = Label(weight: 2, text: "hi")
+print(p.x + p.y + l.weight)
+print(l.text)
+`)
+	var ctorIDs []string
+	for _, m := range regexp.MustCompile(`local\.set \$t_ctor(\d+)_0`).FindAllStringSubmatch(wat, -1) {
+		ctorIDs = append(ctorIDs, m[1])
+	}
+	seen := map[string]bool{}
+	for _, id := range ctorIDs {
+		if seen[id] {
+			t.Fatalf("constructor temporary id %s reused across constructions", id)
+		}
+		seen[id] = true
+	}
+	if len(seen) != 2 {
+		t.Fatalf("got constructor ids %v, want two distinct", ctorIDs)
+	}
+	// Each construction stores its field temporaries at the right types.
+	if strings.Count(wat, "local.set $t_ctor") != 4 {
+		t.Fatalf("expected four ctor local.set stores, got:\n%s", wat)
+	}
+	for _, typ := range []string{"i64", "(ref null $zhex_string)"} {
+		if !regexp.MustCompile(`\$t_ctor\d+_\d ` + regexp.QuoteMeta(typ) + `\b`).MatchString(wat) {
+			t.Fatalf("ctor temporaries missing %s local type:\n%s", typ, wat)
+		}
 	}
 }
