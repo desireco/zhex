@@ -22,7 +22,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -36,6 +36,9 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	if len(args) >= 1 && args[0] == "doctests" {
 		return doctests(args[1:], input, output, diagnostics)
+	}
+	if len(args) >= 1 && args[0] == "test" {
+		return testCommand(args[1:], input, output, diagnostics)
 	}
 	if len(args) < 2 || args[0] != "run" {
 		fmt.Fprintln(diagnostics, usage)

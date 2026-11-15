@@ -330,3 +330,7 @@ A `## >` example in a word's doc produced a different value than the expected ou
 ## doctest-check
 
 A `## >` example's expression failed to check or evaluate by itself. Fix the expression so it checks and evaluates — a naked fallible call needs `try`, and a Result cannot be echoed bare.
+
+## test-failed
+
+A `.test.zhex` file run by `zhex test` exited nonzero without a diagnostic of its own — a failed `test.check` label, a deliberate exit, or a crash. Run `zhex run <file>` to see the failing check in place.

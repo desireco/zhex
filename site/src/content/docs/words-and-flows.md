@@ -68,6 +68,19 @@ word gcd(a: Int, b: Int) -> Int
 
 A mismatch or an expression that fails to check or evaluate prints a diagnostic pointing at the doc line, and any failure exits nonzero; passing doctests print nothing. `zhex run` never executes docs.
 
+## Run tests
+
+A `*.test.zhex` file is a plain program named after what it tests: it finishes, it passed; `console.fail`, a crash, or an unhandled failure fails it. The one-word `test` module ships the assertion — place `test.zhex` beside the module under test, the same sibling rule `use math` follows, and call `check` with the whole expectation stated as fact in the label:
+
+```zhex
+use math
+use test
+
+test.check(math.gcd(12, 18) == 6, "gcd(12, 18) should be 6")
+```
+
+`zhex test` — or `zhex test <path>` to narrow to a file or folder — runs every `*.test.zhex` file under the working folder as its own process and every other `.zhex` file's doctests, skipping `.git`, `node_modules`, and `_site`. Each file gets one PASS or FAIL line with the captured failure line, then a summary such as `7 files: 6 passed, 1 failed`; any failure exits nonzero, and `--report=json` reports each failure in the diagnostic envelope. `zhex test --gaps` lists the public words referenced by no doctest and no test file.
+
 `if`, `match`, and `flow` blocks can also supply the entire right-hand side of a `let`, `var`, or assignment. Their final value becomes the binding or assignment value:
 
 ```zhex

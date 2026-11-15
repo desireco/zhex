@@ -1,0 +1,21 @@
+use math
+use test
+
+word test-gcd()
+    test.check(math.gcd(12, 18) == 6, "gcd(12, 18) should be 6")
+    test.check(math.gcd(7, 13) == 1, "coprimes collapse to 1")
+    test.check(math.gcd(0, 9) == 9, "zero falls through")
+
+word test-abs()
+    test.check(math.abs(-5) == 5, "abs of a negative")
+    test.check(math.abs(5) == 5, "abs of a positive")
+
+word test-to-int-fallback()
+    let n = text.to-int("not a number") catch
+        0
+    test.check(n == 0, "bad parse falls back to zero")
+
+test-gcd()
+test-abs()
+test-to-int-fallback()
+print "math module tests passed"

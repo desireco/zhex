@@ -7,9 +7,9 @@ test: doctests
     go test ./...
     npm --prefix site run build
 
-# Check every example's ## > doctests with one built binary.
+# Check every example's ## > doctests and run its .test.zhex files with one built binary.
 doctests: build
-    @for f in examples/*.zhex examples/modules/*.zhex examples/modules/*/*.zhex; do bin/zhex doctests "$f" || exit 1; done
+    bin/zhex test examples
 
 # Run tests with Go's race detector.
 test-race:

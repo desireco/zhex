@@ -99,6 +99,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library and keeps one helper underscore-private. |
 | [HTML page](examples/modules/html-page/main.zhex) | A two-file program over the `html` composition module: text escapes by default, markup nests through `element` with one deliberate `html.raw`, and a `javascript:` link target is rejected. |
 | [Markdown report](examples/modules/md-report/main.zhex) | A two-file program: `use md` renders records and lists into a Markdown report through a pure-Zhex module. |
+| [Module tests](examples/modules/math.test.zhex) | A three-file program: the sibling `test` module's `check(condition, label)` fails the run with its label when a condition is false — the `*.test.zhex` shape the `zhex test` runner discovers. |
 
 ### Algorithms
 
