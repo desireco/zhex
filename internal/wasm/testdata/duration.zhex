@@ -1,0 +1,21 @@
+# Durations are nanosecond counts: new is a passthrough, parse follows Go's
+# grammar (fractions, signs, units down to ns and both micro signs), and
+# to-string reproduces Go's formatting exactly.
+
+print(duration.to-string(duration.new(0)))
+print(duration.to-string(duration.parse("0") try))
+print(duration.to-string(duration.parse("-0") try))
+print(duration.to-string(duration.parse("1ns") try))
+print(duration.to-string(duration.parse("2µs") try))
+print(duration.to-string(duration.parse("3us") try))
+print(duration.to-string(duration.parse("500ms") try))
+print(duration.to-string(duration.parse("1.5h") try))
+print(duration.to-string(duration.parse("-1.5h") try))
+print(duration.to-string(duration.parse("2h45m") try))
+print(duration.to-string(duration.parse("-2m3.5s") try))
+print(duration.to-string(duration.parse("1h2m3s4ms5µs6ns") try))
+print(duration.to-string(duration.parse(".5s") try))
+
+let bad = duration.parse("nope") catch duration.new(-1)
+print("caught: " + duration.to-string(bad))
+print("passthrough: " + duration.to-string(duration.new(92500000000)))

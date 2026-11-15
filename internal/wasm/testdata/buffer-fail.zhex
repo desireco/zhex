@@ -1,0 +1,6 @@
+let b = buffer.new()
+buffer.add-line(b, "first")
+buffer.add-line(b, "second")
+buffer.add-line(b, "third")
+let line = buffer.line(b, 5) try
+print(line)

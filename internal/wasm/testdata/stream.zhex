@@ -1,0 +1,20 @@
+# file.stream over a multi-line file, an empty file, and a final line with
+# no trailing newline (still delivered).
+
+file.write("one\ntwo\nthree\n", "multi.txt") try
+for line in file.stream("multi.txt")
+    print(line)
+
+file.write("", "empty.txt") try
+var seen = 0
+for line in file.stream("empty.txt")
+    seen = seen + 1
+print("empty lines: " + int.to-string(seen))
+
+file.write("partial", "partial.txt") try
+for line in file.stream("partial.txt")
+    print("[" + line + "]")
+
+file.write("crlf\r\nplain\n", "crlf.txt") try
+for line in file.stream("crlf.txt")
+    print(int.to-string(text.length(line)) + ": " + line)

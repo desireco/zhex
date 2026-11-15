@@ -1,0 +1,3 @@
+Zhex reads files two ways.
+whole-file counts and a
+streamed uppercased echo.

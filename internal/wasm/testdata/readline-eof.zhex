@@ -1,0 +1,2 @@
+let line = read-line("N: ") try
+print(line)

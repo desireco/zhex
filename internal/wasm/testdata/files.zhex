@@ -1,0 +1,52 @@
+# The file round trip: write/read, append, exists, size, list (sorted,
+# dotfile), make-folder (EEXIST caught, parents), delete, delete-folder
+# (empty and recursive), and move (file, folder, overwrite, both refusals).
+
+file.write("alpha: 1\n", "notes.txt") try
+print(file.read("notes.txt") try)
+file.write("beta: 2\n", "notes.txt", true) try
+print(file.read("notes.txt") try)
+print(file.exists("notes.txt"))
+print(file.exists("work"))
+print(file.exists("missing.txt"))
+
+file.make-folder("work") try
+print(file.size("notes.txt") try)
+print(file.size("work") try)
+file.write("dot\n", "work/.hidden") try
+file.write("z\n", "work/zz.txt") try
+file.write("a\n", "work/aa.txt") try
+let names = file.list("work") try
+print(text.join(names, ","))
+
+let made = file.make-folder("work") catch
+    print("make-folder refused an existing folder")
+
+file.make-folder("deep/tree/one", true) try
+print(file.exists("deep/tree/one"))
+
+file.move("notes.txt", "work/notes.txt") try
+print(file.exists("notes.txt"))
+print(file.exists("work/notes.txt"))
+
+file.make-folder("holder") try
+file.write("payload\n", "holder/item.txt") try
+file.move("holder", "moved-holder") try
+print(file.exists("moved-holder/item.txt"))
+
+file.write("already\n", "work/zz.txt") try
+let moved = file.move("work/aa.txt", "work/zz.txt") catch
+    print("move refused an existing target")
+let into-folder = file.move("work/zz.txt", "moved-holder") catch
+    print("move refused a folder target")
+file.move("work/aa.txt", "work/zz.txt", true) try
+print(file.read("work/zz.txt") try)
+
+file.delete("work/.hidden") try
+print(file.exists("work/.hidden"))
+file.delete-folder("moved-holder") catch
+    print("delete-folder refused a non-empty folder")
+file.delete-folder("moved-holder", true) try
+print(file.exists("moved-holder"))
+file.delete("missing.txt") catch
+    print("delete refused a missing path")
