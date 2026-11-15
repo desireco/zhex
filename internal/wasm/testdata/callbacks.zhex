@@ -1,0 +1,72 @@
+# Callback words with user words and builtin partials: fresh outer lists,
+# shared elements, a let-bound closure reused, empty inputs, short-circuit
+# all (DESIGN-M2 §4, §7.4).
+word double(n: Int) -> Int
+    n * 2
+word even(n: Int) -> Bool
+    n % 2 == 0
+word big(n: Int) -> Bool
+    n > 3
+word never(n: Int) -> Bool
+    false
+word add(acc: Int, n: Int) -> Int
+    acc + n
+word ask(n: Int) -> Bool
+    print("ask " + n)
+    n % 2 == 0
+word short(row: List<Int>) -> Bool
+    list.length(row) < 2
+let numbers = [1, 2, 3, 4]
+let doubled = list.map(numbers, double(_))
+print(doubled[0])
+print(doubled[3])
+let evens = list.filter(numbers, even(_))
+print(list.length(evens))
+print(evens[1])
+let picked = list.select(numbers, big(_))
+print(list.length(picked))
+print(picked[0])
+print(list.fold(numbers, 10, add(_, _)))
+match list.find(numbers, big(_))
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print(-1)
+match list.find(numbers, never(_))
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print(-1)
+print(list.any(numbers, big(_)))
+print(list.all(numbers, big(_)))
+print(list.all([2, 4, 5, 6], ask(_)))
+list.append(numbers, 5)
+print(list.length(doubled))
+list.append(doubled, 9)
+print(list.length(numbers))
+let empty: List<Int> = list.new()
+print(list.length(list.map(empty, double(_))))
+print(list.fold(empty, 7, add(_, _)))
+match list.find(empty, big(_))
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print(0)
+print(list.any(empty, big(_)))
+print(list.all(empty, big(_)))
+let trimmed = list.map(["  Ada ", "Bob"], text.trim(_))
+print("[" + trimmed[0] + "]")
+print(trimmed[1])
+let guests = list.filter(["Alice", "Bob", "Alma"], text.contains(_, "Al"))
+print(list.length(guests))
+print(guests[0] + "," + guests[1])
+let rows = [[1, 2], [3]]
+let keeper = short(_)
+let kept = list.filter(rows, keeper)
+print(list.length(kept))
+list.append(rows, [9])
+print(list.length(kept))
+list.append(rows[1], 4)
+print(list.length(kept[0]))
+let again = list.filter([[7], [8, 9]], keeper)
+print(list.length(again))

@@ -1,0 +1,8 @@
+# Mutating the active map during traversal fails (fail 10); stdout from the
+# in-flight iteration still matches the interpreter byte for byte.
+print("before")
+let scores = {"Ada": 1, "Bob": 2}
+for name, score in scores
+    print(name)
+    scores["Cy"] = 3
+print("after")

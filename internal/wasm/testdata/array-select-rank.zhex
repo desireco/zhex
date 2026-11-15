@@ -1,0 +1,8 @@
+# array.select on a rank-3 array fails at runtime with the staged-message
+# diagnostic (fail code 15, DESIGN-M2 §2c).
+print("before")
+word always(row: List<Int>) -> Bool
+    true
+let cube = array.new([2, 2, 2], 0)
+let kept = array.select(cube, always(_))
+print(array.length(kept))

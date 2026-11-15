@@ -1,0 +1,11 @@
+# Recursion, a flow seeded with a computed call, and calls in expressions.
+word fib(n: Int) -> Int
+    if n < 2
+        n
+    else
+        fib(n - 1) + fib(n - 2)
+
+print(fib(20))
+flow fib(10)
+    print
+print("fib(25) + 1 = " + (fib(25) + 1))

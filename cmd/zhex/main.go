@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"zhex/internal/lang"
+	"zhex/internal/wasm"
 )
 
 // readModule loads a sibling module file — the resolution rule for use.
@@ -22,7 +23,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -39,6 +40,9 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	if len(args) >= 1 && args[0] == "test" {
 		return testCommand(args[1:], input, output, diagnostics)
+	}
+	if len(args) >= 1 && args[0] == "compile" {
+		return compileCmd(args[1:], diagnostics)
 	}
 	if len(args) < 2 || args[0] != "run" {
 		fmt.Fprintln(diagnostics, usage)
@@ -135,6 +139,57 @@ func doctests(args []string, input io.Reader, output, diagnostics io.Writer) int
 		fmt.Fprintln(diagnostics, failure)
 	}
 	if len(failures) != 0 {
+		return 1
+	}
+	return 0
+}
+
+// compileCmd implements `zhex compile <file.zhex> [-o <out.wasm>]`: check,
+// emit WAT, assemble with wasm-tools, write the artifact. Checker errors
+// render exactly as run's; a missing wasm-tools prints the pinned
+// missing-tool diagnostic; either way no artifact is written.
+func compileCmd(args []string, diagnostics io.Writer) int {
+	file, outPath := "", ""
+	for i := 0; i < len(args); i++ {
+		switch arg := args[i]; {
+		case arg == "-o":
+			if i+1 >= len(args) || outPath != "" {
+				fmt.Fprintln(diagnostics, usage)
+				return 2
+			}
+			i++
+			outPath = args[i]
+		case strings.HasPrefix(arg, "-"):
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		case file == "":
+			file = arg
+		default:
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		}
+	}
+	if file == "" {
+		fmt.Fprintln(diagnostics, usage)
+		return 2
+	}
+	if outPath == "" {
+		if strings.HasSuffix(file, ".zhex") {
+			outPath = strings.TrimSuffix(file, ".zhex") + ".wasm"
+		} else {
+			outPath = file + ".wasm"
+		}
+	}
+	source, err := os.ReadFile(file)
+	if err != nil {
+		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	dir := filepath.Dir(file)
+	if err := wasm.Compile(file, string(source), outPath, func(name string) (lang.ModuleSource, bool) {
+		return readModule(dir, name)
+	}); err != nil {
+		fmt.Fprintln(diagnostics, err)
 		return 1
 	}
 	return 0

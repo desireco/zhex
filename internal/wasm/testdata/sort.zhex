@@ -1,0 +1,33 @@
+# sort and sort-by: code-point order, stable ties over records, the key
+# evaluated once per element in source order, sort-by with text.length
+# (DESIGN-M2 §4d, §7.5).
+type Entry = record
+    name: String
+    score: Int
+word entry-name(e: Entry) -> String
+    e.name
+word entry-score(e: Entry) -> Int
+    e.score
+word noisy-score(e: Entry) -> Int
+    print("key " + e.name)
+    e.score
+let sorted = list.sort([3, -1, 10, -7, 0])
+print(sorted[0])
+print(sorted[4])
+let words = ["żebra", "apple", "Éclair", "zebra", "😀", "éclair"]
+let sorted-words = list.sort(words)
+print(sorted-words[0])
+print(sorted-words[1])
+print(sorted-words[2])
+print(sorted-words[3])
+print(sorted-words[4])
+print(sorted-words[5])
+let entries = [Entry("a", 2), Entry("b", 1), Entry("c", 2), Entry("d", 1), Entry("e", 3)]
+let ranked = list.sort-by(entries, entry-score(_))
+for e in ranked
+    print(entry-name(e))
+let loud = list.sort-by(entries, noisy-score(_))
+print(entry-name(loud[0]))
+print(entry-name(loud[1]))
+let by-length = list.sort-by(["dddd", "a", "bb", "ccc"], text.length(_))
+print(by-length[0] + "," + by-length[1] + "," + by-length[2] + "," + by-length[3])
