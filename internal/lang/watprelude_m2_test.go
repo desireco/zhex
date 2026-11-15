@@ -569,8 +569,13 @@ const watPreludeM2TestExports = `
   (struct.new $zhex_closure (ref.func $t_lower_key) (array.new_fixed $zhex_arr_ref 0)))
 (func $t_clo_row_gt5 (result (ref $zhex_closure))
   (struct.new $zhex_closure (ref.func $t_row_gt5) (array.new_fixed $zhex_arr_ref 0)))
+(func $t_row_append_all (param $clo (ref $zhex_closure)) (param $row (ref null eq)) (result i32)
+  (call $zhex_list_append_i64 (ref.cast (ref $zhex_list_i64) (local.get $row)) (i64.const 99))
+  (i32.const 1))
 (func $t_clo_row_keep (result (ref $zhex_closure))
   (struct.new $zhex_closure (ref.func $t_row_keep_append) (array.new_fixed $zhex_arr_ref 0)))
+(func $t_clo_row_append_all (result (ref $zhex_closure))
+  (struct.new $zhex_closure (ref.func $t_row_append_all) (array.new_fixed $zhex_arr_ref 0)))
 
 (func $t_l123 (result (ref $zhex_list_i64))
   (local $l (ref $zhex_list_i64))
@@ -794,10 +799,43 @@ const watPreludeM2TestExports = `
   (local.set $a (call $t_arr23))
   (drop (call $zhex_array_select_i64 (local.get $a) (call $t_clo_row_keep)))
   (call $zhex_array_get_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 0) (i64.const 0))))
+(func $t_arr33 (result (ref $zhex_array_i64))
+  (local $sh (ref $zhex_list_i64))
+  (local $a (ref $zhex_array_i64))
+  (local.set $sh (call $zhex_list_new_i64))
+  (call $zhex_list_append_i64 (local.get $sh) (i64.const 3))
+  (call $zhex_list_append_i64 (local.get $sh) (i64.const 3))
+  (local.set $a (call $zhex_array_new_i64 (local.get $sh) (i64.const 0)))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 0) (i64.const 0)) (i64.const 6))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 0) (i64.const 1)) (i64.const 7))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 0) (i64.const 2)) (i64.const 8))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 1) (i64.const 0)) (i64.const 9))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 1) (i64.const 1)) (i64.const 10))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 1) (i64.const 2)) (i64.const 11))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 2) (i64.const 0)) (i64.const 12))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 2) (i64.const 1)) (i64.const 13))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 2) (i64.const 2)) (i64.const 14))
+  (local.get $a))
+(func $t_arrsel33 (result (ref $zhex_array_i64))
+  (call $zhex_array_select_i64 (call $t_arr33) (call $t_clo_row_append_all)))
+(func (export "t_arrsel33_len") (result i64)
+  (call $zhex_array_length_i64 (call $t_arrsel33)))
+(func (export "t_arrsel33_rows") (result i64)
+  (array.get $zhex_arr_i64 (struct.get $zhex_array_i64 $shape (call $t_arrsel33)) (i32.const 0)))
+(func (export "t_arrsel33_width") (result i64)
+  (array.get $zhex_arr_i64 (struct.get $zhex_array_i64 $shape (call $t_arrsel33)) (i32.const 1)))
+(func (export "t_arrsel33_at") (param $r i64) (param $c i64) (result i64)
+  (call $zhex_array_get_i64 (call $t_arrsel33)
+    (array.new_fixed $zhex_arr_i64 2 (local.get $r) (local.get $c))))
+(func (export "t_arrsel33_src_len") (result i64)
+  (local $a (ref $zhex_array_i64))
+  (local.set $a (call $t_arr33))
+  (drop (call $zhex_array_select_i64 (local.get $a) (call $t_clo_row_append_all)))
+  (call $zhex_array_length_i64 (local.get $a)))
 (func (export "t_arrsel_rank3")
   (drop (call $zhex_array_select_i64 (call $t_arr222) (call $t_clo_row_gt5))))
 
-(elem declare func $t_inc $t_zero $t_add2 $t_gt_env $t_up_ref $t_id_ref $t_len_key $t_lower_key $t_row_gt5 $t_row_keep_append $t_append_src)
+(elem declare func $t_inc $t_zero $t_add2 $t_gt_env $t_up_ref $t_id_ref $t_len_key $t_lower_key $t_row_gt5 $t_row_keep_append $t_row_append_all $t_append_src)
 
 (export "memory" (memory $zhex_mem))
 (export "zhex_last_error" (func $zhex_last_error))
@@ -1206,14 +1244,24 @@ t('array.select keeps rows, rectangle preserved', () => {
   eq(exports.t_arrsel_at(1n), 8n, 'at 1');
   eq(exports.t_arrsel_at(2n), 9n, 'at 2');
 });
-t('array.select row copies: predicate append grows the result, source untouched', () => {
+t('array.select row copies: predicate append never widens the rectangle, source untouched', () => {
   fresh();
-  eq(exports.t_arrsel_rowcopy_len(), 4n, 'grown row kept');
+  eq(exports.t_arrsel_rowcopy_len(), 3n, 'result stays kept*width');
   eq(exports.t_arrsel_rowcopy_at(0n), 7n, 'at 0');
   eq(exports.t_arrsel_rowcopy_at(1n), 8n, 'at 1');
   eq(exports.t_arrsel_rowcopy_at(2n), 9n, 'at 2');
   eq(exports.t_arrsel_src_len(), 6n, 'source length unchanged');
   eq(exports.t_arrsel_src_first(), 1n, 'source row 0 untouched');
+});
+t('array.select append-in-predicate regression: 3 kept rows stay 3x3', () => {
+  fresh();
+  eq(exports.t_arrsel33_len(), 9n, 'flat length is kept*width, not the grown rows');
+  eq(exports.t_arrsel33_rows(), 3n, 'rows');
+  eq(exports.t_arrsel33_width(), 3n, 'width preserved');
+  eq(exports.t_arrsel33_at(0n, 2n), 8n, 'row 0 tail');
+  eq(exports.t_arrsel33_at(1n, 1n), 10n, 'middle of row 1');
+  eq(exports.t_arrsel33_at(2n, 0n), 12n, 'row 2 head');
+  eq(exports.t_arrsel33_src_len(), 9n, 'source unchanged');
 });
 t('array.select rank 3 traps 15 with staged message', () => {
   fresh();

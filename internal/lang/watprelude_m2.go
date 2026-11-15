@@ -5900,9 +5900,7 @@ const watM2Callbacks = `
       (br_if $sized (i32.ge_u (local.get $i) (local.get $rows)))
       (if (array.get $zhex_arr_i32 (local.get $keep) (local.get $i))
         (then
-          (local.set $total (i32.add (local.get $total)
-            (array.len (struct.get $zhex_list_i64 $items
-              (ref.cast (ref $zhex_list_i64) (array.get $zhex_arr_ref (local.get $rowlists) (local.get $i)))))))))
+          (local.set $total (i32.add (local.get $total) (local.get $width)))))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $size)))
   (local.set $items (array.new_default $zhex_arr_i64 (local.get $total)))
@@ -5915,7 +5913,7 @@ const watM2Callbacks = `
         (then
           (local.set $row (ref.cast (ref $zhex_list_i64) (array.get $zhex_arr_ref (local.get $rowlists) (local.get $i))))
           (local.set $ritems (struct.get $zhex_list_i64 $items (local.get $row)))
-          (local.set $rlen (array.len (local.get $ritems)))
+          (local.set $rlen (local.get $width))
           (local.set $j (i32.const 0))
           (block $cpdone
             (loop $cp
@@ -5995,9 +5993,7 @@ const watM2Callbacks = `
       (br_if $sized (i32.ge_u (local.get $i) (local.get $rows)))
       (if (array.get $zhex_arr_i32 (local.get $keep) (local.get $i))
         (then
-          (local.set $total (i32.add (local.get $total)
-            (array.len (struct.get $zhex_list_i32 $items
-              (ref.cast (ref $zhex_list_i32) (array.get $zhex_arr_ref (local.get $rowlists) (local.get $i)))))))))
+          (local.set $total (i32.add (local.get $total) (local.get $width)))))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $size)))
   (local.set $items (array.new_default $zhex_arr_i32 (local.get $total)))
@@ -6010,7 +6006,7 @@ const watM2Callbacks = `
         (then
           (local.set $row (ref.cast (ref $zhex_list_i32) (array.get $zhex_arr_ref (local.get $rowlists) (local.get $i))))
           (local.set $ritems (struct.get $zhex_list_i32 $items (local.get $row)))
-          (local.set $rlen (array.len (local.get $ritems)))
+          (local.set $rlen (local.get $width))
           (local.set $j (i32.const 0))
           (block $cpdone
             (loop $cp
@@ -6090,9 +6086,7 @@ const watM2Callbacks = `
       (br_if $sized (i32.ge_u (local.get $i) (local.get $rows)))
       (if (array.get $zhex_arr_i32 (local.get $keep) (local.get $i))
         (then
-          (local.set $total (i32.add (local.get $total)
-            (array.len (struct.get $zhex_list_ref $items
-              (ref.cast (ref $zhex_list_ref) (array.get $zhex_arr_ref (local.get $rowlists) (local.get $i)))))))))
+          (local.set $total (i32.add (local.get $total) (local.get $width)))))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $size)))
   (local.set $items (array.new_default $zhex_arr_ref (local.get $total)))
@@ -6105,7 +6099,7 @@ const watM2Callbacks = `
         (then
           (local.set $row (ref.cast (ref $zhex_list_ref) (array.get $zhex_arr_ref (local.get $rowlists) (local.get $i))))
           (local.set $ritems (struct.get $zhex_list_ref $items (local.get $row)))
-          (local.set $rlen (array.len (local.get $ritems)))
+          (local.set $rlen (local.get $width))
           (local.set $j (i32.const 0))
           (block $cpdone
             (loop $cp
