@@ -58,7 +58,7 @@ try {
   } else if (/divide by zero|remainder by zero/.test(e.message)) {
     process.stderr.write("runtime error: division or remainder by zero\n");
   } else {
-    // shortcut: division is the only native trap in the milestone-1 subset, drop when M2 adds more
+    // shortcut: any other native trap (failed cast, bounds, ...) prints verbatim; add matching above only if its text must be pinned
     process.stderr.write(`runtime error: ${e.message}\n`);
   }
   process.exit(1);

@@ -128,10 +128,16 @@ value ∈ {i64, i32, ref} — named `$zhex_map_<k>_<v>`:
 ```wat
 (type $zhex_map_i64_ref
   (struct (field $buckets (mut (ref null $zhex_arr_i32)))  ;; 64 heads, -1 = empty
+          (field $next   (mut (ref null $zhex_arr_i32)))   ;; per-entry chain links
           (field $keys   (mut (ref null <k-array>)))       ;; entry keys, insertion order
           (field $vals   (mut (ref null <v-array>)))       ;; entry values, positional with keys
           (field $active (mut i32))))
 ```
+
+Amendment: the sketch originally showed 4 fields; the emitted shape (see
+`watprelude_m2.go`) adds `$next` because the chained hash needs a per-entry
+link to the next entry in its bucket. Traversal order remains insertion order
+— hash-independent, as below.
 
 Chained hash map, fixed 64 buckets, no resizing (correctness is unaffected —
 traversal order never depends on the hash; upgrade only for speed). Hash:
@@ -221,11 +227,15 @@ helpers, e.g. `$zhex_list_map_<in>_<out>(list, clo)`, `$zhex_list_fold_<t>_
 invoke sequence is always:
 
 ```
-local.get $clo ;; env argument
-local.get $clo / struct.get $zhex_closure $fn / ref.cast (ref $zhex_clo_...)
 <args...>      ;; loop item (and accumulator for fold)
+local.get $clo / struct.get $zhex_closure $fn / ref.cast (ref $zhex_clo_...)
 call_ref $zhex_clo_...
 ```
+
+Amendment: the original sketch put the funcref on the stack first; the
+stack-valid order is args first, then the funcref — `call_ref` consumes the
+arguments, then the funcref. E's emitted order (see `closureInvoke` in
+`wat.go`) is the valid one.
 
 **(d) Per-word shapes** (source: `host.go`; all set `$active` on the source and
 restore on every exit; all build fresh outer lists with shared elements):
@@ -377,3 +387,5 @@ run it with zhex run instead` (fence tests assert the new string). Fenced:
 - No new lang catalog codes (M2 adds no compile-time diagnostics of its own
   beyond the existing `not-available-in-build`).
 - `$zhex_str_lt` added beside `$zhex_str_eq` (code-point `<`, = Go byte order).
+- wasm-tools 1.263 quirk: `i64.shr_u` validates only with an i64 shift count
+  (an i32 count is rejected), so prelude shifts carry i64 counts.

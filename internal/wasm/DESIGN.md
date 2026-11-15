@@ -194,6 +194,8 @@ values/partials; word or record field defaults) fail emission with a normal posi
 diagnostic, new code `CodeNotAvailableInBuild Code = "not-available-in-build"` (add to `codes.go`
 + `catalog.md`): message `%s is not available in this build` and hint
 `this construct is outside the wasm milestone-1 subset; run it with zhex run instead`.
+(Amended by DESIGN-M2 §6: the hint is milestone-neutral — "this construct is not
+compiled by zhex compile yet; run it with zhex run instead".)
 
 **(d) Overflow checks** mirror `eval.binary` exactly: `+` overflow iff `b>0 && a>Max-b ||
 b<0 && a<Min+b`; `-` iff `b<0 && a>Max+b || b>0 && a<Min+b`; `*` iff `a!=0 && (a==-1 && b==Min ||
@@ -216,7 +218,8 @@ short-circuit; the unguarded `Min/-1` traps). Unary `-` on `Min` → fail 1.
   `flow`: current value in a local; each step is the call with the value as first argument plus
   `step.args[1:]` (the tree's `args[0]` is the incoming-value slot, as in eval). `try`: payload
   when tag 0, else fail 11; `catch`: payload when tag 0, else handler with the binding bound to
-  the opaque result struct. Binary `+` on String renders Int operands via `$zhex_int_to_string`
+  the opaque result struct. (Amended by DESIGN-M2 §2d: the catch binding holds the
+  err payload, not the Result struct.) Binary `+` on String renders Int operands via `$zhex_int_to_string`
   first (the string-context Int exception in eval).
 - Module assembly order: `watPrelude` (fixed types, memory, globals, import, helpers), then
   program-specific types (choice variants, records), then word funcs in declaration order, then
