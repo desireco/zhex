@@ -65,6 +65,8 @@ type watEmitter struct {
 	cleanups       []watCleanup
 	flowCursor     string    // flow step's incoming value local; "" for Unit
 	flowCursorType valueType // the cursor value's Zhex type
+
+	thunks []string // site-local closure thunks, appended after $zhex_main
 }
 
 func (e *watEmitter) line(format string, args ...any) {
@@ -162,8 +164,14 @@ func (e *watEmitter) emit() string {
 		out.WriteString(e.wordFunction(w))
 	}
 	out.WriteString(e.mainFunction())
+	if len(e.thunks) > 0 {
+		out.WriteString("\n;; closure thunks\n")
+		for _, t := range e.thunks {
+			out.WriteString(t)
+		}
+	}
 	out.WriteString(`
-(export "memory" (memory $zhex_mem))
+	(export "memory" (memory $zhex_mem))
 (export "zhex_main" (func $zhex_main))
 (export "zhex_last_error" (func $zhex_last_error))
 `)
@@ -358,6 +366,9 @@ func (e *watEmitter) watValueType(t valueType) string {
 		return "(ref " + watArrayType(watSpecOf(inner)) + ")"
 	}
 	if base, args, applied := typeApplication(t); applied {
+		if base == "@function" {
+			return "(ref null " + watTypeClosure + ")" // uniform closure repr (§4a)
+		}
 		if base == "Option" {
 			return "(ref null eq)" // Some_X and None share no named supertype
 		}
@@ -408,9 +419,10 @@ func (e *watEmitter) watLocalType(t valueType) string {
 
 // assertNonNull follows a local.get of concrete ref type t with
 // ref.as_non_null, restoring the expression invariant that every pushed
-// ref is non-null; eqref values pass through (their consumers are nullable).
+// ref is non-null; eqref values pass through (their consumers are nullable),
+// and closures assert too — the callback helpers take them non-null.
 func (e *watEmitter) assertNonNull(t valueType) {
-	if nullableRef(e.watValueType(t)) != e.watValueType(t) {
+	if _, _, isFn := functionTypeParts(t); isFn || nullableRef(e.watValueType(t)) != e.watValueType(t) {
 		e.line("ref.as_non_null")
 	}
 }
@@ -433,6 +445,9 @@ func (e *watEmitter) refTarget(t valueType) string {
 		return "(ref " + watArrayType(watSpecOf(inner)) + ")"
 	}
 	if base, args, applied := typeApplication(t); applied {
+		if base == "@function" {
+			return "(ref " + watTypeClosure + ")"
+		}
 		if base == "Option" {
 			return ""
 		}
@@ -1219,16 +1234,13 @@ func (e *watEmitter) call(x *expression) {
 	if x.checkedCollection {
 		watFence(x.pos, "checked "+x.text)
 	}
-	if x.binding != nil {
-		watFence(x.pos, "function values")
-	}
 	if x.partial {
-		watFence(x.pos, "partials")
+		e.partialCreation(x)
+		return
 	}
-	for _, a := range x.args {
-		if a.kind == "hole" {
-			watFence(x.pos, "partials")
-		}
+	if x.binding != nil {
+		e.closureInvoke(x)
+		return
 	}
 	if x.record != nil {
 		e.constructorCall(x)
@@ -1239,6 +1251,226 @@ func (e *watEmitter) call(x *expression) {
 		return
 	}
 	e.builtinCall(x)
+}
+
+// boxEnv boxes a captured value for the closure env array: Int as
+// $zhex_some_i64, Bool as i31, Unit pushes null (there is no value to box),
+// every other repr is the reference itself (DESIGN-M2 §4b, M1 payload boxing).
+func (e *watEmitter) boxEnv(t valueType) {
+	switch t {
+	case intType:
+		e.line("struct.new " + watSomeType(watSpecI64))
+	case boolType:
+		e.line("ref.i31")
+	case unitType:
+		e.line("ref.null eq")
+	}
+}
+
+// envGet pushes env slot i of the closure in $clo and unboxes it to type t.
+func (e *watEmitter) envGet(i int, t valueType) {
+	e.line("local.get $clo")
+	e.line("struct.get " + watTypeClosure + " $env")
+	e.line("ref.as_non_null")
+	e.line("i32.const %d", i)
+	e.line("array.get " + watTypeArrRef)
+	e.unboxPayload(t)
+}
+
+// partialCreation emits a closure value at a partial site: the supplied
+// arguments evaluate left to right (holes skipped, standing as null slots)
+// into an env array of target arity, paired with a site-local thunk
+// (DESIGN-M2 §4b).
+func (e *watEmitter) partialCreation(x *expression) {
+	if x.binding != nil {
+		watFence(x.pos, "re-partial application")
+	}
+	fnParams, fnResult, _ := functionTypeParts(x.typ)
+	if fnResult == unitType {
+		watFence(x.pos, "closures with Unit results")
+	}
+	var paramTypes []valueType
+	if x.word != nil {
+		if len(x.args) < len(x.word.params) {
+			watFence(x.pos, "word parameter defaults")
+		}
+		for _, p := range x.word.params {
+			paramTypes = append(paramTypes, p.typ)
+		}
+	} else {
+		if !watThunkableBuiltin(x.text) {
+			watFence(x.pos, x.text)
+		}
+		for _, a := range x.args {
+			paramTypes = append(paramTypes, a.typ)
+		}
+	}
+	id := e.nextID()
+	env := e.temp("env"+id, nullableRef("(ref "+watTypeArrRef+")"))
+	for _, a := range x.args {
+		if a.kind == "hole" {
+			e.line("ref.null eq")
+			continue
+		}
+		e.expr(a)
+		e.boxEnv(a.typ)
+	}
+	e.line("array.new_fixed %s %d", watTypeArrRef, len(x.args))
+	e.line("local.set " + env)
+	thunk := fmt.Sprintf("$zcthunk%s", id)
+	e.line("ref.func " + thunk)
+	e.line("local.get " + env)
+	e.line("ref.as_non_null")
+	e.line("struct.new " + watTypeClosure)
+	e.appendThunk(thunk, x, fnParams, fnResult, paramTypes)
+}
+
+// appendThunk builds the site-local thunk function: it takes the closure as
+// its first parameter plus one parameter per hole, unboxes the captured env
+// slots per the static target signature, and calls the target directly.
+// Thunks are plain functions — the target word's own enter/leave keeps depth
+// parity, and builtins never counted (DESIGN-M2 §4b).
+func (e *watEmitter) appendThunk(name string, x *expression, fnParams []valueType, fnResult valueType, paramTypes []valueType) {
+	savedB, savedDepth := e.b, e.depth
+	savedLocals, savedCount := e.locals, e.localCount
+	savedBindings, savedTemps := e.bindings, e.temps
+	e.b.Reset()
+	e.depth, e.locals, e.localCount = 1, nil, 0
+	e.bindings, e.temps = map[*binding]string{}, map[string]string{}
+	defer func() {
+		e.b, e.depth = savedB, savedDepth
+		e.locals, e.localCount = savedLocals, savedCount
+		e.bindings, e.temps = savedBindings, savedTemps
+	}()
+
+	holeAt := map[int]int{} // arg index → thunk parameter index
+	for i, p := range x.holes {
+		holeAt[p] = i
+	}
+	params := []string{"(param $clo (ref " + watTypeClosure + "))"}
+	for i, t := range fnParams {
+		params = append(params, fmt.Sprintf("(param $a%d %s)", i, e.watLocalType(t)))
+	}
+	result := ""
+	if !isUnitValue(fnResult) {
+		result = e.watValueType(fnResult)
+	}
+	for i, t := range paramTypes {
+		if at, isHole := holeAt[i]; isHole {
+			if t == unitType {
+				if x.word != nil {
+					e.line("i32.const 0") // the word's Unit placeholder
+					continue
+				}
+				e.line("ref.null eq") // a builtin's Unit argument
+				continue
+			}
+			e.line("local.get $a%d", at)
+			e.castFromEqref(t)
+			continue
+		}
+		if t == unitType {
+			if x.word != nil {
+				e.line("i32.const 0")
+				continue
+			}
+			e.line("ref.null eq")
+			continue
+		}
+		e.envGet(i, t)
+	}
+	if x.word != nil {
+		e.line("call " + watWordName(x.word))
+	} else {
+		e.builtinCore(x)
+	}
+	e.thunks = append(e.thunks, e.funcText(name, params, result))
+}
+
+// closureInvoke emits a fully-applied call of a bound closure: the closure
+// itself is argument 0, the args follow, then the typed funcref and call_ref
+// (DESIGN-M2 §4c; stack order — the funcref is call_ref's last operand).
+func (e *watEmitter) closureInvoke(x *expression) {
+	fnParams, fnResult, _ := functionTypeParts(x.binding.typ)
+	if fnResult == unitType {
+		watFence(x.pos, "closures with Unit results")
+	}
+	specs := make([]watSpec, len(fnParams))
+	for i, p := range fnParams {
+		specs[i] = watSpecOf(p)
+	}
+	cloName := watCloType(specs, watSpecOf(fnResult))
+	clo := e.local(x.binding)
+	e.line("local.get " + clo)
+	e.line("ref.as_non_null")
+	for _, arg := range x.args {
+		e.expr(arg)
+		if isUnitValue(arg.typ) {
+			e.line("ref.null eq") // Unit has no value; the eq param carries null
+		}
+	}
+	e.line("local.get " + clo)
+	e.line("struct.get " + watTypeClosure + " $fn")
+	e.line("ref.cast (ref " + cloName + ")")
+	e.line("call_ref " + cloName)
+	e.castFromEqref(fnResult)
+}
+
+// watThunkableBuiltin reports whether a builtin partial can be thunked: the
+// emitter-supported text family plus int.to-string (others fence by name).
+func watThunkableBuiltin(text string) bool {
+	switch text {
+	case "text.reverse", "text.length", "text.slice", "text.index-of", "text.contains",
+		"text.upper", "text.lower", "text.trim", "text.split", "text.join", "text.replace",
+		"text.starts-with", "text.ends-with", "text.line-count", "text.word-count",
+		"text.to-int", "int.to-string":
+		return true
+	}
+	return false
+}
+
+// builtinCore emits a builtin's call lines with every argument already on
+// the stack (used by thunk bodies; args were env-unboxed or param-loaded).
+func (e *watEmitter) builtinCore(x *expression) {
+	switch x.text {
+	case "text.reverse":
+		e.line("call " + watTextReverse)
+	case "text.length":
+		e.line("array.len")
+		e.line("i64.extend_i32_u")
+	case "text.slice":
+		e.line("call " + watTextSlice)
+	case "text.index-of":
+		e.line("call " + watTextIndexOf)
+	case "text.contains":
+		e.line("call " + watTextContains)
+	case "text.upper":
+		e.line("call " + watTextUpper)
+	case "text.lower":
+		e.line("call " + watTextLower)
+	case "text.trim":
+		e.line("call " + watTextTrim)
+	case "text.split":
+		e.line("call " + watTextSplit)
+	case "text.join":
+		e.line("call " + watTextJoin)
+	case "text.replace":
+		e.line("call " + watTextReplace)
+	case "text.starts-with":
+		e.line("call " + watTextStartsWith)
+	case "text.ends-with":
+		e.line("call " + watTextEndsWith)
+	case "text.line-count":
+		e.line("call " + watTextLineCount)
+	case "text.word-count":
+		e.line("call " + watTextWordCount)
+	case "text.to-int":
+		e.line("call " + watTextToInt)
+	case "int.to-string":
+		e.line("call " + watIntToString)
+	default:
+		watFence(x.pos, x.text)
+	}
 }
 
 func (e *watEmitter) wordCall(x *expression) {
@@ -1456,6 +1688,58 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.expr(x.args[0]) // source (guard targets only)
 		e.expr(x.args[1])
 		e.line("call " + watMapInto(k, v)) // returns the target
+	case "list.map":
+		_, in, _ := collectionInner(x.inputType)
+		_, out, _ := collectionInner(x.typ)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watListMap(watSpecOf(in), watSpecOf(out)))
+	case "list.filter":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watListFilter(watSpecOf(in)))
+	case "list.select":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watListSelect(watSpecOf(in)))
+	case "list.fold":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.expr(x.args[2])
+		e.line("call " + watListFold(watSpecOf(in), watSpecOf(x.args[1].typ)))
+	case "list.find":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watListFind(watSpecOf(in)))
+	case "list.any":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watListAny(watSpecOf(in)))
+	case "list.all":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watListAll(watSpecOf(in)))
+	case "list.sort":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.line("call " + watListSort(watSpecOf(in)))
+	case "list.sort-by":
+		_, in, _ := collectionInner(x.inputType)
+		_, key, _ := functionTypeParts(x.args[1].typ)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watListSortBy(watSpecOf(in), watSpecOf(key)))
+	case "array.select":
+		_, in, _ := collectionInner(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watArraySelect(watSpecOf(in)))
 	default:
 		watFence(x.pos, x.text)
 	}

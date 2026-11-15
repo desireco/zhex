@@ -442,13 +442,30 @@ type R = record
 let r = R(1)
 print(r.a)
 `, "record field defaults is not available in this build"},
-		{"partials", `
+		{"re-partial", `
 word add(a: Int, b: Int) -> Int
     a + b
 
-let inc = add(_, 1)
-print(inc(2))
-`, "partials is not available in this build"},
+let once = add(_, 1)
+let twice = once(_)
+print(1)
+`, "re-partial application is not available in this build"},
+		{"unit-result-closure", `
+word side(n: Int)
+    print(n)
+
+let run = side(_)
+run(1)
+`, "closures with Unit results is not available in this build"},
+		{"flow-function-step", `
+word double(n: Int) -> Int
+    n * 2
+
+let f = double(_)
+flow 5
+    f
+    print
+`, "function values is not available in this build"},
 		{"file-stream", `
 for line in file.stream("nope.txt")
     print(line)
@@ -847,6 +864,187 @@ match by-id[1]
 		if !strings.Contains(wat, want) {
 			t.Errorf("missing %q", want)
 		}
+	}
+}
+
+// ---------------------------------------------------------------- closures
+
+func TestWatPartialCreationEmitsClosure(t *testing.T) {
+	wat := watOf(t, `
+word double(n: Int) -> Int
+    n * 2
+
+let numbers = [1, 2]
+let doubled = list.map(numbers, double(_))
+print(doubled[0])
+`)
+	for _, want := range []string{
+		"ref.null eq",                          // the hole's env slot
+		"array.new_fixed " + watTypeArrRef + " 1", // env of target arity
+		"ref.func $zcthunk",                    // site-local thunk
+		"struct.new " + watTypeClosure,
+		"call " + watListMap(watSpecI64, watSpecI64),
+		"(func $zcthunk",                       // the thunk is a plain function
+		"(param $clo (ref " + watTypeClosure + "))",
+		"(param $a0 i64)",                      // the hole is the callback param
+		"(result i64)",
+		"call $zw_double",                      // direct call, no enter of its own
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	// Thunks are not words: no depth check of their own.
+	if thunks := strings.Count(wat, "(func $zcthunk"); thunks != 1 {
+		t.Errorf("thunk count = %d, want 1", thunks)
+	}
+}
+
+func TestWatThunkCapturesEnvAndFullyApplies(t *testing.T) {
+	wat := watOf(t, `
+word add(a: Int, b: Int) -> Int
+    a + b
+
+let inc = add(_, 1)
+print(inc(5))
+`)
+	for _, want := range []string{
+		// capture: env holds [null, boxed 1]; Int boxes as $zhex_some_i64
+		"array.new_fixed " + watTypeArrRef + " 2",
+		"struct.new " + watSomeType(watSpecI64),
+		// thunk: hole $a0 plus the captured env slot unboxed, then the call
+		"array.get " + watTypeArrRef,
+		"struct.get " + watSomeType(watSpecI64) + " $value",
+		"call $zw_add",
+		// full application of the bound closure
+		"struct.get " + watTypeClosure + " $fn",
+		"ref.cast (ref " + watCloType([]watSpec{watSpecI64}, watSpecI64) + ")",
+		"call_ref " + watCloType([]watSpec{watSpecI64}, watSpecI64),
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+func TestWatCallbackWordsEmitHelpers(t *testing.T) {
+	wat := watOf(t, `
+word big(n: Int) -> Bool
+    n > 3
+
+let numbers = [1, 2, 3, 4]
+let evens = list.filter(numbers, big(_))
+let picked = list.select(numbers, big(_))
+match list.find(numbers, big(_))
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print(-1)
+print(list.any(numbers, big(_)))
+print(list.all(numbers, big(_)))
+`)
+	for _, want := range []string{
+		"call " + watListFilter(watSpecI64),
+		"call " + watListSelect(watSpecI64),
+		"call " + watListFind(watSpecI64),
+		"call " + watListAny(watSpecI64),
+		"call " + watListAll(watSpecI64),
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+func TestWatSortAndSortByEmitHelpers(t *testing.T) {
+	wat := watOf(t, `
+type Entry = record
+    name: String
+    score: Int
+
+word entry-score(e: Entry) -> Int
+    e.score
+
+let sorted = list.sort([3, -1, 10])
+let words = list.sort(["żebra", "apple"])
+let ranked = list.sort-by([Entry("a", 2), Entry("b", 1)], entry-score(_))
+let by-length = list.sort-by(["dddd", "a"], text.length(_))
+let top = ranked[0]
+print(sorted[0])
+print(words[0])
+print(top.score)
+print(by-length[0])
+`)
+	for _, want := range []string{
+		"call " + watListSort(watSpecI64),
+		"call " + watListSort(watSpecRef),
+		"call " + watListSortBy(watSpecRef, watSpecI64),
+		"call " + watListSortBy(watSpecRef, watSpecI64), // text.length keys are Int
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+// Builtin partials emit thunks that call the prelude helper directly (or
+// inline text.length); only supported builtins may be partialized.
+func TestWatBuiltinPartialThunks(t *testing.T) {
+	wat := watOf(t, `
+let trimmed = list.map(["  Ada "], text.trim(_))
+let guests = list.filter(["Alice"], text.contains(_, "Al"))
+print(trimmed[0])
+print(guests[0])
+`)
+	for _, want := range []string{
+		"call " + watTextTrim,
+		"call " + watTextContains,
+		"ref.func $zcthunk",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	// the contains thunk reads its captured "Al" from the env array
+	if !strings.Contains(wat, "array.get "+watTypeArrRef) {
+		t.Errorf("captured builtin arguments unbox from the closure env")
+	}
+}
+
+func TestWatArraySelectEmitsHelper(t *testing.T) {
+	wat := watOf(t, `
+word big-row(row: List<Int>) -> Bool
+    list.length(row) > 1
+
+let grid = array.new([2, 2], 0)
+let kept = array.select(grid, big-row(_))
+print(array.length(kept))
+`)
+	if !strings.Contains(wat, "call "+watArraySelect(watSpecI64)) {
+		t.Errorf("missing %q", watArraySelect(watSpecI64))
+	}
+	// The row predicate closure is created inline and its thunk takes the
+	// row as an eq-level ref parameter (hyphen mangles to _h).
+	if !strings.Contains(wat, "(func $zcthunk") || !strings.Contains(wat, "call $zw_big_hrow") {
+		t.Errorf("the site-local thunk must call the predicate word directly")
+	}
+}
+
+// A let-bound closure is an ordinary value: stored once, passed by name.
+func TestWatLetBoundClosurePassedByName(t *testing.T) {
+	wat := watOf(t, `
+word short(row: List<Int>) -> Bool
+    list.length(row) < 2
+
+let keeper = short(_)
+let kept = list.filter([[1], [2, 3]], keeper)
+print(list.length(kept))
+`)
+	if !strings.Contains(wat, "(local $l1_keeper (ref null "+watTypeClosure+"))") {
+		t.Errorf("a function-typed binding's local is the closure struct")
+	}
+	if !strings.Contains(wat, "call "+watListFilter(watSpecRef)) {
+		t.Errorf("missing %q", watListFilter(watSpecRef))
 	}
 }
 
