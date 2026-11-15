@@ -268,15 +268,10 @@ const watPreludeText = `
   (call $zhex_print_str (call $zhex_int_to_string (local.get $v))))
 `
 
-// watPreludeBoxing: Result payloads are eq refs (§2) — i31 boxes Int/Bool,
-// everything else is a direct reference, Unit is null.
+// watPreludeBoxing: Result payloads are eq refs (§2) — i31 boxes Bool,
+// Int payloads box as $zhex_some_i64 (the emitter's struct.new), everything
+// else is a direct reference, Unit is null.
 const watPreludeBoxing = `
-(func $zhex_box_i64 (param $v i64) (result (ref eq))
-  (ref.i31 (i32.wrap_i64 (local.get $v))))
-
-(func $zhex_unbox_i64 (param $p (ref null eq)) (result i64)
-  (i64.extend_i32_s (i31.get_s (ref.cast (ref i31) (local.get $p)))))
-
 (func $zhex_box_i32 (param $v i32) (result (ref eq))
   (ref.i31 (local.get $v)))
 

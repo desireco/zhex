@@ -47,7 +47,6 @@ const (
 	watStrConcat   = "$zhex_str_concat"
 	watPrintStr    = "$zhex_print_str"
 	watPrintInt    = "$zhex_print_int"
-	watBoxI32      = "$zhex_box_i32"
 	watUnboxI32    = "$zhex_unbox_i32"
 )
 

@@ -46,8 +46,6 @@ func TestWatPreludePinnedNames(t *testing.T) {
 		"(func $zhex_str_concat (param $a (ref $zhex_string)) (param $b (ref $zhex_string)) (result (ref $zhex_string))",
 		"(func $zhex_print_str (param $s (ref $zhex_string))",
 		"(func $zhex_print_int (param $v i64)",
-		"(func $zhex_box_i64 (param $v i64) (result (ref eq))",
-		"(func $zhex_unbox_i64 (param $p (ref null eq)) (result i64)",
 		"(func $zhex_box_i32 (param $v i32) (result (ref eq))",
 		"(func $zhex_unbox_i32 (param $p (ref null eq)) (result i32)",
 		"(func $zhex_add (param $a i64) (param $b i64) (result i64)",
@@ -332,14 +330,7 @@ const watPreludeTestExports = `
       (call $zhex_array_new_ref (call $shape2 (i64.const 2) (i64.const 2)) (array.new_fixed $zhex_string 1 (i32.const 120)))
       (array.new_fixed $zhex_arr_i64 2 (i64.const 1) (i64.const 1))))))
 
-(func (export "box_i64_rt") (param $v i64) (result i64) (call $zhex_unbox_i64 (call $zhex_box_i64 (local.get $v))))
 (func (export "box_i32_rt") (param $v i32) (result i32) (call $zhex_unbox_i32 (call $zhex_box_i32 (local.get $v))))
-(func (export "result_rt") (param $v i64) (result i64)
-  (local $r (ref $zhex_result))
-  (local.set $r (struct.new $zhex_result (i32.const 0) (call $zhex_box_i64 (local.get $v))))
-  (call $zhex_unbox_i64 (struct.get $zhex_result $payload (local.get $r))))
-(func (export "result_tag") (param $v i64) (result i32)
-  (struct.get $zhex_result $tag (struct.new $zhex_result (i32.const 0) (call $zhex_box_i64 (local.get $v)))))
 
 (export "memory" (memory $zhex_mem))
 (export "zhex_last_error" (func $zhex_last_error))
@@ -499,15 +490,7 @@ t('array i32 length', () => { fresh(); eq(exports.a32_len(), 6n, 'len'); });
 t('array i32 set then get', () => { fresh(); eq(exports.a32_set_get(), 0, 'set_get'); });
 t('array ref get prints fill', () => { fresh(); exports.aref_get_print(); printedEq(['x']); });
 
-t('box i64 round trip', () => {
-  fresh();
-  eq(exports.box_i64_rt(0n), 0n, '0');
-  eq(exports.box_i64_rt(5n), 5n, '5');
-  eq(exports.box_i64_rt(-3n), -3n, '-3');
-});
 t('box i32 round trip', () => { fresh(); eq(exports.box_i32_rt(1), 1, '1'); });
-t('result ok round trip', () => { fresh(); eq(exports.result_rt(42n), 42n, 'payload'); });
-t('result tag is 0 for ok', () => { fresh(); eq(exports.result_tag(42n), 0, 'tag'); });
 
 const failures = [];
 for (const c of cases) {
