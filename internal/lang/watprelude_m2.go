@@ -19,9 +19,10 @@ import (
 
 // watPreludeM2 is emitted verbatim; the prelude is always included in full
 // (no dead-helper pruning, M1 house rule). A var, not a const, because the
-// case tables generate from the live unicode package.
+// case and printable tables generate from the live unicode package.
 var watPreludeM2 = watM2Types +
 	watCaseTables() +
+	watPrintTable() +
 	watM2Text +
 	watM2Maps +
 	watM2ClosureTypes +
@@ -270,6 +271,42 @@ func watWriteCaseTable(b *strings.Builder, name string, dir int) {
 		}
 		fmt.Fprintf(b, "    (i32.const %d) (i32.const %d) (i32.const %d)%s\n", s.lo, s.hi, s.delta, end)
 	}
+}
+
+// watPrintTable builds the unicode.IsPrint span table $zhex_quote's
+// non-ASCII arm needs (DESIGN-M4 §5, the M2 §9 case-table amendment's
+// precedent): Go's strconv.Quote emits a non-ASCII rune literally exactly
+// when IsPrint holds, so the spans walk every rune through the running
+// toolchain's definition and the compiled quote stays byte-identical with
+// the interpreter built from the same Go.
+func watPrintTable() string {
+	var spans [][2]int32
+	lo := int32(-1)
+	for r := rune(0); r <= 0x10FFFF; r++ {
+		if unicode.IsPrint(r) {
+			if lo < 0 {
+				lo = int32(r)
+			}
+		} else if lo >= 0 {
+			spans = append(spans, [2]int32{lo, int32(r) - 1})
+			lo = -1
+		}
+	}
+	if lo >= 0 {
+		spans = append(spans, [2]int32{lo, 0x10FFFF})
+	}
+	var b strings.Builder
+	b.WriteString("\n")
+	fmt.Fprintf(&b, "(global $zhex_print_ranges (ref $zhex_arr_i32)\n  (array.new_fixed $zhex_arr_i32 %d\n", len(spans)*2)
+	for i, s := range spans {
+		end := ""
+		if i == len(spans)-1 {
+			end = "))"
+		}
+		fmt.Fprintf(&b, "    (i32.const %d) (i32.const %d)%s\n", s[0], s[1], end)
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 // watM2Text: the §1 text suite (semantics pinned from host.go / the Go
@@ -725,11 +762,57 @@ const watM2Text = `
         (else (return (i32.const 4))))))
   (if (i32.eq (local.get $cp) (i32.const 127))
     (then (return (i32.const 4))))
+  (if (i32.ge_u (local.get $cp) (i32.const 128))
+    (then
+      ;; non-ASCII per Go strconv.Quote: literal iff unicode.IsPrint, else
+      ;; \uXXXX below 0x10000 and \UXXXXXXXX above (DESIGN-M4 §5)
+      (if (call $zhex_cp_isprint (local.get $cp))
+        (then (return (i32.const 1))))
+      (if (i32.lt_u (local.get $cp) (i32.const 65536))
+        (then (return (i32.const 6))))
+      (return (i32.const 10))))
   (i32.const 1))
 
-;; quote mirrors Go %q for the to-int message (§2b): wrap in ", escape \", \\,
-;; the C short escapes, and \xHH for other control code points.
-;; shortcut: non-ASCII code points are treated as printable and emitted literally, upgrade when a fixture quotes non-printable non-ASCII input.
+;; binary search over the generated printable spans (pairs of lo, hi)
+(func $zhex_cp_isprint (param $cp i32) (result i32)
+  (local $lo i32)
+  (local $hi i32)
+  (local $mid i32)
+  (local.set $lo (i32.const 0))
+  (local.set $hi (i32.sub (i32.div_u (array.len (global.get $zhex_print_ranges)) (i32.const 2)) (i32.const 1)))
+  (block $miss
+    (loop $search
+      (if (i32.gt_s (local.get $lo) (local.get $hi))
+        (then (br $miss)))
+      (local.set $mid (i32.div_u (i32.add (local.get $lo) (local.get $hi)) (i32.const 2)))
+      (if (i32.lt_u (local.get $cp) (array.get $zhex_arr_i32 (global.get $zhex_print_ranges) (i32.mul (local.get $mid) (i32.const 2))))
+        (then
+          (local.set $hi (i32.sub (local.get $mid) (i32.const 1)))
+          (br $search)))
+      (if (i32.gt_u (local.get $cp) (array.get $zhex_arr_i32 (global.get $zhex_print_ranges) (i32.add (i32.mul (local.get $mid) (i32.const 2)) (i32.const 1))))
+        (then
+          (local.set $lo (i32.add (local.get $mid) (i32.const 1)))
+          (br $search)))
+      (return (i32.const 1))))
+  (i32.const 0))
+
+;; write $digits lowercase hex digits of $cp at $w
+(func $zhex_put_hex (param $r (ref $zhex_string)) (param $w i32) (param $cp i32) (param $digits i32)
+  (local $k i32)
+  (local $h i32)
+  (block $done
+    (loop $l
+      (br_if $done (i32.ge_u (local.get $k) (local.get $digits)))
+      (local.set $h (i32.and (i32.shr_u (local.get $cp) (i32.mul (i32.sub (i32.sub (local.get $digits) (local.get $k)) (i32.const 1)) (i32.const 4))) (i32.const 15)))
+      (array.set $zhex_string (local.get $r) (i32.add (local.get $w) (local.get $k))
+        (select (i32.add (local.get $h) (i32.const 87)) (i32.add (local.get $h) (i32.const 48)) (i32.gt_u (local.get $h) (i32.const 9))))
+      (local.set $k (i32.add (local.get $k) (i32.const 1)))
+      (br $l))))
+
+;; quote mirrors Go %q for the to-int message (§2b as amended by M4 §5):
+;; wrap in ", escape \", \\, the C short escapes, \xHH for the remaining
+;; controls, and \uXXXX / \UXXXXXXXX (lowercase hex) for non-printable
+;; non-ASCII code points — literal exactly when unicode.IsPrint holds.
 (func $zhex_quote (param $t (ref $zhex_string)) (result (ref $zhex_string))
   (local $n i32)
   (local $i i32)
@@ -775,6 +858,22 @@ const watM2Text = `
             (array.set $zhex_string (local.get $r) (local.get $w)
               (array.get $zhex_arr_i32 (global.get $zhex_esc_char) (i32.sub (local.get $cp) (i32.const 7))))
             (local.set $w (i32.add (local.get $w) (i32.const 1)))
+            (br $plain)))
+        (if (i32.ge_u (local.get $cp) (i32.const 128))
+          (then
+            (array.set $zhex_string (local.get $r) (local.get $w) (i32.const 92))
+            (local.set $w (i32.add (local.get $w) (i32.const 1)))
+            (if (i32.lt_u (local.get $cp) (i32.const 65536))
+              (then
+                (array.set $zhex_string (local.get $r) (local.get $w) (i32.const 117))
+                (local.set $w (i32.add (local.get $w) (i32.const 1)))
+                (call $zhex_put_hex (ref.as_non_null (local.get $r)) (local.get $w) (local.get $cp) (i32.const 4))
+                (local.set $w (i32.add (local.get $w) (i32.const 4))))
+              (else
+                (array.set $zhex_string (local.get $r) (local.get $w) (i32.const 85))
+                (local.set $w (i32.add (local.get $w) (i32.const 1)))
+                (call $zhex_put_hex (ref.as_non_null (local.get $r)) (local.get $w) (local.get $cp) (i32.const 8))
+                (local.set $w (i32.add (local.get $w) (i32.const 8)))))
             (br $plain)))
         (array.set $zhex_string (local.get $r) (local.get $w) (i32.const 92))
         (local.set $w (i32.add (local.get $w) (i32.const 1)))

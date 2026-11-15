@@ -33,6 +33,9 @@ func TestWatPreludeM2PinnedNames(t *testing.T) {
 		"(func $zhex_text_replace (param $t (ref $zhex_string)) (param $old (ref $zhex_string)) (param $new (ref $zhex_string)) (result (ref $zhex_string))",
 		"(global $zhex_case_upper (ref $zhex_arr_i32)",
 		"(global $zhex_case_lower (ref $zhex_arr_i32)",
+		"(global $zhex_print_ranges (ref $zhex_arr_i32)", // DESIGN-M4 §5
+		"(func $zhex_cp_isprint (param $cp i32) (result i32)",
+		"(func $zhex_put_hex (param $r (ref $zhex_string)) (param $w i32) (param $cp i32) (param $digits i32)",
 	}
 	for _, w := range []string{
 		watTextReverse, watTextSlice, watTextIndexOf, watTextContains,
@@ -1121,9 +1124,19 @@ for (const [s, msg] of [
   ['1_2', '"1_2" is not a signed 64-bit decimal integer'],
   ['0x1', '"0x1" is not a signed 64-bit decimal integer'],
   ['+', '"+" is not a signed 64-bit decimal integer'],
-  ['\t"q"\n', '"\\t\\"q\\"\\n" is not a signed 64-bit decimal integer'],
-  ['a\x01\x7fb', '"a\\x01\\x7fb" is not a signed 64-bit decimal integer'],
-  ['\u00e9', '"\u00e9" is not a signed 64-bit decimal integer'],
+	['\t"q"\n', '"\\t\\"q\\"\\n" is not a signed 64-bit decimal integer'],
+	['a\x01\x7fb', '"a\\x01\\x7fb" is not a signed 64-bit decimal integer'],
+	['\u00e9', '"\u00e9" is not a signed 64-bit decimal integer'],
+	// DESIGN-M4 §5: quote matches Go %q for non-ASCII — NBSP is in the trim
+	// set but the message quotes the UNTRIMMED input, so prefix garbage
+	['\u00a0x', '"\\u00a0x" is not a signed 64-bit decimal integer'],
+	['x\u00a0', '"x\\u00a0" is not a signed 64-bit decimal integer'],
+	['\u2028', '"\\u2028" is not a signed 64-bit decimal integer'],
+	['\u2029', '"\\u2029" is not a signed 64-bit decimal integer'],
+	['\ufffe', '"\\ufffe" is not a signed 64-bit decimal integer'],
+	['\ud83d\ude00', '"\ud83d\ude00" is not a signed 64-bit decimal integer'],
+	[String.fromCodePoint(0xE0001), '"\\U000e0001" is not a signed 64-bit decimal integer'],
+	['\ufffd', '"\ufffd" is not a signed 64-bit decimal integer'],
 ]) {
   t('to-int fail ' + JSON.stringify(s), () => {
     fresh();
