@@ -68,4 +68,4 @@ Compiled programs are held to the interpreter: the repository's test suite compi
 ## Where to go next
 
 - [Getting started](getting-started.html) builds the interpreter and runs a first program.
-- [Diagnostics and tracing](diagnostics.md) explains checker errors, JSON reports, and `--trace`.
+- [Diagnostics and tracing](diagnostics.html) explains checker errors, JSON reports, and `--trace`.
