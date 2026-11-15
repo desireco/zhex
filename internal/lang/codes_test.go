@@ -116,7 +116,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{"range-type", "for n in range(1, \"x\")\n    print(n)\n", "", nil, nil},
 		{"try-input", "let x = 1 try\nprint(x)\n", "", nil, nil},
 		{"unary-type", "print(not 1)\n", "", nil, nil},
-		{"operand-types", "print(1 + \"a\")\n", "", nil, nil},
+		{"operand-types", "print(1 - \"a\")\n", "", nil, nil},
 		{"bool-operand", "print(1 and 2)\n", "", nil, nil},
 		{"compare-type", "if print(1) == print(2)\n    print(3)\n", "", nil, nil},
 		{"ordering-type", "print(\"a\" < \"b\")\n", "", nil, nil},
@@ -169,7 +169,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 // diagnostics carry span_start_column/span_end_column; runtime diagnostics
 // must stay byte-identical (no span_ fields).
 func TestReportAddsSpanFieldsAdditively(t *testing.T) {
-	err := Run("bad.zhex", "print(1 + \"a\")\n", strings.NewReader(""), &strings.Builder{})
+	err := Run("bad.zhex", "print(1 - \"a\")\n", strings.NewReader(""), &strings.Builder{})
 	if err == nil {
 		t.Fatal("expected an error")
 	}

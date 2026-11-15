@@ -5,7 +5,7 @@ section: Language
 order: 20
 ---
 
-Every expression has a checked type. Local binding types are inferred from their initial value unless an explicit `let name: Type = value` or `var name: Type = value` annotation is supplied. Word parameter and return annotations are optional when the body and same-program calls determine one concrete type; add annotations when inference is ambiguous. Zhex has no implicit conversions.
+Every expression has a checked type. Local binding types are inferred from their initial value unless an explicit `let name: Type = value` or `var name: Type = value` annotation is supplied. Word parameter and return annotations are optional when the body and same-program calls determine one concrete type; add annotations when inference is ambiguous. Zhex has no implicit conversions. One exception exists — the string-context Int exception: `+` concatenates when exactly one operand is `Int` and the other is `String` (the Int renders as `int.to-string` does, chains associate left to right, and two `Int` operands still add numerically), and `print` accepts an `Int` directly. `Bool` and every other type stay strict in these positions, and no other position converts.
 
 ## Types
 
@@ -45,7 +45,7 @@ An `if`, `match`, or `flow` block may supply the entire right-hand side of a `le
 
 ## Operators
 
-`+` adds two integers or concatenates two strings. `-`, `*`, `/`, and `%` operate on integers. Ordering operators require integers. Equality compares matching `Int`, `Bool`, or `String` values. `and`, `or`, and `not` operate on booleans.
+`+` adds two integers or concatenates two strings; when exactly one operand is `Int` and the other is `String` — the string-context Int exception — the result is `String` and the `Int` renders as `int.to-string` does, with chains associating left to right (`1 + 2` still adds numerically). `-`, `*`, `/`, and `%` operate on integers. Ordering operators require integers. Equality compares matching `Int`, `Bool`, or `String` values. `and`, `or`, and `not` operate on booleans.
 
 ```zhex
 let total = 7 + 5

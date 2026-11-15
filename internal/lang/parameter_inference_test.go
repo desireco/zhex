@@ -25,6 +25,22 @@ print(identity(7))
 	}
 }
 
+// TestMixedConcatParameterInfersString pins inference through the
+// string-context Int exception: an unannotated parameter concatenated with a
+// concrete String still infers String, so an Int call site is a type error —
+// annotate the parameter to build text from Ints.
+func TestMixedConcatParameterInfersString(t *testing.T) {
+	var out bytes.Buffer
+	err := Run("test.zhex", "word label(n)\n    \"n = \" + n\n", strings.NewReader(""), &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Run("test.zhex", "word label(n)\n    \"n = \" + n\nprint label(5)\n", strings.NewReader(""), &out)
+	if err == nil || !strings.Contains(err.Error(), "argument 1 of label requires type String, found Int") {
+		t.Fatalf("wanted String inference diagnostic, got %v", err)
+	}
+}
+
 func TestInferredParameterConflictsBeforeEffects(t *testing.T) {
 	source := `word identity(value)
     value

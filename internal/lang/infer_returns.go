@@ -509,8 +509,15 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 		return namedType(required)
 	case "binary":
 		left, right := s.expr(x.left, env, false), s.expr(x.right, env, false)
-		if leftType, leftOK := constraintType(left); leftOK {
-			if rightType, rightOK := constraintType(right); rightOK && leftType != rightType && s.err == nil {
+		leftType, leftOK := constraintType(left)
+		rightType, rightOK := constraintType(right)
+		// The string-context Int exception, as in the checker: with both
+		// operand types concrete, one Int and one String concatenates.
+		if x.text == "+" && leftOK && rightOK && leftType != rightType && (leftType == intType || leftType == stringType) && (rightType == intType || rightType == stringType) {
+			return namedType("String")
+		}
+		if leftOK {
+			if rightOK && leftType != rightType && s.err == nil {
 				nLeft, nRight := x.left, x.right
 				if isResult(rightType) && !isResult(leftType) {
 					nLeft, nRight = nRight, nLeft

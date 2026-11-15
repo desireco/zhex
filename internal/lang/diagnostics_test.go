@@ -112,8 +112,8 @@ func TestProvenanceNarration(t *testing.T) {
 		source string
 		prefix string
 	}{
-		{"word result", "word double(n: Int) -> Int\n    n + n\nlet d = double(2)\nprint(d + \"a\")\n",
-			`bad.zhex:4:9: operator "+" has incompatible operand types Int and String; d comes from double`},
+		{"word result", "word double(n: Int) -> Int\n    n + n\nlet d = double(2)\nprint(d + true)\n",
+			`bad.zhex:4:9: operator "+" has incompatible operand types Int and Bool; d comes from double`},
 		{"assignment", "let m = text.length(\"text\")\nvar a = \"hi\"\na = m\n", `bad.zhex:3:1: assignment type Int does not match String; m comes from text.length`},
 		{"argument", "let m = text.length(\"text\")\nprint(text.upper(m))\n", `bad.zhex:2:7: argument 1 of text.upper requires type String, found Int; m comes from text.length`},
 	}
@@ -156,8 +156,8 @@ func TestCaretSpansWholeExpressions(t *testing.T) {
 		wantFirstLinePrefix string
 		wantCaretLine       string
 	}{
-		{"binary", "print(1 + \"a\")\n",
-			`bad.zhex:1:9: operator "+" has incompatible operand types Int and String`,
+		{"binary", "print(1 - \"a\")\n",
+			`bad.zhex:1:9: operator "-" has incompatible operand types Int and String`,
 			"\n          ^^^^^^^"},
 		{"argument", "print(int.to-string(\"x\"))\n",
 			`bad.zhex:1:7: argument 1 of int.to-string requires type Int, found String`,
@@ -180,6 +180,28 @@ func TestCaretSpansWholeExpressions(t *testing.T) {
 			}
 			if !strings.Contains(got, tc.wantCaretLine+"\nhint:") && !strings.HasSuffix(got, tc.wantCaretLine) {
 				t.Fatalf("missing caret rung %q: %q", tc.wantCaretLine, got)
+			}
+		})
+	}
+}
+
+// TestStringContextStaysStrictBeyondInt pins the boundary of the
+// string-context Int exception: Bool, collections, and String-required word
+// arguments keep their exact diagnostics in the same positions.
+func TestStringContextStaysStrictBeyondInt(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"text plus bool", "print(\"a\" + true)\n", `bad.zhex:1:11: operator "+" has incompatible operand types String and Bool`},
+		{"bool plus text", "print(true + \"a\")\n", `bad.zhex:1:12: operator "+" has incompatible operand types Bool and String`},
+		{"bool plus bool", "print(true + true)\n", `bad.zhex:1:12: addition requires type Int or String`},
+		{"list plus text", "print([1] + \"a\")\n", `bad.zhex:1:11: operator "+" has incompatible operand types List<Int> and String`},
+		{"result operand still strict", "print(text.to-int(\"1\") + 2)\n", `bad.zhex:1:24: operator "+" has incompatible operand types Result<Int, ParseError> and Int`},
+		{"print still rejects List<Int>", "print([1, 2])\n", `bad.zhex:1:1: print does not support type List<Int>`},
+		{"word argument still requires String", "word greet(name: String) -> String\n    name\nprint greet(7)\n", `bad.zhex:3:7: argument 1 of greet requires type String, found Int`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := runError(t, tc.source); !strings.HasPrefix(got, tc.want) {
+				t.Fatalf("got %q, want prefix %q", got, tc.want)
 			}
 		})
 	}

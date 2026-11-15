@@ -41,6 +41,7 @@ func TestSessionEnterEchoes(t *testing.T) {
 		name, source, echo, output string
 	}{
 		{"integer sum", "1 + 2", "3", ""},
+		{"mixed concat echoes as text", "1 + \"a\"", "1a", ""},
 		{"string", "\"hi\"", "hi", ""},
 		{"bool", "true", "true", ""},
 		{"print", "print(2)", "", "2\n"},

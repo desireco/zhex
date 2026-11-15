@@ -48,7 +48,7 @@ func TestRejectedPrograms(t *testing.T) {
 		{"arity", "print()\n", "argument"},
 		{"parameter type", "word square(n: Int) -> Int\n    n * n\nprint(square(\"wrong\"))\n", "Int"},
 		{"duplicate parameter", "word add(n: Int, n: Int) -> Int\n    n + n\n", "already defined"},
-		{"operator types", "print(\"x\" + 2)\n", "type"},
+		{"operator types", "print(\"x\" + true)\n", "type"},
 		{"immutable", "let x = 1\nx = 2\n", "immutable"},
 		{"assignment type", "var x = 1\nx = \"a\"\n", "type"},
 		{"scope", "if true\n    let x = 1\nprint(x)\n", "unknown name"},

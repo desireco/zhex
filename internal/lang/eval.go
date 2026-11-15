@@ -770,7 +770,16 @@ func binary(x *expression, a, b value) (value, error) {
 		return value{boolean: a.number >= b.number}, nil
 	case "+":
 		if x.typ == stringType {
-			return value{text: a.text + b.text}, nil
+			// The string-context Int exception renders an Int operand the
+			// way int.to-string does.
+			leftText, rightText := a.text, b.text
+			if x.left.typ == intType {
+				leftText = strconv.FormatInt(a.number, 10)
+			}
+			if x.right.typ == intType {
+				rightText = strconv.FormatInt(b.number, 10)
+			}
+			return value{text: leftText + rightText}, nil
 		}
 	}
 	var n int64

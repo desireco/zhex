@@ -1465,7 +1465,10 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
-		if left != right {
+		// The string-context Int exception: "+" concatenates when exactly one
+		// operand is Int and the other is String; Int + Int stays numeric.
+		mixedConcat := x.text == "+" && left != right && (left == intType || left == stringType) && (right == intType || right == stringType)
+		if left != right && !mixedConcat {
 			// Narrate the result-typed operand first: it is the surprising one.
 			nLeft, nRight := x.left, x.right
 			if isResult(right) && !isResult(left) {
@@ -1474,6 +1477,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			return "", valueError(x.pos, x, CodeOperandTypes, fmt.Sprintf("operator %q has incompatible operand types %s and %s", x.text, left, right), tryHint(left, right), nLeft, nRight)
 		}
 		typ = left
+		if mixedConcat {
+			typ = stringType
+		}
 		switch x.text {
 		case "and", "or":
 			if left != boolType {

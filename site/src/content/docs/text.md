@@ -14,7 +14,7 @@ Zhex validates strings as UTF-8. Text length, reversal, indexing, and slicing us
 | `int.to-string(Int) -> String` | Convert an integer to signed decimal text. |
 | `text.to-int(String) -> Result<Int, ParseError>` | On success, parse trimmed signed 64-bit decimal text; use `try` to propagate failure or `catch` to recover. |
 
-There is no implicit conversion between `Int` and `String`.
+There is no implicit conversion between `Int` and `String`. One exception exists — the string-context Int exception: `+` concatenates when exactly one operand is `Int` and the other is `String` (the Int renders as `int.to-string` does, chains associate left to right, and two `Int` operands still add numerically), and `print` accepts an `Int` directly. `Bool` and every other type stay strict in these positions, and no other position converts.
 
 ## Inspect and transform text
 

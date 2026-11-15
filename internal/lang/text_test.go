@@ -129,6 +129,34 @@ func TestTextSplitJoinPrefixTyping(t *testing.T) {
 	}
 }
 
+// TestStringContextIntException pins the string-context Int exception: print
+// already accepts Int, and "+" concatenates when exactly one operand is Int
+// and the other is String. Int + Int stays numeric, and no other position
+// converts.
+func TestStringContextIntException(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"print accepts Int directly", "print 5\nprint(-7)\n", "5\n-7\n"},
+		{"print keeps Bool text", "print true\n", "true\n"},
+		{"text plus int", "print \"a\" + 1\n", "a1\n"},
+		{"int plus text", "print 1 + \"a\"\n", "1a\n"},
+		{"int plus int stays numeric", "print 1 + 2\n", "3\n"},
+		{"mixed chains associate left to right", "print 1 + 2 + \"a\"\nprint 1 + \"a\" + 2\nprint \"a\" + 1 + \"b\"\n", "3a\n1a2\na1b\n"},
+		{"negative int renders like int.to-string", "print \"value: \" + (2 - 5)\n", "value: -3\n"},
+		{"bindings convert on either side", "let n = 4\nprint \"a\" + n\nprint n + \"a\"\n", "a4\n4a\n"},
+		{"word body concatenates an annotated Int parameter", "word label(prefix: String, n: Int) -> String\n    prefix + n\nprint label(\"n=\", 5)\n", "n=5\n"},
+		{"inferred return of a mixed concat is String", "word tag(n: Int)\n    \"n=\" + n\nprint tag(5)\nprint tag(5) + \"!\"\n", "n=5\nn=5!\n"},
+		{"flow seed may mix", "flow \"a\" + 1\n    print\n", "a1\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := runText(t, tc.source)
+			if got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func runText(t *testing.T, source string) string {
 	t.Helper()
 	var out strings.Builder

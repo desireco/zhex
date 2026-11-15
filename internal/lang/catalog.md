@@ -122,7 +122,7 @@ Ordering comparison (`< <= > >=`) needs `Int` operands.
 When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## addition-type
-`+` adds two `Int`s or concatenates two `String`s — never one of each. If you meant concatenation, convert with `int.to-string` first.
+`+` adds two `Int`s, concatenates two `String`s, or concatenates a `String` and an `Int` — the string-context Int exception. Other equal operand types, such as two `Bool`s, cannot use `+`; convert explicitly.
 When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## arithmetic-type
