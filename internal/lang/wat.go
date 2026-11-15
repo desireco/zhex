@@ -1240,6 +1240,58 @@ func (e *watEmitter) builtinCall(x *expression) {
 		_, inner, _ := collectionInner(x.inputType)
 		e.expr(x.args[0])
 		e.line("call " + watArrayLength(watSpecOf(inner)))
+	case "text.reverse", "text.upper", "text.lower", "text.trim", "text.line-count", "text.word-count":
+		e.expr(x.args[0])
+		e.line("call " + map[string]string{
+			"text.reverse":    watTextReverse,
+			"text.upper":      watTextUpper,
+			"text.lower":      watTextLower,
+			"text.trim":       watTextTrim,
+			"text.line-count": watTextLineCount,
+			"text.word-count": watTextWordCount,
+		}[x.text])
+	case "text.length":
+		// Inlined: the string is a code-point array (DESIGN-M2 §1).
+		e.expr(x.args[0])
+		e.line("array.len")
+		e.line("i64.extend_i32_u")
+	case "text.slice":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.expr(x.args[2])
+		e.line("call " + watTextSlice)
+	case "text.index-of":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watTextIndexOf)
+	case "text.contains":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watTextContains)
+	case "text.split":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watTextSplit)
+	case "text.join":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watTextJoin)
+	case "text.replace":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.expr(x.args[2])
+		e.line("call " + watTextReplace)
+	case "text.starts-with":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watTextStartsWith)
+	case "text.ends-with":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watTextEndsWith)
+	case "text.to-int":
+		e.expr(x.args[0])
+		e.line("call " + watTextToInt)
 	default:
 		watFence(x.pos, x.text)
 	}
@@ -1489,9 +1541,30 @@ func (e *watEmitter) emitResultUnwrap(res string, inner valueType) {
 		e.line("local.set $r")
 		e.line("br $zhex_ret")
 	} else {
+		// Top level: a real err value stages its message for the runner
+		// (fail 12); anything else keeps M1's generic unhandled failure
+		// (the defensive err() case, DESIGN-M2 §2d).
+		e.line("local.get " + res)
+		e.line("struct.get " + watTypeResult + " $payload")
+		e.line("ref.test (ref " + watTypeErr + ")")
+		e.line("if")
+		e.depth++
+		e.line("i32.const %d", watFailTextToInt)
+		e.line("local.get " + res)
+		e.line("struct.get " + watTypeResult + " $payload")
+		e.line("ref.cast (ref " + watTypeErr + ")")
+		e.line("struct.get " + watTypeErr + " " + watErrFieldMessage)
+		e.line("ref.as_non_null")
+		e.line("call " + watFailMsg)
+		e.line("unreachable")
+		e.depth--
+		e.line("else")
+		e.depth++
 		e.line("i32.const %d", watFailUnhandled)
 		e.line("call " + watFail)
 		e.line("unreachable") // the trap never returns; satisfy the result type
+		e.depth--
+		e.line("end")
 	}
 	e.depth--
 	e.line("end")

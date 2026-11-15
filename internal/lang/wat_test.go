@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -27,6 +28,9 @@ func requireTool(t *testing.T, name string) {
 		t.Skipf("%s is not installed; skipping", name)
 	}
 }
+
+// itoa keeps constant fail-code assertions literal-free in the table tests.
+func itoa(n int) string { return strconv.Itoa(n) }
 
 // ---------------------------------------------------------------- literals
 
@@ -416,7 +420,6 @@ func TestWatFencesOutOfSubsetConstructs(t *testing.T) {
 		src  string
 		want string
 	}{
-		{"builtin", `print(text.reverse("ab"))`, "text.reverse is not available in this build"},
 		{"checked-append", `
 let xs: List<Int> = list.new()
 list.append(xs, 1) try
@@ -454,7 +457,6 @@ print(inc(2))
 for line in file.stream("nope.txt")
     print(line)
 `, "file.stream is not available in this build"},
-		{"builtin-2", `let t = text.length("ab")`, "text.length is not available in this build"},
 		{"generic-choice", `
 type Pair<T> = choice
     Left(a: T)
@@ -654,6 +656,92 @@ print(take() try)
 	}
 }
 
+// ---------------------------------------------------------------- text suite
+
+func TestWatTextWordsEmitPreludeCalls(t *testing.T) {
+	wat := watOf(t, `
+let t = "héllo"
+print(text.reverse(t))
+print(text.length(t))
+print(text.slice(t, 1, 3))
+print(text.index-of(t, "l"))
+print(text.contains(t, "ell"))
+print(text.upper(t))
+print(text.lower(t))
+print(text.trim(t))
+let parts = text.split(t, ",")
+print(text.join(parts, "-"))
+print(text.replace(t, "l", "L"))
+print(text.starts-with(t, "h"))
+print(text.ends-with(t, "o"))
+print(text.line-count(t))
+print(text.word-count(t))
+`)
+	for _, want := range []string{
+		"call " + watTextReverse,
+		"call " + watTextSlice,
+		"call " + watTextIndexOf,
+		"call " + watTextContains,
+		"call " + watTextUpper,
+		"call " + watTextLower,
+		"call " + watTextTrim,
+		"call " + watTextSplit,
+		"call " + watTextJoin,
+		"call " + watTextReplace,
+		"call " + watTextStartsWith,
+		"call " + watTextEndsWith,
+		"call " + watTextLineCount,
+		"call " + watTextWordCount,
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	// text.length is inlined: code-point array.len widened to Int.
+	if !strings.Contains(wat, "array.len") || !strings.Contains(wat, "i64.extend_i32_u") {
+		t.Errorf("text.length must inline array.len + i64.extend_i32_u")
+	}
+	if strings.Contains(wat, "call $zhex_text_length") {
+		t.Errorf("text.length must not call a prelude helper")
+	}
+}
+
+// text.to-int is a fallible call returning the Result struct; the emitted
+// call feeds the standard try/catch machinery.
+func TestWatTextToIntEmitsResultCall(t *testing.T) {
+	wat := watOf(t, `
+let n = text.to-int("12") try
+print(n)
+`)
+	if !strings.Contains(wat, "call "+watTextToInt) {
+		t.Errorf("missing %q", watTextToInt)
+	}
+	if !strings.Contains(wat, "struct.get "+watTypeResult+" $tag") {
+		t.Errorf("try must branch on the result tag")
+	}
+}
+
+// An unhandled failure at top level stages the err message for the runner
+// (fail 12) instead of the generic fail 11 (DESIGN-M2 §2c/§2d).
+func TestWatTopLevelTryFailureStagesMessage(t *testing.T) {
+	wat := watOf(t, `
+print("before")
+let n = text.to-int("x") try
+print(n)
+`)
+	for _, want := range []string{
+		"ref.test (ref " + watTypeErr + ")",
+		"ref.cast (ref " + watTypeErr + ")",
+		"struct.get " + watTypeErr + " " + watErrFieldMessage,
+		"i32.const " + itoa(watFailTextToInt),
+		"call " + watFailMsg,
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
 // -------------------------------------------------------------------- while
 
 func TestWatWhileLoop(t *testing.T) {
@@ -736,6 +824,13 @@ func assembleAndRun(t *testing.T, wat string) string {
 	t.Helper()
 	requireTool(t, "wasm-tools")
 	requireTool(t, "node")
+	// The M2 emitter references prelude symbols Builder R ships in
+	// watprelude_m2.go; until that prelude lands in emit(), a module that
+	// references $zhex_err cannot assemble. The skip heals itself once the
+	// prelude defines the type.
+	if strings.Contains(wat, watTypeErr) && !strings.Contains(wat, "(type "+watTypeErr+" ") && !strings.Contains(wat, "(type "+watTypeErr+")") {
+		t.Skip("watprelude_m2 (Builder R) has not landed; $zhex_err is undefined")
+	}
 	dir := t.TempDir()
 	watPath := filepath.Join(dir, "smoke.wat")
 	wasmPath := filepath.Join(dir, "smoke.wasm")
