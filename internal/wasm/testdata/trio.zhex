@@ -1,0 +1,39 @@
+# The M4 trio (DESIGN-M4 section 3/8.2): Unit-result closures from
+# `print _`, re-partial chains over word and builtin targets in both hole
+# orders, closure-valued flow steps with and without extra arguments, and
+# a fallible closure invoked with try.
+
+word scale(factor: Int, value: Int) -> Int
+    factor * value
+
+word parse(raw: String) -> Int
+    text.to-int raw try
+
+let base: (Int, Int) -> Int = scale(_, _)
+let hole-then: (Int) -> Int = base(_, 3)
+print int.to-string(hole-then(5))
+let captured-then: (Int) -> Int = base(7, _)
+print int.to-string(captured-then(6))
+
+let replace-a = text.replace _, "a", "@"
+print replace-a("banana")
+let re-replace: (String) -> String = replace-a(_)
+print re-replace("aha")
+
+let show: (Int) -> Unit = print _
+show 99
+
+let parse-later = parse _
+let parsed = parse-later "42" try
+print int.to-string(parsed)
+
+flow 5
+    show
+
+flow 4
+    hole-then
+    print
+
+flow 6
+    base(7)
+    print

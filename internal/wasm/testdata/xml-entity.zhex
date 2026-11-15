@@ -1,0 +1,8 @@
+# An undefined entity fails as invalid XML (DESIGN-M4 section 2a/8.1) —
+# runtime error: invalid XML: XML syntax error on line 1: invalid character entity &bogus; at "".
+
+type Doc = record
+    a: Int
+
+let doc = xml.decode("<doc>&bogus;</doc>", Doc(a: 0)) try
+print int.to-string(doc.a)

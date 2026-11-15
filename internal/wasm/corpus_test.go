@@ -215,3 +215,58 @@ func TestCorpusGate(t *testing.T) {
 		})
 	}
 }
+
+// TestDifferentialM4 runs the DESIGN-M4 §8 fixtures: xml.decode coverage
+// and its pinned failure lines, the trio witness, and both NBSP quoting
+// witnesses — browser host and wasmtime (skip-safe) against the
+// interpreter oracle. Failure rows pin the exact stderr after the M1
+// convention (runtime error: plus the interpreter's first line minus its
+// position); success rows exit 0 with empty stderr.
+func TestDifferentialM4(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, tc := range []struct{ name, stderr string }{
+		{name: "xml"},
+		{name: "trio"},
+		{name: "xml-fail", stderr: "runtime error: unknown element \"ghost\" at \"/ghost\"\n"},
+		{name: "xml-syntax", stderr: "runtime error: invalid XML: XML syntax error on line 1: element <body> closed by </doc> at \"\"\n"},
+		{name: "xml-entity", stderr: "runtime error: invalid XML: XML syntax error on line 1: invalid character entity &bogus; at \"\"\n"},
+		{name: "xml-dtd", stderr: "runtime error: DTD and entity declarations are rejected at \"\"\n"},
+		{name: "nbsp", stderr: "runtime error: \"\\u00a0x\" is not a signed 64-bit decimal integer\n"},
+		{name: "nbsp-file", stderr: "runtime error: cannot open \"\\u00a0name.txt\": open  name.txt: no such file or directory\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join("testdata", tc.name+".zhex")
+			source, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var interpreted strings.Builder
+			runErr := lang.Run(path, string(source), strings.NewReader(""), &interpreted)
+			wantOut, wantCode := interpreted.String(), exitCode(runErr)
+
+			dir := t.TempDir()
+			stdinPath := filepath.Join(dir, "stdin.txt")
+			if err := os.WriteFile(stdinPath, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			browser := filepath.Join(dir, "browser.wasm")
+			if err := Compile(path, string(source), browser, nil, lang.WatSkinBrowser); err != nil {
+				t.Fatalf("compile browser skin: %v", err)
+			}
+			out, stderr, code := runNode(t, browser, "--stdin", stdinPath)
+			if out != wantOut || code != wantCode || stderr != tc.stderr {
+				t.Fatalf("browser skin: code=%d (want %d) stderr=%q (want %q)\ninterpreted: %q\ncompiled:    %q", code, wantCode, stderr, tc.stderr, wantOut, out)
+			}
+
+			wasi := filepath.Join(dir, "wasi.wasm")
+			if err := Compile(path, string(source), wasi, nil, lang.WatSkinWASI); err != nil {
+				t.Fatalf("compile wasi skin: %v", err)
+			}
+			out, stderr, code = runWasmtime(t, wasi, t.TempDir(), stdinPath, nil)
+			if out != wantOut || code != wantCode || stderr != tc.stderr {
+				t.Fatalf("wasi skin: code=%d (want %d) stderr=%q (want %q)\ninterpreted: %q\ncompiled:    %q", code, wantCode, stderr, tc.stderr, wantOut, out)
+			}
+		})
+	}
+}

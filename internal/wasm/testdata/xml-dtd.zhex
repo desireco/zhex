@@ -1,0 +1,8 @@
+# DTDs are rejected outright (DESIGN-M4 section 2a/8.1) —
+# runtime error: DTD and entity declarations are rejected at "".
+
+type Doc = record
+    a: Int
+
+let doc = xml.decode("<!DOCTYPE doc><doc>1</doc>", Doc(a: 0)) try
+print int.to-string(doc.a)

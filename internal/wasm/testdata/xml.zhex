@@ -1,0 +1,64 @@
+# xml.decode coverage: attributes and entities, a list of records,
+# Map<String, Int> children by tag, Option present and default-cloned,
+# scalar and empty roots, defaults deep-clone independence, and decode as
+# an inferred flow step (DESIGN-M4 section 8.1).
+
+type Endpoint = record
+    host: String
+    port: Int
+
+type Service = record
+    name: String
+    tag: String
+    ports: Map<String, Int>
+    endpoints: List<Endpoint>
+    owner: Option<String>
+    fallback: Option<Int>
+
+let raw = "<service tag=\"prod\"><name>ing&amp;est</name><ports><http>80</http><https>443</https></ports><endpoints host=\"&#65;pi\"><port>8443</port></endpoints><owner>ops</owner></service>"
+
+let service = xml.decode(raw, Service("none", "", {}, [], Option.None, Option.Some(7))) try
+print service.name
+print service.tag
+match service.owner
+    case Option.Some(owner)
+        print "owner: " + owner
+    case Option.None
+        print "owner unset"
+match service.fallback
+    case Option.Some(n)
+        print int.to-string(n)
+    case Option.None
+        print "fallback unset"
+for key, port in service.ports
+    print key + "=" + int.to-string(port)
+let first = service.endpoints[0] try
+print(first.host + ":" + int.to-string(first.port))
+
+let number = xml.decode("<n>7</n>", 0) try
+print int.to-string(number)
+let empty = xml.decode("<e></e>", "full") try
+print "[" + empty + "]"
+
+word roots-total(r: Roots) -> Int
+    r.a + r.b
+
+type Roots = record
+    a: Int
+    b: Int
+
+let report = flow "<roots><a>1</a><b>2</b></roots>"
+    xml.decode(Roots(a: 0, b: 0)) try
+    roots-total
+print int.to-string(report)
+
+# the aliasing witness: appending to one decode's list must not reach the
+# shared default, so a second decode still sees the untouched template
+type Clone = record
+    items: List<Int>
+
+let template = Clone([1])
+let first-clone = xml.decode("<clone></clone>", template) try
+list.append(first-clone.items, 2)
+let second-clone = xml.decode("<clone></clone>", template) try
+print int.to-string(list.length(second-clone.items))

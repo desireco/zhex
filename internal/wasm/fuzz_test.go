@@ -323,7 +323,9 @@ func (g *fuzzGen) exprBool(d int) string {
 		case 6:
 			return g.exprBool(d-1) + " or " + g.exprBool(d-1)
 		case 7:
-			return "not " + g.exprBool(d-1)
+			// the operand needs parens: `not` applies to the next unary
+			// operand, so `not a != b` would apply not to a String
+			return "not (" + g.exprBool(d-1) + ")"
 		case 8:
 			return "text.contains(" + g.exprStr(d-1) + ", " + g.strLit() + ")"
 		case 9:
@@ -1069,6 +1071,9 @@ func fuzzGenerate(i int) string {
 		g.tListLiteral, g.tAppend, g.tIndexRead, g.tListOps,
 		g.tMapLiteral, g.tMapOps, g.tText, g.tToInt,
 		g.tFlowStmt, g.tFlowBind, g.tClosure, g.tCallWord,
+		g.tTrio, g.tUnitFlow,
+		// the trio shapes appear twice so the newest grammar stays
+		// well-exercised against the long-lived templates
 		g.tTrio, g.tUnitFlow,
 	}
 	target := 24 + g.rng.Intn(24)
