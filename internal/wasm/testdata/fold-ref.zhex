@@ -1,4 +1,0 @@
-# Fold with a reference-typed accumulator: String initial value over Ints.
-word join(step: String, n: Int) -> String
-    step + int.to-string(n)
-print(list.fold([1, 2, 3], "x", join(_, _)))

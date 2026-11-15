@@ -1,5 +1,0 @@
-# Unbounded recursion trips the word call depth limit.
-word spin(n: Int) -> Int
-    spin(n + 1)
-
-print(spin(0))
