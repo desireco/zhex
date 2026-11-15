@@ -39,11 +39,8 @@ func TestWatNamesM4PinnedNames(t *testing.T) {
 		t.Error("M2 prelude lost the printable table (DESIGN-M4 5)")
 	}
 	// no new fail codes: the family-5 envelope reuses M3's staged path
-	for _, code := range []int{19, 20} {
-		if strings.Contains(watPreludeM4, "(call $zhex_fail (i32.const "+itoa(code)+"))") ||
-			strings.Contains(watPreludeM4, "watFail") {
-			t.Errorf("M4 must not mint fail codes beyond 18 (found %d)", code)
-		}
+	if strings.Contains(watPreludeM4, "call $zhex_fail ") {
+		t.Error("M4 failures must be Results through $zjson_fail, never trap codes")
 	}
 }
 
