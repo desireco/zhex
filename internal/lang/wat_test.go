@@ -477,6 +477,28 @@ type Pair<T> = choice
 
 print(1)
 `, "generic choice Pair is not available in this build"},
+		{"file-read", `let t = file.read("a.txt") try`, "file.read is not available in this build"},
+		{"file-path-words", `print(file.join("a", "b"))`, "file.join is not available in this build"},
+		{"read-line", `let line = read-line("> ") try`, "read-line is not available in this build"},
+		{"buffer", `let b = buffer.new()`, "buffer.new is not available in this build"},
+		{"json-parse", `let j = json.parse("{}") try`, "json.parse is not available in this build"},
+		{"env-get", `match env.get("HOME")
+    case Option.Some(v)
+        print(v)
+    case Option.None
+        print("")
+`, "env.get is not available in this build"},
+		{"temporal", `print(duration.to-string(duration.new(1)))`, "duration.to-string is not available in this build"},
+		{"console-arg", `let a = console.arg(0) try`, "console.arg is not available in this build"},
+		{"error-new", `let e = error.new("x", "boom")`, "error.new is not available in this build"},
+		{"array-shape", `
+let grid = array.new([2, 2], 0)
+print(list.length(array.shape(grid)))
+`, "array.shape is not available in this build"},
+		{"checked-array-new", `
+let grid = (array.new([2, 2], 0)) try
+print(1)
+`, "checked array.new is not available in this build"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -491,7 +513,7 @@ print(1)
 			if !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("message %q does not contain %q", err.Error(), tc.want)
 			}
-			if !strings.Contains(err.Error(), "hint: this construct is outside the wasm milestone-1 subset; run it with zhex run instead") {
+			if !strings.Contains(err.Error(), "hint: this construct is not compiled by zhex compile yet; run it with zhex run instead") {
 				t.Fatalf("missing pinned hint: %v", err)
 			}
 			if d.pos.line == 0 {

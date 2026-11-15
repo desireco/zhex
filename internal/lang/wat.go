@@ -9,7 +9,7 @@ import (
 // return unchanged) and emits the full WebAssembly text: the runtime prelude,
 // program-specific types, one wasm function per word, zhex_main for the
 // top-level statements, and the exports (internal/wasm/DESIGN.md §1, §7).
-// Constructs outside the wasm milestone-1 subset fail with a positioned
+// Constructs outside the compiled subset fail with a positioned
 // not-available-in-build diagnostic.
 func CompileWat(entryPath, entrySource string, resolve func(string) (ModuleSource, bool)) (wat string, err error) {
 	p, cerr := CompileModules(entryPath, entrySource, resolve)
@@ -30,9 +30,11 @@ func CompileWat(entryPath, entrySource string, resolve func(string) (ModuleSourc
 }
 
 // watFence rejects an out-of-subset construct with the pinned diagnostic.
+// The hint is milestone-neutral so it does not churn per milestone
+// (DESIGN-M2 §6).
 func watFence(pos position, what string) {
 	panic(withHint(errorAt(pos, CodeNotAvailableInBuild, "%s is not available in this build", what),
-		"this construct is outside the wasm milestone-1 subset; run it with zhex run instead"))
+		"this construct is not compiled by zhex compile yet; run it with zhex run instead"))
 }
 
 // watCleanup resets one traversal's $active counter on an early word return,
