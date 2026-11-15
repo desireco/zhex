@@ -36,9 +36,6 @@ func TestCompileCheckerErrorRendersPositionedDiagnostic(t *testing.T) {
 	outPath := filepath.Join(dir, "out.wasm")
 	var out, diagnostics bytes.Buffer
 	code := run([]string{"compile", path, "-o", outPath}, strings.NewReader(""), &out, &diagnostics)
-	if strings.Contains(diagnostics.String(), "not implemented") {
-		t.Skipf("wat emitter skeleton in place: %s", diagnostics.String())
-	}
 	if code != 1 || !strings.Contains(diagnostics.String(), path+":1:7: unknown name \"a-b\"") ||
 		!strings.Contains(diagnostics.String(), "hint:") {
 		t.Fatalf("code %d stderr %q", code, diagnostics.String())
@@ -49,9 +46,7 @@ func TestCompileCheckerErrorRendersPositionedDiagnostic(t *testing.T) {
 }
 
 // A clean program without wasm-tools on PATH prints exactly the pinned
-// missing-tool diagnostic and writes nothing (DESIGN.md §8). While the
-// emitter skeleton answers "not implemented", emission fails before the
-// tool is consulted, so the test skips.
+// missing-tool diagnostic and writes nothing (DESIGN.md §8).
 func TestCompileMissingToolDiagnostic(t *testing.T) {
 	t.Setenv("PATH", "/nonexistent")
 	path := filepath.Join(t.TempDir(), "program.zhex")
@@ -60,9 +55,6 @@ func TestCompileMissingToolDiagnostic(t *testing.T) {
 	}
 	var out, diagnostics bytes.Buffer
 	code := run([]string{"compile", path}, strings.NewReader(""), &out, &diagnostics)
-	if strings.Contains(diagnostics.String(), "not implemented") {
-		t.Skipf("wat emitter skeleton in place: %s", diagnostics.String())
-	}
 	want := "wasm-tools is not installed; zhex compile needs it to assemble the WebAssembly module (code: missing-tool)\n" +
 		"hint: install it — cargo install wasm-tools (rustup), pacman -S wasm-tools (Arch), or brew install wasm-tools (macOS)\n"
 	if code != 1 || diagnostics.String() != want {
@@ -78,12 +70,6 @@ func TestCompileWritesArtifact(t *testing.T) {
 		t.Skip("wasm-tools is not installed; skipping")
 	}
 	dir := t.TempDir()
-	skipSkeleton := func(code int, stderr string) bool {
-		if code == 1 && strings.Contains(stderr, "not implemented") {
-			t.Skipf("wat emitter skeleton in place: %s", stderr)
-		}
-		return false
-	}
 	path := filepath.Join(dir, "program.zhex")
 	if err := os.WriteFile(path, []byte("print(\"hi\")\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -91,7 +77,6 @@ func TestCompileWritesArtifact(t *testing.T) {
 	var out, diagnostics bytes.Buffer
 	outPath := filepath.Join(dir, "out.wasm")
 	code := run([]string{"compile", path, "-o", outPath}, strings.NewReader(""), &out, &diagnostics)
-	skipSkeleton(code, diagnostics.String())
 	if code != 0 || diagnostics.Len() != 0 {
 		t.Fatalf("code %d stderr %q", code, diagnostics.String())
 	}
@@ -108,7 +93,6 @@ func TestCompileWritesArtifact(t *testing.T) {
 	out.Reset()
 	diagnostics.Reset()
 	code = run([]string{"compile", derived + ".zhex"}, strings.NewReader(""), &out, &diagnostics)
-	skipSkeleton(code, diagnostics.String())
 	if code != 0 || diagnostics.Len() != 0 {
 		t.Fatalf("default output: code %d stderr %q", code, diagnostics.String())
 	}
@@ -124,7 +108,6 @@ func TestCompileWritesArtifact(t *testing.T) {
 	out.Reset()
 	diagnostics.Reset()
 	code = run([]string{"compile", plain}, strings.NewReader(""), &out, &diagnostics)
-	skipSkeleton(code, diagnostics.String())
 	if code != 0 || diagnostics.Len() != 0 {
 		t.Fatalf("append output: code %d stderr %q", code, diagnostics.String())
 	}

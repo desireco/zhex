@@ -154,9 +154,7 @@ func exitCode(err error) int {
 	return 1
 }
 
-// compileFixture compiles one testdata fixture to a temp artifact, skipping
-// while the emitter skeleton answers "not implemented" — the harness turns
-// real the moment the emitter does.
+// compileFixture compiles one testdata fixture to a temp artifact.
 func compileFixture(t *testing.T, name string) string {
 	t.Helper()
 	path := filepath.Join("testdata", name+".zhex")
@@ -166,9 +164,6 @@ func compileFixture(t *testing.T, name string) string {
 	}
 	outPath := filepath.Join(t.TempDir(), name+".wasm")
 	if err := Compile(path, string(source), outPath, nil); err != nil {
-		if strings.Contains(err.Error(), "not implemented") {
-			t.Skipf("wat emitter skeleton in place: %v", err)
-		}
 		t.Fatalf("compile %s: %v", name, err)
 	}
 	return outPath
