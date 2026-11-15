@@ -60,7 +60,7 @@ enum ts_symbol_identifiers {
   anon_sym_for = 38,
   anon_sym_in = 39,
   anon_sym_range = 40,
-  anon_sym_file_DOTlines = 41,
+  anon_sym_file_DOTstream = 41,
   anon_sym_case = 42,
   anon_sym_match = 43,
   anon_sym_flow = 44,
@@ -189,7 +189,7 @@ static const char * const ts_symbol_names[] = {
   [anon_sym_for] = "for",
   [anon_sym_in] = "in",
   [anon_sym_range] = "range",
-  [anon_sym_file_DOTlines] = "file.lines",
+  [anon_sym_file_DOTstream] = "file.stream",
   [anon_sym_case] = "case",
   [anon_sym_match] = "match",
   [anon_sym_flow] = "flow",
@@ -318,7 +318,7 @@ static const TSSymbol ts_symbol_map[] = {
   [anon_sym_for] = anon_sym_for,
   [anon_sym_in] = anon_sym_in,
   [anon_sym_range] = anon_sym_range,
-  [anon_sym_file_DOTlines] = anon_sym_file_DOTlines,
+  [anon_sym_file_DOTstream] = anon_sym_file_DOTstream,
   [anon_sym_case] = anon_sym_case,
   [anon_sym_match] = anon_sym_match,
   [anon_sym_flow] = anon_sym_flow,
@@ -570,7 +570,7 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = true,
     .named = false,
   },
-  [anon_sym_file_DOTlines] = {
+  [anon_sym_file_DOTstream] = {
     .visible = true,
     .named = false,
   },
@@ -2270,7 +2270,7 @@ static bool ts_lex_keywords(TSLexer *lexer, TSStateId state) {
       ACCEPT_TOKEN(anon_sym_false);
       END_STATE();
     case 140:
-      if (lookahead == 'l') ADVANCE(153);
+      if (lookahead == 's') ADVANCE(153);
       END_STATE();
     case 141:
       ACCEPT_TOKEN(anon_sym_match);
@@ -2310,7 +2310,7 @@ static bool ts_lex_keywords(TSLexer *lexer, TSStateId state) {
       ACCEPT_TOKEN(anon_sym_choice);
       END_STATE();
     case 153:
-      if (lookahead == 'i') ADVANCE(160);
+      if (lookahead == 't') ADVANCE(160);
       END_STATE();
     case 154:
       ACCEPT_TOKEN(anon_sym_record);
@@ -2331,7 +2331,7 @@ static bool ts_lex_keywords(TSLexer *lexer, TSStateId state) {
       if (lookahead == 'r') ADVANCE(164);
       END_STATE();
     case 160:
-      if (lookahead == 'n') ADVANCE(165);
+      if (lookahead == 'r') ADVANCE(165);
       END_STATE();
     case 161:
       if (lookahead == 'r') ADVANCE(166);
@@ -2361,7 +2361,7 @@ static bool ts_lex_keywords(TSLexer *lexer, TSStateId state) {
       if (lookahead == 'r') ADVANCE(173);
       END_STATE();
     case 170:
-      if (lookahead == 's') ADVANCE(174);
+      if (lookahead == 'a') ADVANCE(174);
       END_STATE();
     case 171:
       if (lookahead == 'r') ADVANCE(175);
@@ -2373,10 +2373,13 @@ static bool ts_lex_keywords(TSLexer *lexer, TSStateId state) {
       ACCEPT_TOKEN(anon_sym_ParseError);
       END_STATE();
     case 174:
-      ACCEPT_TOKEN(anon_sym_file_DOTlines);
+      if (lookahead == 'm') ADVANCE(176);
       END_STATE();
     case 175:
       ACCEPT_TOKEN(anon_sym_BufferError);
+      END_STATE();
+    case 176:
+      ACCEPT_TOKEN(anon_sym_file_DOTstream);
       END_STATE();
     default:
       return false;
@@ -2898,7 +2901,7 @@ static const uint16_t ts_parse_table[LARGE_STATE_COUNT][SYMBOL_COUNT] = {
     [anon_sym_for] = ACTIONS(1),
     [anon_sym_in] = ACTIONS(1),
     [anon_sym_range] = ACTIONS(1),
-    [anon_sym_file_DOTlines] = ACTIONS(1),
+    [anon_sym_file_DOTstream] = ACTIONS(1),
     [anon_sym_case] = ACTIONS(1),
     [anon_sym_match] = ACTIONS(1),
     [anon_sym_flow] = ACTIONS(1),
@@ -6779,7 +6782,7 @@ static const uint16_t ts_small_parse_table[] = {
     ACTIONS(370), 1,
       anon_sym_range,
     ACTIONS(372), 1,
-      anon_sym_file_DOTlines,
+      anon_sym_file_DOTstream,
     ACTIONS(374), 1,
       sym_integer,
     ACTIONS(47), 2,
@@ -6822,7 +6825,7 @@ static const uint16_t ts_small_parse_table[] = {
     ACTIONS(376), 1,
       anon_sym_range,
     ACTIONS(378), 1,
-      anon_sym_file_DOTlines,
+      anon_sym_file_DOTstream,
     ACTIONS(380), 1,
       sym_integer,
     ACTIONS(47), 2,

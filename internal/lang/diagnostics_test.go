@@ -68,10 +68,9 @@ func TestEveryResultTypeUnwrapsRendersAndHints(t *testing.T) {
 		{intResultType, "", intType},
 		{stringResultType, "let x = read-line(\"\") try\n", stringType},
 		{intParseResultType, "let x = text.to-int(\"1\") try\n", intType},
-		{bufferFileResultType, "let x = file.read-lines(\"/x\") try\n", bufferType},
 		{stringBufferResultType, "let x = buffer.line(buffer.new(), 0) try\n", stringType},
 		{unitBufferResultType, "let x = buffer.set-line(buffer.new(), 0, \"a\") try\n", unitType},
-		{stringFileResultType, "let x = file.read-all(\"/x\") try\n", stringType},
+		{stringFileResultType, "let x = file.read(\"/x\") try\n", stringType},
 		{fileResultType, "let x = file.open(\"/x\") try\n", fileType},
 	} {
 		t.Run(string(tc.typ), func(t *testing.T) {
@@ -222,7 +221,7 @@ func TestBareCallsAndRequiredArguments(t *testing.T) {
 func TestBareNamesNeverSuggestThemselves(t *testing.T) {
 	for _, tc := range []struct{ source, name string }{
 		{"type Config = record\n    n: Int\nConfig\n", "Config"},
-		{"file.lines\n", "file.lines"},
+		{"file.stream\n", "file.stream"},
 	} {
 		got := runError(t, tc.source)
 		if strings.Contains(got, `did you mean "`+tc.name+`"`) {

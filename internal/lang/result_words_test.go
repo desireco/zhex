@@ -133,7 +133,7 @@ func TestCatchInspectsErrorOriginAndCode(t *testing.T) {
 }
 
 func TestFileErrorExposesNormalizedDetails(t *testing.T) {
-	source := "let n = file.read-all(\"/nonexistent-zhex-file\") catch problem\n    print(error.detail(problem, \"reason\"))\n    print(error.detail(problem, \"path\"))\n    \"\"\n"
+	source := "let n = file.read(\"/nonexistent-zhex-file\") catch problem\n    print(error.detail(problem, \"reason\"))\n    print(error.detail(problem, \"path\"))\n    \"\"\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
@@ -166,12 +166,12 @@ func TestErrorCanBeInspectedByOrdinaryWord(t *testing.T) {
 }
 
 func TestCatchCanConvertErrorAndReturnEarly(t *testing.T) {
-	source := "word load(path: String) -> Result<String, Error>\n    let text = file.read-all(path) catch problem\n        return err(error.wrap(\"settings-read\", \"could not read settings\", problem))\n    ok(text)\nlet result = load(\"/nonexistent-zhex-file\") catch problem\n    print(error.code(problem))\n    print(error.operation(problem))\n    \"default\"\nprint(result)\n"
+	source := "word load(path: String) -> Result<String, Error>\n    let text = file.read(path) catch problem\n        return err(error.wrap(\"settings-read\", \"could not read settings\", problem))\n    ok(text)\nlet result = load(\"/nonexistent-zhex-file\") catch problem\n    print(error.code(problem))\n    print(error.operation(problem))\n    \"default\"\nprint(result)\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
-	if out.String() != "settings-read\nfile.read-all\ndefault\n" {
+	if out.String() != "settings-read\nfile.read\ndefault\n" {
 		t.Fatalf("output = %q", out.String())
 	}
 }
@@ -188,7 +188,7 @@ func TestWordCanCreateDomainError(t *testing.T) {
 }
 
 func TestErrorCauseIsPreservedAndAbsentCauseFails(t *testing.T) {
-	source := "word load() -> Result<String, Error>\n    let text = file.read-all(\"/nonexistent-zhex-file\") catch problem\n        return err(error.wrap(\"settings-read\", \"failed\", problem))\n    ok(text)\nlet text = load() catch problem\n    print(error.has-cause(problem))\n    let original = error.cause(problem) try\n    print(error.code(original))\n    print(error.has-cause(original))\n    let fallback = error.cause(original) catch missing\n        print(error.code(missing))\n        problem\n    \"default\"\n"
+	source := "word load() -> Result<String, Error>\n    let text = file.read(\"/nonexistent-zhex-file\") catch problem\n        return err(error.wrap(\"settings-read\", \"failed\", problem))\n    ok(text)\nlet text = load() catch problem\n    print(error.has-cause(problem))\n    let original = error.cause(problem) try\n    print(error.code(original))\n    print(error.has-cause(original))\n    let fallback = error.cause(original) catch missing\n        print(error.code(missing))\n        problem\n    \"default\"\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
@@ -200,7 +200,7 @@ func TestErrorCauseIsPreservedAndAbsentCauseFails(t *testing.T) {
 
 func TestErrRequiresMatchingFamilyAndFallibleWord(t *testing.T) {
 	cases := []string{
-		"word bad() -> Result<Int, ParseError>\n    let text = file.read-all(\"missing\") catch problem\n        return err(problem)\n    ok(1)\n",
+		"word bad() -> Result<Int, ParseError>\n    let text = file.read(\"missing\") catch problem\n        return err(problem)\n    ok(1)\n",
 		"return err(error.new(\"bad\", \"bad\"))\n",
 	}
 	for _, source := range cases {
@@ -314,7 +314,7 @@ func TestResultWordCanConstructResultInBothBranches(t *testing.T) {
 func TestLoopCannotDiscardConstructedResult(t *testing.T) {
 	cases := []string{
 		"word choose() -> Result<Int, Error>\n    for n in range(0, 1)\n        err(error.new(\"lost\", \"lost\"))\n    ok(7)\n",
-		"word choose() -> Result<Int, Error>\n    for line in file.lines(\"x\")\n        ok(1)\n    ok(7)\n",
+		"word choose() -> Result<Int, Error>\n    for line in file.stream(\"x\")\n        ok(1)\n    ok(7)\n",
 	}
 	for _, source := range cases {
 		if _, err := Compile("test.zhex", source); err == nil {
@@ -333,7 +333,7 @@ func TestLoopMayReturnResultFromWord(t *testing.T) {
 
 func TestFileFailureDetailsDescribeReadReason(t *testing.T) {
 	path := writeFile(t, string([]byte{0xff}))
-	source := "let text = file.read-all(\"" + path + "\") catch problem\n    print(error.detail(problem, \"reason\"))\n    print(error.detail(problem, \"path\"))\n    \"\"\n"
+	source := "let text = file.read(\"" + path + "\") catch problem\n    print(error.detail(problem, \"reason\"))\n    print(error.detail(problem, \"path\"))\n    \"\"\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)

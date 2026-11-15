@@ -10,8 +10,8 @@ The benchmarks live in [bench_test.go](../internal/lang/bench_test.go), next to 
 go test -bench=. -benchmem -benchtime=2s ./internal/lang/
 ```
 
-- `BenchmarkTextStatsCounts` — counts mode, one pass over the whole file (`file.read-all` plus the text counting words).
-- `BenchmarkTextStatsUpper` — streaming mode, one `file.lines` loop printing each line uppercased.
+- `BenchmarkTextStatsCounts` — counts mode, one pass over the whole file (`file.read` plus the text counting words).
+- `BenchmarkTextStatsUpper` — streaming mode, one `file.stream` loop printing each line uppercased.
 - `BenchmarkCompileTextStats` — checking alone: parse and check the same source without running it.
 - `BenchmarkFibonacci` — an interpreter baseline: recursive `fibonacci` at index 20.
 

@@ -132,7 +132,7 @@ func TestHostReporterRunsAfterPanickingLanguageReporter(t *testing.T) {
 }
 
 func TestHostReporterCanOptIntoSensitiveDetails(t *testing.T) {
-	p, err := Compile("dir/test.zhex", "let n = file.read-all(\"/nonexistent-zhex-file\") catch problem\n    error.report(problem)\n    \"\"\n")
+	p, err := Compile("dir/test.zhex", "let n = file.read(\"/nonexistent-zhex-file\") catch problem\n    error.report(problem)\n    \"\"\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestHostReporterCanOptIntoSensitiveDetails(t *testing.T) {
 }
 
 func TestHostReporterIncludesRuntimeOperation(t *testing.T) {
-	for _, tc := range []struct{ source, operation string }{{"1 / 0\n", "/"}, {"console.exit(256)\n", "console.exit"}, {"for line in file.lines(\"/nonexistent-zhex-file\")\n    print(line)\n", "file.lines"}} {
+	for _, tc := range []struct{ source, operation string }{{"1 / 0\n", "/"}, {"console.exit(256)\n", "console.exit"}, {"for line in file.stream(\"/nonexistent-zhex-file\")\n    print(line)\n", "file.stream"}} {
 		p, err := Compile("test.zhex", tc.source)
 		if err != nil {
 			t.Fatal(err)

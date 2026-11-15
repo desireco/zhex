@@ -69,7 +69,7 @@ var hostWords = []string{
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
-	"file.read-all", "file.read-lines", "file.open", "file.read-line", "file.close", "file.write", "file.lines",
+	"file.read", "file.open", "file.read-line", "file.close", "file.write", "file.stream",
 	"console.arg", "console.args-count", "console.exit", "console.fail",
 }
 
@@ -133,7 +133,7 @@ func (c *checker) unknownNameHint(name string, names []string) string {
 		}
 		return fmt.Sprintf("call %s(%s)", name, args)
 	}
-	if HostWord(name) && name != "print" && name != "range" && name != "file.lines" {
+	if HostWord(name) && name != "print" && name != "range" && name != "file.stream" {
 		args := "..."
 		if name == "buffer.new" || name == "list.new" || name == "console.args-count" || name == "instant.now" {
 			args = ""
@@ -833,7 +833,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		return unitType, err
 	case "for-lines":
 		if typ != stringType {
-			return "", errorAt(s.pos, CodeRangeType, "file.lines path must have type String")
+			return "", errorAt(s.pos, CodeRangeType, "file.stream path must have type String")
 		}
 		inner := newScope(env)
 		s.binding, err = inner.define(s.pos, s.name, stringType, false)
@@ -1932,15 +1932,12 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "buffer.to-text":
 			params = []valueType{bufferType}
 			result = stringType
-		case "file.read-all":
+		case "file.read":
 			params = []valueType{stringType}
 			result = stringFileResultType
 		case "file.read-line":
 			params = []valueType{fileType}
 			result = stringFileResultType
-		case "file.read-lines":
-			params = []valueType{stringType}
-			result = bufferFileResultType
 		case "file.open":
 			params = []valueType{stringType}
 			result = fileResultType
@@ -1964,7 +1961,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "read-line":
 			params = []valueType{stringType}
 			result = stringResultType
-		case "range", "file.lines":
+		case "range", "file.stream":
 			return "", errorAt(x.pos, CodeRangeContext, "%s is only available in a for loop", x.text)
 		default:
 			return "", withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestWordHint(x.text, c.wordNames())), x)

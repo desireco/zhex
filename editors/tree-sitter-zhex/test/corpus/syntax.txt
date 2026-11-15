@@ -136,7 +136,7 @@ word helper() -> Unit
 ==================
 Loops stream file lines
 ==================
-for line in file.lines(path)
+for line in file.stream(path)
     print(text.upper(line))
 
 ---

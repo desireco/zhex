@@ -117,18 +117,6 @@ func chomp(line string) string {
 	return line
 }
 
-// chompedLines splits whole-file text into chomped lines for a Buffer.
-func chompedLines(text string) []string {
-	lines := strings.SplitAfter(text, "\n")
-	if len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	for i, line := range lines {
-		lines[i] = chomp(line)
-	}
-	return lines
-}
-
 // nextLine returns the next chomped, UTF-8-validated line; ok is false at
 // end of file, which the for-in loop treats as normal exhaustion.
 func (f *fileValue) nextLine(pos position) (line string, ok bool, err error) {

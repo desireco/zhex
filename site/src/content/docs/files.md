@@ -11,13 +11,12 @@ File operations read UTF-8 text. Choose a whole-file operation when the full con
 
 | Signature | Result and behavior |
 | --- | --- |
-| `file.read-all(String) -> Result<String, FileError>` | On success, the file contents. |
-| `file.read-lines(String) -> Result<Buffer, FileError>` | On success, a buffer containing chomped lines. |
+| `file.read(String) -> Result<String, FileError>` | On success, the file contents. |
 
-Both operations return a result. Use postfix `try` to propagate a failure or `catch` to recover from one:
+The operation returns a result. Use postfix `try` to propagate a failure or `catch` to recover from one:
 
 ```zhex
-let content = file.read-all("examples/text-stats-sample.txt") try
+let content = file.read("examples/text-stats-sample.txt") try
 print(text.word-count(content))
 ```
 
@@ -35,14 +34,14 @@ These signatures show built-in return values. User words can omit a return annot
 
 An open `File` is a resource: it cannot be printed or compared. Close a file after you finish reading. Reading from a closed file fails.
 
-For a line-at-a-time loop, use `for line in file.lines(path)`. The loop streams chomped lines and always closes the file when it ends, including when its body fails:
+For a line-at-a-time loop, use `for line in file.stream(path)`. The loop streams chomped lines and always closes the file when it ends, including when its body fails:
 
 ```zhex
-for line in file.lines("examples/text-stats-sample.txt")
+for line in file.stream("examples/text-stats-sample.txt")
     print(text.upper(line))
 ```
 
-The `file.lines` form is available only as the source of a `for` loop.
+The `file.stream` form is available only as the source of a `for` loop.
 
 ## Writing a file
 

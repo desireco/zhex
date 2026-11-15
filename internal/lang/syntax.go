@@ -208,7 +208,6 @@ const (
 	stringResultType         valueType = "Result<String, InputError>"
 	intParseResultType       valueType = "Result<Int, ParseError>"
 	// inputResult is the runtime repr for every Result, whatever its error type.
-	bufferFileResultType   valueType = "Result<Buffer, FileError>"
 	stringBufferResultType valueType = "Result<String, BufferError>"
 	unitBufferResultType   valueType = "Result<Unit, BufferError>"
 	stringFileResultType   valueType = "Result<String, FileError>"

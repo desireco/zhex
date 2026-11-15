@@ -470,7 +470,7 @@ func TestCallableEffectsRejectMultipleFamilies(t *testing.T) {
 	source := `word parse(raw: String) -> Result<Int, ParseError>
     ok(text.to-int(raw) try)
 word load(path: String) -> Result<String, FileError>
-    ok(file.read-all(path) try)
+    ok(file.read(path) try)
 word run(raw: String)
     let parse-later = parse _
     let load-later = load _

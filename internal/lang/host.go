@@ -348,18 +348,12 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{result: &inputResult{}}, nil
 	case "buffer.to-text":
 		return value{text: strings.Join(args[0].buffer.lines, "\n")}, nil
-	case "file.read-all":
+	case "file.read":
 		text, err := readFile(x.pos, args[0].text)
 		if err != nil {
 			return value{result: &inputResult{err: err}}, nil
 		}
 		return value{result: &inputResult{value: value{text: text}}}, nil
-	case "file.read-lines":
-		text, err := readFile(x.pos, args[0].text)
-		if err != nil {
-			return value{result: &inputResult{err: err}}, nil
-		}
-		return value{result: &inputResult{value: value{buffer: &bufferValue{lines: chompedLines(text)}}}}, nil
 	case "file.open":
 		f, err := openFile(x.pos, args[0].text)
 		if err != nil {

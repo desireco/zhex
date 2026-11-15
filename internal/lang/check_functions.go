@@ -108,7 +108,7 @@ func (c *checker) checkBuiltinPartial(x *expression, env *scope) (valueType, boo
 		return "", true, withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestWordHint(x.text, c.wordNames())), x)
 	}
 	switch x.text {
-	case "range", "file.lines", "error.set-reporter", "ok", "err", "console.exit", "console.fail":
+	case "range", "file.stream", "error.set-reporter", "ok", "err", "console.exit", "console.fail":
 		return "", true, errorAt(x.pos, CodeArgumentType, "%s cannot be partially applied", x.text)
 	}
 	terms := inferScope{}

@@ -40,10 +40,10 @@ This prints `10`. The loop itself has type `Unit`; it does not produce a collect
 
 ## Stream a file's lines
 
-The other built-in loop forms are `for line in file.lines(path)` and collection iteration. The file form reads one UTF-8 line at a time and binds each chomped line as an immutable `String`:
+The other built-in loop forms are `for line in file.stream(path)` and collection iteration. The file form reads one UTF-8 line at a time and binds each chomped line as an immutable `String`:
 
 ```zhex
-for line in file.lines("examples/text-stats-sample.txt")
+for line in file.stream("examples/text-stats-sample.txt")
     print(text.upper(line))
 ```
 

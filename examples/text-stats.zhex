@@ -4,8 +4,8 @@
 let path = console.arg 0 try
 
 if console.args-count() == 1
-    let body = file.read-all path try
+    let body = file.read path try
     print(int.to-string(text.line-count(body)) + " lines  " + int.to-string(text.word-count(body)) + " words  " + int.to-string(text.length(body)) + " chars")
 else
-    for line in file.lines(path)
+    for line in file.stream(path)
         print(text.upper(line))

@@ -19,4 +19,4 @@
 ["and" "or" "not" "+" "-" "*" "/" "%" "==" "!=" "<" "<=" ">" ">=" "=" "->"] @operator
 ["(" ")" "[" "]" "{" "}"] @punctuation.bracket
 ["," ":"] @punctuation.delimiter
-"range" "file.lines" @function
+"range" "file.stream" @function

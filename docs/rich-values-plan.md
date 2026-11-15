@@ -116,7 +116,7 @@ Value-only traversal does not copy/snapshot the collection. Array coordinate tra
 
 An iterator increments an active traversal count on the collection object's identity and releases it on every exit. Checked mutators of that same object return `collection-iterating` **before changing it**, even when reached through aliases; the checked failure can be caught inside the body. Plain indexed writes raise the corresponding runtime diagnostic instead. Failed mutation leaves the object unchanged. Modifying a separate output collection is allowed. Nested traversals of one object retain the guard until all of them finish.
 
-Guard release must cover normal completion, early Result return, propagated Result failure, runtime fault, console.exit and console.fail. Deliberate control flow must not be replaced by a mutation/cleanup error. Existing guaranteed file.lines cleanup remains intact. This is a pre-mutation guard, not post-write invalidation or a hidden whole-collection snapshot.
+Guard release must cover normal completion, early Result return, propagated Result failure, runtime fault, console.exit and console.fail. Deliberate control flow must not be replaced by a mutation/cleanup error. Existing guaranteed file.stream cleanup remains intact. This is a pre-mutation guard, not post-write invalidation or a hidden whole-collection snapshot.
 
 ## Incremental delivery and verification
 

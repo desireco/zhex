@@ -92,7 +92,7 @@ If a handler needs to preserve the failure instead of returning a fallback, a fa
 
 ```zhex
 word read-settings(path: String) -> String
-    file.read-all(path) catch problem
+    file.read(path) catch problem
         return err(error.wrap("settings-read", "could not read settings", problem))
 ```
 
@@ -123,8 +123,7 @@ These built-in operations return a `Result` directly:
 | `read-line(prompt)` | `Result<String, InputError>` | End of input, invalid UTF-8, or input error. |
 | `text.to-int(text)` | `Result<Int, ParseError>` | Input is not a signed 64-bit decimal integer. |
 | `console.arg(i)` | `Result<String, InputError>` | Argument index is outside the supplied arguments. |
-| `file.read-all(path)` | `Result<String, FileError>` | File cannot be opened or is invalid UTF-8. |
-| `file.read-lines(path)` | `Result<Buffer, FileError>` | File cannot be opened or is invalid UTF-8. |
+| `file.read(path)` | `Result<String, FileError>` | File cannot be opened or is invalid UTF-8. |
 | `file.open(path)` | `Result<File, FileError>` | File cannot be opened. |
 | `file.read-line(file)` | `Result<String, FileError>` | End of file, closed file, or read failure. |
 | `file.write(contents, path, append = false)` | `Result<Unit, FileError>` | The path cannot be opened for writing, the write fails, or closing fails; a partial or truncated file may remain. |

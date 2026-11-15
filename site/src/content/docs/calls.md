@@ -132,7 +132,7 @@ print(list.length(values))
 
 Here the intrinsic's `try` selects its checked form inside `append-checked`, so the partial's invocation returns a `Result` that its caller handles.
 
-Record and choice constructors are not partial targets. Loop-only `range` and `file.lines`, special reporter registration `error.set-reporter`, and the non-returning `console.exit` and `console.fail` are not partial targets either; call them directly where they are valid.
+Record and choice constructors are not partial targets. Loop-only `range` and `file.stream`, special reporter registration `error.set-reporter`, and the non-returning `console.exit` and `console.fail` are not partial targets either; call them directly where they are valid.
 
 Function types are monomorphic arrows with a fixed argument tuple, such as `(Int) -> Unit` or `(String, Int) -> String`. They can annotate bindings and parameters, and can be passed to words, returned from words, used in flows, or stored in lists, records, and choices. A function's result type may be a `Result` to describe a failure that will occur when it is invoked; a `Result` cannot be an argument or a captured value. Function values cannot be printed, compared directly, or encoded as JSON. Caught concrete errors follow the usual rule: wrap one with `error.wrap` before capturing it for a function that accepts common `Error`.
 

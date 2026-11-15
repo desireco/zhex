@@ -49,7 +49,7 @@ let number = text.to-int(line) catch problem
 print(number)
 ```
 
-If `status` is outside `0..255`, `console.exit` raises a source-located `console-exit-status` runtime diagnostic instead of clamping or wrapping it. That runtime failure is eligible for the configured error reporter. Active `file.lines` streams close on exit; files opened explicitly with `file.open` remain the program's responsibility to close with `file.close`. In the REPL, `console.exit` ends the entire process with the requested status.
+If `status` is outside `0..255`, `console.exit` raises a source-located `console-exit-status` runtime diagnostic instead of clamping or wrapping it. That runtime failure is eligible for the configured error reporter. Active `file.stream` loops close on exit; files opened explicitly with `file.open` remain the program's responsibility to close with `file.close`. In the REPL, `console.exit` ends the entire process with the requested status.
 
 ## Fail with a message
 
@@ -61,4 +61,4 @@ let name = read-line("Name: ") catch problem
 print("Hello, " + name)
 ```
 
-This is a deliberate failure path: it writes no language diagnostic and does not call the automatic error reporter. Active `file.lines` streams close as the program exits; explicit `file.open` handles still need `file.close`. Calling `console.fail` from a reporter cannot replace the original program outcome.
+This is a deliberate failure path: it writes no language diagnostic and does not call the automatic error reporter. Active `file.stream` loops close as the program exits; explicit `file.open` handles still need `file.close`. Calling `console.fail` from a reporter cannot replace the original program outcome.

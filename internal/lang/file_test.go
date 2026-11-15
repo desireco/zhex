@@ -46,9 +46,9 @@ func codeOf(t *testing.T, err error) (code, message string) {
 	return fields["code"].(string), fields["message"].(string)
 }
 
-func TestFileReadAll(t *testing.T) {
+func TestFileRead(t *testing.T) {
 	path := writeFile(t, "héllo\n")
-	out, err := runFile(t, "let t = file.read-all(\""+path+"\") try\nprint(t)\n")
+	out, err := runFile(t, "let t = file.read(\""+path+"\") try\nprint(t)\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestFileReadAll(t *testing.T) {
 		t.Fatalf("got %q, want %q", out, want)
 	}
 
-	_, err = runFile(t, "let t = file.read-all(\""+filepath.Join(t.TempDir(), "missing.txt")+"\") try\nprint(t)\n")
+	_, err = runFile(t, "let t = file.read(\""+filepath.Join(t.TempDir(), "missing.txt")+"\") try\nprint(t)\n")
 	code, message := codeOf(t, err)
 	if code != "file-open" {
 		t.Fatalf("wanted file-open, got %s", code)
@@ -66,29 +66,23 @@ func TestFileReadAll(t *testing.T) {
 	}
 
 	path = writeFile(t, "a\xff")
-	_, err = runFile(t, "let t = file.read-all(\""+path+"\") try\nprint(t)\n")
+	_, err = runFile(t, "let t = file.read(\""+path+"\") try\nprint(t)\n")
 	if code, _ := codeOf(t, err); code != "file-utf8" {
 		t.Fatalf("wanted file-utf8, got %s", code)
 	}
 }
 
-func TestFileReadLines(t *testing.T) {
-	path := writeFile(t, "one\r\ntwo\nthree")
-	out, err := runFile(t, "let b = file.read-lines(\""+path+"\") try\n"+
-		"print(buffer.line-count(b))\n"+
-		"print(buffer.line(b, 0) try)\n"+
-		"print(buffer.line(b, 1) try)\n"+
-		"print(buffer.to-text(b))\n")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "3\none\ntwo\none\ntwo\nthree\n"; out != want {
-		t.Fatalf("got %q, want %q", out, want)
-	}
-
-	_, err = runFile(t, "let b = file.read-lines(\""+filepath.Join(t.TempDir(), "missing.txt")+"\") try\nprint(buffer.line-count(b))\n")
-	if code, _ := codeOf(t, err); code != "file-open" {
-		t.Fatalf("wanted file-open, got %s", code)
+// TestOldFileNamesAreGone pins the rename and retirement: the previous
+// spellings fail checking as unknown words before anything runs.
+func TestOldFileNamesAreGone(t *testing.T) {
+	for _, tc := range []struct{ source, want string }{
+		{"let t = file.read-all(\"x\") try\nprint(t)\n", `unknown word "file.read-all"`},
+		{"let b = file.read-lines(\"x\") try\nprint(buffer.line-count(b))\n", `unknown word "file.read-lines"`},
+		{"for line in file.lines(\"x\")\n    print(line)\n", `unknown word "file.lines"`},
+	} {
+		if got := runError(t, tc.source); !strings.Contains(got, tc.want) {
+			t.Errorf("source %q: wanted %q, got %q", tc.source, tc.want, got)
+		}
 	}
 }
 
@@ -96,14 +90,14 @@ func TestFileLineReadersAgree(t *testing.T) {
 	for _, content := range []string{"", "\n", "one\r\n", "one\r", "\r", "one\r\ntwo\r", "one\n\n", "one\r\r\n"} {
 		t.Run(content, func(t *testing.T) {
 			path := writeFile(t, content)
-			out, err := runFile(t, "let b = file.read-lines(\""+path+"\") try\n"+
-				"let f = file.open(\""+path+"\") try\n"+
+			out, err := runFile(t, "let f = file.open(\""+path+"\") try\n"+
 				"var i = 0\n"+
-				"for line in file.lines(\""+path+"\")\n"+
-				"    print(line == (buffer.line(b, i) try))\n"+
+				"for line in file.stream(\""+path+"\")\n"+
 				"    print(line == (file.read-line(f) try))\n"+
 				"    i = i + 1\n"+
-				"print(i == buffer.line-count(b))\n"+
+				"let last = file.read-line(f) catch problem\n    \"eof\"\n"+
+				"print(last == \"eof\")\n"+
+				"print(i)\n"+
 				"file.close(f)\n")
 			if err != nil {
 				t.Fatal(err)
@@ -151,7 +145,7 @@ func TestFileExplicitLayer(t *testing.T) {
 
 	// File in word signatures; try unwraps file.open to File and
 	// file.read-line to String. The close also keeps this test from
-	// abandoning an fd that would blur TestFileLinesGuaranteedClose.
+	// abandoning an fd that would blur TestFileStreamGuaranteedClose.
 	out, err = runFile(t, "word opener(p: String) -> Result<File, FileError>\n"+
 		"    ok(file.open(p) try)\n"+
 		"word first-line(f: File) -> Result<String, FileError>\n"+
@@ -179,9 +173,9 @@ func TestFileReadLineAtEof(t *testing.T) {
 	}
 }
 
-func TestForInFileLines(t *testing.T) {
+func TestForInFileStream(t *testing.T) {
 	path := writeFile(t, "one\r\ntwo\nthree")
-	out, err := runFile(t, "for line in file.lines(\""+path+"\")\n    print(line)\n")
+	out, err := runFile(t, "for line in file.stream(\""+path+"\")\n    print(line)\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +184,7 @@ func TestForInFileLines(t *testing.T) {
 	}
 
 	// The loop binding is a String: it composes with the text words.
-	out, err = runFile(t, "for line in file.lines(\""+path+"\")\n    print(text.upper(line))\n")
+	out, err = runFile(t, "for line in file.stream(\""+path+"\")\n    print(text.upper(line))\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +193,7 @@ func TestForInFileLines(t *testing.T) {
 	}
 
 	empty := writeFile(t, "")
-	out, err = runFile(t, "for line in file.lines(\""+empty+"\")\n    print(line)\nprint(\"done\")\n")
+	out, err = runFile(t, "for line in file.stream(\""+empty+"\")\n    print(line)\nprint(\"done\")\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,22 +202,22 @@ func TestForInFileLines(t *testing.T) {
 	}
 }
 
-func TestFileLinesContextRule(t *testing.T) {
+func TestFileStreamContextRule(t *testing.T) {
 	var out strings.Builder
-	err := Run("bad.zhex", "let x = file.lines(\"a\")\n", strings.NewReader(""), &out)
-	if err == nil || !strings.Contains(err.Error(), "file.lines is only available in a for loop") {
+	err := Run("bad.zhex", "let x = file.stream(\"a\")\n", strings.NewReader(""), &out)
+	if err == nil || !strings.Contains(err.Error(), "file.stream is only available in a for loop") {
 		t.Fatalf("wrong context diagnostic: %v", err)
 	}
 	if code, _ := codeOf(t, err); code != "range-context" {
 		t.Fatalf("wanted range-context, got %s", code)
 	}
-	if got := runError(t, "for line in file.lines(1)\n    print(line)\n"); !strings.Contains(got, "file.lines path must have type String") {
+	if got := runError(t, "for line in file.stream(1)\n    print(line)\n"); !strings.Contains(got, "file.stream path must have type String") {
 		t.Fatalf("wrong path diagnostic: %q", got)
 	}
 }
 
-func TestFileLinesOpenFailure(t *testing.T) {
-	_, err := runFile(t, "for line in file.lines(\"/nonexistent-zhex\")\n    print(line)\n")
+func TestFileStreamOpenFailure(t *testing.T) {
+	_, err := runFile(t, "for line in file.stream(\"/nonexistent-zhex\")\n    print(line)\n")
 	code, message := codeOf(t, err)
 	if code != "file-open" {
 		t.Fatalf("wanted file-open, got %s", code)
@@ -519,10 +513,10 @@ func TestFileWriteInfersResultWord(t *testing.T) {
 	}
 }
 
-// TestFileLinesGuaranteedClose diffs the open-fd set (by readlink target)
+// TestFileStreamGuaranteedClose diffs the open-fd set (by readlink target)
 // across the three exit paths — clean finish, mid-stream failure, and a
 // failure raised by the loop body: no new fd may reference the fixture.
-func TestFileLinesGuaranteedClose(t *testing.T) {
+func TestFileStreamGuaranteedClose(t *testing.T) {
 	fdTargets := func() (map[string]bool, bool) {
 		entries, err := os.ReadDir("/proc/self/fd")
 		if err != nil {
@@ -555,7 +549,7 @@ func TestFileLinesGuaranteedClose(t *testing.T) {
 			if !ok {
 				t.Fatal("/proc/self/fd disappeared")
 			}
-			_, err := runFile(t, "for line in file.lines(\""+path+"\")\n    "+tc.body+"\n")
+			_, err := runFile(t, "for line in file.stream(\""+path+"\")\n    "+tc.body+"\n")
 			if tc.wantCode == "" {
 				if err != nil {
 					t.Fatal(err)

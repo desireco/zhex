@@ -34,7 +34,7 @@ module.exports = grammar({
     else_header: _ => 'else',
     for_header: $ => seq('for', field('name', $.identifier), optional(seq(',', field('value', $.identifier))), 'in', choice(
       seq('range', '(', soft($), $._expression, soft($), ',', soft($), $._expression, soft($), ')'),
-      seq('file.lines', '(', soft($), $._expression, soft($), ')'),
+      seq('file.stream', '(', soft($), $._expression, soft($), ')'),
       $._expression,
     )),
     case_header: $ => seq('case', choice($.identifier, $.call_expression)),

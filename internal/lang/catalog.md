@@ -96,7 +96,7 @@ When the checker can trace the value to the word that produced it, the message s
 The branches of an `if` end in different types. Make every branch produce the same type.
 
 ## range-type
-The bounds of `range(start, end)` must both be `Int`; the path of `file.lines(path)` must be `String`.
+The bounds of `range(start, end)` must both be `Int`; the path of `file.stream(path)` must be `String`.
 
 ## try-input
 Postfix `try` and `catch` need a `Result` value to unwrap. Results come from fallible words and operations. Inside a word, propagation requires a declared Result with the same error type.
@@ -144,7 +144,7 @@ No word with this name exists. The hint suggests the closest known word; check t
 When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## range-context
-`range` and `file.lines` exist only inside a `for` loop header — `for n in range(start, end)` and `for line in file.lines(path)`. They cannot be called elsewhere.
+`range` and `file.stream` exist only inside a `for` loop header — `for n in range(start, end)` and `for line in file.stream(path)`. They cannot be called elsewhere.
 
 ## use-missing
 A `use` names a module that could not be loaded. The message names the module and the searched path — the sibling `<name>.zhex` next to the importing file. Create that file or fix the module name in the `use`.
@@ -195,10 +195,10 @@ The text given to `text.to-int` is not a signed 64-bit decimal integer. It accep
 `buffer.line` or `buffer.set-line` received an index outside the buffer's lines. The failure lives inside the `Result` and surfaces through `try`; check the index against `buffer.line-count` first.
 
 ## file-open
-`file.open`, `file.read-all`, `file.read-lines`, or a `file.lines` loop could not open the path. The message names the path and the operating system's reason; check the path and its permissions.
+`file.open`, `file.read`, or a `file.stream` loop could not open the path. The message names the path and the operating system's reason; check the path and its permissions.
 
 ## file-read
-A read from an open file failed: the stream was drained ("end of file") or the file was closed. `file.read-line` at end of file fails inside the `Result`; to read a whole file, prefer `for line in file.lines(path)` or `file.read-lines`.
+A read from an open file failed: the stream was drained ("end of file") or the file was closed. `file.read-line` at end of file fails inside the `Result`; to read a whole file, prefer `file.read(path)` or `for line in file.stream(path)`.
 
 ## file-utf8
 A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the file as UTF-8.

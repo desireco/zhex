@@ -308,7 +308,7 @@ func (p *parser) parseStatement() *statement {
 			p.require(",")
 			s.end = p.expression(0)
 			p.require(")")
-		} else if s.secondName == "" && p.accept("file.lines") {
+		} else if s.secondName == "" && p.accept("file.stream") {
 			s.kind = "for-lines"
 			p.require("(")
 			s.expr = p.expression(0)

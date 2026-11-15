@@ -37,4 +37,4 @@ updated
 
 Names refer to the same buffer value; binding it with `let` does not make a copy. A second name observes changes made through the first. Buffers cannot be compared with `==` or `!=`, and `print` does not accept a `Buffer`; convert it with `buffer.to-text` first.
 
-For whole-file input as a buffer, see [`file.read-lines`](files.html). For line and word counts, see [text operations](text.html).
+For whole-file input as text, see [file operations](files.html). For line and word counts, see [text operations](text.html).

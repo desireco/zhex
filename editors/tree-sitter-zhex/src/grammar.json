@@ -1173,7 +1173,7 @@
               "members": [
                 {
                   "type": "STRING",
-                  "value": "file.lines"
+                  "value": "file.stream"
                 },
                 {
                   "type": "STRING",

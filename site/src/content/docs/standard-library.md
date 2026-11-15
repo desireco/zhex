@@ -5,9 +5,9 @@ section: Standard library
 order: 69
 ---
 
-Zhex ships a small host library for text, typed collections, JSON, files, buffers, console input/output, errors, and temporal values. The <a href="https://github.com/desireco/zhex/blob/main/docs/standard-library-plan.md" target="_blank" rel="noopener">complete current inventory and research</a> lists all 97 registered host names and their test/reference evidence. Constructors, operators, bracket access, and REPL commands are separate facilities.
+Zhex ships a small host library for text, typed collections, JSON, files, buffers, console input/output, errors, and temporal values. The <a href="https://github.com/desireco/zhex/blob/main/docs/standard-library-plan.md" target="_blank" rel="noopener">complete current inventory and research</a> lists all 96 registered host names and their test/reference evidence. Constructors, operators, bracket access, and REPL commands are separate facilities.
 
-A dot identifies an operation's owner or domain: `text.trim`, `list.length`, `file.read-all`. Compound names use hyphens. Flows pass their value as the first argument. Conversions are explicit, as in `int.to-string`.
+A dot identifies an operation's owner or domain: `text.trim`, `list.length`, `file.read`. Compound names use hyphens. Flows pass their value as the first argument. Conversions are explicit, as in `int.to-string`.
 
 Text positions count Unicode code points. Collections have shared identity and guard active traversal against mutation. Ordinary computations return ordinary values; external input and parsing failures use explicit Results. See the [text](text.html), [collections](collections.html), [files](files.html), [results](results.html), and [temporal](temporal.html) references for implemented behavior.
 

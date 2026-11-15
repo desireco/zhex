@@ -296,7 +296,7 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 		f, err := openFile(s.pos, v.text)
 		if err != nil {
 			if d, ok := err.(*diagnostic); ok {
-				d.operation = "file.lines"
+				d.operation = "file.stream"
 			}
 			return value{}, err
 		}
@@ -305,7 +305,7 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			line, ok, err := f.nextLine(s.pos)
 			if err != nil {
 				if d, ok := err.(*diagnostic); ok {
-					d.operation = "file.lines"
+					d.operation = "file.stream"
 				}
 				return value{}, err
 			}
@@ -653,7 +653,7 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 				case "console.arg":
 					d.details["index"] = strconv.FormatInt(args[0].number, 10)
 					d.details["argument-count"] = strconv.Itoa(len(r.args))
-				case "file.read-all", "file.read-lines", "file.open":
+				case "file.read", "file.open":
 					d.details["path"] = args[0].text
 				case "file.read-line":
 					d.details["path"] = args[0].file.path

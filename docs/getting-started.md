@@ -186,10 +186,10 @@ Try `racecar`, `hello`, or `été`. The program compares the input with `text.re
 
 ## Read a file
 
-`for line in file.lines(path)` streams a file's chomped lines and always closes the stream:
+`for line in file.stream(path)` streams a file's chomped lines and always closes the stream:
 
 ```zhex
-for line in file.lines("examples/text-stats-sample.txt")
+for line in file.stream("examples/text-stats-sample.txt")
     print(text.upper(line))
 ```
 

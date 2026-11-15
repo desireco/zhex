@@ -2455,7 +2455,7 @@
     "named": false
   },
   {
-    "type": "file.lines",
+    "type": "file.stream",
     "named": false
   },
   {
