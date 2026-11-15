@@ -175,7 +175,8 @@ interpreter's `file:line:column:` position, which the artifact does not carry in
 catching a `RuntimeError` the runner reads `zhex_last_error()`; 0 means a native trap.
 
 **(b) Native traps.** Division/remainder by zero traps natively per the ratified plan (no
-pre-check); the runner maps `/divide by zero/` → `runtime error: division or remainder by zero`.
+pre-check); the runner maps `/divide by zero|remainder by zero/` →
+`runtime error: division or remainder by zero`.
 `MinInt64 / -1` gets an **explicit** check → fail 1 (native wording "divide result unrepresentable"
 varies by engine; the interpreter calls it integer overflow). `MinInt64 % -1` returns 0 natively.
 

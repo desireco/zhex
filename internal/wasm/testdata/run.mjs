@@ -42,7 +42,7 @@ try {
   const code = instance.exports.zhex_last_error();
   if (code !== 0) {
     process.stderr.write(`runtime error: ${failMessages[code] ?? "unknown fail code " + code}\n`);
-  } else if (/divide by zero/.test(e.message)) {
+  } else if (/divide by zero|remainder by zero/.test(e.message)) {
     process.stderr.write("runtime error: division or remainder by zero\n");
   } else {
     // shortcut: division is the only native trap in the milestone-1 subset, drop when M2 adds more
