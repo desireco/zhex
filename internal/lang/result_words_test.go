@@ -141,8 +141,12 @@ func TestCatchLoneNameBeforeNewlineStaysBlock(t *testing.T) {
 	// not a fallback reference to a same-named value, so the indented handler
 	// stays required.
 	source := "let fallback = 5\nlet n = text.to-int(\"x\") catch fallback\n"
-	if _, err := Compile("test.zhex", source); err == nil {
+	_, err := Compile("test.zhex", source)
+	if err == nil {
 		t.Fatal("a lone name after catch must keep the block form")
+	}
+	if !strings.Contains(err.Error(), "parenthesize a lone identifier fallback: catch (fallback)") {
+		t.Fatalf("missing lone-identifier catch hint: %v", err)
 	}
 }
 

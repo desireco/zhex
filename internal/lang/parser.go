@@ -8,6 +8,14 @@ import (
 type parser struct {
 	tokens       []token
 	index, depth int
+	sourceLines  []string
+}
+
+func (p *parser) lines() []string {
+	if p.sourceLines == nil && len(p.tokens) > 0 && p.tokens[0].pos.source != nil {
+		p.sourceLines = strings.Split(*p.tokens[0].pos.source, "\n")
+	}
+	return p.sourceLines
 }
 
 func parse(file, source string) (program *Program, err error) {
@@ -63,11 +71,14 @@ func (p *parser) lastEnd() position {
 
 // definitionSource slices the entry's source lines a declaration spans, so
 // Session.Export can re-emit the definition verbatim.
-func definitionSource(start position, end position) string {
+func (p *parser) definitionSource(start position, end position) string {
 	if start.source == nil || start.line < 1 || end.line < start.line {
 		return ""
 	}
-	lines := strings.Split(*start.source, "\n")
+	lines := p.lines()
+	if lines == nil {
+		lines = strings.Split(*start.source, "\n")
+	}
 	if end.line > len(lines) {
 		end.line = len(lines)
 	}
@@ -80,11 +91,14 @@ func definitionSource(start position, end position) string {
 // line — the widened slice start that keeps Session.Export reproducing the
 // doc. A line that is blank, indented, or a plain # comment detaches them,
 // and indented ## lines never match so a previous word's body is not swallowed.
-func wordDoc(pos position) (string, position) {
+func (p *parser) wordDoc(pos position) (string, position) {
 	if pos.source == nil || pos.line < 2 {
 		return "", pos
 	}
-	lines := strings.Split(*pos.source, "\n")
+	lines := p.lines()
+	if lines == nil {
+		lines = strings.Split(*pos.source, "\n")
+	}
 	var doc []string
 	for i := pos.line - 2; i >= 0; i-- {
 		line := strings.TrimSuffix(lines[i], "\r")
@@ -212,7 +226,7 @@ func (p *parser) parseRecord() *recordType {
 		}
 		target := p.parseType()
 		p.require("newline")
-		return &recordType{name: name.text, pos: name.pos, alias: true, aliasTarget: target, aliasSource: target, source: definitionSource(start.pos, p.lastEnd())}
+		return &recordType{name: name.text, pos: name.pos, alias: true, aliasTarget: target, aliasSource: target, source: p.definitionSource(start.pos, p.lastEnd())}
 	}
 	choice := p.accept("choice")
 	if param != "" && !choice {
@@ -261,13 +275,13 @@ func (p *parser) parseRecord() *recordType {
 	if len(result.fields) == 0 && len(result.variants) == 0 {
 		panic(errorAt(name.pos, CodeEmptyBlock, "record requires at least one field"))
 	}
-	result.source = definitionSource(start.pos, p.lastEnd())
+	result.source = p.definitionSource(start.pos, p.lastEnd())
 	return result
 }
 
 func (p *parser) parseWord() *word {
 	start := p.require("word")
-	doc, sliceStart := wordDoc(start.pos)
+	doc, sliceStart := p.wordDoc(start.pos)
 	t := p.name()
 	w := &word{name: t.text, pos: t.pos, doc: doc}
 	parenthesized := p.accept("(")
@@ -294,7 +308,7 @@ func (p *parser) parseWord() *word {
 	}
 	if !p.accept("->") {
 		w.body = p.block()
-		w.source = definitionSource(sliceStart, p.lastEnd())
+		w.source = p.definitionSource(sliceStart, p.lastEnd())
 		return w
 	}
 	if p.at("Result") {
@@ -314,14 +328,22 @@ func (p *parser) parseWord() *word {
 		w.result = p.parseType()
 	}
 	w.body = p.block()
-	w.source = definitionSource(sliceStart, p.lastEnd())
+	w.source = p.definitionSource(sliceStart, p.lastEnd())
 	return w
 }
 
 func (p *parser) block() []*statement {
+	return p.blockWithHint("")
+}
+
+func (p *parser) blockWithHint(hint string) []*statement {
 	p.require("newline")
 	if !p.at("indent") {
-		panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented block"))
+		d := errorAt(p.current().pos, CodeExpectedIndent, "expected an indented block")
+		if hint != "" {
+			d = withHint(d, hint)
+		}
+		panic(d)
 	}
 	p.take()
 	p.depth++
@@ -553,7 +575,11 @@ func (p *parser) statementExpression(allowAssignment bool) *expression {
 			return &expression{kind: "catch", pos: t.pos, end: t.end, left: x,
 				handler: []*statement{{kind: "expression", pos: fallback.pos, expr: fallback}}}
 		}
-		return &expression{kind: "catch", pos: t.pos, end: t.end, text: name, left: x, handler: p.block()}
+		hint := ""
+		if name != "" {
+			hint = "parenthesize a lone identifier fallback: catch (" + name + ")"
+		}
+		return &expression{kind: "catch", pos: t.pos, end: t.end, text: name, left: x, handler: p.blockWithHint(hint)}
 	}
 	p.require("newline")
 	return x
