@@ -728,7 +728,7 @@ print(l.text)
 		t.Fatalf("expected four ctor local.set stores, got:\n%s", wat)
 	}
 	for _, typ := range []string{"i64", "(ref null $zhex_string)"} {
-		if !regexp.MustCompile(`\$t_ctor\d+_\d ` + regexp.QuoteMeta(typ) + `\b`).MatchString(wat) {
+		if !regexp.MustCompile(`\$t_ctor\d+_\d ` + regexp.QuoteMeta(typ) + `\)`).MatchString(wat) {
 			t.Fatalf("ctor temporaries missing %s local type:\n%s", typ, wat)
 		}
 	}
