@@ -49,7 +49,7 @@ These are directions to explore. Their order and implementation remain open, and
 - Dogfooding: investigate a Zhex-written REPL front end over the Go session engine (#65), beginning with a bounded prototype and explicit host/input boundaries; full interpreter self-hosting is not in scope.
 - Rich values: generic records and words, and user-defined error types with readable operations and formatting.
 - Compiled execution: evaluate a native backend, including C as a possible target, and measure composition, text processing, and allocation behavior.
-- WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output.
+- WebAssembly code generation: compile Zhex programs to WASM, starting with browser execution and a small host interface for input and output (#7; findings, decisions, and milestone plan in docs/wasm-plan.md).
 - Application libraries: grow through small CLI, HTML-processing, web-server, game, and database experiments.
 - Development tools: formatting, language-server support, and published editor packages as the syntax settles.
 - Development insight: record-and-replay runs, debug-adapter support, and agent tools, so people and AI agents can see and debug what a program is doing (see docs/diagnostics-plan.md).
