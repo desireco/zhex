@@ -2159,10 +2159,6 @@ func (e *watEmitter) printCall(x *expression) {
 		e.line("call " + watPrintLine)
 		e.depth--
 		e.line("end")
-	case durationType:
-		e.expr(x.args[0])
-		e.line("call " + watDurationToString)
-		e.line("call " + watPrintLine)
 	case unitType:
 		e.expr(x.args[0])
 		e.stringConst("")

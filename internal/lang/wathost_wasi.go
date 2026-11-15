@@ -579,6 +579,7 @@ const watWasiCore = `
     (loop $entry
       (br_if $miss (i32.ge_u (local.get $i) (local.get $n)))
       (local.set $p (i32.load (i32.add (i32.const 65536) (i32.mul (local.get $i) (i32.const 4)))))
+      ;; shortcut: prelude never calls env_get (module-side env); unreachable as shipped, delete when the host env surface ever goes live
       (if (i32.eq (i32.load8_u (i32.add (local.get $p) (local.get $klen))) (i32.const 61))
         (then
           (if (call $wasi_bytes_eq (local.get $p) (i32.const 4096) (local.get $klen))

@@ -102,9 +102,6 @@ func TestWatPreludeM3(t *testing.T) {
 	if out, err := exec.Command(wasmTools, "validate", wasiWasmPath).CombinedOutput(); err != nil {
 		t.Fatalf("wasm-tools validate (wasi skin): %v\n%s", err, out)
 	}
-	if err := os.WriteFile("/tmp/m3.wat", []byte(wat), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	watPath := filepath.Join(dir, "prelude-m3.wat")
 	if err := os.WriteFile(watPath, []byte(wat), 0o644); err != nil {
 		t.Fatal(err)

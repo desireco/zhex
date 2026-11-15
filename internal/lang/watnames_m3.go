@@ -287,7 +287,6 @@ const (
 // duration" in the common Error family; to-string reimplements
 // time.Duration.format (µ = U+00B5).
 const (
-	watDurationNew      = "$zhex_duration_new"       // (i64) -> i64 passthrough
 	watDurationParse    = "$zhex_duration_parse"     // (s) -> Result<Duration, Error>
 	watDurationToString = "$zhex_duration_to_string" // (i64) -> string
 )
