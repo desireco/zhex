@@ -43,6 +43,8 @@ Plain operations return ordinary values and raise runtime diagnostics when valid
 | `list.find(list, predicate)` | `Option<T>` | Return `Option.Some` for the first matching element and `Option.None` when nothing matches, including an empty list. |
 | `list.any(list, predicate)` | `Bool` | Stop at the first element whose predicate holds and return `true`; an empty list is `false`. |
 | `list.all(list, predicate)` | `Bool` | Stop at the first element whose predicate fails and return `false`; an empty list is `true`. |
+| `list.sort(list)` | `List<T>` | Return a stable ascending copy of a `List<Int>` or `List<String>`; `String` order is Unicode code-point order. |
+| `list.sort-by(list, key)` | `List<T>` | Return a stable ascending copy ordered by `key` (`(T) -> Int` or `(T) -> String`), evaluated once per element in source order; same freshness rules as `list.map`. |
 
 Read and write a list element with one zero-based signed `Int` index. A plain read returns the element and raises a `list-range` runtime diagnostic when the index is negative or outside the list. Write `items[i] try` or `items[i] catch` to handle that read as a Result. The error exposes `index` and `length` details. A plain indexed assignment returns `Unit`; an invalid index produces a runtime diagnostic. Parenthesize the assignment to handle that failure as a `Result<Unit, Error>` with `try` or `catch`:
 
@@ -55,6 +57,8 @@ items[0] = second
 ```
 
 The six callback words take ordinary function values — explicit partials such as `text.trim(_)`, word-name partials such as `passing(_)`, or let-bound callables; there is no lambda syntax. Callbacks run once per element, left to right, and may print or mutate unrelated values. A callback whose type returns a `Result` is rejected at check time, as is a `list.fold` accumulator, with `a Result cannot be returned from a callback` (`unhandled-result`). While callbacks run, the source list holds its traversal guard: mutating it, including through aliases, raises the `collection-iterating` runtime diagnostic before the change. `list.any` and `list.all` stop calling the predicate once the answer is determined, so effects from later elements' callbacks do not happen.
+
+`list.sort` and `list.sort-by` return stable ascending copies: a fresh outer list with shared elements, an unchanged source, and equal keys keeping source order. `list.sort` accepts `List<Int>` or `List<String>` values; `list.sort-by` orders any list by a key that is a callback under the same contract, evaluated exactly once per element in source order before any comparison while the traversal guard is held, and returning `Int` or `String`. `String` order is Unicode code-point order, without locale collation or normalization. Wrong types fail at check time before any key runs: `list.sort requires a List<Int> or List<String>, found ...`, `list.sort-by requires a key function, found ...`, and `list.sort-by key must return Int or String, found ...`.
 
 ```zhex
 word passing score: Int -> Bool

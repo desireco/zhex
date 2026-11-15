@@ -1,9 +1,33 @@
 package lang
 
-import "strconv"
+import (
+	"sort"
+	"strconv"
+)
 
 func isCheckedCollectionOperation(name string) bool {
 	return name == "array.new" || name == "array.resize" || name == "list.append"
+}
+
+// sortListStable returns a fresh list of items in ascending key order; equal
+// keys keep source order. Keys are precomputed by the caller, evaluated once
+// per element in source order before any comparison.
+func sortListStable(items, keys []value, byText bool) []value {
+	order := make([]int, len(items))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		if byText {
+			return keys[order[a]].text < keys[order[b]].text
+		}
+		return keys[order[a]].number < keys[order[b]].number
+	})
+	sorted := make([]value, len(items))
+	for i, at := range order {
+		sorted[i] = items[at]
+	}
+	return sorted
 }
 
 func failedCollection(pos position, code Code, operation, message string, details map[string]string) value {

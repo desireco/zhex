@@ -65,7 +65,7 @@ var hostWords = []string{
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
-	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.fold", "list.find", "list.any", "list.all", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.fold", "list.find", "list.any", "list.all", "list.sort", "list.sort-by", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -1787,6 +1787,36 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				params = []valueType{args[0], args[1], functionType([]valueType{args[1], inner}, args[1])}
 				result = args[1]
 			}
+		case "list.sort":
+			if len(args) != 1 {
+				return "", errorAt(x.pos, CodeArgumentCount, "list.sort requires 1 argument, found %d", len(args))
+			}
+			kind, inner, ok := collectionInner(args[0])
+			if !ok || kind != "List" || (inner != intType && inner != stringType) {
+				return "", valueError(x.pos, x.args[0], CodeArgumentType, fmt.Sprintf("list.sort requires a List<Int> or List<String>, found %s", args[0]), "sort Int or String values, or rank other values with list.sort-by and a key", x.args[0])
+			}
+			params, result = args, args[0]
+		case "list.sort-by":
+			if len(args) != 2 {
+				return "", errorAt(x.pos, CodeArgumentCount, "list.sort-by requires 2 arguments, found %d", len(args))
+			}
+			kind, inner, ok := collectionInner(args[0])
+			if !ok || kind != "List" {
+				return "", errorAt(x.pos, CodeArgumentType, "%s requires a List", x.text)
+			}
+			// The key's result is open between Int and String before checking,
+			// so it gets no contextual function type; only its parameter is fixed.
+			callbackArgs, callbackResult, callable := functionTypeParts(args[1])
+			if !callable || len(callbackArgs) != 1 || callbackArgs[0] != inner {
+				return "", valueError(x.pos, x.args[1], CodeArgumentType, fmt.Sprintf("list.sort-by requires a key function, found %s", args[1]), "", x.args[1])
+			}
+			if isResult(callbackResult) {
+				return "", errorAt(x.pos, CodeUnhandledResult, "a Result cannot be returned from a callback")
+			}
+			if callbackResult != intType && callbackResult != stringType {
+				return "", errorAt(x.pos, CodeArgumentType, "list.sort-by key must return Int or String, found %s", callbackResult)
+			}
+			params, result = args, args[0]
 		case "ok":
 			inner, ok := resultInner(c.wordResult)
 			if !ok {

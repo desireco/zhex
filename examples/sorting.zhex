@@ -1,0 +1,22 @@
+# Rank records with list.sort-by and a named key word, sort plain text with list.sort; both leave the source untouched.
+
+type Entry = record
+    name: String
+    score: Int
+
+word score entry: Entry -> Int
+    entry.score
+
+word entry-line entry: Entry -> String
+    entry.name + ": " + int.to-string(entry.score)
+
+let entries = [Entry("Ada", 41), Entry("Grace", 23), Entry("Lin", 41), Entry("Nancy", 23)]
+
+let ranked = list.sort-by(entries, score(_))
+for entry in ranked
+    print(entry-line(entry))
+
+print("source unchanged: " + entry-line(entries[0]))
+
+let fruits = ["pear", "fig", "apple"]
+print("sorted: " + text.join(list.sort(fruits), ", "))

@@ -933,6 +933,23 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		default:
 			return namedType("Bool")
 		}
+	case "list.sort":
+		element := freshType()
+		if len(args) > 0 {
+			s.equal(args[0], namedType("List", element), x.pos)
+		}
+		return namedType("List", element)
+	case "list.sort-by":
+		element := freshType()
+		if len(args) > 0 {
+			s.equal(args[0], namedType("List", element), x.pos)
+		}
+		if len(args) > 1 {
+			// The key's result is open between Int and String; the checking
+			// pass gates it, so no allowed-types rule is recorded here.
+			s.equal(args[1], namedType("@function", element, freshType()), x.pos)
+		}
+		return namedType("List", element)
 	case "list.fold":
 		element := freshType()
 		if len(args) > 0 {

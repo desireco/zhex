@@ -168,6 +168,24 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			}
 		}
 		return value{boolean: true}, nil
+	case "list.sort":
+		_, inner, _ := collectionInner(x.inputType)
+		items := args[0].list.items
+		return value{list: &listValue{items: sortListStable(items, items, inner == stringType)}}, nil
+	case "list.sort-by":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		keys := make([]value, len(source.items))
+		for i, item := range source.items {
+			key, err := r.callFunction(args[1].function, x.pos, item)
+			if err != nil {
+				return value{}, err
+			}
+			keys[i] = key
+		}
+		_, keyResult, _ := functionTypeParts(x.args[1].typ)
+		return value{list: &listValue{items: sortListStable(source.items, keys, keyResult == stringType)}}, nil
 	case "ok":
 		return value{result: &inputResult{value: args[0]}}, nil
 	case "err":

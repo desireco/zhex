@@ -718,3 +718,31 @@ print(list.length(values))
 		t.Fatal(out.String())
 	}
 }
+
+func TestSortByPartialApplication(t *testing.T) {
+	source := `type Entry = record
+    name: String
+    score: Int
+word entry-score(e: Entry) -> Int
+    e.score
+word entry-name(e: Entry) -> String
+    e.name
+let entries = [Entry("a", 2), Entry("b", 1)]
+let rank-all: ((Entry) -> Int) -> List<Entry> = list.sort-by(entries, _)
+let ranked = rank-all(entry-score(_))
+let first = ranked[0]
+print(entry-name(first))
+let sort-ints: (List<Int>) -> List<Int> = list.sort(_)
+print(sort-ints([3, 1])[0])
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "b\n1\n" {
+		t.Fatal(out.String())
+	}
+	if _, err := Compile("test.zhex", "let values = [1]\nlet rank-all = list.sort-by(values, _)\n"); err == nil {
+		t.Fatal("guessed overloaded partial type")
+	}
+}
