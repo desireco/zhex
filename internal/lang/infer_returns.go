@@ -1071,6 +1071,11 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		return namedType("Result", target, namedType("Error"))
 	case "json.encode":
 		return namedType("Result", namedType("String"), namedType("Error"))
+	case "json.parse":
+		if len(args) > 0 {
+			s.equal(args[0], namedType("String"), x.pos)
+		}
+		return namedType("Result", namedType("Json"), namedType("Error"))
 	}
 	if s.err == nil {
 		s.err = withSpan(withHint(errorAt(x.pos, CodeUnknownWord, "unknown word %q", x.text), suggestWordHint(x.text, s.checker.wordNames())), x)

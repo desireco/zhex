@@ -82,6 +82,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Maps](examples/maps.zhex) | Inferred key/value types, `Option` lookup, insertion order, updates, and map operations in flows. |
 | [Dates and time zones](examples/temporal.zhex) | Compare a calendar day and 24 elapsed hours across a daylight-saving transition. |
 | [JSON configuration](examples/json-config.zhex) | Decode a typed record with defaults for missing fields, then encode it as compact JSON. |
+| [JSON trees](examples/json-tree.zhex) | Parse a heterogeneous payload into a `Json` tree, walk it with a recursive word, and encode it back byte-for-byte. |
 | [Text stats](examples/text-stats.zhex) | Program arguments, whole-file counts, and streamed uppercased lines. |
 | [Line filter](examples/line-filter.zhex) | Split embedded records, select by literal prefix and suffix, and join a report. |
 | [Score report](examples/score-report.zhex) | Trim and score embedded records with `list.map`, `list.filter`, `list.fold`, `list.find`, `list.any`, and `list.all`. |

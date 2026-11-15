@@ -17,6 +17,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [maps.zhex](../examples/maps.zhex) | None | `1`, `3`, `Ada: 11`, `Morgan has no score`, `Ada: 11`, `Grace: 9`, `Nancy: 23`, `4`, `4` | Inferred and empty typed maps, optional lookups, insertion order, update/removal, and map operations composed in flows. |
 | [temporal.zhex](../examples/temporal.zhex) | None | Noon and 1 p.m. after the DST transition | Calendar-day and elapsed-duration arithmetic in a named zone. |
 | [json-config.zhex](../examples/json-config.zhex) | None | `3`, `true`, `{"retries":3,"verbose":true}` | Decode a typed record with a default for a missing field, then encode the complete value. |
+| [json-tree.zhex](../examples/json-tree.zhex) | None | `nodes: 12`, each dynamic key with its rendered value, then the compact round-trip text | Parse a heterogeneous document into the `Json` tree type, count nodes recursively, label every constructor, and encode the tree back. |
 | [text-stats.zhex](../examples/text-stats.zhex) | None (argument: `examples/text-stats-sample.txt`) | `3 lines  11 words  64 chars` | Program arguments, whole-file counts, and streamed uppercased lines. |
 | [line-filter.zhex](../examples/line-filter.zhex) | None | `shipped: inv-1042, inv-1044` | Split embedded records, select lines by literal prefix and suffix, and join the selected fields into a report. |
 | [score-report.zhex](../examples/score-report.zhex) | None | The joined names, then `passing: 3 of 4`, `total: 100`, `first above 40: 41`, and the any/all verdict | Trim and score embedded records through `list.map`, filter a subset, fold a total, and answer find, any, and all questions. |
@@ -109,6 +110,7 @@ zhex run examples/choices.zhex
 zhex run examples/collections.zhex
 zhex run examples/maps.zhex
 zhex run examples/json-config.zhex
+zhex run examples/json-tree.zhex
 zhex run examples/fizzbuzz.zhex
 zhex run examples/fibonacci.zhex
 zhex run examples/factorial.zhex

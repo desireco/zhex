@@ -1,0 +1,52 @@
+# A heterogeneous payload with mixed-type arrays and dynamic keys, held in
+# the host-owned Json tree type.
+
+let raw = "{ \"service\": \"ingest\", \"retries\": 1.5e1, \"endpoints\": [ \"primary\", 443, null, { \"host\": \"db\", \"port\": 5432 } ], \"flags\": { \"dry-run\": true } }"
+
+word count-nodes(doc: Json) -> Int
+    match doc
+        case Json.List(values)
+            var total = 1
+            for v in values
+                total = total + count-nodes(v)
+            total
+        case Json.Object(fields)
+            var total = 1
+            for key, value in fields
+                total = total + count-nodes(value)
+            total
+        case _
+            1
+
+word label(doc: Json) -> String
+    match doc
+        case Json.Null
+            "null"
+        case Json.Bool(value)
+            if value
+                "true"
+            else
+                "false"
+        case Json.Text(value)
+            value
+        case Json.Number(literal)
+            literal
+        case Json.List(values)
+            "list of " + int.to-string(list.length(values))
+        case Json.Object(fields)
+            "object of " + int.to-string(map.length(fields))
+
+let doc = json.parse(raw) try
+
+print("nodes: " + int.to-string(count-nodes(doc)))
+
+match doc
+    case Json.Object(fields)
+        for key, value in fields
+            print(key + " = " + label(value))
+    case _
+        print("unexpected shape")
+
+# encode(parse(raw)) keeps key order and number literals byte-for-byte and
+# normalizes whitespace to compact form.
+print(json.encode(doc) try)

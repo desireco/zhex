@@ -9,6 +9,17 @@ import (
 // from the full graph needed to check imported field types and cycles.
 var builtinOption = &recordType{name: "Option", choice: true, typeParam: "T", variants: []choiceVariant{{name: "None"}, {name: "Some", fields: []parameter{{name: "value", typ: "T"}}}}}
 
+// builtinJSON is the host-owned tree type for heterogeneous JSON documents;
+// recursion is host-only, so it is never visited for user cycles.
+var builtinJSON = &recordType{name: "Json", choice: true, builtin: true, variants: []choiceVariant{
+	{name: "Null"},
+	{name: "Bool", fields: []parameter{{name: "value", typ: "Bool"}}},
+	{name: "Text", fields: []parameter{{name: "value", typ: "String"}}},
+	{name: "Number", fields: []parameter{{name: "literal", typ: "String"}}},
+	{name: "List", fields: []parameter{{name: "values", typ: "List<Json>"}}},
+	{name: "Object", fields: []parameter{{name: "fields", typ: "Map<String, Json>"}}},
+}}
+
 type namedTypeRegistry struct {
 	visible map[string]*recordType
 	all     map[string]*recordType
@@ -222,15 +233,19 @@ func (c *checker) registerRecords(records []*recordType) error {
 	}
 	c.types.visible["Option"] = builtinOption
 	c.types.all["Option"] = builtinOption
-	if c.used("Option") {
-		if module := c.modules["Option"]; module != nil {
-			for _, variant := range builtinOption.variants {
-				if module.words[variant.name] != nil {
-					return errorAt(module.words[variant.name].pos, CodeDuplicateName, "imported word conflicts with Option.%s", variant.name)
-				}
-				for _, record := range module.recordOrder {
-					if record.name == variant.name {
-						return errorAt(record.pos, CodeDuplicateName, "imported type conflicts with Option.%s", variant.name)
+	c.types.visible["Json"] = builtinJSON
+	c.types.all["Json"] = builtinJSON
+	for _, builtin := range []*recordType{builtinOption, builtinJSON} {
+		if c.used(builtin.name) {
+			if module := c.modules[builtin.name]; module != nil {
+				for _, variant := range builtin.variants {
+					if module.words[variant.name] != nil {
+						return errorAt(module.words[variant.name].pos, CodeDuplicateName, "imported word conflicts with %s.%s", builtin.name, variant.name)
+					}
+					for _, record := range module.recordOrder {
+						if record.name == variant.name {
+							return errorAt(record.pos, CodeDuplicateName, "imported type conflicts with %s.%s", builtin.name, variant.name)
+						}
 					}
 				}
 			}
@@ -329,6 +344,11 @@ func (c *checker) registerRecords(records []*recordType) error {
 	visit = func(record *recordType, depth int) error {
 		if depth > 256 {
 			return errorAt(record.pos, CodeNestingLimit, "type nesting limit exceeded")
+		}
+		if record.builtin {
+			// Host choices such as Json recurse by design; the visit rejects
+			// only cycles the user declares.
+			return nil
 		}
 		if active[record.id()] {
 			return errorAt(record.pos, CodeUnknownType, "recursive named type %q is not supported", record.id())

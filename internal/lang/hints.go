@@ -113,5 +113,8 @@ func printHint(typ valueType) string {
 	if typ == bufferType {
 		return "a Buffer holds lines; convert it with buffer.to-text first, as in print(buffer.to-text(b))"
 	}
+	if typ == jsonType {
+		return "a Json value is a tree, not text; encode it with json.encode first, as in print(json.encode(doc) try)"
+	}
 	return tryHint(typ)
 }

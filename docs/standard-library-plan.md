@@ -10,7 +10,7 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words. [`hostWords` in check.go](../internal/lang/check.go) registers **108 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type. [`hostWords` in check.go](../internal/lang/check.go) registers **109 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
@@ -20,7 +20,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `list` | `new`, `length`, `append`, `map`, `filter`, `fold`, `find`, `any`, `all`, `sort`, `sort-by` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go`, `list_words_test.go`, `sort_test.go` |
 | `array` | `new`, `resize`, `shape`, `rank`, `length` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |
 | `map` | `length`, `contains`, `remove`, `put`, `into` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
-| `json` | `decode`, `encode` | [JSON](../site/src/content/docs/json.md); `json_test.go` |
+| `json` | `decode`, `encode`, `parse` | [JSON](../site/src/content/docs/json.md); `json_test.go` and `json_tree_test.go` |
 | `buffer` | `new`, `add-line`, `line-count`, `line`, `set-line`, `to-text` | [Buffers](../site/src/content/docs/buffers.md); `buffer_test.go` |
 | `file` | `read`, `open`, `read-line`, `close`, `write`, `stream`, `list`, `exists`, `size`, `free-space`, `join`, `base`, `extension`, `directory-of` | [Files](../site/src/content/docs/files.md); `file_test.go`, `file_inspect_test.go`, `path_test.go` |
 | `console` | `arg`, `args-count`, `exit`, `fail` | [Console](../site/src/content/docs/console.md); `args_test.go`, CLI `main_test.go`, `reporting_test.go` |
@@ -32,7 +32,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 108 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 109 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below adds candidates S12/S14/S15 awaiting owner triage; none of these is an implemented feature. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below adds candidates S12/S14/S15 awaiting owner triage; the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -251,14 +251,14 @@ The [#66 document research](https://github.com/desireco/zhex/issues/66) (JSON, Y
 5. Markdown paragraphs: verbatim — no normalization.
 6. HTML: `html.raw` included from v1, unmistakably unsafe — the module guarantee becomes "escaped unless raw".
 
-Story numbering continues the #69 sequence. S13 was the JSON heterogeneous-tree slot; the owner's mid-research decision filed it as #76, its design lives there, and it is not repeated here. S12, S14, and S15 are candidates awaiting owner triage and are not filed as issues.
+Story numbering continues the #69 sequence. S13 was the JSON heterogeneous-tree slot; the owner's mid-research decision filed it as #76, its design lives there, and it is not repeated here. It has since shipped: `json.parse` parses into the host-predeclared `Json` tree, `json.encode` accepts trees with byte-faithful round trips, and the `json-tree` example is registered. S12, S14, and S15 are candidates awaiting owner triage and are not filed as issues.
 
 Fit, defer, and exclude matrix:
 
 | Area | Verdict | Record |
 | --- | --- | --- |
 | JSON typed decode | Fit — already shipped | [#33](https://github.com/desireco/zhex/issues/33) shipped `json.decode`/`json.encode` with strict fields, defaults, and explicit Results; no new work needed. |
-| JSON heterogeneous trees | Superseded mid-research | Owner decision: the tree type was designed now and filed as #76; reference its design there, do not duplicate it here. |
+| JSON heterogeneous trees | Shipped | Owner decision: the tree type was designed now and filed as #76; it shipped there as `json.parse` with the host-predeclared `Json` tree and the `json-tree` example. |
 | YAML | Defer indefinitely | Owner decision: stay dependency-free. [goccy/go-yaml](https://github.com/goccy/go-yaml) was the researched candidate (MIT, active); [yaml.v3](https://github.com/go-yaml/yaml), archived 2025, is the cautionary precedent. |
 | TOML | Defer — preferred future candidate | Owner note: the preferred candidate if the dependency policy ever changes. Go's stdlib has no TOML either; [BurntSushi/toml](https://github.com/BurntSushi/toml) and [pelletier/go-toml/v2](https://github.com/pelletier/go-toml) are the maintained modules — equally dependency-carrying, better format determinism, healthier ecosystem. |
 | XML typed decode | Fit — S12 candidate | Dependency-free on stdlib [encoding/xml](https://pkg.go.dev/encoding/xml); see S12 below. |
@@ -372,6 +372,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S9 | [#73 — File: inspect — list, exists, size, and free space](https://github.com/desireco/zhex/issues/73) — shipped | #69 research; executable example deferred until S10's `file.make-folder` |
 | S11 | [#74 — File: lexical path words — join, base, extension, directory-of](https://github.com/desireco/zhex/issues/74) — shipped | #69 research; the `paths` example registered |
 | S10 | [#75 — File: destructive operations — make-folder, delete, delete-folder, move](https://github.com/desireco/zhex/issues/75) — shipped | #69 research; registered the deferred S9 example as `file-work` |
+| S13 | [#76 — Json: host-owned tree type with json.parse](https://github.com/desireco/zhex/issues/76) — shipped | #66 document research; owner-frozen design; `json-tree` example registered |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
 

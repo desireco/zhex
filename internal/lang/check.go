@@ -63,7 +63,7 @@ type checker struct {
 var hostWords = []string{
 	"date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string",
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
-	"json.decode", "json.encode",
+	"json.decode", "json.encode", "json.parse",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.fold", "list.find", "list.any", "list.all", "list.sort", "list.sort-by", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
@@ -1563,6 +1563,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	} else {
 		switch x.text {
+		case "json.parse":
+			params = []valueType{stringType}
+			result = valueType("Result<Json, Error>")
 		case "json.decode", "json.encode":
 			count := 1
 			if x.text == "json.decode" {
@@ -1577,6 +1580,11 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 					return "", errorAt(x.pos, CodeArgumentType, "json.decode requires JSON text as its first argument")
 				}
 				target = args[1]
+			}
+			if x.text == "json.encode" && target == jsonType {
+				params = args
+				result = valueType("Result<String, Error>")
+				break
 			}
 			schema, err := c.makeJSONSchema(target, map[valueType]bool{})
 			if err != nil {

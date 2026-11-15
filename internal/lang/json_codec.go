@@ -437,28 +437,90 @@ func validateJSONSurrogates(raw string) error {
 	}
 	return nil
 }
-func decodeJSON(pos position, raw string, defaults value, s *jsonSchema) value {
+
+// parseJSONRoot runs the strictness preamble decode and tree parse share:
+// UTF-8 and surrogate validation, the parse itself, and the single
+// top-level value check.
+func parseJSONRoot(pos position, op, raw string) (*jsonNode, value, bool) {
 	if !utf8.ValidString(raw) {
-		return jsonError(pos, "json.decode", &jsonFailure{message: "JSON is not valid UTF-8", code: CodeJSONSyntax})
+		return nil, jsonError(pos, op, &jsonFailure{message: "JSON is not valid UTF-8", code: CodeJSONSyntax}), false
 	}
 	if err := validateJSONSurrogates(raw); err != nil {
-		return jsonError(pos, "json.decode", err)
+		return nil, jsonError(pos, op, err), false
 	}
 	dec := json.NewDecoder(strings.NewReader(raw))
 	dec.UseNumber()
 	node, err := parseJSON(dec, "", 0)
 	if err != nil {
-		return jsonError(pos, "json.decode", err)
+		return nil, jsonError(pos, op, err), false
 	}
 	if _, err = dec.Token(); err != io.EOF {
 		if err == nil {
 			err = fmt.Errorf("multiple JSON values")
 		}
-		return jsonError(pos, "json.decode", &jsonFailure{message: err.Error(), code: CodeJSONSyntax, offset: dec.InputOffset()})
+		return nil, jsonError(pos, op, &jsonFailure{message: err.Error(), code: CodeJSONSyntax, offset: dec.InputOffset()}), false
+	}
+	return node, value{}, true
+}
+
+func decodeJSON(pos position, raw string, defaults value, s *jsonSchema) value {
+	node, failed, ok := parseJSONRoot(pos, "json.decode", raw)
+	if !ok {
+		return failed
 	}
 	v, err := decodeJSONValue(node, s, &defaults, newJSONClone(), "")
 	if err != nil {
 		return jsonError(pos, "json.decode", err)
+	}
+	return value{result: &inputResult{value: v}}
+}
+
+// jsonTreeValue converts one parsed node into a Json choice value; the list
+// element cap applies to tree mode exactly as it does to typed decode.
+func jsonTreeValue(n *jsonNode, path string) (value, error) {
+	switch n.kind {
+	case "null":
+		return value{choice: &choiceValue{name: "Json.Null"}}, nil
+	case "bool":
+		return value{choice: &choiceValue{name: "Json.Bool", variant: 1, fields: []value{{boolean: n.boolean}}}}, nil
+	case "string":
+		return value{choice: &choiceValue{name: "Json.Text", variant: 2, fields: []value{{text: n.text}}}}, nil
+	case "number":
+		return value{choice: &choiceValue{name: "Json.Number", variant: 3, fields: []value{{text: n.text}}}}, nil
+	case "array":
+		if len(n.array) > maxCollectionElements {
+			return value{}, &jsonFailure{path: path, message: "list exceeds element limit", code: CodeJSONRange, reason: "list-limit"}
+		}
+		items := make([]value, len(n.array))
+		for i, item := range n.array {
+			v, err := jsonTreeValue(item, fmt.Sprintf("%s/%d", path, i))
+			if err != nil {
+				return value{}, err
+			}
+			items[i] = v
+		}
+		return value{choice: &choiceValue{name: "Json.List", variant: 4, fields: []value{{list: &listValue{items: items}}}}}, nil
+	default:
+		m := &mapValue{keyType: stringType, index: map[mapKey]int{}}
+		for _, item := range n.object {
+			v, err := jsonTreeValue(item.val, jsonPath(path, item.key))
+			if err != nil {
+				return value{}, err
+			}
+			m.put(value{text: item.key}, v)
+		}
+		return value{choice: &choiceValue{name: "Json.Object", variant: 5, fields: []value{{mapping: m}}}}, nil
+	}
+}
+
+func parseJSONTree(pos position, raw string) value {
+	node, failed, ok := parseJSONRoot(pos, "json.parse", raw)
+	if !ok {
+		return failed
+	}
+	v, err := jsonTreeValue(node, "")
+	if err != nil {
+		return jsonError(pos, "json.parse", err)
 	}
 	return value{result: &inputResult{value: v}}
 }
@@ -533,6 +595,113 @@ func appendJSON(out *bytes.Buffer, v value, s *jsonSchema, path string, depth in
 func encodeJSON(pos position, v value, s *jsonSchema) value {
 	var out bytes.Buffer
 	if err := appendJSON(&out, v, s, "", 0); err != nil {
+		return jsonError(pos, "json.encode", err)
+	}
+	return value{result: &inputResult{value: value{text: out.String()}}}
+}
+
+// jsonNumberLiteral reports whether text matches the JSON number grammar:
+// -?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?.
+func jsonNumberLiteral(text string) bool {
+	i := 0
+	digits := func() bool {
+		start := i
+		for i < len(text) && text[i] >= '0' && text[i] <= '9' {
+			i++
+		}
+		return i > start
+	}
+	integer := func() bool {
+		start := i
+		if !digits() {
+			return false
+		}
+		leadingZero := text[start] == '0' && i-start > 1
+		return !leadingZero
+	}
+	if i < len(text) && text[i] == '-' {
+		i++
+	}
+	if !integer() {
+		return false
+	}
+	if i < len(text) && text[i] == '.' {
+		i++
+		if !digits() {
+			return false
+		}
+	}
+	if i < len(text) && (text[i] == 'e' || text[i] == 'E') {
+		i++
+		if i < len(text) && (text[i] == '+' || text[i] == '-') {
+			i++
+		}
+		if !digits() {
+			return false
+		}
+	}
+	return i == len(text)
+}
+
+// appendJSONTree encodes a Json tree; the Number payload is a String, so its
+// literal is validated against the JSON number grammar at this boundary.
+func appendJSONTree(out *bytes.Buffer, v value, path string, depth int) error {
+	if depth > 256 {
+		return &jsonFailure{path: path, message: "JSON nesting limit exceeded", code: CodeJSONDepth}
+	}
+	choice := v.choice
+	switch choice.variant {
+	case 0:
+		out.WriteString("null")
+	case 1:
+		out.WriteString(strconv.FormatBool(choice.fields[0].boolean))
+	case 2:
+		if !utf8.ValidString(choice.fields[0].text) {
+			return &jsonFailure{path: path, message: "string is not valid UTF-8", code: CodeJSONType, expected: "String", actual: "invalid UTF-8"}
+		}
+		b, _ := json.Marshal(choice.fields[0].text)
+		out.Write(b)
+	case 3:
+		literal := choice.fields[0].text
+		if !jsonNumberLiteral(literal) {
+			return &jsonFailure{path: path, message: fmt.Sprintf("number literal %q is not valid JSON", literal), code: CodeJSONType, expected: "number", actual: literal}
+		}
+		out.WriteString(literal)
+	case 4:
+		out.WriteByte('[')
+		for i, item := range choice.fields[0].list.items {
+			if i > 0 {
+				out.WriteByte(',')
+			}
+			if err := appendJSONTree(out, item, fmt.Sprintf("%s/%d", path, i), depth+1); err != nil {
+				return err
+			}
+		}
+		out.WriteByte(']')
+	default:
+		out.WriteByte('{')
+		for i, item := range choice.fields[0].mapping.entries {
+			if i > 0 {
+				out.WriteByte(',')
+			}
+			if !utf8.ValidString(item.key.text) {
+				return &jsonFailure{path: path, message: "map key is not valid UTF-8", code: CodeJSONType, expected: "String", actual: "invalid UTF-8"}
+			}
+			key, _ := json.Marshal(item.key.text)
+			out.Write(key)
+			out.WriteByte(':')
+			if err := appendJSONTree(out, item.value, jsonPath(path, item.key.text), depth+1); err != nil {
+				return err
+			}
+		}
+		out.WriteByte('}')
+	}
+	return nil
+}
+
+func encodeJSONTree(pos position, v value) value {
+	var out bytes.Buffer
+	if err := appendJSONTree(&out, v, "", 0); err != nil {
 		return jsonError(pos, "json.encode", err)
 	}
 	return value{result: &inputResult{value: value{text: out.String()}}}

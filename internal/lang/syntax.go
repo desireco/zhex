@@ -197,6 +197,7 @@ const (
 	bufferType               valueType = "Buffer"
 	fileType                 valueType = "File"
 	errorType                valueType = "Error"
+	jsonType                 valueType = "Json"
 	dateType                 valueType = "Date"
 	timeType                 valueType = "Time"
 	durationType             valueType = "Duration"
@@ -254,6 +255,7 @@ type recordType struct {
 	pos           position
 	fields        []parameter
 	choice        bool
+	builtin       bool // host-predeclared; recursion visits skip it
 	typeParam     string
 	alias         bool
 	aliasTarget   valueType
