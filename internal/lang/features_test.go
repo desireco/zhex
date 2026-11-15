@@ -102,3 +102,16 @@ func TestRuntimeErrors(t *testing.T) {
 		})
 	}
 }
+
+// A binding named eof is a legal name; the pseudo-kind lookahead in at()
+// must not treat it as the end-of-file token.
+func TestBindingNamedEofParses(t *testing.T) {
+	source := "var eof = false\nlet line = read-line(\"\") catch\n    eof = true\n    \"\"\nif eof\n    print(\"eof\")\nelse\n    print(\"line\")\n"
+	var out bytes.Buffer
+	if err := Run("eof.zhex", source, strings.NewReader("x\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "line\n" {
+		t.Fatalf("output %q", out.String())
+	}
+}
