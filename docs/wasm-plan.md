@@ -16,6 +16,7 @@ All checked against the working tree; nothing below is speculation.
 - Runtime proof under Node (`wasm_exec.js`): the module boots, parses args, writes stdout (the REPL banner prints), and produces the correct `not implemented on js` diagnostic when asked to open a file. The only missing piece is an entry point that takes **source as a string instead of a file path**.
 - The seam is already clean: `run(args, io.Reader, io.Writer, io.Writer)` at `cmd/zhex/main.go:29` takes IO injected; the only `os.ReadFile` calls in the CLI load the source itself.
 - Compiler-side assets: the checker (`internal/lang/check.go`, 2,081 lines) is fully reusable unchanged; `eval.go` (797 lines) is the size reference for an emitter; `examples/*.zhex` is a ready-made differential test suite.
+- Later on 2026-11-14: wabt 1.0.42 cannot assemble WasmGC *instructions* — `(type (struct ...))` parses under `--enable-gc`, but every GC mnemonic (`struct.new`, `array.get`, `ref.i31`, …) fails even with `--enable-all` — so the assembler was repinned from wat2wasm to wasm-tools (`wasm-tools parse in.wat -o out.wasm`; `internal/wasm/DESIGN.md`, Surprises 1).
 
 ## Part 2 — Why Zhex compiles cleanly
 
@@ -47,11 +48,11 @@ Track A is ticketed: the engine itself is [#91](https://github.com/desireco/zhex
 ## Part 5 — Decisions (ratified 2026-11-14)
 
 - **D1 GC strategy — WasmGC.** Garbage-collected structs/arrays inside the wasm engine (all evergreen browsers since ~late 2024; how Go/Kotlin/Dart ship now). No collector to write; the trade — no pre-2024/older-embedded engines — was accepted.
-- **D2 Emission route — WAT text + wabt.** Emit WebAssembly text, assemble with `wat2wasm`; debuggable, no binary-encoder code. Hand-emitted binary only if the external tool dependency ever hurts. The C route (`clang --target=wasm32`, already installed) stays deferred to the native-backend story.
+- **D2 Emission route — WAT text + wasm-tools.** Emit WebAssembly text, assemble with `wasm-tools parse <in.wat> -o <out.wasm>`; debuggable, no binary-encoder code. (Repinned from wabt's `wat2wasm` on 2026-11-14 — wabt cannot assemble WasmGC instructions; see Part 1.) Hand-emitted binary only if the external tool dependency ever hurts. The C route (`clang --target=wasm32`, already installed) stays deferred to the native-backend story.
 - **D3 Temporal — Duration-only.** `duration.` ships in the compiled target (pure computation, no database). `date.`/`time.`/`instant.`/`timezone.`/`zoned.` stay interpreter-only in v1; using them in a compiled program is a coded not-available-in-this-build diagnostic. The tz database stays out of every artifact.
 - **D4 Host contract — browser first, WASI at M3.** Browser: JS imports; unsupported words fail with stable diagnostic codes (same family as A1). Standalone arrives at M3 as WASI with preopened directories, `file.*` against the sandbox only. Two import skins, one runtime.
 - **D5 Sequencing — independent tracks.** No ordering constraint between Track A (#91) and Track B (#7); the board sets priority ticket by ticket.
-- **D6 CLI surface — `zhex compile`.** `zhex compile file.zhex -o file.wasm` is the public command; pairs with `zhex run` (check + interpret). The name is decided now; the subcommand ships with M1's first usable output and follows the vocabulary checklist when it does. **Missing-tool diagnostic (owner-required):** if `wat2wasm` is not installed, `zhex compile` stops with a coded diagnostic stating what is missing and a one-line install hint per platform — never a raw internal error. The getting-started and compile docs state the wabt requirement openly; Milestone 3's docs name a wasm runner (e.g. wasmtime) for standalone artifacts.
+- **D6 CLI surface — `zhex compile`.** `zhex compile file.zhex -o file.wasm` is the public command; pairs with `zhex run` (check + interpret). The name is decided now; the subcommand ships with M1's first usable output and follows the vocabulary checklist when it does. **Missing-tool diagnostic (owner-required):** if `wasm-tools` is not installed, `zhex compile` stops with a coded diagnostic stating what is missing and a one-line install hint per platform — never a raw internal error; the exact message is pinned in `internal/wasm/DESIGN.md` §8. Users install wasm-tools via cargo (`cargo install wasm-tools`), a release binary from the BytecodeAlliance releases, or a package manager (`pacman -S wasm-tools`, `brew install wasm-tools`); the getting-started and compile docs state the wasm-tools requirement openly with those paths. Milestone 3's docs name a wasm runner (e.g. wasmtime) for standalone artifacts.
 - **D7 Ticket structure — per-milestone tickets.** #7 is the umbrella (plan, decisions, artifacts, final close); each milestone M1–M4 becomes its own ticket when it starts, so no ticket sits In Progress unattended across the ~2–3 month arc.
 
 ## Part 6 — Track B milestones (#7)
@@ -60,7 +61,7 @@ Differential testing is the acceptance method throughout: the same program runs 
 
 | Milestone | Scope | Acceptance | Effort |
 |---|---|---|---|
-| **M1 — first light** | `Int`/`Bool`/`String`/`Unit` arithmetic and comparisons, `let`/`var`/`if`/`match`, words + recursion (depth counter), `flow`, `for`/`range`, `List`/`Array` as GC arrays, `Option`/`Result`, `print` via import | `fib`-class programs run in a browser with output identical to the interpreter; a missing `wat2wasm` fails `zhex compile` with the coded diagnostic and install hint from D6 | 2–4 weeks |
+| **M1 — first light** | `Int`/`Bool`/`String`/`Unit` arithmetic and comparisons, `let`/`var`/`if`/`match`, words + recursion (depth counter), `flow`, `for`/`range`, `List`/`Array` as GC arrays, `Option`/`Result`, `print` via import | `fib`-class programs run in a browser with output identical to the interpreter; a missing `wasm-tools` fails `zhex compile` with the coded diagnostic and install hint from D6 | 2–4 weeks |
 | **M2 — text and maps** | UTF-8 `text.*` suite, `list.*` callbacks via typed funcrefs, `Map` (hash map in the runtime), `sort`/`sort-by` | corpus programs without file access (e.g. `times-table`, `edit-distance`) differential-pass | 2–3 weeks |
 | **M3 — host interface** | JS imports + WASI for `file.*`/`read-line`/`buffer.*` within D4; unsupported-word diagnostics with stable codes; `duration.*` runtime (D3); `json` | `text-stats` and `file-work`-style examples pass under wasm against a sandboxed FS | 2–3 weeks |
 | **M4 — parity** | Full-corpus differential gate (a `just` target, separate from `just test`), artifact size report, overflow and depth diagnostics verified | every `examples/*.zhex` produces byte-identical output, interpreter vs compiled | 1–2 weeks |
@@ -69,7 +70,7 @@ With these decisions ratified, the total is roughly **2–3 months part-time** f
 
 ## Part 7 — Explicitly out of scope for v1
 
-`date.`/`time.`/`instant.`/`timezone.`/`zoned.` in the compiled target (D3 — `duration.` ships), `--trace` instrumentation of compiled code, pre-WasmGC engine support, TinyGo, the native backend (separate ROADMAP line), and optimizer work beyond what wabt's flags provide.
+`date.`/`time.`/`instant.`/`timezone.`/`zoned.` in the compiled target (D3 — `duration.` ships), `--trace` instrumentation of compiled code, pre-WasmGC engine support, TinyGo, the native backend (separate ROADMAP line), and optimizer work beyond what wasm-tools' flags provide.
 
 ## Part 8 — Risks
 
