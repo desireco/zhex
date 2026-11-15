@@ -255,7 +255,7 @@ print(describe(Status.Pending))
 		"ref.cast (ref $zt_Status_Failed)",
 		"struct.new $zt_Status_Failed",
 		"struct.new $zt_Status_Pending",
-		"struct.get $zt_Status_Failed 2", // payload index shifts past the padding + discriminant
+		"struct.get $zt_Status_Failed $f0", // payload names skip the padding fields
 	} {
 		if !strings.Contains(wat, want) {
 			t.Errorf("missing %q", want)
@@ -492,6 +492,146 @@ print(fib(10))
 	for i := 0; i < 2; i++ {
 		if again := watOf(t, src); again != first {
 			t.Fatalf("emission not deterministic on run %d", i+1)
+		}
+	}
+}
+
+// ------------------------------------------------------------------ modules
+
+func TestWatModuleWordsEmitQualified(t *testing.T) {
+	wat, err := CompileWat("main.zhex", "use math\nprint(math.gcd(48, 18))\n", mapResolver(map[string]string{"math.zhex": mathModule}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"(func $zw_math_qgcd (param $p0_a i64) (param $p1_b i64) (result i64)",
+		"call $zw_math_qgcd",
+		"i64.rem_s", // a % b inside the module word
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+func TestWatModuleRecordsEmitWhenUsed(t *testing.T) {
+	mod := `
+type Point = record
+    x: Int
+    y: Int
+
+word origin() -> Point
+    Point(0, 0)
+`
+	wat, err := CompileWat("main.zhex", "use geom\nlet p = geom.origin()\nprint(p.x)\n", mapResolver(map[string]string{"geom.zhex": mod}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"(type $zt_geom_qPoint (struct (field $f0 i64) (field $f1 i64)))",
+		"struct.new $zt_geom_qPoint",
+		"struct.get $zt_geom_qPoint $f0",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+// ------------------------------------------------------------- edge cases
+
+func TestWatUnitParamsAndResults(t *testing.T) {
+	wat := watOf(t, `
+word run(u: Unit) -> Unit
+    print("u")
+
+run(print("side"))
+`)
+	if !strings.Contains(wat, "(func $zw_run (param $p0_u i32)") {
+		t.Errorf("Unit param needs the i32 placeholder: %s", wat)
+	}
+	if strings.Contains(wat, "(result") && strings.Contains(wat, "(func $zw_run") {
+		start := strings.Index(wat, "(func $zw_run")
+		if end := strings.Index(wat[start:], "\n"); end > 0 && strings.Contains(wat[start:start+end], "(result") {
+			t.Errorf("Unit-result word must have no wasm result")
+		}
+	}
+	if !strings.Contains(wat, "i32.const 0") {
+		t.Errorf("Unit argument pushes the placeholder")
+	}
+}
+
+func TestWatReturnInsideTraversalResetsActive(t *testing.T) {
+	wat := watOf(t, `
+word first-positive(xs: List<Int>) -> Result<Int, Error>
+    for x in xs
+        if x > 0
+            return ok(x)
+    ok(0)
+
+print(first-positive([-1, 5, 7]) try)
+`)
+	if !strings.Contains(wat, "struct.get $zhex_list_i64 $active") {
+		t.Errorf("return path must reset the traversal counter")
+	}
+	// the cleanup runs before the br: active read precedes br $zhex_ret after it
+	retAt := strings.Index(wat, "br $zhex_ret")
+	activeAt := strings.LastIndex(wat[:retAt], "struct.set $zhex_list_i64 $active")
+	if activeAt < 0 || activeAt > retAt {
+		t.Errorf("return must decrement $active before branching out")
+	}
+}
+
+func TestWatNestedChoiceAndRecordFieldOfList(t *testing.T) {
+	wat := watOf(t, `
+type Shape = choice
+    Circle(r: Int)
+    Rect(w: Int, h: Int)
+
+type Drawing = record
+    parts: List<Shape>
+
+word area(s: Shape) -> Int
+    match s
+        case Shape.Circle(r)
+            3 * r * r
+        case Shape.Rect(w, h)
+            w * h
+
+let d = Drawing([Shape.Circle(2), Shape.Rect(3, 4)])
+print(area(d.parts[0]) + area(d.parts[1]))
+`)
+	for _, want := range []string{
+		"(type $zt_Drawing (struct (field $f0 (ref null $zhex_list_ref))))",
+		"call $zhex_list_get_ref",
+		"ref.cast (ref $zt_Shape_Circle)",
+		"struct.get $zt_Shape_Circle $f0",
+		"struct.get $zt_Shape_Rect $f0",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
+func TestWatInferredResultWordWrapsSuccess(t *testing.T) {
+	wat := watOf(t, `
+word give() -> Result<Int, Error>
+    ok(4)
+
+word take()
+    give() try
+
+print(take() try)
+`)
+	for _, want := range []string{
+		"(func $zw_take (result (ref $zhex_result))", // inferred Result signature
+		"struct.new $zhex_some_i64",                  // success wrapped once at the boundary
+		"local.set $r",
+		"br $zhex_ret", // the propagating try exits through the epilogue on err
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
 		}
 	}
 }

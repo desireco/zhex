@@ -76,9 +76,11 @@ func (e *watEmitter) line(format string, args ...any) {
 // ---------------------------------------------------------------- collection
 
 // collect gathers every reachable word and record: entry words in
-// declaration order, then module words in first-reference order (module
-// files have no top-level statements, so unreferenced module words are dead
-// and never emitted). Entry records are always emitted.
+// declaration order, then module words in first-reference order, walking
+// the entry body first so its callees (and their constructors) are enqueued
+// before any loop over the growing word list runs (module files have no
+// top-level statements, so unreferenced module words are dead and never
+// emitted). Entry records are always emitted.
 func (e *watEmitter) collect() {
 	e.seenWord = map[*word]bool{}
 	e.byID = map[string]*recordType{}
@@ -88,10 +90,10 @@ func (e *watEmitter) collect() {
 	for _, w := range e.p.words {
 		e.addWord(w)
 	}
+	e.walkStatements(e.p.body)
 	for i := 0; i < len(e.words); i++ {
 		e.walkStatements(e.words[i].body)
 	}
-	e.walkStatements(e.p.body)
 }
 
 func (e *watEmitter) addWord(w *word) {
@@ -1339,21 +1341,19 @@ func (e *watEmitter) matchExpr(x *expression) {
 // armBody casts the subject to the arm's variant struct, stores the payload
 // bindings, and emits the arm's block value.
 func (e *watEmitter) armBody(x *expression, arm *matchArm, m string) {
-	if arm.variant >= 0 && len(arm.bindings) > 0 {
+	if arm.variant >= 0 {
 		v := e.variantStruct(x.left.typ, arm)
-		e.line("local.get " + m)
-		e.line("ref.cast (ref %s)", v)
 		for j, b := range arm.bindings {
 			if b == nil {
 				continue
 			}
-			field := fmt.Sprintf("$f%d", j)
+			field := fmt.Sprintf("$f%d", j) // payload names skip the padding fields
 			if strings.HasPrefix(v, "$zhex_some_") {
 				field = "$value" // the prelude's Some struct names its payload
-			} else if arm.variant > 0 {
-				// user variants: index past variant-padding fields
-				field = fmt.Sprint(arm.variant + 1 + j)
 			}
+			// each payload read re-casts: struct.get consumes its receiver
+			e.line("local.get " + m)
+			e.line("ref.cast (ref %s)", v)
 			e.line("struct.get %s %s", v, field)
 			if b.typ == unitType {
 				e.line("drop")
