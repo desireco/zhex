@@ -4,7 +4,7 @@
 
 Zhex is an experimental **Forth-inspired language** for composing small operations into larger programs. It keeps the idea of passing values through a sequence of words, while adding named inputs, local values, familiar expressions, and clear control flow.
 
-The first interpreter is written in Go. It runs real `.zhex` files with console input and output. The language is still taking shape; syntax and APIs may change.
+The first interpreter is written in Go. It runs real `.zhex` files with console input and output. The language is still taking shape; syntax and APIs may change. No version numbers exist yet — versioning starts with the standard library's 0.1 release ([versioning policy](docs/versioning.md)).
 
 [Website and examples](https://desireco.github.io/zhex/) · [Manifesto](docs/manifesto.md) · [Getting started](docs/getting-started.md) · [Language reference](docs/initial-language.md) · [Roadmap](ROADMAP.md) · [Project board](https://github.com/users/desireco/projects/8)
 
@@ -155,6 +155,7 @@ just serve
 - [Getting started](docs/getting-started.md)
 - [Agent guide](AGENTS.md): writing correct Zhex and verifying changes with the test suite
 - [Language goals](docs/language-goals.md) and [first milestone](docs/first-milestone.md)
+- [Versioning policy](docs/versioning.md): no version numbers until the standard library's 0.1 release; 0.x semver, tags, and a hand-written CHANGELOG from there
 - [Earlier design notes](docs/design-notes.md) and [reference material](docs/reference/)
 
 ## License
