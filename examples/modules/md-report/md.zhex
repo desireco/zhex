@@ -1,0 +1,152 @@
+# A Markdown report library. Every word returns one String fragment and
+# never touches a Buffer — the caller accumulates fragments and joins
+# them with blank lines: text.join(fragments, "\n\n").
+#
+# Pinned contracts:
+# - md.paragraph emits caller text verbatim apart from escaping; no
+#   trimming or rewrapping.
+# - Text positions (headings, paragraphs, list items, table cells, link
+#   text) backslash-escape every ASCII CommonMark punctuation character;
+#   non-ASCII text passes through untouched.
+# - Link targets always percent-encode spaces and parentheses; when the
+#   lowercased target starts with javascript: or data:, every colon is
+#   percent-encoded too, which renders the scheme inert.
+# - md.code-block scans its lines for the longest backtick run and emits
+#   a fence of max(3, run + 1) backticks; nothing inside is escaped and
+#   the language tag is emitted verbatim after the opening fence.
+# - md.heading clamps its level into 1..6.
+# - md.table requires every row to match the header's cell count; the
+#   deliberate read past a mismatching row reports it as the interpreter's
+#   out-of-range diagnostic, so a malformed table never renders silently.
+# - Empty input renders to the empty fragment "".
+
+word heading(level: Int, text: String) -> String
+    _repeat("#", _clamped(level)) + " " + _esc(text)
+
+word paragraph(text: String) -> String
+    _esc(text)
+
+word bullet-list(items: List<String>) -> String
+    var lines: List<String> = list.new()
+    for item in items
+        list.append(lines, "- " + _esc(item))
+    text.join(lines, "\n")
+
+word ordered-list(items: List<String>) -> String
+    var lines: List<String> = list.new()
+    var n = 0
+    for item in items
+        n = n + 1
+        list.append(lines, int.to-string(n) + ". " + _esc(item))
+    text.join(lines, "\n")
+
+word link(text: String, target: String) -> String
+    "[" + _esc(text) + "](" + _target(target) + ")"
+
+word code-block(language: String, lines: List<String>) -> String
+    let mark = _repeat("`", _fence-length(lines))
+    if text.length(language) > 0
+        mark + language + "\n" + text.join(lines, "\n") + "\n" + mark
+    else
+        mark + "\n" + text.join(lines, "\n") + "\n" + mark
+
+word table(headers: List<String>, rows: List<List<String>>) -> String
+    let width = list.length(headers)
+    # shortcut: strict rows — a row that misses or exceeds the header
+    # width is reported by the out-of-range read, upgrade: none.
+    for row in rows
+        if list.length(row) != width
+            let _short-or-long = row[list.length(row)]
+    let esc-headers = list.map(headers, _esc(_))
+    var esc-rows: List<List<String>> = list.new()
+    for row in rows
+        list.append(esc-rows, list.map(row, _esc(_)))
+    var widths: List<Int> = list.new()
+    for j in range(0, width)
+        var w = text.length(esc-headers[j])
+        for row in esc-rows
+            if text.length(row[j]) > w
+                w = text.length(row[j])
+        list.append(widths, w)
+    var lines: List<String> = list.new()
+    list.append(lines, _table-row(esc-headers, widths))
+    list.append(lines, _table-separator(widths))
+    for row in esc-rows
+        list.append(lines, _table-row(row, widths))
+    text.join(lines, "\n")
+
+word _esc(text: String) -> String
+    flow text.split(text, "")
+        list.map(_esc-char(_))
+        text.join("")
+
+word _esc-char(c: String) -> String
+    if text.contains("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", c)
+        "\\" + c
+    else
+        c
+
+word _target(t: String) -> String
+    let low = text.lower(t)
+    var out = text.replace(text.replace(text.replace(t, " ", "%20"), "(", "%28"), ")", "%29")
+    if text.starts-with(low, "javascript:") or text.starts-with(low, "data:")
+        out = text.replace(out, ":", "%3A")
+    out
+
+word _repeat(ch: String, n: Int) -> String
+    var acc = ""
+    for _i in range(0, n)
+        acc = ch + acc
+    acc
+
+word _clamped(level: Int) -> Int
+    if level < 1
+        1
+    elif level > 6
+        6
+    else
+        level
+
+word _fence-length(lines: List<String>) -> Int
+    var longest = 0
+    for line in lines
+        let run = _longest-run(line)
+        if run > longest
+            longest = run
+    if longest >= 3
+        longest + 1
+    else
+        3
+
+word _longest-run(line: String) -> Int
+    var best = 0
+    var run = 0
+    for c in text.split(line, "")
+        if c == "`"
+            run = run + 1
+            if run > best
+                best = run
+        else
+            run = 0
+    best
+
+word _table-row(cells: List<String>, widths: List<Int>) -> String
+    var out = "|"
+    for j in range(0, list.length(cells))
+        out = out + " " + _padded(cells[j], widths[j]) + " |"
+    out
+
+word _padded(cell: String, width: Int) -> String
+    var out = cell
+    for _i in range(text.length(cell), width)
+        out = out + " "
+    out
+
+word _table-separator(widths: List<Int>) -> String
+    var out = "|"
+    for j in range(0, list.length(widths))
+        var n = 3
+        if widths[j] > 3
+            n = widths[j]
+        out = out + " " + _repeat("-", n) + " |"
+    out

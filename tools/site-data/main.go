@@ -258,6 +258,7 @@ var exampleSpecs = []struct {
 	{"paths", "Lexical paths", "Compose and decompose paths with file.join, base, extension, and directory-of.", "", "Language basics", nil, nil},
 	{"file-work", "File work folder", "Create a work folder, write reports into it, inspect them, and remove the whole tree.", "", "Language basics", []string{"."}, nil},
 	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", "Language basics", nil, []string{"math.zhex"}},
+	{"modules/md-report/main", "Markdown report", "Compose records and lists into a Markdown report through a pure-Zhex md module.", "", "Language basics", nil, []string{"md.zhex"}},
 	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", "Algorithms", nil, nil},
 	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", "Algorithms", nil, nil},
 	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", "Algorithms", nil, nil},

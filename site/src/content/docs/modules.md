@@ -65,6 +65,6 @@ The leading underscore is the visibility rule; there is no separate export decla
 
 `use` is allowed only at file top level. Repeating the same import is a no-op. A missing sibling file reports the searched path. Import cycles are errors, and the module names `text`, `int`, `buffer`, `file`, `console`, `error`, `list`, `array`, `map`, and `json` are reserved for built-in operations. The built-in `Option` type and its constructors are reserved names, but `Option` is not a reserved module name. An imported file with top-level statements is rejected.
 
-All imported modules and the entry file are checked before execution. Module errors point to the module's own source. The two-file [modules example](../examples.html#modules/main) shows a complete program.
+All imported modules and the entry file are checked before execution. Module errors point to the module's own source. The two-file [modules example](../examples.html#modules/main) shows a complete program, and the two-file [Markdown report example](../examples.html#modules/md-report/main) shows a larger one: the pure-Zhex `md` sibling module renders fragments the entry file composes into a report.
 
 In the REPL, `use math` resolves `math.zhex` from the working directory and adopts its qualified words for the session. See [REPL](repl.html).

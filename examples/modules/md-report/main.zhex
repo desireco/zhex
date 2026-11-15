@@ -1,0 +1,37 @@
+# A Markdown report from native values: the md module renders fragments,
+# a Buffer accumulates them, and blank lines separate the blocks. The
+# report stays in memory — printed as text, not written to a file, so the
+# example's output is deterministic at build time.
+
+use md
+
+type Check = record
+    name: String
+    region: String
+    latency: Int
+
+word check-row(check: Check) -> List<String>
+    [check.name, check.region, int.to-string(check.latency) + " ms"]
+
+let checks = [
+    Check("edge-cache", "eu-west", 12),
+    Check("search-api (v2)", "eu-west", 41),
+    Check("auth", "us-east", 87)
+]
+
+let headers = ["service", "region", "latency"]
+let rows = list.map(checks, check-row(_))
+
+var report = buffer.new()
+buffer.add-line(report, md.heading(2, "Weekly status & latency"))
+buffer.add-line(report, "")
+buffer.add-line(report, md.paragraph("Three services reported; nothing is down."))
+buffer.add-line(report, "")
+buffer.add-line(report, md.table(headers, rows))
+buffer.add-line(report, "")
+buffer.add-line(report, md.bullet-list(["no renderer", "no template engine, just words"]))
+buffer.add-line(report, "")
+buffer.add-line(report, md.link("CommonMark", "https://commonmark.org/help"))
+buffer.add-line(report, "")
+buffer.add-line(report, md.code-block("zhex", ["let title = md.heading(2, \"Weekly\")", "flow `inline code`", "    text.upper"]))
+print(buffer.to-text(report))

@@ -94,6 +94,7 @@ func TestExamples(t *testing.T) {
 		{name: "filter", args: []string{"alpha", "../../examples/no-such-file.txt"}, wantErr: "file-open"},
 		{name: "modules/main", input: "48\n18\n", want: "First number: Second number: 30\n6\n144\n"},
 		{name: "modules/main", input: "0\n5\n", want: "First number: Second number: Enter two positive integers.\n"},
+		{name: "modules/md-report/main", want: "## Weekly status \\& latency\n\nThree services reported\\; nothing is down\\.\n\n| service            | region   | latency |\n| ------------------ | -------- | ------- |\n| edge\\-cache        | eu\\-west | 12 ms   |\n| search\\-api \\(v2\\) | eu\\-west | 41 ms   |\n| auth               | us\\-east | 87 ms   |\n\n- no renderer\n- no template engine\\, just words\n\n[CommonMark](https://commonmark.org/help)\n\n```zhex\nlet title = md.heading(2, \"Weekly\")\nflow `inline code`\n    text.upper\n```\n"},
 	}
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%s/%d", tc.name, i), func(t *testing.T) {

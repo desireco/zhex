@@ -33,6 +33,7 @@ The first language milestone runs real programs with checked types and console i
 - Measurements: the interpreter runs text-stats at 8-9 ms per pass with stable allocation profiles by mode (docs/measurements.md); readability review recommends a line-filter tool as the next application, with number-to-text ceremony flagged for a future language story.
 - Tools: the line-filter tool ships as the first end-to-end application — `zhex run examples/filter.zhex <pattern> <file>` prints matching lines verbatim, streaming the file; wrong arguments fail with a usage line and a missing file reports its natural FileError (#81).
 - Modules: `use math` loads sibling files, words are importable unless underscore-private, calls are qualified, cycles and reserved names diagnose with paths, and the REPL adopts modules per session — with a two-file corpus example and docs sections to match.
+- Modules: the pure-Zhex `md` Markdown report module ships as a validated sibling module beside a two-file `md-report` example (#77) — fragment-returning words (heading, paragraph, bullet/ordered lists, link, fenced code block, tables added by owner decision), per-position escaping with `max(3, longest run + 1)` fences, percent-encoded link targets that neutralize `javascript:`/`data:` schemes, strict header-width table rows, and verbatim paragraphs; the example composes records and lists into a buffer and prints, with no host words or editor changes.
 
 ## Next
 

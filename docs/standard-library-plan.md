@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below adds candidates S12/S14/S15 awaiting owner triage; the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, #76 (the JSON heterogeneous tree) has shipped from the document research, #70 (predicate select) has shipped from the owner interview, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below added candidates S12/S14/S15 (S12 shipped, S14 shipped as the pure-Zhex `md` module [#77](https://github.com/desireco/zhex/issues/77)); the unshipped candidates are not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -263,7 +263,7 @@ The [#66 document research](https://github.com/desireco/zhex/issues/66) (JSON, Y
 5. Markdown paragraphs: verbatim — no normalization.
 6. HTML: `html.raw` included from v1, unmistakably unsafe — the module guarantee becomes "escaped unless raw".
 
-Story numbering continues the #69 sequence. S13 was the JSON heterogeneous-tree slot; the owner's mid-research decision filed it as #76, its design lives there, and it is not repeated here. It has since shipped: `json.parse` parses into the host-predeclared `Json` tree, `json.encode` accepts trees with byte-faithful round trips, and the `json-tree` example is registered. S12, S14, and S15 are candidates awaiting owner triage and are not filed as issues.
+Story numbering continues the #69 sequence. S13 was the JSON heterogeneous-tree slot; the owner's mid-research decision filed it as #76, its design lives there, and it is not repeated here. It has since shipped: `json.parse` parses into the host-predeclared `Json` tree, `json.encode` accepts trees with byte-faithful round trips, and the `json-tree` example is registered. S12 shipped, S14 shipped as [#77](https://github.com/desireco/zhex/issues/77) with tables added by owner decision, and S15 remains a candidate awaiting owner triage.
 
 Fit, defer, and exclude matrix:
 
@@ -303,15 +303,16 @@ Decisions to settle: the concrete `xml-*` code names and message shapes; whether
 
 Non-goals: no XML encoding or serialization, no DTD/entity expansion, no XPath, no mixed content or namespaces-as-data (deferred behind the tree-type wall above), no streaming.
 
-**S14. Markdown generation module.** Candidate from the #67 research, awaiting owner triage; not filed as an issue. A pure-Zhex sibling module — no host words. Proposed module words:
+**S14. Markdown generation module.** Filed from the #67 research as [#77](https://github.com/desireco/zhex/issues/77) and shipped as `examples/modules/md-report/md.zhex` with the registered `modules/md-report/main` example. A pure-Zhex sibling module — no host words, no checker or host changes, so the editor keyword lists do not apply (sibling-module words are not builtins and the #71 drift test does not cover them). Module words:
 
 ```text
-md.heading(text: String, level: Int) -> String
+md.heading(level: Int, text: String) -> String
 md.paragraph(text: String) -> String
 md.bullet-list(items: List<String>) -> String
 md.ordered-list(items: List<String>) -> String
-md.link(text: String, url: String) -> String
-md.code-block(text: String, language: String = "") -> String
+md.link(text: String, target: String) -> String
+md.code-block(language: String, lines: List<String>) -> String
+md.table(headers: List<String>, rows: List<List<String>>) -> String
 ```
 
 Owner decisions baked in: fragments, not appenders — every word returns a complete `String` fragment and never mutates a buffer, so `Buffer` stays the caller's accumulator; and the verbatim paragraph policy — caller text is emitted as written, with no normalization.
@@ -327,9 +328,9 @@ Acceptance criteria:
 - Fixtures cover the #67 list: Unicode, ampersands, angle brackets, quotes, Markdown metacharacters, multiline code, empty content, and shared Buffer aliases at the call site.
 - Ships as a concrete sibling module (`use md`) with concrete signatures — no checker or host changes.
 
-Decisions to settle: where a distributed sibling module lives (beside the existing `modules/` corpus, in `examples/`, or a new home) and how programs reference it; heading-level bounds outside 1–6 (diagnose versus clamp); whether `md.link` applies a URL scheme policy like S15's or leaves URLs verbatim.
+Decisions settled in review and pinned in the module: it lives beside the registered two-file example at `examples/modules/md-report/` (`main.zhex` plus `md.zhex`, resolved by the ordinary sibling rule); heading levels clamp into 1–6; `md.link` always percent-encodes spaces and parentheses and neutralizes `javascript:`/`data:` targets by percent-encoding every colon; `md.code-block` scans its lines for the longest backtick run and emits a fence of `max(3, run + 1)` backticks with the language tag verbatim; `md.table` (owner decision 2026-11-14: tables are in) requires every row to match the header width — a mismatching row fails the interpreter's `list-range` diagnostic before any table renders; empty input composes to the empty fragment and blank-line separation stays caller-side via `text.join(fragments, "\n\n")`.
 
-Non-goals: no Markdown parsing, no HTML output, no tables or extension syntax, no text normalization, no Buffer mutation, no template engine.
+Non-goals: no Markdown parsing, no HTML output, no further extension syntax beyond tables, no text normalization, no Buffer mutation, no template engine.
 
 **S15. HTML generation module.** Candidate from the #67 research, awaiting owner triage; not filed as an issue. A pure-Zhex sibling module plus one promotion candidate: `html.escape-text` as a host word backed by Go's [html](https://pkg.go.dev/html) escaping, because correct context-free text escaping is subtle enough to earn the host boundary. Proposed module words:
 
@@ -386,6 +387,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S10 | [#75 — File: destructive operations — make-folder, delete, delete-folder, move](https://github.com/desireco/zhex/issues/75) — shipped | #69 research; registered the deferred S9 example as `file-work` |
 | S13 | [#76 — Json: host-owned tree type with json.parse](https://github.com/desireco/zhex/issues/76) — shipped | #66 document research; owner-frozen design; `json-tree` example registered |
 | S12 | [#70 — Lists and arrays: select by predicate](https://github.com/desireco/zhex/issues/70) — shipped | #60 callback contract; `list.select` coexists with `list.filter` per owner decision |
+| S14 | [#77 — Markdown: report module as a pure-Zhex sibling module](https://github.com/desireco/zhex/issues/77) — shipped | #66/#67 research; owner-locked fragments and verbatim paragraphs, tables added by owner decision; no host words, so no inventory or editor changes; `modules/md-report/main` example registered |
 | — | [#72 — Language: while loop and read-line EOF reason](https://github.com/desireco/zhex/issues/72) — shipped | #65 prerequisite, ordered last in the queue; `while` is syntax (keyword), not a host word, so the inventory count is unchanged |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.

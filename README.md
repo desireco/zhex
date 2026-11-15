@@ -94,6 +94,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
 | [Filter tool](examples/filter.zhex) | The first end-to-end application: `zhex run examples/filter.zhex <pattern> <file>` prints the lines containing a literal, case-sensitive pattern; wrong arguments fail with a usage line and a missing file reports its natural `FileError`. Not a registered website example — it needs arguments to run. |
 | [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library and keeps one helper underscore-private. |
+| [Markdown report](examples/modules/md-report/main.zhex) | A two-file program: `use md` renders records and lists into a Markdown report through a pure-Zhex module. |
 
 ### Algorithms
 

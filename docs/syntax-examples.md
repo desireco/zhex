@@ -28,6 +28,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [recovery.zhex](../examples/recovery.zhex) | None | A fallback message, then `Retries: 3` | Catch invalid numeric text and continue with a default value. |
 | [exit-status.zhex](../examples/exit-status.zhex) | `0` | `Exiting with status 0` after the prompt | Validate a requested status, recover malformed input in `catch`, and terminate with `console.exit`. |
 | [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
+| [modules/md-report/main.zhex](../examples/modules/md-report/main.zhex) | None | The escaped heading and paragraph, the aligned pipe table, both lists, the link, and the fenced code block | A two-file program: `use md` imports the sibling `md.zhex` and renders records and lists into a Markdown report accumulated in a buffer. |
 
 ## Algorithms
 
