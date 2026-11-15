@@ -97,7 +97,7 @@ Hello, Ada!
 
 The spaces shown after `....>` are editable. Tab inserts four spaces; Backspace removes one character; press it four times to dedent one level. An empty or spaces-only continuation line submits the entry. While editing, Ctrl-C cancels the current entry. Ctrl-D on an empty top-level line exits; in a pending entry, Ctrl-D on an empty or spaces-only continuation line discards it and exits.
 
-An open `()`, `[]`, or `{}` also continues an entry. Blank and comment-only lines inside it do not submit. Closing a top-level expression submits it; if it is inside a pending block, a blank line still submits the block. This works in source files and the REPL.
+An open `()`, `[]`, or `{}` also continues an entry. Blank and comment-only lines inside it do not submit. A comment-only line outside a delimiter never completes an entry either: it joins the next line's entry, so a `##` doc block stays with the word it documents. Closing a top-level expression submits it; if it is inside a pending block, a blank line still submits the block. This works in source files and the REPL.
 
 Auto-indentation applies to interactive terminal input. Piped REPL input keeps the existing source format, so include the leading four spaces yourself. Pasted code keeps its source indentation; tabs and non-ASCII whitespace outside strings or comments are still rejected by the language. A program's `read-line` prompt reads input as data, without source auto-indentation or Tab expansion.
 

@@ -35,6 +35,24 @@ print(identity(7))
 
 This prints `5` and `7`. `text.length` constrains `character-count`'s parameter to `String`; the call to `identity(7)` supplies the constraint for `identity`. Explicit and inferred parameter types can be mixed, as in `word count-down(n, prefix: String)`. If a parameter remains unconstrained, add its type annotation; conflicting calls are type errors, and a word parameter cannot have a `Result` type. Bindings, assignments, and loops have type `Unit`; an explicit return type must match the final statement's type. An `if`, `match`, or `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
 
+A contiguous block of `##` comments directly above a word declares that word's doc (see [syntax](syntax.html)); `words` prints it indented four spaces beneath the signature:
+
+```zhex
+## Greatest common divisor, by repeated subtraction.
+word gcd(a: Int, b: Int) -> Int
+    if b == 0
+        a
+    else
+        gcd(b, a % b)
+```
+
+```text
+gcd(a: Int, b: Int) -> Int
+    Greatest common divisor, by repeated subtraction.
+```
+
+Only user words take docs — a module's words list qualified, as in `math.gcd(...)`, and records, choices, and built-ins get none. A doc lives on its word: redefining the word replaces the doc, and a doc-less redefinition clears it; a doc change alone never makes a redefinition incompatible. A blank doc line (`##` alone) renders as an empty line.
+
 `if`, `match`, and `flow` blocks can also supply the entire right-hand side of a `let`, `var`, or assignment. Their final value becomes the binding or assignment value:
 
 ```zhex

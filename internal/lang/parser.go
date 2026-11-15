@@ -75,6 +75,35 @@ func definitionSource(start position, end position) string {
 	return strings.Join(slice, "\n") + "\n"
 }
 
+// wordDoc captures the contiguous full-line ## comments directly above the
+// word keyword as the word's doc and returns the position of the first doc
+// line — the widened slice start that keeps Session.Export reproducing the
+// doc. A line that is blank, indented, or a plain # comment detaches them,
+// and indented ## lines never match so a previous word's body is not swallowed.
+func wordDoc(pos position) (string, position) {
+	if pos.source == nil || pos.line < 2 {
+		return "", pos
+	}
+	lines := strings.Split(*pos.source, "\n")
+	var doc []string
+	for i := pos.line - 2; i >= 0; i-- {
+		line := strings.TrimSuffix(lines[i], "\r")
+		if !strings.HasPrefix(line, "##") {
+			break
+		}
+		doc = append(doc, strings.TrimPrefix(line[2:], " "))
+	}
+	if len(doc) == 0 {
+		return "", pos
+	}
+	for i, j := 0, len(doc)-1; i < j; i, j = i+1, j-1 {
+		doc[i], doc[j] = doc[j], doc[i]
+	}
+	start := pos
+	start.line -= len(doc)
+	return strings.Join(doc, "\n"), start
+}
+
 func (p *parser) current() token { return p.tokens[p.index] }
 
 // at matches the current token's kind; keyword-like kinds (word, match, ...)
@@ -238,8 +267,9 @@ func (p *parser) parseRecord() *recordType {
 
 func (p *parser) parseWord() *word {
 	start := p.require("word")
+	doc, sliceStart := wordDoc(start.pos)
 	t := p.name()
-	w := &word{name: t.text, pos: t.pos}
+	w := &word{name: t.text, pos: t.pos, doc: doc}
 	parenthesized := p.accept("(")
 	if (parenthesized && !p.at(")")) || (!parenthesized && p.current().kind == "name" && !p.at("newline")) {
 		for {
@@ -264,7 +294,7 @@ func (p *parser) parseWord() *word {
 	}
 	if !p.accept("->") {
 		w.body = p.block()
-		w.source = definitionSource(start.pos, p.lastEnd())
+		w.source = definitionSource(sliceStart, p.lastEnd())
 		return w
 	}
 	if p.at("Result") {
@@ -284,7 +314,7 @@ func (p *parser) parseWord() *word {
 		w.result = p.parseType()
 	}
 	w.body = p.block()
-	w.source = definitionSource(start.pos, p.lastEnd())
+	w.source = definitionSource(sliceStart, p.lastEnd())
 	return w
 }
 

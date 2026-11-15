@@ -248,6 +248,7 @@ type word struct {
 	inferred           bool
 	body               []*statement
 	source             string   // the definition's source slice, for Session.Export
+	doc                string   // ## doc lines directly above the word, for Words
 	host               hostFunc // per-run host-evaluated word (the #65 repl seam); nil for program words
 }
 

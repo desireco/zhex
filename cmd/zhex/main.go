@@ -201,8 +201,17 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
 		if pending {
 			blank := line == "" || (editor != nil && strings.Trim(line, " ") == "")
+			if !blank && line == "words" && commentOnly(buffer) {
+				// A held comment line must not swallow the words command.
+				buffer, pending, blockPending = "", false, false
+				listWords()
+				continue
+			}
 			if !blank || openDelimiter {
 				buffer += line + "\n"
+				if commentOnly(buffer) {
+					continue
+				}
 				_, cerr := lang.Compile("repl", buffer)
 				_, openDelimiter = lang.DelimiterIndent(buffer, cerr)
 				if openDelimiter || blockPending {
@@ -225,6 +234,12 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 				continue
 			}
 			buffer = line + "\n"
+			if commentOnly(buffer) {
+				// A comment line cannot complete an entry; hold it so a ##
+				// doc block shares its entry with the word it documents.
+				pending, openDelimiter = true, false
+				continue
+			}
 			if _, cerr := lang.Compile("repl", buffer); lang.IsIncomplete(cerr) {
 				_, openDelimiter = lang.DelimiterIndent(buffer, cerr)
 				blockPending = !openDelimiter
@@ -236,4 +251,20 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			return status
 		}
 	}
+}
+
+// commentOnly reports whether source holds only comment lines; such an entry
+// cannot stand alone, so the loop holds it pending for the line that follows.
+func commentOnly(source string) bool {
+	comments := false
+	for _, line := range strings.Split(source, "\n") {
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(strings.TrimLeft(line, " "), "#") {
+			return false
+		}
+		comments = true
+	}
+	return comments
 }

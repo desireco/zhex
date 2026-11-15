@@ -483,7 +483,8 @@ func missingInWorkingDirectory(u use, _ string) error {
 }
 
 // Words lists the session's word signatures, sorted by name; a module's
-// word carries its module prefix. Per-run host words stay unlisted.
+// word carries its module prefix and a documented word carries its ## doc
+// lines indented beneath the signature. Per-run host words stay unlisted.
 func (s *Session) Words() []string {
 	sigs := make([]string, 0, len(s.words))
 	for _, w := range s.words {
@@ -501,7 +502,18 @@ func (s *Session) Words() []string {
 				params[i] += " = ..."
 			}
 		}
-		sigs = append(sigs, fmt.Sprintf("%s(%s) -> %s", name, strings.Join(params, ", "), w.result))
+		sig := fmt.Sprintf("%s(%s) -> %s", name, strings.Join(params, ", "), w.result)
+		if w.doc != "" {
+			// A doc prints indented four spaces under its signature; a blank
+			// doc line stays blank rather than carrying trailing spaces.
+			for _, line := range strings.Split(w.doc, "\n") {
+				if line != "" {
+					line = "    " + line
+				}
+				sig += "\n" + line
+			}
+		}
+		sigs = append(sigs, sig)
 	}
 	sort.Strings(sigs)
 	return sigs

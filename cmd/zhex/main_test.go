@@ -258,6 +258,33 @@ func TestReplWordsShadowsBinding(t *testing.T) {
 	}
 }
 
+func TestReplWordsShowsWordDocs(t *testing.T) {
+	script := "## doubles n\n## exactly.\nword double(n: Int) -> Int\n    n + n\n\nwords\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	if !strings.Contains(out.String(), "double(n: Int) -> Int\n    doubles n\n    exactly.\n") {
+		t.Fatalf("stdout %q misses the documented signature", out.String())
+	}
+}
+
+// A comment-only line never completes an entry — it must stay in the buffer
+// with the line that follows, and the words command typed after one still
+// lists signatures.
+func TestReplWordsAfterCommentLine(t *testing.T) {
+	script := "# note\nwords\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	if !strings.Contains(out.String(), "bye() -> Unit\n") {
+		t.Fatalf("stdout %q misses signatures", out.String())
+	}
+}
+
 func TestReplEofDuringContinuationExits(t *testing.T) {
 	var out, diagnostics bytes.Buffer
 	code := run([]string{"repl"}, strings.NewReader("word f() -> Int\n    1\n"), &out, &diagnostics)
