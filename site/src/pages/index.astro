@@ -13,7 +13,7 @@ import data from "../../data.json";
           <a class="button" href="examples.html">Read the examples <span aria-hidden="true">→</span></a>
           <a class="text-link" href="docs.html">Read the docs →</a>
         </div>
-        <p class="status"><span class="status-dot" aria-hidden="true"></span>Experimental · Working Go interpreter</p>
+        <p class="status"><span class="status-dot" aria-hidden="true"></span>Experimental · Go interpreter · Compiles to WebAssembly</p>
       </div>
     </section>
 
@@ -69,6 +69,16 @@ just build
 ./bin/zhex run examples/hello.zhex</code></pre></div>
         <p class="access-note">The repository is public and MIT licensed. <a href="https://github.com/desireco/zhex" target="_blank" rel="noopener">Browse the source</a>, <a href="roadmap.html">review what comes next</a>, or follow the <a href="https://github.com/users/desireco/projects/8" target="_blank" rel="noopener">project board</a>.</p>
       </div>
+    </section>
+
+    <section class="section wrap" aria-labelledby="compile-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Beyond the interpreter</p><h2 id="compile-title">Compile to WebAssembly.</h2></div>
+        <p class="intro">The same checked program becomes a standalone WebAssembly module — roughly 38–40 KB gzipped — for a web page or a WASI runner such as wasmtime.</p>
+      </div>
+      <div class="command-block"><pre><code>./bin/zhex compile examples/collatz.zhex --target=wasi
+wasmtime run --dir .::/ examples/collatz.wasm</code></pre></div>
+      <p class="access-note">Compiling checks the program exactly like <code>zhex run</code> and needs the free wasm-tools assembler. <a href="docs/compiling.html">Read the compiling guide →</a></p>
     </section>
 
     <section class="section principles-section" aria-labelledby="sponsors-title">

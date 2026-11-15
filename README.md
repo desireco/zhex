@@ -64,6 +64,19 @@ go build -o bin/zhex ./cmd/zhex
 
 [Editor support](docs/editors.md) provides syntax highlighting for Vim/Neovim, VS Code, and Zed.
 
+## Compile to WebAssembly
+
+`zhex compile file.zhex [-o out.wasm] [--target=browser|wasi]` turns a program into a standalone WebAssembly module. The whole program is checked first, exactly as `zhex run` checks it — a program that fails the checker produces no artifact. The default `--target=browser` builds a module for a web page or JavaScript host; `--target=wasi` builds one that runs under a WebAssembly runner such as wasmtime:
+
+```sh
+go run ./cmd/zhex compile examples/collatz.zhex --target=wasi
+wasmtime run --dir .::/ examples/collatz.wasm
+```
+
+Compiling needs the free [wasm-tools](https://github.com/bytecodealliance/wasm-tools) assembler — `cargo install wasm-tools`, `pacman -S wasm-tools`, or `brew install wasm-tools` — and running the module in a browser needs nothing else. Compiled programs cost roughly 38–40 KB gzipped regardless of program size.
+
+The [compiling guide](https://desireco.github.io/zhex/docs/compiling.html) covers targets, diagnostics, and which constructs compile today; [docs/wasm-plan.md](docs/wasm-plan.md) records the compiler's design.
+
 ## Learn through examples
 
 The [examples page](https://desireco.github.io/zhex/examples.html) groups complete, inline source programs into language basics and algorithms.
@@ -119,7 +132,7 @@ The [example guide](docs/syntax-examples.md) records expected output and edge ca
 
 ## What works today
 
-The interpreter supports typed word definitions, named parameters, inferred or explicitly annotated local types, immutable `let` bindings, mutable `var` bindings, nominal records and one-parameter choices with exhaustive matching, shared mutable lists, arrays, and maps, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, streamed file reads, and typed JSON decoding/encoding are built in. Programs split across files: `use math` imports the sibling `math.zhex`, its words and types are callable qualified (`math.gcd`, `model.Customer`), and a leading underscore keeps a word or type private to its file. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words, values, types, and adopted modules across the session.
+The interpreter supports typed word definitions, named parameters, inferred or explicitly annotated local types, immutable `let` bindings, mutable `var` bindings, nominal records and one-parameter choices with exhaustive matching, shared mutable lists, arrays, and maps, integers, booleans, strings, conditions, bounded loops, and checked flows. Console reads, program arguments, printing, integer formatting, a dozen text words, line buffers, streamed file reads, and typed JSON decoding/encoding are built in. Programs split across files: `use math` imports the sibling `math.zhex`, its words and types are callable qualified (`math.gcd`, `model.Customer`), and a leading underscore keeps a word or type private to its file. An interactive REPL, `zhex repl`, checks and runs each entry as you type it, keeping words, values, types, and adopted modules across the session. A compiler, `zhex compile`, turns the same checked programs into standalone WebAssembly modules for browser and WASI hosts.
 
 The whole file is checked before execution, including unused word bodies. Static errors do not prompt or consume input. Runtime errors report a source location; integer overflow, division by zero, invalid input, and end-of-input are handled explicitly.
 
