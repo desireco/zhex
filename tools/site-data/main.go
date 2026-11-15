@@ -251,6 +251,7 @@ var exampleSpecs = []struct {
 	{"exit-status", "Exit status", "Choose a valid status; invalid input exits with status 2.", "0\n", "Language basics", nil, nil},
 	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", "Language basics", []string{"examples/text-stats-sample.txt"}, nil},
 	{"line-filter", "Line filter", "Split embedded records, select them by literal prefix and suffix, and join a report.", "", "Language basics", nil, nil},
+	{"file-write", "File write", "Attempt a checked report write and handle the failed Result with catch.", "", "Language basics", nil, nil},
 	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", "Language basics", nil, []string{"math.zhex"}},
 	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", "Algorithms", nil, nil},
 	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", "Algorithms", nil, nil},

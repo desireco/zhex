@@ -270,6 +270,8 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "file.close":
 		args[0].file.close()
 		return value{}, nil
+	case "file.write":
+		return writeTextFile(x.pos, args[0].text, args[1].text, args[2].boolean), nil
 	case "console.fail":
 		_, _ = io.WriteString(r.diagnostics, args[0].text+"\n")
 		return value{}, &ExitError{Status: 1}

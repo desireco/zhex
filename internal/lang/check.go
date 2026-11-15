@@ -69,8 +69,23 @@ var hostWords = []string{
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
-	"file.read-all", "file.read-lines", "file.open", "file.read-line", "file.close", "file.lines",
+	"file.read-all", "file.read-lines", "file.open", "file.read-line", "file.close", "file.write", "file.lines",
 	"console.arg", "console.args-count", "console.exit", "console.fail",
+}
+
+// builtinTrailingDefaults names the built-in words whose trailing parameters
+// carry constant defaults: the word's full arity and the constants the call
+// dispatch appends when a caller omits the tail. The checker lowers the
+// word's required minimum by the same count, so direct calls and deferred
+// partial invocations follow one rule.
+// shortcut: constant defaults only, upgrade when a built-in needs computed defaults
+var builtinTrailingDefaults = map[string]builtinDefault{
+	"file.write": {arity: 3, values: []value{{boolean: false}}},
+}
+
+type builtinDefault struct {
+	arity  int
+	values []value
 }
 
 // HostWord reports whether name is a word provided by the host, not the program.
@@ -1850,6 +1865,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "file.close":
 			params = []valueType{fileType}
 			result = unitType
+		case "file.write":
+			params = []valueType{stringType, stringType, boolType}
+			result = unitFileResultType
 		case "console.exit":
 			params = []valueType{intType}
 			result = neverType
@@ -1871,6 +1889,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		}
 	}
 	minimum := len(params)
+	if d := builtinTrailingDefaults[x.text]; len(d.values) > 0 {
+		minimum -= len(d.values)
+	}
 	if x.word != nil {
 		for minimum > 0 && x.word.params[minimum-1].defaultExpr != nil {
 			minimum--

@@ -44,10 +44,25 @@ for line in file.lines("examples/text-stats-sample.txt")
 
 The `file.lines` form is available only as the source of a `for` loop.
 
+## Writing a file
+
+| Signature | Result and behavior |
+| --- | --- |
+| `file.write(String, String, Bool = false) -> Result<Unit, FileError>` | On success, `Unit`: the contents are written to the path. The optional third argument appends instead of truncating. |
+
+`file.write(contents, path, append)` takes the contents first, then the path. Omitting `append` (or passing `false`) creates the file or truncates an existing one; `append = true` appends and creates the file if it is missing. The trailing `append` argument is a built-in constant default: calls may omit it, and a partial such as `file.write(_, "out.txt")` keeps it deferred, like a user-word default.
+
+No parent directory is created, and the write is not atomic — a failure can leave a partial or truncated file. The open, write, and close happen inside the operation, so no writable file resource escapes. A created file uses mode 0644 subject to the process umask, and the write follows symlinks.
+
+```zhex
+let saved = file.write(report, "/") catch problem
+    print("Save failed: " + error.code(problem))
+```
+
 ## Lines and failures
 
 Line reading removes one trailing line feed (`LF`) and removes an immediately preceding carriage return (`CR`) with it. A bare final `CR` without `LF` is retained. A final nonempty line without a newline is still read. An empty file produces no lines in a loop.
 
-Opening or reading can fail, and invalid UTF-8 is rejected. Whole-file open failures use `file-open`; streaming read failures and end-of-file use `file-read`; invalid text uses `file-utf8`. Add `try` to propagate a failure or `catch` to handle it locally. See [results and error handling](results.html).
+Opening or reading can fail, and invalid UTF-8 is rejected. Whole-file open failures use `file-open`; streaming read failures and end-of-file use `file-read`; invalid text uses `file-utf8`. A write that cannot open, write, or close the path fails `file-write`, naming the path, the failing phase, and the operating system's reason; a failed write may leave a partial or truncated file, and a missing parent directory is never created. Add `try` to propagate a failure or `catch` to handle it locally. See [results and error handling](results.html).
 
 See the [text-stats example](../examples.html#text-stats), which counts a whole file or streams its lines depending on the supplied arguments.

@@ -617,6 +617,9 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		return value{record: &recordValue{name: x.record.id(), fields: fields}}, nil
 	}
 	if x.word == nil {
+		if d := builtinTrailingDefaults[x.text]; len(d.values) > 0 && len(args) < d.arity {
+			args = append(args, d.values[len(args)-(d.arity-len(d.values)):]...)
+		}
 		result, err := r.builtin(x, args)
 		if d, ok := err.(*diagnostic); ok && d.operation == "" {
 			d.operation = x.text

@@ -127,6 +127,7 @@ These built-in operations return a `Result` directly:
 | `file.read-lines(path)` | `Result<Buffer, FileError>` | File cannot be opened or is invalid UTF-8. |
 | `file.open(path)` | `Result<File, FileError>` | File cannot be opened. |
 | `file.read-line(file)` | `Result<String, FileError>` | End of file, closed file, or read failure. |
+| `file.write(contents, path, append = false)` | `Result<Unit, FileError>` | The path cannot be opened for writing, the write fails, or closing fails; a partial or truncated file may remain. |
 | `buffer.line(buffer, i)` | `Result<String, BufferError>` | Index is outside the buffer's lines. |
 | `buffer.set-line(buffer, i, line)` | `Result<Unit, BufferError>` | Index is outside the buffer's lines. |
 | `error.cause(error)` | `Result<Error, Error>` | The error has no cause (`error-no-cause`). |

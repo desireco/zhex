@@ -1,6 +1,6 @@
 # Standard library research and proposed plan
 
-Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57 has since shipped, and #58–64 await one-by-one review.
+Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57–59 have since shipped, #60 and #61 are in flight, and #62–64 await one-by-one review.
 
 ## Recommendation
 
@@ -10,7 +10,7 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; story S1 (#57) has since shipped four text words. [`hostWords` in check.go](../internal/lang/check.go) registers **88 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57) and S2 (#58) have since shipped four text words and one file word. [`hostWords` in check.go](../internal/lang/check.go) registers **89 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ The baseline is commit `b4b6f59`; story S1 (#57) has since shipped four text wor
 | `map` | `length`, `contains`, `remove`, `put`, `into` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
 | `json` | `decode`, `encode` | [JSON](../site/src/content/docs/json.md); `json_test.go` |
 | `buffer` | `new`, `add-line`, `line-count`, `line`, `set-line`, `to-text` | [Buffers](../site/src/content/docs/buffers.md); `buffer_test.go` |
-| `file` | `read-all`, `read-lines`, `open`, `read-line`, `close`, `lines` | [Files](../site/src/content/docs/files.md); `file_test.go` |
+| `file` | `read-all`, `read-lines`, `open`, `read-line`, `close`, `write`, `lines` | [Files](../site/src/content/docs/files.md); `file_test.go` |
 | `console` | `arg`, `args-count`, `exit`, `fail` | [Console](../site/src/content/docs/console.md); `args_test.go`, CLI `main_test.go`, `reporting_test.go` |
 | `error` | `set-reporter`, `report`, `new`, `wrap`, `has-cause`, `cause`, `code`, `message`, `operation`, `file`, `line`, `column`, `detail` | [Results](../site/src/content/docs/results.md); `result_words_test.go`, `reporting_test.go` |
 | `date` | `new`, `parse`, `to-string`, `add-days` | [Temporal](../site/src/content/docs/temporal.md); `temporal_test.go`, `civil_time_test.go` |
@@ -32,7 +32,7 @@ The baseline is commit `b4b6f59`; story S1 (#57) has since shipped four text wor
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 88 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 89 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -86,7 +86,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 1. A dot identifies the owner or domain: text operations live under `text`, list transformations under `list`, and external filesystem work under `file`. Keep compound verbs hyphenated. Do not add aliases merely because another language has them.
 2. Keep the existing bare fundamental operations. New domain utilities should be qualified. Conversions retain explicit names such as `int.to-string`; no implicit stringification is proposed.
-3. Put the flowing data first, then configuration/callbacks. Existing APIs remain compatible. An output helper may therefore use `file.write-all(contents, path)`, with the content first; document this deliberately alongside path-first reads.
+3. Put the flowing data first, then configuration/callbacks. Existing APIs remain compatible. An output helper may therefore use `file.write(contents, path)`, with the content first; this deliberate asymmetry with path-first reads is documented alongside the shipped word.
 4. Use host built-ins for UTF-8 primitives, resource effects, and collection operations needing checker polymorphism. Use concrete Zhex words for policies/algorithms expressible clearly today: integer min/max helpers, line-filter orchestration, report rendering, Life rules, edit-distance recurrence.
 5. A reusable source module is an option today only when its signatures are concrete and its sibling import works. An installed standard-module search path is not part of this plan. Future optional libraries need a separate distribution design.
 6. Ordinary deterministic transformations return ordinary values. Expected absence uses `Option` in new lookup APIs; preserve the existing `text.index-of` sentinel. Invalid programmer inputs diagnose. Fallible I/O/parsing returns one explicit Result family. Do not wrap every pure call in `try`.
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57) has shipped, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), and S3 (#59) have shipped, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -111,13 +111,15 @@ Demand: a proposed `line-filter` program selects records by literal prefix/suffi
 
 Shipped notes: split enforces the one-million-element limit before materializing output, reusing the `collection-limit` code with the message `text.split exceeds element limit`; no new diagnostic codes were added. Invalid-UTF-8 input behaves like the existing code-point text words (no validation), and the argv gap stays open as a pre-existing boundary. The opt-in checked split recovery is deferred with the collection recovery mechanism. The `line-filter` example demonstrating the shipped words is registered; the full file-reading `line-filter` application recommended by [measurements](measurements.md) remains open.
 
-**S2. Persist a text report.** Proposed host signature:
+**S2. Persist a text report.** Shipped as [#58](https://github.com/desireco/zhex/issues/58); host signature:
 
 ```text
-file.write-all(contents: String, path: String) -> Result<Unit, FileError>
+file.write(contents: String, path: String, append: Bool = false) -> Result<Unit, FileError>
 ```
 
-Demand: save the proposed line-filter report or a Life generation snapshot; current programs can print but cannot write a file. This story depends on the report workload, not new generics. Specify create-or-truncate/overwrite, no implicit parent creation, UTF-8 contents with explicit handling of invalid host-supplied argument strings, and resource closure. Errors can leave a partial/truncated file; do not promise atomic replacement. Test existing/missing paths, empty contents, write/close failures and short writes through suitable host seams, and failure propagation/reporting. Preserve error-family rules when composing with console arguments; demonstrate explicit wrapping if families need unification. A separate atomic-save API requires a later portability contract.
+Demand: save the proposed line-filter report or a Life generation snapshot; current programs can print but cannot write a file. This story depends on the report workload, not new generics. Create-or-truncate/overwrite when `append` is false or omitted, append with create-if-missing when true; no implicit parent creation, UTF-8 contents with explicit handling of invalid host-supplied argument strings, and resource closure. Errors can leave a partial/truncated file; do not promise atomic replacement. Test existing/missing paths, empty contents, write/close failures and short writes through suitable host seams, and failure propagation/reporting. Preserve error-family rules when composing with console arguments; demonstrate explicit wrapping if families need unification. A separate atomic-save API requires a later portability contract.
+
+Shipped notes: named `file.write`, keeping data-first `contents, path` order — a deliberate asymmetry with path-first reads. Built-ins gained trailing constant defaults as a general checker/eval rule (per-word arity ranges plus constant values, no per-word special case); call sites may omit them, and partial application keeps omitted defaults deferred, matching the user-word rule. The open, write, and close happen inside the operation, so no writable `File` escapes; created files use mode 0644 before umask, and the write path follows symlinks. The stable code is `file-write`, naming the path, the failing phase (`open`, `write`, or `close`), and the operating system's reason; a failed write may leave a partial or truncated file, and a missing parent directory is never created. Invalid-UTF-8 host arguments keep the #57 stance of no new validation. The `file-write` example demonstrating the checked failure path is registered.
 
 **S3. Reduce the edit-distance recurrence.** Start with concrete source words `min(left: Int, right: Int) -> Int` in the algorithm or a sibling module. Demand: replace the manual three-way minimum in `examples/edit-distance.zhex` while preserving exact results. This can ship independently of S1/S2. S1's empty-separator split also permits precomputing code-point lists once instead of repeatedly slicing whole strings in the nested loop; benchmark that change before claiming a speedup. Only promote `int.min`/`int.max` into the core after a second workload demonstrates reuse; a two-line helper alone does not justify more built-ins. If promoted, include MinInt64/MaxInt64 and equal-value cases. Do not add `abs` without specifying MinInt64 overflow, or Float/math APIs without new type design. Life already has sufficient rectangular arrays; no new grid type is needed.
 
@@ -190,13 +192,13 @@ Directory listing/metadata belongs in a separate story with deterministic orderi
 
 Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6 and the deliberately separate S7. S8 and other optional capabilities stay proposals.
 
-The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) has since shipped, and its four text words are recorded in the inventory above.
+The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, and S3 (#59) shipped as source-level helper words without new host names.
 
 | Order | Story | Dependency |
 | --- | --- | --- |
 | S1 | [#57 — Literal text split/join and prefix/suffix](https://github.com/desireco/zhex/issues/57) — shipped | Full line-filter application still open |
-| S2 | [#58 — Persist a text report](https://github.com/desireco/zhex/issues/58) | #57 report workload; Life snapshot is another validation option |
-| S3 | [#59 — Simplify edit-distance minimum](https://github.com/desireco/zhex/issues/59) | Independent |
+| S2 | [#58 — Persist a text report](https://github.com/desireco/zhex/issues/58) — shipped | Atomic-save needs a later portability contract |
+| S3 | [#59 — Simplify edit-distance minimum](https://github.com/desireco/zhex/issues/59) — shipped | Local helper words; `int.min`/`int.max` promotion awaits a second workload |
 | S4 | [#60 — List map/filter/fold](https://github.com/desireco/zhex/issues/60) | #57 workload and existing callable support |
 | S5 | [#61 — Short-circuit find/any/all](https://github.com/desireco/zhex/issues/61) | #60 callback contract |
 | S6 | [#62 — Stable copied sort/sort-by](https://github.com/desireco/zhex/issues/62) | #60 callback contract |

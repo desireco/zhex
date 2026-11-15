@@ -1,0 +1,9 @@
+# Save a report with file.write; the host refuses to open a directory for
+# writing, so catch handles the failed Result instead of crashing.
+
+let report = "invoices: 2\ncredits: 7\n"
+
+let saved = file.write(report, "/") catch problem
+    print("Save failed: " + error.code(problem))
+    print("Nothing was written; the report stays in memory.")
+print("In-memory report:\n" + report)

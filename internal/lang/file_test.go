@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -229,6 +230,292 @@ func TestFileLinesOpenFailure(t *testing.T) {
 	}
 	if !strings.Contains(message, "/nonexistent-zhex") || !strings.Contains(message, "no such file or directory") {
 		t.Fatalf("message must name the path and the OS error: %q", message)
+	}
+}
+
+func readDisk(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func TestFileWriteCreatesTruncatesAppends(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "report.txt")
+
+	// Omitted append creates a new file with UTF-8 multibyte contents.
+	out, err := runFile(t, "file.write(\"γεια 🌍\", \""+path+"\") try\nprint(\"made\")\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "made\n" || readDisk(t, path) != "γεια 🌍" {
+		t.Fatalf("out %q disk %q", out, readDisk(t, path))
+	}
+
+	// A second omitted-append write truncates instead of appending.
+	if _, err := runFile(t, "file.write(\"new\", \""+path+"\") try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, path) != "new" {
+		t.Fatalf("omitted append must truncate, disk %q", readDisk(t, path))
+	}
+
+	// Explicit append: false also truncates; true appends to the existing file.
+	if _, err := runFile(t, "file.write(\"longer\", \""+path+"\", false) try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, path) != "longer" {
+		t.Fatalf("explicit false must truncate, disk %q", readDisk(t, path))
+	}
+	if _, err := runFile(t, "file.write(\"!\", \""+path+"\", true) try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, path) != "longer!" {
+		t.Fatalf("explicit true must append, disk %q", readDisk(t, path))
+	}
+
+	// Append creates a missing file (O_APPEND convention).
+	appended := filepath.Join(dir, "log.txt")
+	if _, err := runFile(t, "file.write(\"first\", \""+appended+"\", true) try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, appended) != "first" {
+		t.Fatalf("append must create a missing file, disk %q", readDisk(t, appended))
+	}
+
+	// Empty contents truncate an existing file to zero bytes.
+	if _, err := runFile(t, "file.write(\"\", \""+path+"\") try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, path) != "" {
+		t.Fatalf("empty contents must truncate, disk %q", readDisk(t, path))
+	}
+
+	// The short-call form writes the same contents, path last.
+	if _, err := runFile(t, "file.write \"short\", \""+appended+"\" try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, appended) != "short" {
+		t.Fatalf("short form must truncate, disk %q", readDisk(t, appended))
+	}
+
+	// A flow passes its seed as the first, data-first argument.
+	if _, err := runFile(t, "flow \"from flow\"\n    file.write(\""+path+"\") try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, path) != "from flow" {
+		t.Fatalf("flow seed must be the contents, disk %q", readDisk(t, path))
+	}
+
+	// The write path follows an existing symlink to its target.
+	target := filepath.Join(dir, "target.txt")
+	if err := os.WriteFile(target, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link.txt")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := runFile(t, "file.write(\"via link\", \""+link+"\") try\n"); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, target) != "via link" {
+		t.Fatalf("write must follow the symlink, disk %q", readDisk(t, target))
+	}
+
+	// A missing parent directory is never created implicitly; both arities
+	// report the same failure.
+	for _, call := range []string{
+		"file.write(\"x\", \"" + filepath.Join(dir, "no-such-dir", "x.txt") + "\") try\n",
+		"file.write(\"x\", \"" + filepath.Join(dir, "no-such-dir", "x.txt") + "\", true) try\n",
+	} {
+		code, message := codeOf(t, runFileErr(t, call))
+		if code != "file-write" {
+			t.Fatalf("wanted file-write, got %s", code)
+		}
+		if !strings.Contains(message, "no-such-dir") || !strings.Contains(message, "no such file or directory") {
+			t.Fatalf("message must name the path and the OS error: %q", message)
+		}
+	}
+}
+
+// runFileErr runs a program that is expected to fail and returns its error.
+func runFileErr(t *testing.T, source string) error {
+	t.Helper()
+	_, err := runFile(t, source)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	return err
+}
+
+func TestFileWriteFailurePhasesAndDetails(t *testing.T) {
+	dir := t.TempDir()
+
+	// The open phase reuses the read-side reason taxonomy, and the failing
+	// phase is visible through error.detail.
+	path := filepath.Join(dir, "missing", "out.txt")
+	out, err := runFile(t, "let u = file.write(\"x\", \""+path+"\") catch problem\n"+
+		"    print(error.detail(problem, \"phase\"))\n"+
+		"    print(error.detail(problem, \"reason\"))\n"+
+		"    print(error.detail(problem, \"path\"))\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "open\nnot-found\n" + path + "\n"; out != want {
+		t.Fatalf("got %q, want %q", out, want)
+	}
+
+	// A write failure names the path and the injected cause.
+	origWrite := osWrite
+	osWrite = func(f *os.File, b []byte) (int, error) { return 0, errorString("disk on fire") }
+	defer func() { osWrite = origWrite }()
+	outPath := filepath.Join(dir, "out.txt")
+	_, err = runFile(t, "file.write(\"data\", \""+outPath+"\") try\n")
+	code, message := codeOf(t, err)
+	if code != "file-write" || !strings.Contains(message, "writing "+strconv.Quote(outPath)+" failed") || !strings.Contains(message, "disk on fire") {
+		t.Fatalf("wrong write failure: %s %q", code, message)
+	}
+	out, err = runFile(t, "let u = file.write(\"data\", \""+outPath+"\") catch problem\n    print(error.detail(problem, \"phase\"))\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "write\n" {
+		t.Fatalf("write phase detail: got %q", out)
+	}
+
+	// A writer that reports success after a partial write is converted to a
+	// short-write failure.
+	osWrite = func(f *os.File, b []byte) (int, error) { f.Write(b[:3]); return 3, nil }
+	_, err = runFile(t, "file.write(\"report\", \""+outPath+"\") try\n")
+	code, message = codeOf(t, err)
+	if code != "file-write" || !strings.Contains(message, "short write") {
+		t.Fatalf("wrong short-write failure: %s %q", code, message)
+	}
+
+	// A partial write followed by an error leaves the partial file behind:
+	// file.write does not promise atomic replacement.
+	osWrite = func(f *os.File, b []byte) (int, error) { f.Write(b[:3]); return 3, errorString("io error") }
+	_, err = runFile(t, "file.write(\"report\", \""+outPath+"\") try\n")
+	if code, _ := codeOf(t, err); code != "file-write" {
+		t.Fatalf("wanted file-write, got %s", code)
+	}
+	if readDisk(t, outPath) != "rep" {
+		t.Fatalf("partial write must stay on disk, disk %q", readDisk(t, outPath))
+	}
+	osWrite = origWrite
+
+	// A close failure is reported after the contents were written.
+	origClose := osClose
+	osClose = func(f *os.File) error { return errorString("close failed") }
+	defer func() { osClose = origClose }()
+	_, err = runFile(t, "file.write(\"done\", \""+outPath+"\") try\n")
+	code, message = codeOf(t, err)
+	if code != "file-write" || !strings.Contains(message, "closing "+strconv.Quote(outPath)) || !strings.Contains(message, "close failed") {
+		t.Fatalf("wrong close failure: %s %q", code, message)
+	}
+	if readDisk(t, outPath) != "done" {
+		t.Fatalf("contents must be on disk before close, disk %q", readDisk(t, outPath))
+	}
+	osClose = origClose
+}
+
+func TestFileWriteArityTypeAndDiscardDiagnostics(t *testing.T) {
+	for _, tc := range []struct{ source, want string }{
+		{"file.write(\"only\") try\n", "file.write requires 2 to 3 arguments, found 1"},
+		{"file.write(\"a\", \"b\", true, 4) try\n", "file.write requires 2 to 3 arguments, found 4"},
+		{"file.write(1, \"b\") try\n", "argument 1 of file.write requires type String, found Int"},
+		{"file.write(\"a\", 2) try\n", "argument 2 of file.write requires type String, found Int"},
+		{"file.write(\"a\", \"b\", 3) try\n", "argument 3 of file.write requires type Bool, found Int"},
+		{"file.write(\"a\", \"b\")\n", "Result must be handled or propagated"},
+	} {
+		if got := runError(t, tc.source); !strings.Contains(got, tc.want) {
+			t.Errorf("source %q: wanted %q, got %q", tc.source, tc.want, got)
+		}
+	}
+}
+
+func TestFileWritePartialKeepsDefaultDeferred(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "out.txt")
+
+	// The omitted default stays deferred: one-argument invocations truncate.
+	source := "let save = file.write _, \"" + path + "\"\n" +
+		"save(\"first\") try\n" +
+		"save(\"second\") try\n"
+	if _, err := runFile(t, source); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, path) != "second" {
+		t.Fatalf("deferred default must truncate, disk %q", readDisk(t, path))
+	}
+
+	// A partial that captures append: true appends per invocation.
+	source = "let log = file.write _, \"" + path + "\", true\n" +
+		"log(\"a\") try\n" +
+		"log(\"b\") try\n"
+	if _, err := runFile(t, source); err != nil {
+		t.Fatal(err)
+	}
+	if readDisk(t, path) != "secondab" {
+		t.Fatalf("captured append must apply, disk %q", readDisk(t, path))
+	}
+}
+
+func TestFileWriteErrorFamilyComposition(t *testing.T) {
+	// An escaping InputError and FileError in one word need unification.
+	source := "word save-arg(i: Int) -> Unit\n" +
+		"    let a = console.arg(i) try\n" +
+		"    file.write(a, \"out.txt\") try\n"
+	if _, err := Compile("test.zhex", source); err == nil || !strings.Contains(err.Error(), "multiple error families") {
+		t.Fatalf("wanted mixed family rejection, got %v", err)
+	}
+
+	// Wrapping each failure into Error compiles and keeps the origin code.
+	dir := t.TempDir()
+	source = "word save-arg(i: Int) -> Result<Unit, Error>\n" +
+		"    let a = console.arg(i) catch problem\n" +
+		"        return err(error.wrap(\"missing-arg\", \"no program argument\", problem))\n" +
+		"    let done = file.write(a, \"" + filepath.Join(dir, "no", "out.txt") + "\") catch problem\n" +
+		"        return err(error.wrap(\"write-failed\", \"could not write the report\", problem))\n" +
+		"    ok(done)\n" +
+		"let u = save-arg(0) catch problem\n" +
+		"    print(error.code(problem))\n" +
+		"    print(error.code(error.cause(problem) try))\n"
+	var out strings.Builder
+	if err := RunWithArgs("test.zhex", source, strings.NewReader(""), &out, nil, []string{"payload"}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "write-failed\nfile-write\n"; out.String() != want {
+		t.Fatalf("got %q, want %q", out.String(), want)
+	}
+}
+
+func TestFileWriteInfersResultWord(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "out.txt")
+	source := "word save(text: String, path: String)\n" +
+		"    file.write(text, path) try\n" +
+		"save(\"body\", \"" + path + "\") try\n" +
+		"print(\"saved\")\n"
+	var out strings.Builder
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "saved\n" {
+		t.Fatalf("got %q", out.String())
+	}
+
+	var session strings.Builder
+	s := NewSession(strings.NewReader(""), &session, nil, nil)
+	if _, err := s.Enter("word save(text: String, path: String)\n    file.write(text, path) try\n\n"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(s.Words(), "\n"), "save(text: String, path: String) -> Result<Unit, FileError>") {
+		t.Fatalf("words %v", s.Words())
 	}
 }
 

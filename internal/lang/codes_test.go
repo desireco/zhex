@@ -141,6 +141,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{"file-open", "let t = file.read-all(\"/nonexistent-zhex\") try\n", "", nil, nil},
 		{"file-utf8", "let t = file.read-all(\"" + utf8Path + "\") try\n", "", nil, nil},
 		{"file-read", "let f = file.open(\"" + eofPath + "\") try\nlet l = file.read-line(f) try\n", "", nil, nil},
+		{"file-write", "file.write(\"x\", \"/nonexistent-zhex-dir-58/x.txt\") try\n", "", nil, nil},
 		{code: "use-location", source: "word f() -> Unit\n    use math\n    print(1)\n"},
 		{code: "use-missing", source: "use math\nprint(1)\n"},
 		{code: "use-reserved", source: "use text\n"},

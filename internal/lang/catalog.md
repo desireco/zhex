@@ -203,6 +203,9 @@ A read from an open file failed: the stream was drained ("end of file") or the f
 ## file-utf8
 A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the file as UTF-8.
 
+## file-write
+`file.write` could not open, write, or close the path; the message names the path, the failing phase, and the operating system's reason. The failure lives inside the `Result` and surfaces through `try`; a failed write may leave a partial or truncated file, and a missing parent directory is never created.
+
 ## argument-missing
 `console.arg` received an index outside the program's command-line arguments. The message names the index and how many arguments were given; the failure lives inside the `Result` and surfaces through `try`. Check the index against `console.args-count()`.
 

@@ -212,6 +212,7 @@ const (
 	stringBufferResultType valueType = "Result<String, BufferError>"
 	unitBufferResultType   valueType = "Result<Unit, BufferError>"
 	stringFileResultType   valueType = "Result<String, FileError>"
+	unitFileResultType     valueType = "Result<Unit, FileError>"
 	fileResultType         valueType = "Result<File, FileError>"
 )
 

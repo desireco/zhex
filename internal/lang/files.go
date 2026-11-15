@@ -2,6 +2,7 @@ package lang
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -34,6 +35,65 @@ func fileReason(err error, path, reason string) error {
 		d.details = map[string]string{"path": path, "reason": reason}
 	}
 	return err
+}
+
+// osWrite and osClose are the write-side host seam: production uses the real
+// os.File methods; tests swap them to inject write failures, short writes,
+// and close failures.
+var osWrite = (*os.File).Write
+var osClose = (*os.File).Close
+
+// writeTextFile writes contents to path in one internal open-write-close:
+// create-or-truncate by default, or append (creating a missing file) when
+// appendMode is set. No writable File escapes, a failure may leave a partial
+// or truncated file, created files use mode 0644 before umask, and the write
+// path follows symlinks.
+func writeTextFile(pos position, contents, path string, appendMode bool) value {
+	flags := os.O_WRONLY | os.O_CREATE
+	if appendMode {
+		flags |= os.O_APPEND
+	} else {
+		flags |= os.O_TRUNC
+	}
+	f, err := os.OpenFile(path, flags, 0o644)
+	if err != nil {
+		return value{result: &inputResult{err: fileWriteError(pos, path, "open", err)}}
+	}
+	n, err := osWrite(f, []byte(contents))
+	if err == nil && n != len(contents) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		_ = osClose(f)
+		return value{result: &inputResult{err: fileWriteError(pos, path, "write", err)}}
+	}
+	if err := osClose(f); err != nil {
+		return value{result: &inputResult{err: fileWriteError(pos, path, "close", err)}}
+	}
+	return value{result: &inputResult{}}
+}
+
+// fileWriteError maps a failed write phase to file-write with the read-side
+// reason taxonomy (not-found, permission-denied, other) and the phase.
+func fileWriteError(pos position, path, phase string, cause error) error {
+	reason := "other"
+	if os.IsNotExist(cause) {
+		reason = "not-found"
+	} else if os.IsPermission(cause) {
+		reason = "permission-denied"
+	}
+	var message string
+	switch phase {
+	case "open":
+		message = fmt.Sprintf("cannot open %q for writing: %v", path, cause)
+	case "close":
+		message = fmt.Sprintf("closing %q failed: %v", path, cause)
+	default:
+		message = fmt.Sprintf("writing %q failed: %v", path, cause)
+	}
+	d := errorAt(pos, CodeFileWrite, "%s", message).(*diagnostic)
+	d.details = map[string]string{"path": path, "reason": reason, "phase": phase}
+	return d
 }
 
 // readFile reads the whole file, validating UTF-8 at the boundary.
