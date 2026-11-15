@@ -35,7 +35,8 @@ func TestWatLiteralsAndArithmetic(t *testing.T) {
 	for _, want := range []string{
 		"i64.const 1", "i64.const 2", "i64.const 3",
 		"call $zhex_mul", "call $zhex_add", // precedence: (1) then (2*3)
-		"call $zhex_print_int",
+		"call $zhex_int_to_string",
+		"call $zhex_print_line", // the module owns print's newline (M3)
 		`(export "memory" (memory $zhex_mem))`,
 		`(export "zhex_main" (func $zhex_main))`,
 		`(export "zhex_last_error" (func $zhex_last_error))`,
@@ -69,7 +70,7 @@ print(a == "x")
 print(a != "x")
 `)
 	for _, want := range []string{
-		"call $zhex_str_concat", "call $zhex_print_str",
+		"call $zhex_str_concat", "call $zhex_print_line",
 		"call $zhex_str_eq", "i32.eqz", // != negates the str_eq result
 	} {
 		if !strings.Contains(wat, want) {
@@ -399,10 +400,10 @@ flow double(5)
     print
 `)
 	for _, want := range []string{
-		"call $zw_double",      // seed
-		"local.set $t_c1_0",    // cursor local for the seed value
-		"local.get $t_c1_0",    // cursor feeds the next step's first argument
-		"call $zhex_print_int", // bare print step
+		"call $zw_double",       // seed
+		"local.set $t_c1_0",     // cursor local for the seed value
+		"local.get $t_c1_0",     // cursor feeds the next step's first argument
+		"call $zhex_print_line", // bare print step (int_to_string + print_line)
 	} {
 		if !strings.Contains(wat, want) {
 			t.Errorf("missing %q", want)
@@ -464,10 +465,6 @@ flow 5
     f
     print
 `, "function values is not available in this build"},
-		{"file-stream", `
-for line in file.stream("nope.txt")
-    print(line)
-`, "file.stream is not available in this build"},
 		{"generic-choice", `
 type Pair<T> = choice
     Left(a: T)
@@ -475,20 +472,18 @@ type Pair<T> = choice
 
 print(1)
 `, "generic choice Pair is not available in this build"},
-		{"file-read", `let t = file.read("a.txt") try`, "file.read is not available in this build"},
-		{"file-path-words", `print(file.join("a", "b"))`, "file.join is not available in this build"},
-		{"read-line", `let line = read-line("> ") try`, "read-line is not available in this build"},
-		{"buffer", `let b = buffer.new()`, "buffer.new is not available in this build"},
-		{"json-parse", `let j = json.parse("{}") try`, "json.parse is not available in this build"},
-		{"env-get", `match env.get("HOME")
-    case Option.Some(v)
-        print(v)
-    case Option.None
-        print("")
-`, "env.get is not available in this build"},
-		{"temporal", `print(duration.to-string(duration.new(1)))`, "duration.to-string is not available in this build"},
+		{"file-free-space", `print(file.free-space(".") try)`, "file.free-space is not available in this build"},
+		{"xml-decode", `
+type Server = record
+    name: String
+
+let s = xml.decode("<server><name>a</name></server>", Server("b")) try
+print(s.name)
+`, "xml.decode is not available in this build"},
+		{"temporal", `print(date.to-string(date.new(2020, 1, 1)))`, "date.to-string is not available in this build"},
 		{"console-arg", `let a = console.arg(0) try`, "console.arg is not available in this build"},
 		{"error-new", `let e = error.new("x", "boom")`, "error.new is not available in this build"},
+		{"checked-file-exists", `let yes = file.exists("x") try`, "checked file.exists is not available in this build"},
 		{"array-shape", `
 let grid = array.new([2, 2], 0)
 print(list.length(array.shape(grid)))
@@ -755,7 +750,8 @@ print(n)
 }
 
 // An unhandled failure at top level stages the err message for the runner
-// (fail 12) instead of the generic fail 11 (DESIGN-M2 §2c/§2d).
+// (fail 16 since M3, retiring M2's code-12 reuse) instead of the generic
+// fail 11 (DESIGN-M2 §2c/§2d, DESIGN-M3 §8).
 func TestWatTopLevelTryFailureStagesMessage(t *testing.T) {
 	wat := watOf(t, `
 print("before")
@@ -766,12 +762,19 @@ print(n)
 		"ref.test (ref " + watTypeErr + ")",
 		"ref.cast (ref " + watTypeErr + ")",
 		"struct.get " + watTypeErr + " " + watErrFieldMessage,
-		"i32.const " + itoa(watFailTextToInt),
+		"i32.const " + itoa(watFailUnhandledResult),
 		"call " + watFailMsg,
 	} {
 		if !strings.Contains(wat, want) {
 			t.Errorf("missing %q", want)
 		}
+	}
+	program := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(program, "i32.const "+itoa(watFailUnhandledResult)+"\n"); got != 1 {
+		t.Errorf("code 16 uses = %d, want 1:\n%s", got, program)
+	}
+	if strings.Contains(program, "i32.const "+itoa(watFailTextToInt)+"\n") {
+		t.Errorf("code 12 must no longer be emitted on the unhandled path:\n%s", program)
 	}
 }
 
@@ -1148,18 +1151,14 @@ print(count-to(5000))
 
 // assembleAndRun compiles WAT to wasm and executes zhex_main under Node,
 // returning stdout. It is the emitter's end-to-end witness; differential
-// fixtures live with Builder T.
+// fixtures live with Builder T. The host is the fifteen-stub browser surface
+// (fs/env stubs fail with ENOENT — the smoke programs only print); since M3
+// print sends raw bytes and the module owns the newline, the stub forwards
+// bytes verbatim (DESIGN-M3 §1 Surprises 2).
 func assembleAndRun(t *testing.T, wat string) string {
 	t.Helper()
 	requireTool(t, "wasm-tools")
 	requireTool(t, "node")
-	// The M2 emitter references prelude symbols Builder R ships in
-	// watprelude_m2.go; until that prelude lands in emit(), a module that
-	// references $zhex_err cannot assemble. The skip heals itself once the
-	// prelude defines the type.
-	if strings.Contains(wat, watTypeErr) && !strings.Contains(wat, "(type "+watTypeErr+" ") && !strings.Contains(wat, "(type "+watTypeErr+")") {
-		t.Skip("watprelude_m2 (Builder R) has not landed; $zhex_err is undefined")
-	}
 	dir := t.TempDir()
 	watPath := filepath.Join(dir, "smoke.wat")
 	wasmPath := filepath.Join(dir, "smoke.wasm")
@@ -1175,10 +1174,26 @@ const fs = require("fs");
   const bytes = fs.readFileSync(process.argv[2]);
   let out = "";
   const { instance } = await WebAssembly.instantiate(bytes, {
-    env: { print: (ptr, len) => {
-      const mem = new Uint8Array(instance.exports.memory.buffer, ptr, len);
-      out += new TextDecoder().decode(mem) + "\n";
-    } },
+    env: {
+      print: (ptr, len) => {
+        const mem = new Uint8Array(instance.exports.memory.buffer, ptr, len);
+        out += new TextDecoder().decode(mem);
+      },
+      stdin_read: () => 0,
+      fs_read_file: () => 44,
+      fs_write_file: () => 0,
+      fs_open_read: () => -44,
+      fs_read_line: () => 0,
+      fs_close: () => 0,
+      fs_stat: () => -44,
+      fs_list: () => -44,
+      fs_make_folder: () => 28,
+      fs_delete: () => -44,
+      fs_delete_folder: () => -44,
+      fs_move: () => -44,
+      env_get: () => 0,
+      env_environ: () => 0,
+    },
   });
   instance.exports.zhex_main();
   process.stdout.write(out);
@@ -1377,5 +1392,295 @@ func TestWatSkinSelectsHostLayer(t *testing.T) {
 	// main seeds the module-side environment before any statement (§7).
 	if !strings.Contains(browser, "call "+watEnvInit) {
 		t.Errorf("$zhex_main must call %s as its first statement", watEnvInit)
+	}
+}
+
+// ------------------------------------------------------------- file.* words
+
+// Pure path words are host-free prelude calls (DESIGN-M3 §3).
+func TestWatFilePathWordsEmitPreludeCalls(t *testing.T) {
+	wat := watOf(t, `
+print(file.join("a", "b"))
+print(file.base("a/b.txt"))
+print(file.extension("a/b.txt"))
+print(file.directory-of("a/b.txt"))
+`)
+	for _, want := range []string{
+		"call " + watPathJoin,
+		"call " + watPathBase,
+		"call " + watPathExtension,
+		"call " + watPathDirOf,
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT", want)
+		}
+	}
+}
+
+// The import-backed file words evaluate their arguments left to right and
+// call one prelude helper each (DESIGN-M3 §3); File values are $zhex_file
+// struct references. file.exists emits the plain Bool form (the helper hard
+// fails 18 on stat errors other than not-found).
+func TestWatFileWordsEmitHostHelpers(t *testing.T) {
+	wat := watOf(t, `
+word drain(f: File) -> Unit
+    let line = file.read-line(f) try
+    print(line)
+
+let content = file.read("in.txt") try
+print(content)
+file.write("hi", "out.txt") try
+file.write("hi", "out.txt", true) try
+if file.exists("in.txt")
+    print("yes")
+print(file.size("in.txt") try)
+let names = file.list(".") try
+print(text.join(names, ","))
+file.make-folder("d") try
+file.make-folder("d", true) try
+file.delete("old.txt") try
+file.delete-folder("d") try
+file.delete-folder("d", true) try
+file.move("a", "b") try
+file.move("a", "b", true) try
+let h = file.open("in.txt") try
+file.close(h)
+`)
+	for _, want := range []string{
+		"call " + watFileRead,
+		"call " + watFileOpen,
+		"call " + watFileReadLine,
+		"call " + watFileClose,
+		"call " + watFileList,
+		"call " + watFileExists,
+		"call " + watFileSize,
+		"(func $zw_drain (param $p0_f (ref null " + watTypeFile + "))",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	if !regexp.MustCompile(`\(local \$l\d+_h \(ref null ` + regexp.QuoteMeta(watTypeFile) + `\)\)`).MatchString(wat) {
+		t.Errorf("a File binding stores the %s struct reference", watTypeFile)
+	}
+	// write/make-folder/delete-folder/move each appear twice: one
+	// omitted-default call plus one explicit-argument call (the prelude's
+	// own calls to the same helpers stay out of the count).
+	program := wat[strings.Index(wat, ";; program types"):]
+	for _, name := range []string{watFileWrite, watFileMakeFolder, watFileDeleteFolder, watFileMove} {
+		if got := strings.Count(program, "call "+name); got != 2 {
+			t.Errorf("%s calls = %d, want 2", name, got)
+		}
+	}
+}
+
+// Omitted trailing builtin defaults are pushed as constants at the call site
+// (eval appends them from the same table; the values are constants).
+func TestWatFileBuiltinDefaultsPushedWhenOmitted(t *testing.T) {
+	wat := watOf(t, `
+file.write("hi", "out.txt") try
+file.make-folder("d") try
+file.delete-folder("d") try
+file.move("a", "b") try
+env.load() try
+`)
+	// each omitted Bool default lands on the line right before its call
+	program := wat[strings.Index(wat, ";; program types"):]
+	for _, call := range []string{watFileWrite, watFileMakeFolder, watFileDeleteFolder, watFileMove} {
+		at := strings.Index(program, "call "+call)
+		if at < 0 {
+			t.Fatalf("missing call %s", call)
+		}
+		nl := strings.LastIndex(program[:at], "\n")
+		if prev := program[strings.LastIndex(program[:nl], "\n")+1 : nl]; prev != "  i32.const 0" {
+			t.Errorf("line before %s = %q, want i32.const 0", call, prev)
+		}
+	}
+	// env.load()'s omitted path default is the ".env" string constant
+	// ('.' is its first staged code point).
+	at := strings.Index(program, "call "+watEnvLoad)
+	if at < 0 || !strings.Contains(program[:at], "i32.const 46") {
+		t.Errorf("env.load() must stage the .env string default before the call:\n%s", program)
+	}
+}
+
+// ------------------------------------------------- for line in file.stream
+
+// The stream loop opens once, reads until the ok-null EOF payload, and
+// closes on every exit — the normal one and an early word return (the
+// watCleanup-list treatment, DESIGN-M3 §3).
+func TestWatForLinesEmitsStreamLoop(t *testing.T) {
+	wat := watOf(t, `
+for line in file.stream("in.txt")
+    print(line)
+`)
+	for _, want := range []string{
+		"call " + watStreamOpen,
+		"call " + watStreamLine,
+		"call " + watStreamClose,
+		"struct.get " + watTypeResult + " $payload", // ok-null = EOF, ok-string = the chomped line
+		"ref.is_null",
+		"br_if $exit",
+		"ref.cast (ref null $zhex_string)",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	program := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(program, "call "+watStreamClose); got != 1 {
+		t.Errorf("stream close calls = %d, want 1 (loop exit)", got)
+	}
+}
+
+func TestWatForLinesEarlyReturnClosesStream(t *testing.T) {
+	wat := watOf(t, `
+word first-line(path: String) -> Result<String, Error>
+    for line in file.stream(path)
+        return ok(line)
+    ok("")
+
+print(first-line("in.txt") try)
+`)
+	program := wat[strings.Index(wat, ";; program types"):]
+	retAt := strings.Index(program, "br $zhex_ret")
+	if retAt < 0 || !strings.Contains(program[:retAt], "call "+watStreamClose) {
+		t.Fatalf("an early return must close the stream before branching out:\n%s", program)
+	}
+	if got := strings.Count(program, "call "+watStreamClose); got != 2 {
+		t.Errorf("stream close calls = %d, want 2 (return path + loop exit)", got)
+	}
+}
+
+// --------------------------------------------------------- read-line, env
+
+func TestWatReadLineAndEnvWords(t *testing.T) {
+	wat := watOf(t, `
+let line = read-line("> ") try
+print(line)
+match env.get("HOME")
+    case Option.Some(home)
+        print(home)
+    case Option.None
+        print("none")
+env.load() try
+env.load("custom.env") try
+let ok-loaded = env.load() try
+`)
+	for _, want := range []string{
+		"call " + watReadLine,
+		"call " + watEnvGet,
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT", want)
+		}
+	}
+	program := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(program, "call "+watEnvLoad); got != 3 {
+		t.Errorf("env.load calls = %d, want 3 (one omitted-default, two explicit)", got)
+	}
+}
+
+// --------------------------------------------------------------- buffer.*
+
+func TestWatBufferWordsEmitHelpers(t *testing.T) {
+	wat := watOf(t, `
+let b = buffer.new()
+buffer.add-line(b, "one")
+buffer.add-line(b, "two")
+print(buffer.line-count(b))
+print(buffer.line(b, 0) try)
+buffer.set-line(b, 0, "1") try
+print(buffer.to-text(b))
+`)
+	for _, want := range []string{
+		"call " + watBufferNew,
+		"call " + watBufferAddLine,
+		"call " + watBufferLineCount,
+		"call " + watBufferLine,
+		"call " + watBufferSetLine,
+		"call " + watBufferToText,
+		"(local $l1_b (ref null " + watTypeBuffer + "))",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	program := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(program, "call "+watBufferAddLine); got != 2 {
+		t.Errorf("add-line calls = %d, want 2", got)
+	}
+}
+
+// ------------------------------------------------- duration words and print
+
+func TestWatDurationWordsAndPrint(t *testing.T) {
+	wat := watOf(t, `
+let d = duration.parse("1.5h") try
+print(duration.to-string(d))
+print(duration.to-string(duration.new(3)))
+`)
+	for _, want := range []string{
+		"call " + watDurationParse,
+		"call " + watDurationToString,
+		"call " + watPrintLine, // the module owns print's newline (Surprises 2)
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	// print of a Duration value composes to-string then print_line (the
+	// emitter's print path; the checker currently gates direct duration
+	// prints to to-string composition).
+	if !regexp.MustCompile(`call ` + regexp.QuoteMeta(watDurationToString) + `\n\s*call ` + regexp.QuoteMeta(watPrintLine)).MatchString(wat) {
+		t.Errorf("print of Duration must render via %s then %s:\n%s", watDurationToString, watPrintLine, wat)
+	}
+}
+
+// -------------------------------------------------------------- json words
+
+func TestWatJsonWordsEmitHelpers(t *testing.T) {
+	wat := watOf(t, `
+let doc = json.parse("{\"a\":1}") try
+print(json.encode(doc) try)
+
+type Point = record
+    x: Int
+    y: Int
+
+let encoded = json.encode(Point(1, 2)) try
+print(encoded)
+let decoded = json.decode("{\"x\":1,\"y\":2}", Point(0, 0)) try
+print(decoded.x)
+`)
+	for _, want := range []string{
+		"call " + watJsonParse,
+		"call " + watJsonEncode,
+		"call " + watJsonDecode,
+		"ref.null " + watTypeJsonSchema, // tree encode passes a null schema
+		"ref.func $zjson_make",          // record schemas carry site thunks (§6 deviation)
+		"ref.func $zjson_get",
+		// the thunks carry the shared functype index: wasm-tools rejects a
+		// ref.func of a separately declared, structurally identical signature
+		"type " + watTypeJsonMakeFn,
+		"type " + watTypeJsonGetFn,
+		"struct.new " + watTypeJsonField,
+		"(elem declare func", // ref.func targets must be declared
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	// two typed call sites, no caching: two distinct builders, each called once
+	program := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(program, "(func $zjson_schema"); got != 2 {
+		t.Errorf("schema builder functions = %d, want 2", got)
+	}
+	if got := strings.Count(program, "call $zjson_schema"); got != 2 {
+		t.Errorf("schema builder calls = %d, want 2", got)
+	}
+	// the make thunk unboxes Int fields from $zhex_some_i64; get boxes them
+	if !strings.Contains(wat, "struct.get "+watSomeType(watSpecI64)+" $value") {
+		t.Errorf("the make thunk must unbox Int fields from the boxed array")
 	}
 }

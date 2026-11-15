@@ -67,6 +67,7 @@ type watEmitter struct {
 	resultLocal    string
 	wordInferred   bool
 	cleanups       []watCleanup
+	streams        []string  // open file.stream handles, closed on early word return
 	flowCursor     string    // flow step's incoming value local; "" for Unit
 	flowCursorType valueType // the cursor value's Zhex type
 
@@ -227,7 +228,7 @@ func (e *watEmitter) emitRecordType(out *strings.Builder, r *recordType) {
 func (e *watEmitter) resetFunc(resultType string, inferred bool) {
 	e.b.Reset()
 	e.locals, e.localCount, e.bindings, e.temps = nil, 0, map[*binding]string{}, map[string]string{}
-	e.resultLocal, e.wordInferred, e.cleanups = "", inferred, nil
+	e.resultLocal, e.wordInferred, e.cleanups, e.streams = "", inferred, nil, nil
 	e.flowCursor, e.flowCursorType = "", unitType
 	if resultType != "" {
 		e.resultLocal = "$r"
@@ -369,6 +370,10 @@ func (e *watEmitter) watValueType(t valueType) string {
 		return "(ref " + watTypeString + ")"
 	case durationType:
 		return "i64" // unboxed nanoseconds, Int's repr (DESIGN-M3 §5)
+	case bufferType:
+		return "(ref " + watTypeBuffer + ")"
+	case fileType:
+		return "(ref " + watTypeFile + ")"
 	case errorType:
 		// Errors are the caught Result payload, an opaque eq reference in
 		// this build (DESIGN-M2 §2d); nothing compiles can read one yet.
@@ -453,6 +458,10 @@ func (e *watEmitter) refTarget(t valueType) string {
 	switch t {
 	case stringType:
 		return "(ref " + watTypeString + ")"
+	case bufferType:
+		return "(ref " + watTypeBuffer + ")"
+	case fileType:
+		return "(ref " + watTypeFile + ")"
 	}
 	if isResult(t) {
 		return "(ref " + watTypeResult + ")"
@@ -607,7 +616,7 @@ func (e *watEmitter) statementValue(s *statement) {
 	case "flow":
 		e.flowStatement(s)
 	case "for-lines":
-		watFence(s.pos, "file.stream")
+		e.forLines(s)
 	case "while":
 		e.whileStatement(s)
 	default:
@@ -620,6 +629,12 @@ func (e *watEmitter) statementValue(s *statement) {
 // first decrementing every active traversal's counter — eval's defers run
 // on the return path too.
 func (e *watEmitter) returnStatement(s *statement) {
+	// Open file.stream handles close before the traversal counters release —
+	// eval's inner statement defer runs before the outer traversal's (LIFO).
+	for i := len(e.streams) - 1; i >= 0; i-- {
+		e.line("local.get " + e.streams[i])
+		e.line("call " + watStreamClose)
+	}
 	for _, c := range e.cleanups {
 		e.bumpActive(c.local, c.structType, -1)
 	}
@@ -663,6 +678,13 @@ func (e *watEmitter) ifStatement(s *statement) {
 func (e *watEmitter) nextID() string {
 	e.idCount++
 	return fmt.Sprintf("%d", e.idCount)
+}
+
+// nextIDInt is the numeric mint behind nextID, for the $zjson_schema<N>
+// builder and thunk names (watnames_m3).
+func (e *watEmitter) nextIDInt() int {
+	e.idCount++
+	return e.idCount
 }
 
 // forRange emits `for n in range(start, end)`: a plain i64 counter loop,
@@ -899,6 +921,47 @@ func (e *watEmitter) forMap(s *statement, keyType, valType valueType) {
 	e.line("end")
 	e.cleanups = e.cleanups[:len(e.cleanups)-1]
 	e.bumpActive(recv, mapT, -1)
+}
+
+// forLines emits `for line in file.stream(path)`: open once, loop
+// $zhex_stream_line until its ok-null payload (clean EOF), close on every
+// exit — the loop's own and an early word return (the streams list, which
+// returnStatement drains). Open, read, and UTF-8 failures are hard staged
+// code-17 errors inside the helpers (DESIGN-M3 §3).
+func (e *watEmitter) forLines(s *statement) {
+	k := e.nextID()
+	handle := e.temp("fh"+k, "i32")
+	line := e.temp("fl"+k, "(ref null "+watTypeString+")")
+	e.expr(s.expr)
+	e.line("call " + watStreamOpen)
+	e.line("local.set " + handle)
+	e.streams = append(e.streams, handle)
+	e.line("block $exit" + k)
+	e.depth++
+	e.line("loop $loop" + k)
+	e.depth++
+	e.line("local.get " + handle)
+	e.line("call " + watStreamLine)
+	e.line("struct.get " + watTypeResult + " $payload") // ok-null = EOF, ok-string = the chomped line
+	e.line("ref.cast (ref null " + watTypeString + ")")
+	e.line("local.set " + line)
+	e.line("local.get " + line)
+	e.line("ref.is_null")
+	e.line("br_if $exit" + k)
+	e.line("local.get " + line)
+	e.line("ref.as_non_null")
+	e.line("local.set " + e.local(s.binding))
+	for _, st := range s.body {
+		e.statementNeutral(st)
+	}
+	e.line("br $loop" + k)
+	e.depth--
+	e.line("end")
+	e.depth--
+	e.line("end")
+	e.line("local.get " + handle)
+	e.line("call " + watStreamClose)
+	e.streams = e.streams[:len(e.streams)-1]
 }
 
 // readElem pushes items[i]; Unit elements push nothing.
@@ -1606,6 +1669,118 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.line("call " + watIntToString)
 	case "duration.new":
 		e.expr(x.args[0]) // passthrough: Duration is Int's unboxed i64 repr
+	case "duration.parse":
+		e.expr(x.args[0])
+		e.line("call " + watDurationParse)
+	case "duration.to-string":
+		e.expr(x.args[0])
+		e.line("call " + watDurationToString)
+	case "read-line":
+		e.expr(x.args[0])
+		e.line("call " + watReadLine)
+	case "file.join":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watPathJoin)
+	case "file.base", "file.extension", "file.directory-of":
+		e.expr(x.args[0])
+		e.line("call " + map[string]string{
+			"file.base":         watPathBase,
+			"file.extension":    watPathExtension,
+			"file.directory-of": watPathDirOf,
+		}[x.text])
+	case "file.read":
+		e.expr(x.args[0])
+		e.line("call " + watFileRead)
+	case "file.open":
+		e.expr(x.args[0])
+		e.line("call " + watFileOpen)
+	case "file.read-line":
+		e.expr(x.args[0])
+		e.line("call " + watFileReadLine)
+	case "file.close":
+		e.expr(x.args[0])
+		e.line("call " + watFileClose)
+	case "file.write":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.pushBuiltinDefaults(x)
+		e.line("call " + watFileWrite)
+	case "file.list":
+		e.expr(x.args[0])
+		e.line("call " + watFileList)
+	case "file.exists":
+		// the plain Bool form; the checked try/catch form fences with the
+		// other checked collection operations (DESIGN-M3 §8)
+		e.expr(x.args[0])
+		e.line("call " + watFileExists)
+	case "file.size":
+		e.expr(x.args[0])
+		e.line("call " + watFileSize)
+	case "file.make-folder":
+		e.expr(x.args[0])
+		e.pushBuiltinDefaults(x)
+		e.line("call " + watFileMakeFolder)
+	case "file.delete":
+		e.expr(x.args[0])
+		e.line("call " + watFileDelete)
+	case "file.delete-folder":
+		e.expr(x.args[0])
+		e.pushBuiltinDefaults(x)
+		e.line("call " + watFileDeleteFolder)
+	case "file.move":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.pushBuiltinDefaults(x)
+		e.line("call " + watFileMove)
+	case "buffer.new":
+		e.line("call " + watBufferNew)
+	case "buffer.add-line":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watBufferAddLine)
+	case "buffer.line-count":
+		e.expr(x.args[0])
+		e.line("call " + watBufferLineCount)
+	case "buffer.line":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watBufferLine)
+	case "buffer.set-line":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.expr(x.args[2])
+		e.line("call " + watBufferSetLine)
+	case "buffer.to-text":
+		e.expr(x.args[0])
+		e.line("call " + watBufferToText)
+	case "json.parse":
+		e.expr(x.args[0])
+		e.line("call " + watJsonParse)
+	case "json.encode":
+		e.expr(x.args[0])
+		if x.jsonSchema == nil {
+			e.line("ref.null " + watTypeJsonSchema) // Json tree path: no schema
+		} else {
+			e.boxEnv(x.args[0].typ) // uniform eqref value, M1 boxing
+			e.emitSchemaCall(x.jsonSchema)
+		}
+		e.line("call " + watJsonEncode)
+	case "json.decode":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.boxEnv(x.args[1].typ) // uniform eqref defaults, M1 boxing
+		e.emitSchemaCall(x.jsonSchema)
+		e.line("call " + watJsonDecode)
+	case "env.get":
+		e.expr(x.args[0])
+		e.line("call " + watEnvGet) // Option<String> as a plain eq reference
+	case "env.load":
+		if len(x.args) > 0 { // the only builtin whose default can be the sole argument
+			e.expr(x.args[0])
+		}
+		e.pushBuiltinDefaults(x)
+		e.line("call " + watEnvLoad)
 	case "ok":
 		e.expr(x.args[0])
 		e.wrapSuccess(x.args[0].typ)
@@ -1781,33 +1956,205 @@ func (e *watEmitter) builtinCall(x *expression) {
 	}
 }
 
-// printCall emits print for the four printable types (Int, Bool, String,
-// Unit); anything else the interpreter formats is out of the M1 subset.
+// pushBuiltinDefaults emits the constant trailing defaults a builtin call
+// site omitted, mirroring eval's runtime append from builtinTrailingDefaults
+// (the values are constants, so emission is static).
+// shortcut: an empty-string default would render as Bool false; add a kind
+// marker to the table if one ever ships.
+func (e *watEmitter) pushBuiltinDefaults(x *expression) {
+	d, ok := builtinTrailingDefaults[x.text]
+	if !ok || len(x.args) >= d.arity {
+		return
+	}
+	first := len(x.args) - (d.arity - len(d.values))
+	for _, v := range d.values[first:] {
+		if v.text != "" {
+			e.stringConst(v.text)
+			continue
+		}
+		if v.boolean {
+			e.line("i32.const 1")
+		} else {
+			e.line("i32.const 0")
+		}
+	}
+}
+
+// emitSchemaCall pushes one decode-schema reference for a typed json call
+// site — `call $zjson_schema<N>` — and queues the builder function plus the
+// make/get thunks its record nodes need: one per call site, no caching
+// (DESIGN-M3 §6; the schema's func fields are watnames_m3's flagged
+// deviation).
+func (e *watEmitter) emitSchemaCall(s *jsonSchema) {
+	name := watJsonSchemaBuilder(e.nextIDInt())
+	e.appendSchemaFuncs(name, s)
+	e.line("call " + name)
+}
+
+// appendSchemaFuncs emits the $zjson_schema<N> builder (post-order node
+// construction, one local per schema node) and, per record node, the
+// $zjson_make<N>/get<N> thunks converting between the record struct and the
+// boxed-fields eqref array. Everything lands in the thunks section.
+func (e *watEmitter) appendSchemaFuncs(name string, root *jsonSchema) {
+	savedB, savedDepth := e.b, e.depth
+	savedLocals, savedCount := e.locals, e.localCount
+	savedBindings, savedTemps := e.bindings, e.temps
+	e.b.Reset()
+	e.depth, e.locals, e.localCount = 1, nil, 0
+	e.bindings, e.temps = map[*binding]string{}, map[string]string{}
+	defer func() {
+		e.b, e.depth = savedB, savedDepth
+		e.locals, e.localCount = savedLocals, savedCount
+		e.bindings, e.temps = savedBindings, savedTemps
+	}()
+
+	leafKind := map[string]int{"int": watJsonSchemaInt, "bool": watJsonSchemaBool, "string": watJsonSchemaString}
+	innerKind := map[string]int{"list": watJsonSchemaList, "map": watJsonSchemaMap, "option": watJsonSchemaOption}
+	var records []struct {
+		thunk  string
+		isMake bool
+		r      *recordType
+	}
+	nodes := 0
+	newLocal := func(typ string) string {
+		local := fmt.Sprintf("$sn%d", nodes)
+		nodes++
+		e.locals = append(e.locals, local+" (ref null "+typ+")")
+		return local
+	}
+	var build func(s *jsonSchema) string
+	build = func(s *jsonSchema) string {
+		local := newLocal(watTypeJsonSchema)
+		switch s.kind {
+		case "int", "bool", "string":
+			e.line("i32.const %d", leafKind[s.kind])
+			e.line("ref.null " + watTypeJsonSchema)
+			e.line("ref.null " + watTypeArrRef)
+			e.line("ref.null " + watTypeJsonMakeFn)
+			e.line("ref.null " + watTypeJsonGetFn)
+		case "list", "map", "option":
+			child := build(s.element)
+			e.line("i32.const %d", innerKind[s.kind])
+			e.line("local.get " + child)
+			e.line("ref.null " + watTypeArrRef)
+			e.line("ref.null " + watTypeJsonMakeFn)
+			e.line("ref.null " + watTypeJsonGetFn)
+		case "record":
+			r := e.byID[string(s.typ)]
+			if r == nil {
+				watFence(e.pos, string(s.typ))
+			}
+			children := make([]string, len(s.fields))
+			for i := range s.fields {
+				children[i] = build(s.fields[i].schema)
+			}
+			for i, f := range s.fields {
+				e.stringConst(f.name)
+				e.line("local.get " + children[i])
+				e.line("struct.new " + watTypeJsonField)
+			}
+			e.line("array.new_fixed %s %d", watTypeArrRef, len(s.fields))
+			arr := newLocal(watTypeArrRef)
+			e.line("local.set " + arr)
+			id := e.nextIDInt()
+			makeName, getName := watJsonMakeThunk(id), watJsonGetThunk(id)
+			records = append(records, struct {
+				thunk  string
+				isMake bool
+				r      *recordType
+			}{makeName, true, r})
+			records = append(records, struct {
+				thunk  string
+				isMake bool
+				r      *recordType
+			}{getName, false, r})
+			e.line("i32.const %d", watJsonSchemaRecord)
+			e.line("ref.null " + watTypeJsonSchema)
+			e.line("local.get " + arr)
+			e.line("ref.func " + makeName)
+			e.line("ref.func " + getName)
+		default:
+			watFence(e.pos, "json schema "+s.kind)
+		}
+		e.line("struct.new " + watTypeJsonSchema)
+		e.line("local.set " + local)
+		return local
+	}
+	rootLocal := build(root)
+	e.line("local.get " + rootLocal)
+	e.line("ref.as_non_null")
+	e.thunks = append(e.thunks, e.funcText(name, nil, "(ref "+watTypeJsonSchema+")"))
+	for _, rec := range records {
+		// The thunks take everything through their params — no locals of
+		// their own, so the builder's $sn locals must not leak into them —
+		// and both are declared with the shared functype index: wasm-tools
+		// does not match a separately declared, structurally identical
+		// signature against the schema field's (ref null $zjson_*_fn).
+		e.b.Reset()
+		e.locals = nil
+		if rec.isMake {
+			// make: read the boxed fields in declaration order, unbox, and
+			// build the record struct.
+			for i, f := range rec.r.fields {
+				e.line("local.get $f")
+				e.line("i32.const %d", i)
+				e.line("array.get " + watTypeArrRef)
+				e.unboxPayload(f.typ)
+			}
+			e.line("struct.new " + watRecordName(rec.r))
+			e.thunks = append(e.thunks, e.funcText(rec.thunk,
+				[]string{"(type " + watTypeJsonMakeFn + ")", "(param $f (ref " + watTypeArrRef + "))"}, "(ref null eq)"))
+		} else {
+			// get: read each field (re-casting the receiver per read), box,
+			// and return the fields array.
+			for i, f := range rec.r.fields {
+				e.line("local.get $v")
+				e.line("ref.cast (ref %s)", watRecordName(rec.r))
+				e.line("struct.get %s $f%d", watRecordName(rec.r), i)
+				e.boxEnv(f.typ)
+			}
+			e.line("array.new_fixed %s %d", watTypeArrRef, len(rec.r.fields))
+			e.thunks = append(e.thunks, e.funcText(rec.thunk,
+				[]string{"(type " + watTypeJsonGetFn + ")", "(param $v (ref null eq))"}, "(ref null "+watTypeArrRef+")"))
+		}
+		e.thunkNames = append(e.thunkNames, rec.thunk) // ref.func targets must be declared
+	}
+}
+
+// printCall emits print for the printable types (Int, Bool, String, Unit,
+// Duration). Since M3 the module owns the newline: every path composes into
+// $zhex_print_line, and the host's print import sends raw bytes
+// (DESIGN-M3 §1 Surprises 2).
 func (e *watEmitter) printCall(x *expression) {
 	switch x.inputType {
 	case intType:
 		e.expr(x.args[0])
-		e.line("call " + watPrintInt)
+		e.line("call " + watIntToString)
+		e.line("call " + watPrintLine)
 	case stringType:
 		e.expr(x.args[0])
-		e.line("call " + watPrintStr)
+		e.line("call " + watPrintLine)
 	case boolType:
 		e.expr(x.args[0])
 		e.line("if")
 		e.depth++
 		e.stringConst("true")
-		e.line("call " + watPrintStr)
+		e.line("call " + watPrintLine)
 		e.depth--
 		e.line("else")
 		e.depth++
 		e.stringConst("false")
-		e.line("call " + watPrintStr)
+		e.line("call " + watPrintLine)
 		e.depth--
 		e.line("end")
+	case durationType:
+		e.expr(x.args[0])
+		e.line("call " + watDurationToString)
+		e.line("call " + watPrintLine)
 	case unitType:
 		e.expr(x.args[0])
 		e.stringConst("")
-		e.line("call " + watPrintStr)
+		e.line("call " + watPrintLine)
 	default:
 		watFence(x.pos, "print of "+string(x.inputType))
 	}
@@ -2048,14 +2395,15 @@ func (e *watEmitter) emitResultUnwrap(res string, inner valueType) {
 		e.line("br $zhex_ret")
 	} else {
 		// Top level: a real err value stages its message for the runner
-		// (fail 12); anything else keeps M1's generic unhandled failure
-		// (the defensive err() case, DESIGN-M2 §2d).
+		// (fail 16 since M3 — 12 stays the to-int mint; anything else keeps
+		// M1's generic unhandled failure, the defensive err() case,
+		// DESIGN-M2 §2d amended by DESIGN-M3 §8).
 		e.line("local.get " + res)
 		e.line("struct.get " + watTypeResult + " $payload")
 		e.line("ref.test (ref " + watTypeErr + ")")
 		e.line("if")
 		e.depth++
-		e.line("i32.const %d", watFailTextToInt)
+		e.line("i32.const %d", watFailUnhandledResult)
 		e.line("local.get " + res)
 		e.line("struct.get " + watTypeResult + " $payload")
 		e.line("ref.cast (ref " + watTypeErr + ")")
