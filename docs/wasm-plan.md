@@ -78,3 +78,16 @@ With these decisions ratified, the total is roughly **2–3 months part-time** f
 - **Host-contract scope creep** — M3 is fenced; new host words get their own tickets.
 - **Byte-identical discipline** — no floats and JSON literals-as-strings remove the classic divergence sources; string sort order and map traversal order are the remaining ones to pin in tests.
 - **WASI version churn** — pin a preview level per release and record it in the artifact report.
+
+## Part 9 — Artifact sizes (measured at milestone 4)
+
+Measured once at milestone 4 on the `wasm-m1` branch — the numbers are branch-measured, not regenerated in CI. Method: `zhex compile <file>` with the default browser target (wasm-tools assembles), then `wc -c` for raw bytes and `gzip -9n -c | wc -c` for compressed. Toolchain: wasm-tools 1.263.0, Node 22.23.1, wasmtime 50.0.0.
+
+| Artifact | Raw bytes | gzip -9n bytes |
+|---|---|---|
+| `examples/hello.zhex` (smallest) | 110,888 | 37,968 |
+| `examples/score-report.zhex` (mid) | 112,275 | 38,590 |
+| `examples/xml-config.zhex` | 112,899 | 38,651 |
+| `examples/modules/md-report/main.zhex` (largest) | 115,978 | 40,127 |
+
+The runtime prelude dominates: the spread across these programs is about 5 KB raw, so a compiled module costs roughly 111 KB raw and 38–40 KB compressed regardless of program size — against Track A's full-interpreter module at 7.1 MB raw / 1.9 MB gzipped (Part 1).
