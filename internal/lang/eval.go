@@ -676,6 +676,13 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		}
 		return result, err
 	}
+	if x.word.host != nil {
+		result, err := x.word.host(r, x, args)
+		if d, ok := err.(*diagnostic); ok && d.operation == "" {
+			d.operation = x.text
+		}
+		return result, err
+	}
 	if r.depth >= 256 {
 		d := errorAt(x.pos, CodeDepthLimit, "word call depth limit of 256 exceeded").(*diagnostic)
 		d.operation = qualifiedName(x)
