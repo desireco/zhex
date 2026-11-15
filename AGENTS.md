@@ -57,7 +57,7 @@ File every new ticket into the board's **Inbox** bucket with no status — never
 2. **Claim before working.** Post your plan as a comment, then move the card to In Progress. A ticket must be In Progress while anyone is working on it, so nobody else starts the same work; if nobody has claimed it, claim it before you start.
 3. **Follow the plan** until every part of it is done; keep scope to what the ticket describes.
 4. **Return unfinished tickets.** If you cannot complete the ticket, stop, leave a comment with what is done and what remains, and move the card back to Todo. Never leave a ticket In Progress unattended.
-5. **Verify and record.** Make the functionality work (tests, build, deploy checks), then update everything that records truth wherever it lives: website docs, repository docs, AGENTS.md, ROADMAP.md, and the board.
+5. **Verify and record.** Make the functionality work (tests, build, deploy checks), then update everything that records truth wherever it lives: website docs, repository docs, AGENTS.md, ROADMAP.md, and the board. A new word, signature change, or rename/removal follows the checklist in `docs/vocabulary-checklist.md` — every surface from interpreter sync points to editors and truth surfaces, tests first.
 6. **Close last.** Commit and push, let the deploy go green, then move the card to Done and close the issue with a short ship note.
 
 ## Verifying work
