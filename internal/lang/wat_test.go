@@ -1836,3 +1836,75 @@ print(bad.host)
 		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 }
+
+// TestWatM4CloneDefaultsAndPrintPartial regression-tests the review gaps:
+// an absent List field deep-clones the defaults (appending to one decode
+// never mutates the shared default — the interpreter's jsonClone is
+// value-shaped, so the xml side clones every element spec), and `print _`
+// compiles as the Unit-closure witness (DESIGN-M4 §3a).
+func TestWatM4CloneDefaultsAndPrintPartial(t *testing.T) {
+	wat := watOf(t, `
+type Settings = record
+    left: List<Int>
+    right: List<Int>
+
+let shared = [1]
+let defaults = Settings(shared, shared)
+let first = xml.decode("<settings><left>7</left></settings>", defaults) try
+first.left[0] = 9
+print(first.left[0] try)
+print(first.right[0] try)
+print(defaults.left[0] try)
+let second = xml.decode("<settings/>", defaults) try
+print(second.left[0] try)
+second.left[0] = 5
+print(defaults.left[0] try)
+
+let show: (Int) -> Unit = print _
+show(41)
+flow 42
+    show
+let greet: (String) -> Unit = print _
+greet("hi")
+`)
+	if !strings.Contains(wat, "call_ref "+watCloType([]watSpec{watSpecI64}, watCloVoid)) {
+		t.Errorf("print _ must invoke through the grid's void row:\n%s", wat)
+	}
+	got := assembleAndRun(t, wat)
+	want := "9\n1\n1\n1\n1\n41\n42\nhi\n"
+	if got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+}
+
+// TestWatM4NbspQuotingRegression pins the NBSP quoting fix (DESIGN-M4 §5)
+// with a real U+00A0 in the source literal: the staged message renders
+// "\u00a0x" exactly as the interpreter's %q does (the fixture byte is a
+// true NBSP, not the ASCII space lookalike).
+func TestWatM4NbspQuotingRegression(t *testing.T) {
+	wat := watOf(t, "let n = text.to-int(\"\u00a0x\") catch 0\nprint(n)\n")
+	got := assembleAndRun(t, wat)
+	if got != "0\n" {
+		t.Fatalf("caught fallback = %q, want 0\n", got)
+	}
+	wat = watOf(t, "let n = text.to-int(\"\u00a0x\") try\nprint(n)\n")
+	dir := t.TempDir()
+	watPath := dir + "/nbsp.wat"
+	wasmPath := dir + "/nbsp.wasm"
+	if err := os.WriteFile(watPath, []byte(wat), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("wasm-tools", "parse", watPath, "-o", wasmPath).CombinedOutput(); err != nil {
+		t.Fatalf("wasm-tools parse: %v\n%s", err, out)
+	}
+	var out, stderr bytes.Buffer
+	cmd := exec.Command("node", "internal/wasm/testdata/run.mjs", wasmPath)
+	cmd.Dir = "../.."
+	cmd.Stdout, cmd.Stderr = &out, &stderr
+	if err := cmd.Run(); err == nil {
+		t.Fatal("expected the unhandled try to exit nonzero")
+	}
+	if !strings.Contains(stderr.String(), "runtime error: \"\\u00a0x\" is not a signed 64-bit decimal integer") {
+		t.Fatalf("stderr = %q, want the \\u00a0-escaped message", stderr.String())
+	}
+}

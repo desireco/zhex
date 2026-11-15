@@ -1569,13 +1569,14 @@ func (e *watEmitter) closureInvoke(x *expression) {
 }
 
 // watThunkableBuiltin reports whether a builtin partial can be thunked: the
-// emitter-supported text family plus int.to-string (others fence by name).
+// emitter-supported text family plus int.to-string and print (the §3a
+// flagship Unit-closure witness `print _`; others fence by name).
 func watThunkableBuiltin(text string) bool {
 	switch text {
 	case "text.reverse", "text.length", "text.slice", "text.index-of", "text.contains",
 		"text.upper", "text.lower", "text.trim", "text.split", "text.join", "text.replace",
 		"text.starts-with", "text.ends-with", "text.line-count", "text.word-count",
-		"text.to-int", "int.to-string":
+		"text.to-int", "int.to-string", "print":
 		return true
 	}
 	return false
@@ -1620,6 +1621,8 @@ func (e *watEmitter) builtinCore(x *expression) {
 		e.line("call " + watTextToInt)
 	case "int.to-string":
 		e.line("call " + watIntToString)
+	case "print":
+		e.printCore(x, true)
 	default:
 		watFence(x.pos, x.text)
 	}
@@ -1976,6 +1979,10 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.expr(x.args[1])
 		e.line("call " + watMapInto(k, v)) // returns the target
 	case "list.map":
+		if _, cbResult, _ := functionTypeParts(x.args[1].typ); isUnitValue(cbResult) {
+			// no void-result row exists in the callback grid (DESIGN-M4 §3a)
+			watFence(x.pos, "callbacks with Unit results")
+		}
 		_, in, _ := collectionInner(x.inputType)
 		_, out, _ := collectionInner(x.typ)
 		e.expr(x.args[0])
@@ -1992,6 +1999,9 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.expr(x.args[1])
 		e.line("call " + watListSelect(watSpecOf(in)))
 	case "list.fold":
+		if _, stepResult, _ := functionTypeParts(x.args[2].typ); isUnitValue(stepResult) {
+			watFence(x.pos, "callbacks with Unit results") // no void row (§3a)
+		}
 		_, in, _ := collectionInner(x.inputType)
 		e.expr(x.args[0])
 		e.expr(x.args[1])
@@ -2164,8 +2174,8 @@ func (e *watEmitter) appendSchemaFuncs(name string, root *jsonSchema) {
 		e.line("local.set " + local)
 		e.stringConst(string(s.typ))
 		e.line("local.set $zxml_tname")
-		e.line("(global.set "+watXmlNames+" (call $zjson_arr_push (global.get "+watXmlNames+") (local.get "+local+")))")
-		e.line("(global.set "+watXmlNames+" (call $zjson_arr_push (global.get "+watXmlNames+") (local.get $zxml_tname)))")
+		e.line("(global.set " + watXmlNames + " (call $zjson_arr_push (global.get " + watXmlNames + ") (local.get " + local + ")))")
+		e.line("(global.set " + watXmlNames + " (call $zjson_arr_push (global.get " + watXmlNames + ") (local.get $zxml_tname)))")
 		return local
 	}
 	rootLocal := build(root)
@@ -2214,16 +2224,22 @@ func (e *watEmitter) appendSchemaFuncs(name string, root *jsonSchema) {
 // $zhex_print_line, and the host's print import sends raw bytes
 // (DESIGN-M3 §1 Surprises 2).
 func (e *watEmitter) printCall(x *expression) {
+	e.expr(x.args[0])
+	e.printCore(x, false)
+}
+
+// printCore emits print's lines with the argument already on the stack —
+// shared by direct calls and the `print _` partial's thunk body (DESIGN-M4
+// §3a). A thunk's Unit parameter carries a null placeholder the core drops;
+// an expression of Unit pushes nothing, so only the thunk drops.
+func (e *watEmitter) printCore(x *expression, stackHasArg bool) {
 	switch x.inputType {
 	case intType:
-		e.expr(x.args[0])
 		e.line("call " + watIntToString)
 		e.line("call " + watPrintLine)
 	case stringType:
-		e.expr(x.args[0])
 		e.line("call " + watPrintLine)
 	case boolType:
-		e.expr(x.args[0])
 		e.line("if")
 		e.depth++
 		e.stringConst("true")
@@ -2236,7 +2252,9 @@ func (e *watEmitter) printCall(x *expression) {
 		e.depth--
 		e.line("end")
 	case unitType:
-		e.expr(x.args[0])
+		if stackHasArg {
+			e.line("drop")
+		}
 		e.stringConst("")
 		e.line("call " + watPrintLine)
 	default:

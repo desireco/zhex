@@ -1370,12 +1370,116 @@ const watM4XmlDecode = `
                 (call $zhex_str_concat (call $mx_missing) (call $zhex_quote (local.get $fname)))
                 (call $zxml_field_path (local.get $path) (local.get $fname))))))
             (array.set $zhex_arr_ref (ref.as_non_null (local.get $fresh)) (local.get $i)
-              (call $zjson_clone (local.get $v) (local.get $fs) (local.get $m)))))))
+              (call $zxml_clone (local.get $v) (local.get $fs) (local.get $m)))))))
     (local.set $i (i32.add (local.get $i) (i32.const 1)))
     (br $fl2)))
   (struct.new $zhex_result (i32.const 0)
     (call_ref $zjson_make_fn (ref.as_non_null (local.get $fresh))
       (ref.cast (ref $zjson_make_fn) (struct.get $zjson_schema $make (local.get $s))))))
+
+;; schema-directed deep clone for absent-field fallbacks. The interpreter's
+;; jsonClone is value-shaped and covers every list/map spec; the M3
+;; $zjson_clone only clones the ref flavors, so an absent List<Int> or
+;; Map<String, Int> field would alias the defaults' wrapper (append mutates
+;; the shared $items). This clone covers the Int and Bool flavors directly
+;; and delegates the ref flavors (and records) to $zjson_clone; Options
+;; clone through their payload.
+(func $zxml_clone (param $v (ref null eq)) (param $s (ref $zjson_schema)) (param $m (ref $zjson_memo)) (result (ref null eq))
+  (local $kind i32)
+  (local $elkind i32)
+  (local $n i32)
+  (local $i i32)
+  (local $r (ref null eq))
+  (local $f64 (ref null $zhex_arr_i64))
+  (local $f32 (ref null $zhex_arr_i32))
+  (local $m64 (ref null $zhex_map_str_i64))
+  (local $m32 (ref null $zhex_map_str_i32))
+  (local.set $kind (struct.get $zjson_schema $kind (local.get $s)))
+  (if (i32.eq (local.get $kind) (i32.const 3))
+    (then
+      ;; Some of a ref payload clones through the element schema; Int/Bool
+      ;; payloads and None share nothing mutable
+      (if (ref.test (ref $zhex_some_ref) (local.get $v))
+        (then
+          (return (struct.new $zhex_some_ref
+            (call $zxml_clone (struct.get $zhex_some_ref $value (ref.cast (ref $zhex_some_ref) (local.get $v)))
+              (ref.as_non_null (struct.get $zjson_schema $element (local.get $s))) (local.get $m))))))
+      (return (local.get $v))))
+  (if (i32.eq (local.get $kind) (i32.const 4))
+    (then
+      (local.set $elkind (struct.get $zjson_schema $kind (ref.as_non_null (struct.get $zjson_schema $element (local.get $s)))))
+      (if (i32.eq (local.get $elkind) (i32.const 0))
+        (then
+          (if (i32.eqz (ref.test (ref $zhex_list_i64) (local.get $v))) (then (return (local.get $v))))
+          (local.set $r (call $zjson_memo_find (local.get $m) (local.get $v)))
+          (if (i32.eqz (ref.is_null (local.get $r))) (then (return (local.get $r))))
+          (local.set $n (array.len (ref.as_non_null (struct.get $zhex_list_i64 $items (ref.cast (ref $zhex_list_i64) (local.get $v))))))
+          (local.set $f64 (array.new_default $zhex_arr_i64 (local.get $n)))
+          (block $cp (loop $cl
+            (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
+            (array.set $zhex_arr_i64 (ref.as_non_null (local.get $f64)) (local.get $i)
+              (array.get $zhex_arr_i64 (ref.as_non_null (struct.get $zhex_list_i64 $items (ref.cast (ref $zhex_list_i64) (local.get $v)))) (local.get $i)))
+            (local.set $i (i32.add (local.get $i) (i32.const 1)))
+            (br $cl)))
+          (local.set $r (struct.new $zhex_list_i64 (ref.as_non_null (local.get $f64)) (i32.const 0)))
+          (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
+          (return (local.get $r))))
+      (if (i32.eq (local.get $elkind) (i32.const 1))
+        (then
+          (if (i32.eqz (ref.test (ref $zhex_list_i32) (local.get $v))) (then (return (local.get $v))))
+          (local.set $r (call $zjson_memo_find (local.get $m) (local.get $v)))
+          (if (i32.eqz (ref.is_null (local.get $r))) (then (return (local.get $r))))
+          (local.set $n (array.len (ref.as_non_null (struct.get $zhex_list_i32 $items (ref.cast (ref $zhex_list_i32) (local.get $v))))))
+          (local.set $f32 (array.new_default $zhex_arr_i32 (local.get $n)))
+          (block $cp (loop $cl
+            (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
+            (array.set $zhex_arr_i32 (ref.as_non_null (local.get $f32)) (local.get $i)
+              (array.get $zhex_arr_i32 (ref.as_non_null (struct.get $zhex_list_i32 $items (ref.cast (ref $zhex_list_i32) (local.get $v)))) (local.get $i)))
+            (local.set $i (i32.add (local.get $i) (i32.const 1)))
+            (br $cl)))
+          (local.set $r (struct.new $zhex_list_i32 (ref.as_non_null (local.get $f32)) (i32.const 0)))
+          (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
+          (return (local.get $r))))
+      (return (call $zjson_clone (local.get $v) (local.get $s) (local.get $m)))))
+  (if (i32.eq (local.get $kind) (i32.const 5))
+    (then
+      (local.set $elkind (struct.get $zjson_schema $kind (ref.as_non_null (struct.get $zjson_schema $element (local.get $s)))))
+      (if (i32.eq (local.get $elkind) (i32.const 0))
+        (then
+          (if (i32.eqz (ref.test (ref $zhex_map_str_i64) (local.get $v))) (then (return (local.get $v))))
+          (local.set $r (call $zjson_memo_find (local.get $m) (local.get $v)))
+          (if (i32.eqz (ref.is_null (local.get $r))) (then (return (local.get $r))))
+          (local.set $m64 (call $zhex_map_new_str_i64))
+          (local.set $r (local.get $m64))
+          (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
+          (local.set $n (array.len (struct.get $zhex_map_str_i64 $keys (ref.cast (ref $zhex_map_str_i64) (local.get $v)))))
+          (block $cp (loop $cl
+            (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
+            (drop (call $zhex_map_put_str_i64 (ref.as_non_null (local.get $m64))
+              (array.get $zhex_arr_str (struct.get $zhex_map_str_i64 $keys (ref.cast (ref $zhex_map_str_i64) (local.get $v))) (local.get $i))
+              (array.get $zhex_arr_i64 (struct.get $zhex_map_str_i64 $vals (ref.cast (ref $zhex_map_str_i64) (local.get $v))) (local.get $i))))
+            (local.set $i (i32.add (local.get $i) (i32.const 1)))
+            (br $cl)))
+          (return (local.get $r))))
+      (if (i32.eq (local.get $elkind) (i32.const 1))
+        (then
+          (if (i32.eqz (ref.test (ref $zhex_map_str_i32) (local.get $v))) (then (return (local.get $v))))
+          (local.set $r (call $zjson_memo_find (local.get $m) (local.get $v)))
+          (if (i32.eqz (ref.is_null (local.get $r))) (then (return (local.get $r))))
+          (local.set $m32 (call $zhex_map_new_str_i32))
+          (local.set $r (local.get $m32))
+          (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
+          (local.set $n (array.len (struct.get $zhex_map_str_i32 $keys (ref.cast (ref $zhex_map_str_i32) (local.get $v)))))
+          (block $cp (loop $cl
+            (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
+            (drop (call $zhex_map_put_str_i32 (ref.as_non_null (local.get $m32))
+              (array.get $zhex_arr_str (struct.get $zhex_map_str_i32 $keys (ref.cast (ref $zhex_map_str_i32) (local.get $v))) (local.get $i))
+              (array.get $zhex_arr_i32 (struct.get $zhex_map_str_i32 $vals (ref.cast (ref $zhex_map_str_i32) (local.get $v))) (local.get $i))))
+            (local.set $i (i32.add (local.get $i) (i32.const 1)))
+            (br $cl)))
+          (return (local.get $r))))
+      (return (call $zjson_clone (local.get $v) (local.get $s) (local.get $m)))))
+  (call $zjson_clone (local.get $v) (local.get $s) (local.get $m)))
 
 ;; xml.decode: surrogate scan (module strings hold code points; an unpaired
 ;; surrogate cannot UTF-8-encode), parse, then the schema walk
