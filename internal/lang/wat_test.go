@@ -805,8 +805,10 @@ print(map.length(merged))
 		}
 	}
 	// Two literal pairs, the explicit map.put, and the index write: four put
-	// calls; the empty literal emits none.
-	if got := strings.Count(wat, "call "+watMapPut(watMapKeyStr, watSpecI64)); got != 4 {
+	// calls; the empty literal emits none. Counted in the program section —
+	// the M3 prelude's json decode also calls the i64 map put once.
+	programSection := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(programSection, "call "+watMapPut(watMapKeyStr, watSpecI64)); got != 4 {
 		t.Errorf("put calls = %d, want 4 (two literal pairs + map.put + index write)", got)
 	}
 }

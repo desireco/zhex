@@ -1704,6 +1704,9 @@ func (e *watEmitter) builtinCall(x *expression) {
 	case "file.write":
 		e.expr(x.args[0])
 		e.expr(x.args[1])
+		if len(x.args) > 2 {
+			e.expr(x.args[2]) // an explicit append flag; defaults fill omissions
+		}
 		e.pushBuiltinDefaults(x)
 		e.line("call " + watFileWrite)
 	case "file.list":
@@ -1719,6 +1722,9 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.line("call " + watFileSize)
 	case "file.make-folder":
 		e.expr(x.args[0])
+		if len(x.args) > 1 {
+			e.expr(x.args[1]) // an explicit parents flag; defaults fill omissions
+		}
 		e.pushBuiltinDefaults(x)
 		e.line("call " + watFileMakeFolder)
 	case "file.delete":
@@ -1726,11 +1732,17 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.line("call " + watFileDelete)
 	case "file.delete-folder":
 		e.expr(x.args[0])
+		if len(x.args) > 1 {
+			e.expr(x.args[1]) // an explicit recursive flag; defaults fill omissions
+		}
 		e.pushBuiltinDefaults(x)
 		e.line("call " + watFileDeleteFolder)
 	case "file.move":
 		e.expr(x.args[0])
 		e.expr(x.args[1])
+		if len(x.args) > 2 {
+			e.expr(x.args[2]) // an explicit overwrite flag; defaults fill omissions
+		}
 		e.pushBuiltinDefaults(x)
 		e.line("call " + watFileMove)
 	case "buffer.new":
@@ -2291,6 +2303,11 @@ func (e *watEmitter) armBody(x *expression, arm *matchArm, m string) {
 			if b.typ == unitType {
 				e.line("drop")
 			} else {
+				// the generic Some's payload is eqref; narrow it to the
+				// binding's type (Option<String> and friends)
+				if v == watTypeSomeRef {
+					e.line("ref.cast %s", e.watLocalType(b.typ))
+				}
 				e.line("local.set " + e.local(b))
 			}
 		}
@@ -2353,6 +2370,9 @@ func (e *watEmitter) catchExpr(x *expression) {
 	e.line("struct.get " + watTypeResult + " $payload")
 	if x.typ != unitType {
 		e.unboxPayload(x.typ)
+	} else {
+		// the result-less if leaves nothing: discard the Unit payload
+		e.line("drop")
 	}
 	e.depth--
 	e.line("else")
@@ -2385,6 +2405,9 @@ func (e *watEmitter) emitResultUnwrap(res string, inner valueType) {
 	e.line("struct.get " + watTypeResult + " $payload")
 	if !isUnitValue(inner) {
 		e.unboxPayload(inner)
+	} else {
+		// the result-less if leaves nothing: discard the Unit payload
+		e.line("drop")
 	}
 	e.depth--
 	e.line("else")

@@ -34,15 +34,27 @@ func TestWatM2CodeNamesPinned(t *testing.T) {
 		}
 	}
 
-	// run.mjs mirrors the staged-message codes and the export name.
+	// run.mjs mirrors the staged-message codes and the export name. Codes are
+	// additive (never renumbered), so later milestones extend the set: the M2
+	// codes must be present as members, not as the whole set.
 	runBytes, err := os.ReadFile(filepath.Join("..", "wasm", "testdata", "run.mjs"))
 	if err != nil {
 		t.Skipf("run.mjs not found from this module layout: %v", err)
 	}
 	run := string(runBytes)
-	staged := "new Set([" + strconv.Itoa(watFailTextToInt) + ", " + strconv.Itoa(watFailArraySelect) + "])"
-	if !strings.Contains(run, staged) {
-		t.Errorf("run.mjs is missing staged fail codes %q", staged)
+	setStart := strings.Index(run, "stagedFailCodes = new Set([")
+	if setStart < 0 {
+		t.Fatal("run.mjs lost its stagedFailCodes set")
+	}
+	setEnd := strings.Index(run[setStart:], "])")
+	if setEnd < 0 {
+		t.Fatal("run.mjs stagedFailCodes set is unterminated")
+	}
+	setBody := run[setStart : setStart+setEnd]
+	for _, code := range []int{watFailTextToInt, watFailArraySelect} {
+		if !strings.Contains(setBody, strconv.Itoa(code)) {
+			t.Errorf("run.mjs staged fail codes are missing %d", code)
+		}
 	}
 	if !strings.Contains(run, watMsgLenExport+"()") {
 		t.Errorf("run.mjs is missing the %s() accessor call", watMsgLenExport)
