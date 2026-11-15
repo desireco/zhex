@@ -243,12 +243,15 @@ func compileFixture(t *testing.T, name string) string {
 	return outPath
 }
 
-// The differential gate (DESIGN.md §9): every fixture runs through the
-// interpreter and the compiled module; stdout must match byte for byte and
-// the exit status must agree.
+// The differential gate (DESIGN.md §9, DESIGN-M2 §7): every fixture runs
+// through the interpreter and the compiled module; stdout must match byte
+// for byte and the exit status must agree.
 func TestDifferential(t *testing.T) {
 	requireTool(t, "wasm-tools")
-	for _, name := range []string{"fib", "core", "lists", "choices", "arrays"} {
+	for _, name := range []string{
+		"fib", "core", "lists", "choices", "arrays",
+		"text", "text-to-int", "maps", "callbacks", "sort", "while", "string-int", "array-select",
+	} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name)
 			source, err := os.ReadFile(filepath.Join("testdata", name+".zhex"))
@@ -270,12 +273,16 @@ func TestDifferential(t *testing.T) {
 
 // Runtime diagnostics in the artifact print the pinned §6a strings without
 // positions; stdout produced before the failure still matches the
-// interpreter byte for byte.
+// interpreter byte for byte. The milestone-2 rows add the staged-message
+// codes 12 and 15 (DESIGN-M2 §2c, §7).
 func TestCompiledDiagnostics(t *testing.T) {
 	requireTool(t, "wasm-tools")
 	for _, tc := range []struct{ name, stderr string }{
 		{"overflow", "runtime error: integer overflow\n"},
 		{"depth", "runtime error: word call depth limit of 256 exceeded\n"},
+		{"text-to-int-fail", "runtime error: \"x\" is not a signed 64-bit decimal integer\n"},
+		{"maps-iterate-fail", "runtime error: collection is being iterated\n"},
+		{"array-select-rank", "runtime error: array.select requires a rank-2 array, found rank 3\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			wasmPath := compileFixture(t, tc.name)
