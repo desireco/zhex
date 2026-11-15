@@ -62,6 +62,18 @@ func joinPath(base, child string) string {
 	return filepath.Join(base, child)
 }
 
+// osMkdir, osMkdirAll, osRemove, osRemoveAll, and osRename are the
+// destructive-side host seam: production uses the real os functions; tests
+// swap them to inject permission, cross-device, and partial-removal
+// failures.
+var (
+	osMkdir     = os.Mkdir
+	osMkdirAll  = os.MkdirAll
+	osRemove    = os.Remove
+	osRemoveAll = os.RemoveAll
+	osRename    = os.Rename
+)
+
 // osFailureReason classifies an operating-system failure with the read-side
 // taxonomy shared by file-open and file-write.
 func osFailureReason(cause error) string {
@@ -134,6 +146,78 @@ func fileWriteError(pos position, path, phase string, cause error) error {
 	d := errorAt(pos, CodeFileWrite, "%s", message).(*diagnostic)
 	d.details = map[string]string{"path": path, "reason": reason, "phase": phase}
 	return d
+}
+
+// createFolder creates one folder level, or every missing ancestor when
+// parents is set; os.MkdirAll tolerates an already-existing folder while a
+// plain os.Mkdir fails on any existing target.
+func createFolder(pos position, path string, parents bool) value {
+	var err error
+	if parents {
+		err = osMkdirAll(path, 0o755)
+	} else {
+		err = osMkdir(path, 0o755)
+	}
+	if err != nil {
+		return value{result: &inputResult{err: inspectError(pos, CodeFileMakeFolder, "cannot create folder %q: %v", path, err)}}
+	}
+	return value{result: &inputResult{}}
+}
+
+// deletePath removes a file or an empty folder, os.Remove semantics: a
+// nonempty folder fails and nothing is removed.
+func deletePath(pos position, path string) value {
+	if err := osRemove(path); err != nil {
+		return value{result: &inputResult{err: inspectError(pos, CodeFileDelete, "cannot delete %q: %v", path, err)}}
+	}
+	return value{result: &inputResult{}}
+}
+
+// deleteFolder removes an empty folder, or the whole tree best-effort when
+// recursive is set: os.RemoveAll may delete part of the tree before the
+// first failure, and earlier effects stand — no transaction promise.
+func deleteFolder(pos position, path string, recursive bool) value {
+	var err error
+	if recursive {
+		err = osRemoveAll(path)
+	} else {
+		err = osRemove(path)
+	}
+	if err != nil {
+		return value{result: &inputResult{err: inspectError(pos, CodeFileDeleteFolder, "cannot remove folder %q: %v", path, err)}}
+	}
+	return value{result: &inputResult{}}
+}
+
+// moveError reports a failed move naming both paths, with the shared reason
+// taxonomy in its details.
+func moveError(pos position, source, target, reason, format string, args ...any) error {
+	d := errorAt(pos, CodeFileMove, format, args...).(*diagnostic)
+	d.details = map[string]string{"path": source, "target": target, "reason": reason}
+	return d
+}
+
+// movePath renames source to target, covering files and folders. overwrite
+// replaces an existing file only; a folder target is refused in both modes
+// so every platform reports one contract. Cross-device moves fail with the
+// platform's error — no copy fallback — and the gap between the target
+// check and the rename is a documented check-then-act window: a target that
+// appears in between is left to rename itself.
+func movePath(pos position, source, target string, overwrite bool) value {
+	if info, err := osStat(target); err == nil {
+		if info.IsDir() {
+			return value{result: &inputResult{err: moveError(pos, source, target, "other", "cannot move %q to %q: the target is a folder", source, target)}}
+		}
+		if !overwrite {
+			return value{result: &inputResult{err: moveError(pos, source, target, "other", "cannot move %q to %q: the target exists", source, target)}}
+		}
+	} else if !os.IsNotExist(err) {
+		return value{result: &inputResult{err: moveError(pos, source, target, osFailureReason(err), "cannot move %q to %q: %v", source, target, err)}}
+	}
+	if err := osRename(source, target); err != nil {
+		return value{result: &inputResult{err: moveError(pos, source, target, osFailureReason(err), "cannot move %q to %q: %v", source, target, err)}}
+	}
+	return value{result: &inputResult{}}
 }
 
 // readFile reads the whole file, validating UTF-8 at the boundary.

@@ -106,6 +106,30 @@ print(file.extension(invoice))
 
 See the [paths example](../examples.html#paths), which composes report paths and decomposes them again without touching the disk.
 
+## Creating, removing, and moving
+
+| Signature | Result and behavior |
+| --- | --- |
+| `file.make-folder(String, Bool = false) -> Result<Unit, FileError>` | On success, `Unit`: the folder exists. The optional second argument creates missing ancestors. |
+| `file.delete(String) -> Result<Unit, FileError>` | On success, `Unit`: a file or an empty folder was removed. |
+| `file.delete-folder(String, Bool = false) -> Result<Unit, FileError>` | On success, `Unit`: an empty folder was removed; the optional second argument removes the whole tree. |
+| `file.move(String, String, Bool = false) -> Result<Unit, FileError>` | On success, `Unit`: the source was renamed to the target, file or folder. The optional third argument replaces an existing target file. |
+
+`file.make-folder(path, parents)` creates one level and fails on an existing target; `parents = true` creates every missing ancestor and tolerates a folder that already exists. The trailing mode arguments are built-in constant defaults, like `file.write`'s `append`: calls may omit them, and partials keep them deferred.
+
+`file.delete(path)` removes a file or an empty folder and fails on a nonempty folder — the safety default. `file.delete-folder(path, recursive)` removes an empty folder by default; `recursive = true` removes the whole tree best-effort, so part of the tree may already be gone when the first failure is reported and earlier effects stand. Deleting a tree is always a deliberate, visible `recursive = true` at the call site.
+
+`file.move(source, target, overwrite)` is rename-based, so it moves folders as well as files. With `overwrite` omitted or `false` it fails when the target exists; with `overwrite = true` it replaces an existing file only — an existing folder target fails under both values, and a cross-device move fails with the platform's error rather than copying. The check of the target and the rename have an unavoidable check-then-act window: a target that appears in between is left to the rename itself.
+
+```zhex
+file.make-folder("out/reports", true) try
+file.move("draft.txt", "out/reports/report.txt") try
+```
+
+Failures use `file-make-folder`, `file-delete`, `file-delete-folder`, and `file-move`, naming the path or paths and the operating system's reason. Failures leave earlier effects in place — no transaction promise.
+
+See the [file-work example](../examples.html#file-work), which builds a work folder, inspects it, and removes the whole tree.
+
 ## Lines and failures
 
 Line reading removes one trailing line feed (`LF`) and removes an immediately preceding carriage return (`CR`) with it. A bare final `CR` without `LF` is retained. A final nonempty line without a newline is still read. An empty file produces no lines in a loop.

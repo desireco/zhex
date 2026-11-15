@@ -49,6 +49,7 @@ go run ./cmd/zhex run examples/times-table.zhex
 go run ./cmd/zhex run examples/life.zhex
 go run ./cmd/zhex run examples/edit-distance.zhex
 go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
+go run ./cmd/zhex run examples/file-work.zhex .
 ```
 
 Build an executable when you want to use it directly:
@@ -87,6 +88,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Sorting](examples/sorting.zhex) | Rank records with `list.sort-by` and a named key word, and sort plain text with `list.sort`. |
 | [File write](examples/file-write.zhex) | Attempt a checked report write and handle the failed `Result` with `catch`. |
 | [Lexical paths](examples/paths.zhex) | Compose and decompose paths with `file.join`, `base`, `extension`, and `directory-of`. |
+| [File work folder](examples/file-work.zhex) | Create a work folder, write reports into it, inspect them, and remove the whole tree. |
 | [Error recovery](examples/recovery.zhex) | Catch invalid numeric text, show a short explanation, and continue with a fallback value. |
 | [Exit status](examples/exit-status.zhex) | Validate a requested status and end deliberately with `console.exit`. |
 | [Math modules](examples/modules/main.zhex) | A two-file program: `use math` imports a sibling library and keeps one helper underscore-private. |

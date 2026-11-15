@@ -71,6 +71,7 @@ var hostWords = []string{
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
 	"file.read", "file.open", "file.read-line", "file.close", "file.write", "file.stream", "file.list", "file.exists", "file.size", "file.free-space",
 	"file.join", "file.base", "file.extension", "file.directory-of",
+	"file.make-folder", "file.delete", "file.delete-folder", "file.move",
 	"console.arg", "console.args-count", "console.exit", "console.fail",
 }
 
@@ -81,7 +82,10 @@ var hostWords = []string{
 // partial invocations follow one rule.
 // shortcut: constant defaults only, upgrade when a built-in needs computed defaults
 var builtinTrailingDefaults = map[string]builtinDefault{
-	"file.write": {arity: 3, values: []value{{boolean: false}}},
+	"file.write":         {arity: 3, values: []value{{boolean: false}}},
+	"file.make-folder":   {arity: 2, values: []value{{boolean: false}}},
+	"file.delete-folder": {arity: 2, values: []value{{boolean: false}}},
+	"file.move":          {arity: 3, values: []value{{boolean: false}}},
 }
 
 type builtinDefault struct {
@@ -1963,6 +1967,15 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "file.base", "file.extension", "file.directory-of":
 			params = []valueType{stringType}
 			result = stringType
+		case "file.delete":
+			params = []valueType{stringType}
+			result = unitFileResultType
+		case "file.make-folder", "file.delete-folder":
+			params = []valueType{stringType, boolType}
+			result = unitFileResultType
+		case "file.move":
+			params = []valueType{stringType, stringType, boolType}
+			result = unitFileResultType
 		case "console.exit":
 			params = []valueType{intType}
 			result = neverType

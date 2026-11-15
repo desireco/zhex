@@ -218,6 +218,18 @@ A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the fil
 ## file-free-space
 `file.free-space` could not report the bytes available on the volume containing the path: the path does not exist, or the platform cannot answer for it. The message names the path and the reason; the failure lives inside the `Result` and surfaces through `try`.
 
+## file-make-folder
+`file.make-folder` could not create the folder: a parent is missing (pass `parents: true` to create ancestors), or the target already exists (the default one-level form refuses it; `parents: true` tolerates an existing folder), or the process may not write the parent. The message names the path and the operating system's reason; the failure lives inside the `Result` and surfaces through `try`.
+
+## file-delete
+`file.delete` could not delete the path: it is missing, it is a nonempty folder (the safety default removes a file or an empty folder only; `file.delete-folder(recursive: true)` removes a tree), or the process may not remove it. The message names the path and the operating system's reason; the failure lives inside the `Result` and surfaces through `try`.
+
+## file-delete-folder
+`file.delete-folder` could not remove the folder: it holds entries while `recursive` is false (the default removes an empty folder only; pass `recursive: true` for the whole tree), or the process may not remove something inside it. Recursive removal is best-effort: part of the tree may already be gone when the first failure is reported, and earlier effects stand. The message names the folder and the operating system's reason; the failure lives inside the `Result` and surfaces through `try`.
+
+## file-move
+`file.move` could not rename the source to the target: the source is missing, the target exists (pass `overwrite: true` to replace an existing file), the target is a folder (never replaced in either mode), the two paths are on different devices (no copy fallback), or the process may not rename. The check-then-act window between the target check and the rename is inherent: a target that appears in between is left to the rename itself. The message names both paths and the reason; the failure lives inside the `Result` and surfaces through `try`.
+
 ## argument-missing
 `console.arg` received an index outside the program's command-line arguments. The message names the index and how many arguments were given; the failure lives inside the `Result` and surfaces through `try`. Check the index against `console.args-count()`.
 

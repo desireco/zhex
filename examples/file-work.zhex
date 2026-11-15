@@ -1,0 +1,33 @@
+# Build a work folder, write reports into it, inspect what landed, and
+# remove the whole tree — the file round trip in one program. The base
+# folder is the first program argument.
+
+let base = console.arg(0) try
+let work = base + "/zhex-work"
+
+# An interrupted earlier run may have left the folder behind; remove it so
+# every run below is deterministic.
+if file.exists(work)
+    file.delete-folder(work, true) try
+
+file.make-folder(work, true) try
+file.write("invoices: 2\n", work + "/invoices.txt") try
+file.write("credits: 7\n", work + "/credits.txt") try
+
+let names = file.list(work) try
+print("work folder: " + text.join(names, ", "))
+
+let bytes = file.size(work + "/invoices.txt") try
+print("invoices.txt: " + int.to-string(bytes) + " bytes")
+
+# The byte count is machine-dependent, so only the answer is printed.
+if file.free-space(work) try > 0
+    print("volume still has space")
+
+file.delete(work + "/invoices.txt") try
+file.delete-folder(work, true) try
+
+if file.exists(work)
+    print("work folder is still there")
+else
+    print("work folder removed")

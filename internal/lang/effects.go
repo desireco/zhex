@@ -72,7 +72,7 @@ func (c *checker) effectResult(x *expression, env map[string]string, effects map
 			return []string{"InputError"}
 		case "text.to-int":
 			return []string{"ParseError"}
-		case "file.read", "file.open", "file.read-line", "file.write", "file.list", "file.exists", "file.size", "file.free-space":
+		case "file.read", "file.open", "file.read-line", "file.write", "file.list", "file.exists", "file.size", "file.free-space", "file.make-folder", "file.delete", "file.delete-folder", "file.move":
 			return []string{"FileError"}
 		case "buffer.line", "buffer.set-line":
 			return []string{"BufferError"}

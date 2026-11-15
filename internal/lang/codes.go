@@ -82,25 +82,29 @@ const (
 	CodeModuleBody  Code = "module-body"
 	CodePrivateUse  Code = "private-use"
 
-	CodeIntegerOverflow Code = "integer-overflow"
-	CodeDivisionZero    Code = "division-zero"
-	CodeDepthLimit      Code = "depth-limit"
-	CodeUnsupportedCode Code = "unsupported-code"
-	CodeConsoleOutput   Code = "console-output"
-	CodeConsoleInput    Code = "console-input"
-	CodeConsoleUTF8     Code = "console-utf8"
-	CodeTextToInt       Code = "text-to-int"
-	CodeReplaceEmpty    Code = "replace-empty"
-	CodeBufferRange     Code = "buffer-range"
-	CodeFileOpen        Code = "file-open"
-	CodeFileRead        Code = "file-read"
-	CodeFileWrite       Code = "file-write"
-	CodeFileUTF8        Code = "file-utf8"
-	CodeFileExists      Code = "file-exists"
-	CodeFileList        Code = "file-list"
-	CodeFileSize        Code = "file-size"
-	CodeFileFreeSpace   Code = "file-free-space"
-	CodeArgumentMissing Code = "argument-missing"
+	CodeIntegerOverflow  Code = "integer-overflow"
+	CodeDivisionZero     Code = "division-zero"
+	CodeDepthLimit       Code = "depth-limit"
+	CodeUnsupportedCode  Code = "unsupported-code"
+	CodeConsoleOutput    Code = "console-output"
+	CodeConsoleInput     Code = "console-input"
+	CodeConsoleUTF8      Code = "console-utf8"
+	CodeTextToInt        Code = "text-to-int"
+	CodeReplaceEmpty     Code = "replace-empty"
+	CodeBufferRange      Code = "buffer-range"
+	CodeFileOpen         Code = "file-open"
+	CodeFileRead         Code = "file-read"
+	CodeFileWrite        Code = "file-write"
+	CodeFileUTF8         Code = "file-utf8"
+	CodeFileExists       Code = "file-exists"
+	CodeFileList         Code = "file-list"
+	CodeFileSize         Code = "file-size"
+	CodeFileFreeSpace    Code = "file-free-space"
+	CodeFileMakeFolder   Code = "file-make-folder"
+	CodeFileDelete       Code = "file-delete"
+	CodeFileDeleteFolder Code = "file-delete-folder"
+	CodeFileMove         Code = "file-move"
+	CodeArgumentMissing  Code = "argument-missing"
 )
 
 var diagnosticCodes = []Code{
@@ -116,7 +120,7 @@ var diagnosticCodes = []Code{
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
-	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeArgumentMissing,
+	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeArgumentMissing,
 }
 
 //go:embed catalog.md

@@ -417,6 +417,14 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{text: filepath.Ext(args[0].text)}, nil
 	case "file.directory-of":
 		return value{text: filepath.Dir(args[0].text)}, nil
+	case "file.make-folder":
+		return createFolder(x.pos, args[0].text, args[1].boolean), nil
+	case "file.delete":
+		return deletePath(x.pos, args[0].text), nil
+	case "file.delete-folder":
+		return deleteFolder(x.pos, args[0].text, args[1].boolean), nil
+	case "file.move":
+		return movePath(x.pos, args[0].text, args[1].text, args[2].boolean), nil
 	case "console.fail":
 		_, _ = io.WriteString(r.diagnostics, args[0].text+"\n")
 		return value{}, &ExitError{Status: 1}
