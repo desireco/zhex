@@ -11,6 +11,10 @@ test: doctests
 doctests: build
     bin/zhex test examples
 
+# Run the WASM corpus gate: every examples/ file classified, in-subset byte-identical, out-of-subset fenced.
+corpus:
+    go test ./internal/wasm/ -run 'TestCorpusGate' -v
+
 # Run tests with Go's race detector.
 test-race:
     go test -race ./...
