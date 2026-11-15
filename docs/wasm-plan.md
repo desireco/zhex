@@ -85,9 +85,9 @@ Measured once at milestone 4 on the `wasm-m1` branch — the numbers are branch-
 
 | Artifact | Raw bytes | gzip -9n bytes |
 |---|---|---|
-| `examples/hello.zhex` (smallest) | 110,888 | 37,968 |
-| `examples/score-report.zhex` (mid) | 112,275 | 38,590 |
-| `examples/xml-config.zhex` | 112,899 | 38,651 |
-| `examples/modules/md-report/main.zhex` (largest) | 115,978 | 40,127 |
+| `examples/hello.zhex` (smallest) | 111,650 | 38,216 |
+| `examples/score-report.zhex` (mid) | 113,037 | 38,828 |
+| `examples/xml-config.zhex` | 113,661 | 38,885 |
+| `examples/modules/md-report/main.zhex` (largest) | 116,740 | 40,378 |
 
-The runtime prelude dominates: the spread across these programs is about 5 KB raw, so a compiled module costs roughly 111 KB raw and 38–40 KB compressed regardless of program size — against Track A's full-interpreter module at 7.1 MB raw / 1.9 MB gzipped (Part 1).
+The runtime prelude dominates: the spread across these programs is about 5 KB raw, so a compiled module costs roughly 112 KB raw and 38–40 KB compressed regardless of program size — against Track A's full-interpreter module at 7.1 MB raw / 1.9 MB gzipped (Part 1).
