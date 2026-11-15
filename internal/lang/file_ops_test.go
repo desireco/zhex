@@ -392,6 +392,24 @@ func TestFileMoveOverwriteContracts(t *testing.T) {
 			t.Fatalf("folder target must survive: %v", statErr)
 		}
 	}
+
+	// A broken symlink target must still be refused when overwrite is false.
+	brokenSymlink := filepath.Join(dir, "broken.link")
+	if err := os.Symlink(filepath.Join(dir, "missing.txt"), brokenSymlink); err == nil {
+		s := filepath.Join(dir, "src_symlink.txt")
+		if err := os.WriteFile(s, []byte("keep"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		out, err := runFile(t, "let moved = file.move(\""+s+"\", \""+brokenSymlink+"\") catch problem\n"+
+			"    print(error.code(problem))\n"+
+			"    print(error.detail(problem, \"reason\"))\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != "file-move\nother\n" {
+			t.Fatalf("broken symlink target must be refused: got %q", out)
+		}
+	}
 }
 
 // TestFileMoveReplaceSeam pins the routing that honors overwrite on Windows:

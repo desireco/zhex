@@ -1,0 +1,10 @@
+# Prompts echo without a newline, two reads succeed, the third hits end of
+# input and the catch supplies the fallback.
+
+let first = read-line("Name: ") try
+print("hello " + first)
+let second = read-line("Again: ") try
+print("again " + second)
+let last = read-line("More: ") catch
+    "done"
+print("last: " + last)

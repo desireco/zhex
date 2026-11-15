@@ -1,0 +1,27 @@
+# Build a work folder, write reports into it, inspect what landed, and
+# remove the whole tree — the file round trip in one program.
+# Style-adapted from examples/file-work.zhex for the wasm milestone: the
+# base path is inline and relative, no console.arg, no file.free-space.
+
+let work = "zhex-work"
+
+if file.exists(work)
+    file.delete-folder(work, true) try
+
+file.make-folder(work, true) try
+file.write("invoices: 2\n", work + "/invoices.txt") try
+file.write("credits: 7\n", work + "/credits.txt") try
+
+let names = file.list(work) try
+print("work folder: " + text.join(names, ", "))
+
+let bytes = file.size(work + "/invoices.txt") try
+print("invoices.txt: " + int.to-string(bytes) + " bytes")
+
+file.delete(work + "/invoices.txt") try
+file.delete-folder(work, true) try
+
+if file.exists(work)
+    print("work folder is still there")
+else
+    print("work folder removed")

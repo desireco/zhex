@@ -1,0 +1,12 @@
+# Array creation, indexed read and write, dual-binding coordinate traversal.
+let grid = array.new([2, 3], 0)
+print(array.length(grid))
+grid[0, 0] = 1
+grid[1, 2] = 6
+print(grid[0, 0] + grid[1, 2])
+var sum = 0
+for coords, value in grid
+    sum = sum + value
+print(sum)
+for coords, value in grid
+    print(int.to-string(coords[0]) + "," + int.to-string(coords[1]) + "=" + int.to-string(value))

@@ -1,0 +1,2 @@
+file.write("GOOD=1\n# a comment\nBAD LINE\n", "bad.env") try
+env.load("bad.env") try

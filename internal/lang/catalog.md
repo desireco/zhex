@@ -334,3 +334,7 @@ A `## >` example's expression failed to check or evaluate by itself. Fix the exp
 ## test-failed
 
 A `.test.zhex` file run by `zhex test` exited nonzero without a diagnostic of its own — a failed `test.check` label, a deliberate exit, or a crash. Run `zhex run <file>` to see the failing check in place.
+
+## not-available-in-build
+
+This construct is not compiled by zhex compile yet. Run the program with `zhex run`, or rewrite it with constructs the build supports.

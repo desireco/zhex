@@ -141,8 +141,8 @@ func TestTestCommandNarrowsToAFileOrFolder(t *testing.T) {
 		t.Fatalf("file scope: code %d stdout %q stderr %q", code, out, diagnostics)
 	}
 
-	// The working-folder sweep skips .git, node_modules, and _site.
-	for _, skipped := range []string{"node_modules", "_site"} {
+	// The working-folder sweep skips .git, node_modules, _site, editors, and tools.
+	for _, skipped := range []string{"node_modules", "_site", "editors", "tools"} {
 		if err := os.MkdirAll(filepath.Join(root, skipped), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -158,6 +158,7 @@ func TestTestCommandRunsDoctests(t *testing.T) {
 	dir := t.TempDir()
 	bad := writeZhex(t, dir, "bad.zhex", "## > double(2)\n## 5\nword double(n: Int) -> Int\n    n + n\n")
 	good := writeZhex(t, dir, "good.zhex", "## > double(2)\n## 4\nword double(n: Int) -> Int\n    n + n\n")
+	noisy := writeZhex(t, dir, "noisy.zhex", "## > noisy()\n## 42\nword noisy() -> Int\n    print(\"should not leak\")\n    42\n")
 
 	code, out, diagnostics := runZhexTest(t, []string{"test", dir})
 	if code != 1 {
@@ -166,10 +167,14 @@ func TestTestCommandRunsDoctests(t *testing.T) {
 	want := strings.Join([]string{
 		"FAIL " + bad + ": " + bad + ":1:1: doctest mismatch in double: expected 5, found 4",
 		"PASS " + good,
-		"2 files: 1 passed, 1 failed",
+		"PASS " + noisy,
+		"3 files: 2 passed, 1 failed",
 	}, "\n") + "\n"
 	if out != want {
 		t.Fatalf("stdout:\n%s\nwant:\n%s", out, want)
+	}
+	if strings.Contains(out, "should not leak") {
+		t.Fatalf("doctest print output leaked to stdout: %q", out)
 	}
 	if !strings.Contains(diagnostics, "doctest mismatch in double") || !strings.Contains(diagnostics, "hint:") {
 		t.Fatalf("stderr %q", diagnostics)
@@ -241,6 +246,9 @@ func TestTestCommandGapsListsUntestedPublicWords(t *testing.T) {
 		"word untouched(n: Int) -> Int",
 		"    n",
 		"",
+		"word th(n: Int) -> Int",
+		"    n",
+		"",
 		"word _hidden(n: Int) -> Int",
 		"    n",
 		"",
@@ -254,7 +262,7 @@ func TestTestCommandGapsListsUntestedPublicWords(t *testing.T) {
 	if code != 0 || diagnostics != "" {
 		t.Fatalf("code %d stderr %q", code, diagnostics)
 	}
-	want := calc + ": word untouched has no doctest and no test file\n"
+	want := calc + ": word untouched has no doctest and no test file\n" + calc + ": word th has no doctest and no test file\n"
 	if out != want {
 		t.Fatalf("stdout %q want %q", out, want)
 	}

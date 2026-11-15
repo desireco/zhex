@@ -1,0 +1,115 @@
+# The Json tree: parse, match all six variants, encode round-trip (key order
+# and number literals preserved), tree mutation, typed decode with defaults,
+# and a depth-256 tree walked by a recursive word exactly at the call edge.
+
+word label(doc: Json) -> String
+    match doc
+        case Json.Null
+            "null"
+        case Json.Bool(value)
+            if value
+                "true"
+            else
+                "false"
+        case Json.Text(value)
+            value
+        case Json.Number(literal)
+            literal
+        case Json.List(values)
+            "list of " + int.to-string(list.length(values))
+        case Json.Object(fields)
+            "object of " + int.to-string(map.length(fields))
+
+word count-nodes(doc: Json) -> Int
+    match doc
+        case Json.List(values)
+            var total = 1
+            for v in values
+                total = total + count-nodes(v)
+            total
+        case Json.Object(fields)
+            var total = 1
+            for key, value in fields
+                total = total + count-nodes(value)
+            total
+        case _
+            1
+
+let raw = "{ \"ok\": true, \"n\": null, \"t\": \"hi\", \"num\": 1.50, \"e\": 2e3, \"neg\": -0.5, \"arr\": [1, \"two\", false], \"obj\": { \"deep\": [3] } }"
+let doc = json.parse(raw) try
+
+print("nodes: " + int.to-string(count-nodes(doc)))
+match doc
+    case Json.Object(fields)
+        for key, value in fields
+            print(key + " = " + label(value))
+    case _
+        print("unexpected shape")
+
+print(json.encode(doc) try)
+
+match doc
+    case Json.Object(fields)
+        map.put(fields, "added", Json.Number("42"))
+        print("mutated")
+    case _
+        print("unexpected")
+
+print(json.encode(doc) try)
+
+type Endpoint = record
+    host: String
+    port: Int
+type Config = record
+    service: String
+    retries: Int
+    verbose: Bool
+    endpoints: List<Endpoint>
+    limits: Map<String, Int>
+    timeout: Option<Int>
+
+let defaults = Config(service: "ingest", retries: 3, verbose: false, endpoints: list.new(), limits: {}, timeout: Option.None)
+let cfg = json.decode("{ \"service\": \"batch\", \"endpoints\": [ { \"host\": \"db\", \"port\": 5432 } ], \"limits\": { \"cpu\": 4, \"mem\": 2 } }", defaults) try
+print(cfg.service)
+print(int.to-string(cfg.retries))
+let ep = cfg.endpoints[0]
+print(ep.host)
+print(int.to-string(ep.port))
+match cfg.limits["cpu"]
+    case Option.Some(v)
+        print("cpu limit: " + int.to-string(v))
+    case Option.None
+        print("cpu limit: unset")
+print(json.encode(cfg) try)
+
+let missing-default = json.decode("{\"service\": \"batch\", \"endpoints\": [], \"retries\": 9}", defaults) try
+print(int.to-string(missing-default.retries))
+
+let unknown = json.decode("{\"service\": \"batch\", \"endpoints\": [], \"extra\": 1}", defaults) catch
+    defaults
+print("caught unknown: " + unknown.service)
+let dup = json.parse("{\"a\":1,\"a\":2}") catch
+    Json.Null
+print(label(dup))
+
+word brackets(depth: Int) -> String
+    if depth == 0
+        "1"
+    else
+        "[" + brackets(depth - 1) + "]"
+
+word innermost(doc: Json) -> String
+    match doc
+        case Json.List(values)
+            if list.length(values) == 0
+                "?"
+            else
+                innermost(values[0])
+        case Json.Number(literal)
+            literal
+        case _
+            "?"
+
+let deep = json.parse(brackets(255)) try
+print("deep nodes: " + int.to-string(count-nodes(deep)))
+print("deep literal: " + innermost(deep))

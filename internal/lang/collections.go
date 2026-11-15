@@ -12,6 +12,17 @@ func isCheckedCollectionOperation(name string) bool {
 // sortListStable returns a fresh list of items in ascending key order; equal
 // keys keep source order. Keys are precomputed by the caller, evaluated once
 // per element in source order before any comparison.
+func sortValuesStable(items []value, byText bool) []value {
+	sorted := append([]value(nil), items...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if byText {
+			return sorted[i].text < sorted[j].text
+		}
+		return sorted[i].number < sorted[j].number
+	})
+	return sorted
+}
+
 func sortListStable(items, keys []value, byText bool) []value {
 	order := make([]int, len(items))
 	for i := range order {

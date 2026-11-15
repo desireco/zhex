@@ -1,0 +1,22 @@
+# Every pure path word, host-free: join (absolute child, .. resolution, empty
+# parts), base (trailing slash, all slashes, bare name), extension (dotfile,
+# final dot, chained suffix), directory-of (bare name, root, deep path).
+
+print(file.join("/tmp/zhex-out", "june/invoices.csv"))
+print(file.join("/tmp/zhex-out", "/var/run/state.json"))
+print(file.join("/tmp/zhex-out", "../archive/old.csv"))
+print(file.join("work", ""))
+print(file.join("", "reports"))
+print(file.join("a/b", "../../c"))
+print(file.base("/tmp/zhex-out/june/invoices.csv"))
+print(file.base("/tmp/zhex-out/"))
+print(file.base("///"))
+print(file.base("invoices.csv"))
+print(file.extension("archive/old.tar.gz"))
+print(file.extension("home/.bashrc"))
+print(file.extension("no-ext"))
+print(file.extension("trailing."))
+print(file.extension("."))
+print(file.directory-of("/tmp/zhex-out/june/invoices.csv"))
+print(file.directory-of("invoices.csv"))
+print(file.directory-of("/june"))

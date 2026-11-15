@@ -38,11 +38,12 @@ func fileReason(err error, path, reason string) error {
 var osWrite = (*os.File).Write
 var osClose = (*os.File).Close
 
-// osStat, osReadDir, and osFreeSpace are the inspect-side host seam:
+// osStat, osLstat, osReadDir, and osFreeSpace are the inspect-side host seam:
 // production uses the real os functions; tests swap them to inject stat,
 // listing, and free-space failures.
 var (
 	osStat      = os.Stat
+	osLstat     = os.Lstat
 	osReadDir   = os.ReadDir
 	osFreeSpace = freeSpaceBytes
 )
@@ -195,7 +196,7 @@ func moveError(pos position, source, target, reason, format string, args ...any)
 // check and the rename is a documented check-then-act window: a target that
 // appears in between is left to rename itself.
 func movePath(pos position, source, target string, overwrite bool) value {
-	if info, err := osStat(target); err == nil {
+	if info, err := osLstat(target); err == nil {
 		if info.IsDir() {
 			return value{result: &inputResult{err: moveError(pos, source, target, "other", "cannot move %q to %q: the target is a folder", source, target)}}
 		}

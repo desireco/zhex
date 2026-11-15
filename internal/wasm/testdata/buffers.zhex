@@ -1,0 +1,22 @@
+# Buffers are lines with reference semantics: two names observe one buffer,
+# line/set-line are bounds-checked Results, to-text joins with newlines.
+
+let b = buffer.new()
+buffer.add-line(b, "first")
+buffer.add-line(b, "second")
+buffer.add-line(b, "third")
+print("count: " + int.to-string(buffer.line-count(b)))
+print(buffer.line(b, 1) try)
+
+let alias = b
+buffer.set-line(alias, 1, "2nd") try
+print("aliased count: " + int.to-string(buffer.line-count(b)))
+print(buffer.to-text(b))
+
+let fresh = buffer.new()
+print("fresh: <" + buffer.to-text(fresh) + ">")
+print("fresh count: " + int.to-string(buffer.line-count(fresh)))
+
+let bad = buffer.line(b, 5) catch
+    "caught"
+print(bad)

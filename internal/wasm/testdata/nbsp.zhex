@@ -1,0 +1,7 @@
+# NBSP quoting witness (DESIGN-M4 section 5/8.3): the string-context
+# quote renders U+00A0 as \u00a0 —
+# runtime error: "\u00a0x" is not a signed 64-bit decimal integer.
+# The literal below carries a raw NBSP inside the quotes.
+
+let n = text.to-int(" x") try
+print int.to-string(n)

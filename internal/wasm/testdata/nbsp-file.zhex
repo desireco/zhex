@@ -1,0 +1,8 @@
+# File-message asymmetry witness (DESIGN-M4 Surprises 7/section 5): the
+# wrapper quotes the path (NBSP as \u00a0) while the inner PathError
+# renders it raw —
+# runtime error: cannot open "\u00a0name.txt": open <raw NBSP>name.txt: no such file or directory.
+# The literal below carries a raw NBSP inside the quotes.
+
+let text = file.read(" name.txt") try
+print text

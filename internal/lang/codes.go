@@ -116,6 +116,8 @@ const (
 	CodeDoctestMismatch Code = "doctest-mismatch"
 	CodeDoctestCheck    Code = "doctest-check"
 	CodeTestFailed      Code = "test-failed"
+
+	CodeNotAvailableInBuild Code = "not-available-in-build"
 )
 
 var diagnosticCodes = []Code{
@@ -133,6 +135,7 @@ var diagnosticCodes = []Code{
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
 	CodeDoctestMismatch, CodeDoctestCheck, CodeTestFailed,
+	CodeNotAvailableInBuild,
 }
 
 //go:embed catalog.md

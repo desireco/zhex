@@ -204,7 +204,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "list.sort":
 		_, inner, _ := collectionInner(x.inputType)
 		items := args[0].list.items
-		return value{list: &listValue{items: sortListStable(items, items, inner == stringType)}}, nil
+		return value{list: &listValue{items: sortValuesStable(items, inner == stringType)}}, nil
 	case "list.sort-by":
 		source := args[0].list
 		source.active++

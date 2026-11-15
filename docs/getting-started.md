@@ -209,6 +209,17 @@ A type error such as `print("hello" + 1)` is rejected before the program reads i
 
 The built executable returns status `0` after a successful run, `1` for file or language errors, and `2` for invalid command usage. Identifiers may contain hyphens, as in `is-palindrome`. Put spaces around subtraction between names: `a - b` subtracts; `a-b` names a value or word.
 
+## Compile to WebAssembly
+
+`zhex compile examples/hello.zhex` checks the program exactly like `zhex run`, then assembles a standalone WebAssembly module, writing `examples/hello.wasm` beside the source (`-o` picks another path). The default `--target=browser` builds a module for a web page or JavaScript host; `--target=wasi` builds a standalone module for a runner such as wasmtime:
+
+```sh
+zhex compile examples/hello.zhex --target=wasi
+printf 'Ada\n' | wasmtime run --dir .::/ examples/hello.wasm
+```
+
+Compiling needs the free wasm-tools assembler, installed with one line — `cargo install wasm-tools`, `pacman -S wasm-tools`, `brew install wasm-tools`, or a release binary from the BytecodeAlliance releases page. Without it, `zhex compile` stops with the coded `missing-tool` diagnostic and those install hints, and no artifact is written. Running a compiled module needs nothing extra in a browser; standalone runs need a runner such as wasmtime. The [compiling guide](../site/src/content/docs/compiling.md) covers targets, the wasm-tools requirement, and which constructs compile today.
+
 ## Explore and validate
 
 Start with the [examples and expected results](syntax-examples.md), then consult the [language contract](initial-language.md) for exact rules. The [test catalog](tests.md) maps behavior to its executable checks.

@@ -1,0 +1,2 @@
+let names = file.list("notes.txt") try
+print(text.join(names, ","))

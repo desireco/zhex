@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"zhex/internal/lang"
+	"zhex/internal/wasm"
 )
 
 // readModule loads a sibling module file — the resolution rule for use.
@@ -22,7 +23,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -33,6 +34,9 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	if len(args) >= 1 && args[0] == "repl" {
 		return repl(args[1:], input, output, diagnostics)
+	}
+	if len(args) >= 1 && args[0] == "compile" {
+		return compileCmd(args[1:], diagnostics)
 	}
 	if len(args) >= 1 && args[0] == "doctests" {
 		return doctests(args[1:], input, output, diagnostics)
@@ -93,6 +97,64 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	return 0
 }
 
+// compileCmd implements `zhex compile <file.zhex> [-o <out.wasm>]
+// [--target=browser|wasi]`: check, emit WAT, assemble with wasm-tools, write
+// the artifact. The target picks the host layer (browser by default per D4);
+// an unknown value is a usage error. Checker errors render exactly as run's;
+// a missing wasm-tools prints the pinned missing-tool diagnostic; either way
+// no artifact is written.
+func compileCmd(args []string, diagnostics io.Writer) int {
+	file, outPath := "", ""
+	skin := lang.WatSkinBrowser
+	for i := 0; i < len(args); i++ {
+		switch arg := args[i]; {
+		case arg == "-o":
+			if i+1 >= len(args) || outPath != "" {
+				fmt.Fprintln(diagnostics, usage)
+				return 2
+			}
+			i++
+			outPath = args[i]
+		case arg == "--target=browser":
+			skin = lang.WatSkinBrowser
+		case arg == "--target=wasi":
+			skin = lang.WatSkinWASI
+		case strings.HasPrefix(arg, "-"):
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		case file == "":
+			file = arg
+		default:
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		}
+	}
+	if file == "" {
+		fmt.Fprintln(diagnostics, usage)
+		return 2
+	}
+	if outPath == "" {
+		if strings.HasSuffix(file, ".zhex") {
+			outPath = strings.TrimSuffix(file, ".zhex") + ".wasm"
+		} else {
+			outPath = file + ".wasm"
+		}
+	}
+	source, err := os.ReadFile(file)
+	if err != nil {
+		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	dir := filepath.Dir(file)
+	if err := wasm.Compile(file, string(source), outPath, func(name string) (lang.ModuleSource, bool) {
+		return readModule(dir, name)
+	}, skin); err != nil {
+		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	return 0
+}
+
 // doctests runs the ## > examples in a file's word docs. Each failing
 // doctest prints its diagnostic — one JSON line each with --report=json —
 // and any failure exits 1; passing doctests print nothing.
@@ -122,7 +184,7 @@ func doctests(args []string, input io.Reader, output, diagnostics io.Writer) int
 		return 1
 	}
 	dir := filepath.Dir(file)
-	failures := lang.RunDoctests(file, string(source), input, output, func(name string) (lang.ModuleSource, bool) {
+	failures := lang.RunDoctests(file, string(source), input, io.Discard, func(name string) (lang.ModuleSource, bool) {
 		return readModule(dir, name)
 	})
 	for _, failure := range failures {

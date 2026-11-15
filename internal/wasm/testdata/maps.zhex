@@ -1,0 +1,41 @@
+# Map insertion order: put-overwrite keeps position, remove shifts, re-put
+# appends; into merges (an iterated source is legal); single and dual
+# traversal; Option lookup; aliasing (DESIGN-M2 §3, §7.3).
+let scores = {"Ada": 1, "Bob": 2, "Cy": 3}
+scores["Ada"] = 4
+map.remove(scores, "Bob")
+scores["Bob"] = 5
+let updated = map.put(scores, "Cy", 6)
+print(map.length(updated))
+for name, score in scores
+    print(name + "=" + int.to-string(score))
+print(map.contains(scores, "Bob"))
+match scores["Ada"]
+    case Option.Some(score)
+        print(score)
+    case Option.None
+        print(0)
+match scores["Zoe"]
+    case Option.Some(score)
+        print(score)
+    case Option.None
+        print(-1)
+let alias = scores
+alias["Eve"] = 10
+match scores["Eve"]
+    case Option.Some(score)
+        print(score)
+    case Option.None
+        print(-1)
+for score in scores
+    print(int.to-string(score))
+let incoming = {"Ada": 8, "Dee": 9}
+flow incoming
+    map.into(scores)
+    map.length
+    print
+let base: Map<String, Int> = {}
+for name, score in incoming
+    let merged = map.into(incoming, base)
+    print(name + ":" + int.to-string(score))
+print(map.length(base))

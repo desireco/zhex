@@ -1,0 +1,8 @@
+# Unhandled xml.decode failure: an element the schema does not name
+# (DESIGN-M4 section 2c/8.1) — runtime error: unknown element "ghost" at "/ghost".
+
+type Doc = record
+    a: Int
+
+let doc = xml.decode("<doc><ghost/></doc>", Doc(a: 0)) try
+print int.to-string(doc.a)

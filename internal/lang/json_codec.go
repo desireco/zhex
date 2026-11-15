@@ -16,10 +16,22 @@ type jsonField struct {
 	schema *jsonSchema
 }
 type jsonSchema struct {
-	typ     valueType
-	kind    string
-	fields  []jsonField
-	element *jsonSchema
+	typ        valueType
+	kind       string
+	fields     []jsonField
+	fieldIndex map[string]int
+	element    *jsonSchema
+}
+
+func (s *jsonSchema) fieldIdx(name string) (int, bool) {
+	if s.fieldIndex == nil {
+		s.fieldIndex = make(map[string]int, len(s.fields))
+		for i, f := range s.fields {
+			s.fieldIndex[f.name] = i
+		}
+	}
+	idx, ok := s.fieldIndex[name]
+	return idx, ok
 }
 
 func (c *checker) makeJSONSchema(typ valueType, active map[valueType]bool) (*jsonSchema, error) {
@@ -76,12 +88,14 @@ func (c *checker) buildJSONSchema(typ valueType, active map[valueType]bool, cach
 	}
 	if record := c.types.all[string(typ)]; record != nil && !record.choice {
 		s.kind = "record"
-		for _, field := range record.fields {
+		s.fieldIndex = make(map[string]int, len(record.fields))
+		for i, field := range record.fields {
 			f, err := c.buildJSONSchema(field.typ, active, cache)
 			if err != nil {
 				return nil, err
 			}
 			s.fields = append(s.fields, jsonField{field.name, f})
+			s.fieldIndex[field.name] = i
 		}
 		return s, nil
 	}
@@ -335,12 +349,8 @@ func decodeJSONValue(n *jsonNode, s *jsonSchema, def *value, memo *jsonClone, pa
 			return fail("expected object")
 		}
 		lookup := map[string]*jsonNode{}
-		fields := map[string]bool{}
-		for _, f := range s.fields {
-			fields[f.name] = true
-		}
 		for _, item := range n.object {
-			if !fields[item.key] {
+			if _, ok := s.fieldIdx(item.key); !ok {
 				return value{}, &jsonFailure{path: jsonPath(path, item.key), message: "unknown field", code: CodeJSONField, reason: "unknown"}
 			}
 			lookup[item.key] = item.val

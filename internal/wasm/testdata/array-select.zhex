@@ -1,0 +1,22 @@
+# array.select: rank-2 row keep, rectangle preserved (kept[1, 2] stays in
+# bounds at width 3), source unchanged, and the predicate receiving fresh
+# row copies (DESIGN-M2 §4d, §7.8).
+word first-is-big(row: List<Int>) -> Bool
+    row[0] > 2
+word extend-and-keep(row: List<Int>) -> Bool
+    list.append(row, 99)
+    true
+let grid = array.new([3, 3], 0)
+grid[0, 0] = 1
+grid[1, 0] = 4
+grid[1, 1] = 5
+grid[2, 0] = 7
+let kept = array.select(grid, first-is-big(_))
+print(array.length(kept))
+print(kept[0, 0])
+print(kept[0, 1])
+print(kept[1, 2])
+print(grid[0, 0])
+let copied = array.select(grid, extend-and-keep(_))
+print(array.length(copied))
+print(grid[0, 2])

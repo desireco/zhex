@@ -234,16 +234,10 @@ func decodeXMLValue(n *xmlElement, s *jsonSchema, def *value, memo *jsonClone, p
 	failField := func(name, msg, reason string) (value, error) {
 		return value{}, &xmlFailure{path: xmlFieldPath(path, name), message: msg, code: CodeXMLField, reason: reason}
 	}
-	fields := map[string]int{}
-	isList := map[string]bool{}
-	for i, f := range s.fields {
-		fields[f.name] = i
-		isList[f.name] = f.schema.kind == "list"
-	}
 	attrText := map[string]string{}
 	childElements := map[string][]*xmlElement{}
 	for _, a := range n.attrs {
-		if _, ok := fields[a.name]; !ok {
+		if _, ok := s.fieldIdx(a.name); !ok {
 			return failField(a.name, fmt.Sprintf("unknown attribute %q", a.name), "unknown")
 		}
 		if _, ok := childElements[a.name]; ok {
@@ -252,13 +246,14 @@ func decodeXMLValue(n *xmlElement, s *jsonSchema, def *value, memo *jsonClone, p
 		attrText[a.name] = a.value
 	}
 	for _, child := range n.children {
-		if _, ok := fields[child.name]; !ok {
+		idx, ok := s.fieldIdx(child.name)
+		if !ok {
 			return failField(child.name, fmt.Sprintf("unknown element %q", child.name), "unknown")
 		}
 		if _, ok := attrText[child.name]; ok {
 			return failField(child.name, fmt.Sprintf("element %q collides with an attribute", child.name), "collision")
 		}
-		if !isList[child.name] && len(childElements[child.name]) > 0 {
+		if s.fields[idx].schema.kind != "list" && len(childElements[child.name]) > 0 {
 			return failField(child.name, fmt.Sprintf("duplicate element %q", child.name), "duplicate")
 		}
 		childElements[child.name] = append(childElements[child.name], child)
