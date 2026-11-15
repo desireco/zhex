@@ -62,16 +62,17 @@ func joinPath(base, child string) string {
 	return filepath.Join(base, child)
 }
 
-// osMkdir, osMkdirAll, osRemove, osRemoveAll, and osRename are the
-// destructive-side host seam: production uses the real os functions; tests
-// swap them to inject permission, cross-device, and partial-removal
-// failures.
+// osMkdir, osMkdirAll, osRemove, osRemoveAll, osRename, and osReplaceRename
+// are the destructive-side host seam: production uses the real os functions
+// (osReplaceRename adds the platform's replace-on-rename); tests swap them to
+// inject permission, cross-device, and partial-removal failures.
 var (
-	osMkdir     = os.Mkdir
-	osMkdirAll  = os.MkdirAll
-	osRemove    = os.Remove
-	osRemoveAll = os.RemoveAll
-	osRename    = os.Rename
+	osMkdir         = os.Mkdir
+	osMkdirAll      = os.MkdirAll
+	osRemove        = os.Remove
+	osRemoveAll     = os.RemoveAll
+	osRename        = os.Rename
+	osReplaceRename = replaceRename
 )
 
 // osFailureReason classifies an operating-system failure with the read-side
@@ -199,7 +200,9 @@ func moveError(pos position, source, target, reason, format string, args ...any)
 
 // movePath renames source to target, covering files and folders. overwrite
 // replaces an existing file only; a folder target is refused in both modes
-// so every platform reports one contract. Cross-device moves fail with the
+// so every platform reports one contract. Overwrite routes through
+// osReplaceRename because a Windows rename refuses an existing target;
+// POSIX rename already replaces. Cross-device moves fail with the
 // platform's error — no copy fallback — and the gap between the target
 // check and the rename is a documented check-then-act window: a target that
 // appears in between is left to rename itself.
@@ -214,7 +217,11 @@ func movePath(pos position, source, target string, overwrite bool) value {
 	} else if !os.IsNotExist(err) {
 		return value{result: &inputResult{err: moveError(pos, source, target, osFailureReason(err), "cannot move %q to %q: %v", source, target, err)}}
 	}
-	if err := osRename(source, target); err != nil {
+	rename := osRename
+	if overwrite {
+		rename = osReplaceRename
+	}
+	if err := rename(source, target); err != nil {
 		return value{result: &inputResult{err: moveError(pos, source, target, osFailureReason(err), "cannot move %q to %q: %v", source, target, err)}}
 	}
 	return value{result: &inputResult{}}
