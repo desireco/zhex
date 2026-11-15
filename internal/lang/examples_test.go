@@ -16,6 +16,8 @@ func TestExamples(t *testing.T) {
 		wantErr           string
 		exited            bool
 		exitCode          int
+		wantStderr        string // console.fail output, checked when non-empty
+		tempFixture       string // written to a temp file appended to args
 	}{
 		{name: "partials", want: "12\n12\n12\n1\n1\n12\naDa\n7\n1\n8\ntext-to-int\n3\n"},
 		{name: "calls", want: "Hello, Ada\nHello, Grace\n3\n3\n7\n2\n1\n3\n"},
@@ -82,6 +84,14 @@ func TestExamples(t *testing.T) {
 		{name: "text-stats", args: []string{"../../examples/text-stats-sample.txt", "upper"}, want: "ZHEX COUNTS WORDS, LINES, AND CHARACTERS.\nTHE CAFÉ IS OPEN!\nBYE\n"},
 		{name: "text-stats", wantErr: "argument-missing"},
 		{name: "text-stats", args: []string{"../../examples/no-such-file.txt"}, wantErr: "file-open"},
+		// filter is the line-filter tool: literal case-sensitive substring
+		// match, matching lines verbatim, usage on wrong arg count, and the
+		// natural FileError for a missing file.
+		{name: "filter", tempFixture: "alpha one\nBeta two\ngamma alpha\nplain\nALPHA three\n", args: []string{"alpha"}, want: "alpha one\ngamma alpha\n"},
+		{name: "filter", tempFixture: "alpha one\nBeta two\ngamma alpha\nplain\nALPHA three\n", args: []string{"ALPHA"}, want: "ALPHA three\n"},
+		{name: "filter", tempFixture: "alpha one\n", args: []string{"zzz"}, want: ""},
+		{name: "filter", args: []string{"alpha"}, exited: true, exitCode: 1, wantStderr: "usage: zhex run filter.zhex <pattern> <file>\n"},
+		{name: "filter", args: []string{"alpha", "../../examples/no-such-file.txt"}, wantErr: "file-open"},
 		{name: "modules/main", input: "48\n18\n", want: "First number: Second number: 30\n6\n144\n"},
 		{name: "modules/main", input: "0\n5\n", want: "First number: Second number: Enter two positive integers.\n"},
 	}
@@ -103,13 +113,28 @@ func TestExamples(t *testing.T) {
 				return ModuleSource{Path: filepath.Join(dir, name+".zhex"), Source: string(source)}, true
 			}
 			var out bytes.Buffer
-			err = RunWithModules(path, string(src), strings.NewReader(tc.input), &out, nil, tc.args, resolve)
+			args := tc.args
+			if tc.tempFixture != "" {
+				fixture := filepath.Join(t.TempDir(), "fixture.txt")
+				if err := os.WriteFile(fixture, []byte(tc.tempFixture), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				args = append(args, fixture)
+			}
+			var stderr bytes.Buffer
+			err = RunWithModulesOptions(path, string(src), strings.NewReader(tc.input), &out, RunOptions{Args: args, Diagnostics: &stderr}, resolve)
 			if tc.exited {
 				exit, ok := err.(*ExitError)
 				if !ok || exit.Status != tc.exitCode || out.String() != tc.want {
 					t.Fatalf("exit %v, output %q", err, out.String())
 				}
+				if tc.wantStderr != "" && stderr.String() != tc.wantStderr {
+					t.Fatalf("stderr %q, want %q", stderr.String(), tc.wantStderr)
+				}
 				return
+			}
+			if tc.wantStderr != "" && stderr.String() != tc.wantStderr {
+				t.Fatalf("stderr %q, want %q", stderr.String(), tc.wantStderr)
 			}
 			if tc.wantErr != "" {
 				if err == nil {

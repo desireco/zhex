@@ -1,0 +1,13 @@
+# The line-filter tool: print the lines of a file that contain a literal
+# pattern, case-sensitive. The first end-to-end Zhex application.
+# Usage: zhex run filter.zhex <pattern> <file>
+
+if console.args-count() != 2
+    console.fail("usage: zhex run filter.zhex <pattern> <file>")
+
+let pattern = console.arg 0 try
+let path = console.arg 1 try
+
+for line in file.stream(path)
+    if text.contains(line, pattern)
+        print(line)

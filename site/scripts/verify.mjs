@@ -4,8 +4,11 @@ const read = file => readFile(`../_site/${file}`, 'utf8');
 const data = JSON.parse(await readFile('data.json', 'utf8'));
 const examples = await read('examples.html');
 const shownSources = new Set(data.Examples.flatMap(e => [e.SourceURL, ...(e.Modules || []).map(m => m.URL)]));
+// Tools that live beside the examples but need command-line arguments, so the
+// site cannot execute them; they run in TestExamples instead of at build time.
+const argTools = new Set(['filter.zhex']);
 for (const file of await readdir('../examples', { recursive: true })) {
-  if (file.endsWith('.zhex')) assert(shownSources.has(`examples/${file}`), `${file} must appear on the examples page`);
+  if (file.endsWith('.zhex') && !argTools.has(file)) assert(shownSources.has(`examples/${file}`), `${file} must appear on the examples page`);
 }
 assert(!/<details\b/i.test(examples), 'examples must be visible without expanding');
 for (const example of data.Examples) {
