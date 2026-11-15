@@ -126,6 +126,48 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			accumulator = next
 		}
 		return accumulator, nil
+	case "list.find":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		for _, item := range source.items {
+			keep, err := r.callFunction(args[1].function, x.pos, item)
+			if err != nil {
+				return value{}, err
+			}
+			if keep.boolean {
+				return value{choice: &choiceValue{name: "Option.Some", variant: 1, fields: []value{item}}}, nil
+			}
+		}
+		return value{choice: &choiceValue{name: "Option.None", variant: 0}}, nil
+	case "list.any":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		for _, item := range source.items {
+			keep, err := r.callFunction(args[1].function, x.pos, item)
+			if err != nil {
+				return value{}, err
+			}
+			if keep.boolean {
+				return value{boolean: true}, nil
+			}
+		}
+		return value{boolean: false}, nil
+	case "list.all":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		for _, item := range source.items {
+			keep, err := r.callFunction(args[1].function, x.pos, item)
+			if err != nil {
+				return value{}, err
+			}
+			if !keep.boolean {
+				return value{boolean: false}, nil
+			}
+		}
+		return value{boolean: true}, nil
 	case "ok":
 		return value{result: &inputResult{value: args[0]}}, nil
 	case "err":

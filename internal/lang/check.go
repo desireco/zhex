@@ -65,7 +65,7 @@ var hostWords = []string{
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
-	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.fold", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.fold", "list.find", "list.any", "list.all", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -1258,7 +1258,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if x.text == "list.append" && i == 1 && len(args) > 0 {
 				_, expected, _ = collectionInner(args[0])
 			}
-			if x.text == "list.filter" && i == 1 && len(args) > 0 {
+			if (x.text == "list.filter" || x.text == "list.find" || x.text == "list.any" || x.text == "list.all") && i == 1 && len(args) > 0 {
 				if _, inner, ok := collectionInner(args[0]); ok {
 					expected = functionType([]valueType{inner}, boolType)
 				}
@@ -1745,7 +1745,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				return "", errorAt(x.pos, CodeArgumentType, "list.length requires a List")
 			}
 			params, result = args, intType
-		case "list.map", "list.filter", "list.fold":
+		case "list.map", "list.filter", "list.fold", "list.find", "list.any", "list.all":
 			count := 2
 			if x.text == "list.fold" {
 				count = 3
@@ -1769,9 +1769,17 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 					return "", errorAt(x.pos, CodeUnhandledResult, "a Result cannot be returned from a callback")
 				}
 				params, result = args, valueType("List<"+string(callbackResult)+">")
-			case "list.filter":
-				params = []valueType{args[0], functionType([]valueType{inner}, boolType)}
-				result = args[0]
+			case "list.filter", "list.find", "list.any", "list.all":
+				predicate := functionType([]valueType{inner}, boolType)
+				params = []valueType{args[0], predicate}
+				switch x.text {
+				case "list.filter":
+					result = args[0]
+				case "list.find":
+					result = valueType("Option<" + string(inner) + ">")
+				default:
+					result = boolType
+				}
 			default:
 				if isResult(args[1]) {
 					return "", errorAt(x.pos, CodeUnhandledResult, "a Result cannot be returned from a callback")

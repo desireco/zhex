@@ -322,7 +322,137 @@ func TestListWordsRejectResultReturningCallbacks(t *testing.T) {
 	}{
 		{parse + "let x = list.map([\"1\"], parse(_))\n", "a Result cannot be returned from a callback"},
 		{parse + "let x = list.filter([\"1\"], parse(_))\n", "incompatible inferred types"},
+		{parse + "let x = list.find([\"1\"], parse(_))\n", "incompatible inferred types"},
+		{parse + "let x = list.any([\"1\"], parse(_))\n", "incompatible inferred types"},
+		{parse + "let x = list.all([\"1\"], parse(_))\n", "incompatible inferred types"},
 		{"word add(a: Int, b: Int) -> Int\n    a + b\nlet x = list.fold([1], text.to-int(\"7\"), add(_, _))\n", "a Result cannot be returned from a callback"},
+	}
+	for _, tc := range cases {
+		if got := runError(t, tc.source); !strings.Contains(got, tc.message) {
+			t.Errorf("%s: wrong diagnostic %q, want %q", tc.source, got, tc.message)
+		}
+	}
+}
+
+func TestListFindAnyAllAnswerQueries(t *testing.T) {
+	source := `word even(n: Int) -> Bool
+    n % 2 == 0
+let values = [1, 2, 3, 4]
+match list.find(values, even(_))
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print(0)
+print(list.any(values, even(_)))
+print(list.all(values, even(_)))
+flow values
+    list.any(even(_))
+    print
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "2\ntrue\nfalse\ntrue\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestListFindAnyAllEmptySemantics(t *testing.T) {
+	source := `word even(n: Int) -> Bool
+    n % 2 == 0
+let empty: List<Int> = list.new()
+match list.find(empty, even(_))
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print("none")
+print(list.any(empty, even(_)))
+print(list.all(empty, even(_)))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "none\nfalse\ntrue\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestListFindAnyAllShortCircuitCallbacks(t *testing.T) {
+	source := `word noisy-even(n: Int) -> Bool
+    print(n)
+    n % 2 == 0
+let values = [1, 2, 3, 4]
+print(list.any(values, noisy-even(_)))
+print(list.all(values, noisy-even(_)))
+match list.find(values, noisy-even(_))
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print(0)
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n2\ntrue\n1\nfalse\n1\n2\n2\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestListFindAnyAllInferOmittedSignatures(t *testing.T) {
+	source := `word even(n: Int) -> Bool
+    n % 2 == 0
+word first-even(values)
+    list.find(values, even(_))
+word any-even(values)
+    list.any(values, even(_))
+match first-even([1, 4])
+    case Option.Some(n)
+        print(n)
+    case Option.None
+        print(0)
+print(any-even([3]))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "4\nfalse\n" {
+		t.Fatal(out.String())
+	}
+}
+
+func TestListFindHoldsTraversalGuard(t *testing.T) {
+	source := `word push-onto(values: List<Int>, n: Int) -> Bool
+    list.append(values, n)
+    true
+let values = [1, 2]
+let predicate = push-onto(values, _)
+print(list.any(values, predicate))
+`
+	var out bytes.Buffer
+	err := Run("test.zhex", source, strings.NewReader(""), &out)
+	if d, ok := err.(*diagnostic); !ok || d.code != CodeCollectionIterating {
+		t.Fatalf("expected collection-iterating, got %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("ran effects before failing: %q", out.String())
+	}
+}
+
+func TestListFindAnyAllRejectWrongTypes(t *testing.T) {
+	cases := []struct {
+		source  string
+		message string
+	}{
+		{"let x = list.find(5, 2)\n", "list.find requires a List"},
+		{"let x = list.find([1], 2)\n", "argument 2 of list.find requires type (Int) -> Bool, found Int"},
+		{"let x = list.any([1])\n", "list.any requires 2 arguments, found 1"},
+		{"let x = list.all(5, 2)\n", "list.all requires a List"},
+		{"let x = list.all([1], 2)\n", "argument 2 of list.all requires type (Int) -> Bool, found Int"},
+		{"word add(a: Int, b: Int) -> Int\n    a + b\nlet x = list.any([1], add(_, _))\n", "incompatible inferred types"},
 	}
 	for _, tc := range cases {
 		if got := runError(t, tc.source); !strings.Contains(got, tc.message) {

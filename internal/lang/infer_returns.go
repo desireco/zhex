@@ -917,7 +917,7 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			return namedType("List", mapped)
 		}
 		return freshType()
-	case "list.filter":
+	case "list.filter", "list.find", "list.any", "list.all":
 		element := freshType()
 		if len(args) > 0 {
 			s.equal(args[0], namedType("List", element), x.pos)
@@ -925,7 +925,14 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		if len(args) > 1 {
 			s.equal(args[1], namedType("@function", element, namedType("Bool")), x.pos)
 		}
-		return namedType("List", element)
+		switch x.text {
+		case "list.filter":
+			return namedType("List", element)
+		case "list.find":
+			return namedType("Option", element)
+		default:
+			return namedType("Bool")
+		}
 	case "list.fold":
 		element := freshType()
 		if len(args) > 0 {
