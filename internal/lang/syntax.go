@@ -208,11 +208,14 @@ const (
 	stringResultType         valueType = "Result<String, InputError>"
 	intParseResultType       valueType = "Result<Int, ParseError>"
 	// inputResult is the runtime repr for every Result, whatever its error type.
-	stringBufferResultType valueType = "Result<String, BufferError>"
-	unitBufferResultType   valueType = "Result<Unit, BufferError>"
-	stringFileResultType   valueType = "Result<String, FileError>"
-	unitFileResultType     valueType = "Result<Unit, FileError>"
-	fileResultType         valueType = "Result<File, FileError>"
+	stringBufferResultType   valueType = "Result<String, BufferError>"
+	unitBufferResultType     valueType = "Result<Unit, BufferError>"
+	stringFileResultType     valueType = "Result<String, FileError>"
+	unitFileResultType       valueType = "Result<Unit, FileError>"
+	fileResultType           valueType = "Result<File, FileError>"
+	boolFileResultType       valueType = "Result<Bool, FileError>"
+	intFileResultType        valueType = "Result<Int, FileError>"
+	stringListFileResultType valueType = "Result<List<String>, FileError>"
 )
 
 type binding struct {

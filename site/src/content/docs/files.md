@@ -58,6 +58,28 @@ let saved = file.write(report, "/") catch problem
     print("Save failed: " + error.code(problem))
 ```
 
+## Inspecting paths
+
+| Signature | Result and behavior |
+| --- | --- |
+| `file.list(String) -> Result<List<String>, FileError>` | On success, the folder's entry names. |
+| `file.exists(String) -> Bool` | `true` when the path exists; `false` when it does not. |
+| `file.size(String) -> Result<Int, FileError>` | On success, the size in bytes. |
+| `file.free-space(String) -> Result<Int, FileError>` | On success, the bytes available on the volume containing the path. |
+
+`file.list(folder)` lists one level: bare entry names, not paths, in sorted order, dot entries included — filtering them is `list.filter` work — as a fresh list. A folder with more than one million entries fails `collection-limit` inside the result before the list is built.
+
+`file.exists(path)` is a plain `Bool`. A missing path is the answer `false`, not a failure; any other stat failure (a parent without permission, an invalid path) is a runtime diagnostic. Applying `try` or `catch` to the call selects the checked `Result<Bool, FileError>` form.
+
+`file.size(path)` returns a regular file's size in bytes; a directory reports `0`, and nothing is summed recursively. `file.free-space(path)` accepts any existing path, file or folder, and reports the bytes available to the process on the volume containing it; it works on Unix and Windows, and other platforms fail `file-free-space` inside the result.
+
+```zhex
+let names = file.list("examples") try
+print(names)
+```
+
+A listing that cannot be read fails `file-list`; a stat failure behind `file.exists` fails `file-exists`; size and free-space failures use `file-size` and `file-free-space`. Each names the path and the operating system's reason.
+
 ## Lines and failures
 
 Line reading removes one trailing line feed (`LF`) and removes an immediately preceding carriage return (`CR`) with it. A bare final `CR` without `LF` is retained. A final nonempty line without a newline is still read. An empty file produces no lines in a loop.

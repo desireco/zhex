@@ -206,6 +206,18 @@ A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the fil
 ## file-write
 `file.write` could not open, write, or close the path; the message names the path, the failing phase, and the operating system's reason. The failure lives inside the `Result` and surfaces through `try`; a failed write may leave a partial or truncated file, and a missing parent directory is never created.
 
+## file-exists
+`file.exists` could not answer for the path: the message names the path and the operating system's reason, and the failure carries the not-found/permission-denied/other taxonomy in its details. A missing path is not this failure — it is the answer `false`; apply `try` or `catch` to inspect the checked form's failures.
+
+## file-list
+`file.list` could not list the folder: the folder is missing, or the process may not read it, or the path is a file. The message names the folder and the operating system's reason; the failure lives inside the `Result` and surfaces through `try`.
+
+## file-size
+`file.size` could not get the size of the path: it is missing, or the process may not stat it. The message names the path and the operating system's reason; the failure lives inside the `Result` and surfaces through `try`.
+
+## file-free-space
+`file.free-space` could not report the bytes available on the volume containing the path: the path does not exist, or the platform cannot answer for it. The message names the path and the reason; the failure lives inside the `Result` and surfaces through `try`.
+
 ## argument-missing
 `console.arg` received an index outside the program's command-line arguments. The message names the index and how many arguments were given; the failure lives inside the `Result` and surfaces through `try`. Check the index against `console.args-count()`.
 

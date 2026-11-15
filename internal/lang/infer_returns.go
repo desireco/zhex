@@ -771,6 +771,8 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 	add("file.read-line", stringFileResultType, fileType)
 	add("file.close", unitType, fileType)
 	add("file.write", unitFileResultType, stringType, stringType, boolType)
+	add("file.list", stringListFileResultType, stringType)
+	add("file.size file.free-space", intFileResultType, stringType)
 	add("read-line", stringResultType, stringType)
 	add("console.arg", stringResultType, intType)
 	add("console.args-count", intType)
@@ -967,6 +969,14 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			s.equal(args[2], namedType("@function", args[1], element, args[1]), x.pos)
 		}
 		return args[1]
+	case "file.exists":
+		if len(args) > 0 {
+			s.equal(args[0], namedType("String"), x.pos)
+		}
+		if checked {
+			return termFromType(boolFileResultType)
+		}
+		return namedType("Bool")
 	case "list.length", "list.append":
 		element := freshType()
 		if len(args) > 0 {

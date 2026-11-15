@@ -6,7 +6,7 @@ import (
 )
 
 func isCheckedCollectionOperation(name string) bool {
-	return name == "array.new" || name == "array.resize" || name == "list.append"
+	return name == "array.new" || name == "array.resize" || name == "list.append" || name == "file.exists"
 }
 
 // sortListStable returns a fresh list of items in ascending key order; equal

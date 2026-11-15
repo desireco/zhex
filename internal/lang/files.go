@@ -43,6 +43,36 @@ func fileReason(err error, path, reason string) error {
 var osWrite = (*os.File).Write
 var osClose = (*os.File).Close
 
+// osStat, osReadDir, and osFreeSpace are the inspect-side host seam:
+// production uses the real os functions; tests swap them to inject stat,
+// listing, and free-space failures.
+var (
+	osStat      = os.Stat
+	osReadDir   = os.ReadDir
+	osFreeSpace = freeSpaceBytes
+)
+
+// osFailureReason classifies an operating-system failure with the read-side
+// taxonomy shared by file-open and file-write.
+func osFailureReason(cause error) string {
+	switch {
+	case os.IsNotExist(cause):
+		return "not-found"
+	case os.IsPermission(cause):
+		return "permission-denied"
+	default:
+		return "other"
+	}
+}
+
+// inspectError reports a failed path inspection with the operation's code;
+// the details carry the path and the reason taxonomy.
+func inspectError(pos position, code Code, format string, path string, cause error) error {
+	d := errorAt(pos, code, format, path, cause).(*diagnostic)
+	d.details = map[string]string{"path": path, "reason": osFailureReason(cause)}
+	return d
+}
+
 // writeTextFile writes contents to path in one internal open-write-close:
 // create-or-truncate by default, or append (creating a missing file) when
 // appendMode is set. No writable File escapes, a failure may leave a partial

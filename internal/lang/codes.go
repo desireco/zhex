@@ -96,6 +96,10 @@ const (
 	CodeFileRead        Code = "file-read"
 	CodeFileWrite       Code = "file-write"
 	CodeFileUTF8        Code = "file-utf8"
+	CodeFileExists      Code = "file-exists"
+	CodeFileList        Code = "file-list"
+	CodeFileSize        Code = "file-size"
+	CodeFileFreeSpace   Code = "file-free-space"
 	CodeArgumentMissing Code = "argument-missing"
 )
 
@@ -112,7 +116,7 @@ var diagnosticCodes = []Code{
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
-	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeArgumentMissing,
+	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeArgumentMissing,
 }
 
 //go:embed catalog.md

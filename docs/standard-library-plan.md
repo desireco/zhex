@@ -10,7 +10,7 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words, and #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`. [`hostWords` in check.go](../internal/lang/check.go) registers **96 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; and S9 (#73) shipped four file inspect words. [`hostWords` in check.go](../internal/lang/check.go) registers **100 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `map` | `length`, `contains`, `remove`, `put`, `into` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
 | `json` | `decode`, `encode` | [JSON](../site/src/content/docs/json.md); `json_test.go` |
 | `buffer` | `new`, `add-line`, `line-count`, `line`, `set-line`, `to-text` | [Buffers](../site/src/content/docs/buffers.md); `buffer_test.go` |
-| `file` | `read`, `open`, `read-line`, `close`, `write`, `stream` | [Files](../site/src/content/docs/files.md); `file_test.go` |
+| `file` | `read`, `open`, `read-line`, `close`, `write`, `stream`, `list`, `exists`, `size`, `free-space` | [Files](../site/src/content/docs/files.md); `file_test.go`, `file_inspect_test.go` |
 | `console` | `arg`, `args-count`, `exit`, `fail` | [Console](../site/src/content/docs/console.md); `args_test.go`, CLI `main_test.go`, `reporting_test.go` |
 | `error` | `set-reporter`, `report`, `new`, `wrap`, `has-cause`, `cause`, `code`, `message`, `operation`, `file`, `line`, `column`, `detail` | [Results](../site/src/content/docs/results.md); `result_words_test.go`, `reporting_test.go` |
 | `date` | `new`, `parse`, `to-string`, `add-days` | [Temporal](../site/src/content/docs/temporal.md); `temporal_test.go`, `civil_time_test.go` |
@@ -32,7 +32,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | `timezone` | `load`, `name` | Same temporal reference/tests; this research adds direct `name` identity/type coverage |
 | `zoned` | `new`, `to-string`, `instant`, `in-zone`, `add-days`, `add-duration` | Same temporal reference/tests |
 
-The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 96 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
+The [test catalog](tests.md) maps the broader behavior contract to tests. An inventory audit found all 100 names in the site references, with direct test-source mentions for all except `timezone.name`; that gap is covered in this change. Literal occurrence is an audit aid, not proof of exhaustive edge-case coverage. No existing operation is being redesigned here.
 
 Important current constraints:
 
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73) has shipped from the folder-operations research below, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -187,25 +187,28 @@ Directory listing/metadata is now researched in the #69 candidates below; the `p
 
 ### Folder operations research (#69, 2026-11-14)
 
-The following three story candidates come from the [#69 folder-operations research](https://github.com/desireco/zhex/issues/69); they await owner triage and are not filed as numbered issues. All reuse the existing `FileError` family and the not-found/permission-denied/other reason taxonomy established by `file-open`/`file-write`, and stay shallow, deterministic, and explicit about the dangerous cases.
+The following three stories come from the [#69 folder-operations research](https://github.com/desireco/zhex/issues/69); the owner triaged them on 2026-11-14 into the approved order S9 → S11 → S10, and they are filed as #73, #74, and #75. All reuse the existing `FileError` family and the not-found/permission-denied/other reason taxonomy established by `file-open`/`file-write`, and stay shallow, deterministic, and explicit about the dangerous cases.
 
-**S9. Folder listing and single-path info.** Proposed in #69; awaiting owner triage. Candidate host signatures:
+**S9. Folder listing, single-path info, and free space.** Shipped as [#73](https://github.com/desireco/zhex/issues/73); host signatures:
 
 ```text
 file.list(folder: String) -> Result<List<String>, FileError>
 file.exists(path: String) -> Bool
 file.size(path: String) -> Result<Int, FileError>
+file.free-space(path: String) -> Result<Int, FileError>
 ```
 
 Demand: the owner's folder vocabulary starts with listing names and sizes and answering "does this path exist" — the most common agent need. The two-word shape (names first, sizes per entry) reuses `List<String>` and `Int` instead of a host-owned `(name, kind, size)` record, which would need new checker machinery for a built-in returning a host record. `file.list` is shallow and returns bare entry names (not paths) in deterministic name order; Go's [os.ReadDir](https://pkg.go.dev/os#ReadDir) sorts entries by filename and its `DirEntry` supplies the cheap type with `Info()` on demand, which is exactly this names-first/sizes-per-entry split (Python's `os.scandir` makes the same split). `file.exists` answers existence; the recommendation is a plain `Bool` where not-found gives false and any other stat failure (permission on a parent, invalid path) raises a runtime diagnostic, matching the plain-collection pattern (ordinary value, runtime diagnostic, opt-in checked form). `file.size` returns the byte size of a regular file; a directory reports 0 with no recursive size. Tests: empty folder, missing folder, file passed as the folder argument, permission failure, deterministic order with mixed-case and digit names, UTF-8 names, empty and nonempty file sizes, `exists` on file/folder/missing/permission paths, flow use, and the one-million-element list limit on huge directories. No array/rectangle machinery is implicated: directory entries are a flat list, not a grid.
 
-Decisions to settle: `file.exists` as Bool-plus-runtime-diagnostic versus `Result<Bool, FileError>`; whether listing order is lexical byte order (Go's ReadDir default) or another deterministic order; whether hidden dot entries are included (recommendation: included — filtering is `list.filter` work); stable diagnostic codes for the new failure paths (`file-list`, `file-size`).
+Decisions settled in review — the stances are recorded in the shipped notes below: `file.exists` as Bool-plus-runtime-diagnostic versus `Result<Bool, FileError>`; whether listing order is lexical byte order (Go's ReadDir default) or another deterministic order; whether hidden dot entries are included (recommendation: included — filtering is `list.filter` work); stable diagnostic codes for the new failure paths (`file-list`, `file-size`).
 
-Non-goals: no recursive walk, no glob patterns, no entry-kind or symlink flag in v1 (names only), no watching, no trash/undo, no folder sizes.
+Non-goals: no recursive walk, no glob patterns, no entry-kind or symlink flag in v1 (names only), no watching, no trash/undo, no folder sizes, no total/capacity free-space variants.
 
-Free space: researched and deferred. Go's standard library has no portable free-space call — `syscall.Statfs` is Unix-only and Windows needs the out-of-tree `golang.org/x/sys/windows.GetDiskFreeSpaceEx`; of the six comparison languages only Python's `shutil.disk_usage` is portable stdlib (Ruby needs the Sys::Filesystem gem; Gleam's simplifile, Elm, and Haskell's core/directory have none). If the owner still wants it, it slots as a small standalone story with `file.free-space(path: String) -> Result<Int, FileError>` (bytes available to this process on the volume containing `path`, file or folder accepted, `FileError` family) — recommended after S9/S10, not in the first batch.
+Shipped notes: `file.exists` took the plain-collection pattern — the plain call is a `Bool` where not-found is `false` and any other stat failure is a runtime diagnostic, and `try`/`catch` selects the checked `Result<Bool, FileError>`; return inference gained the checked-dependent solver case for it. Listing order is Go `os.ReadDir` default lexical byte order, and hidden dot entries are included — filtering is `list.filter` work. The one-million-element limit is enforced before materializing and fails inside the `Result` under the shared `collection-limit` code, the `text.split`/`array.new` precedent. New stable codes `file-list`, `file-exists`, `file-size`, and `file-free-space` reuse the not-found/permission-denied/other reason taxonomy and carry path and reason details like `file-open`/`file-write`. Free space shipped in this story per the owner's 2026-11-14 decision (below), not deferred. No example was registered: every candidate needs a real path with deterministic build-time output, so the example is deliberately deferred until S11's `file.make-folder` can create one deterministically.
 
-**S10. Destructive and structural folder operations.** Proposed in #69; awaiting owner triage. Candidate host signatures:
+Free space: researched and deferred, then unparked — the owner decision of 2026-11-14 overruled the deferral ("I don't want it parked. I want it implemented... it should work everywhere") and it shipped in S9 above with the `golang.org/x/sys/windows` platform approach rather than an unsupported-platform diagnostic. The portability research behind the original deferral stands: Go's standard library has no portable free-space call — `syscall.Statfs` is Unix-only and Windows needs the out-of-tree `golang.org/x/sys/windows.GetDiskFreeSpaceEx`; of the six comparison languages only Python's `shutil.disk_usage` is portable stdlib (Ruby needs the Sys::Filesystem gem; Gleam's simplifile, Elm, and Haskell's core/directory have none).
+
+**S10. Destructive and structural folder operations.** Proposed in #69; filed as [#75](https://github.com/desireco/zhex/issues/75), last in the approved order. Candidate host signatures:
 
 ```text
 file.make-folder(path: String, parents: Bool = false) -> Result<Unit, FileError>
@@ -220,7 +223,7 @@ Decisions to settle: whether `parents: true` tolerates an already-existing folde
 
 Non-goals: no copy word (a separate contract), no trash/undo, no atomic-replacement promise beyond what rename itself gives, no permission/mode words, no glob deletion.
 
-**S11. Lexical path words in the file namespace.** Proposed in #69, absorbing the path words the owner redirected out of S8/#64 on 2026-11-14; awaiting owner triage. Candidate host signatures:
+**S11. Lexical path words in the file namespace.** Proposed in #69, absorbing the path words the owner redirected out of S8/#64 on 2026-11-14; filed as [#74](https://github.com/desireco/zhex/issues/74), next in the approved order. Candidate host signatures:
 
 ```text
 file.join(base: String, child: String) -> String
@@ -248,7 +251,7 @@ Non-goals: no URL paths, no symlink resolution, no normalization to an absolute 
 
 Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6 and the deliberately separate S7. S8 and other optional capabilities stay proposals.
 
-The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, S3 (#59) shipped as source-level helper words without new host names, and S4 (#60) with S5 (#61) have since added the list callback words, and S6 (#62) the two list sorting words, to that inventory.
+The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, S3 (#59) shipped as source-level helper words without new host names, and S4 (#60) with S5 (#61) have since added the list callback words, and S6 (#62) the two list sorting words, to that inventory; S9 (#73) from the folder-operations research added the four file inspect words.
 
 | Order | Story | Dependency |
 | --- | --- | --- |
@@ -260,6 +263,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S6 | [#62 — Stable copied sort/sort-by](https://github.com/desireco/zhex/issues/62) — shipped | #60 callback contract |
 | S7 | [#63 — Explicit fallible try-map](https://github.com/desireco/zhex/issues/63) | #60 plus callback-effect design |
 | S8 | [#64 — Paths/environment for batch reports](https://github.com/desireco/zhex/issues/64) | #57/#58 and a multi-file workload; later phase |
+| S9 | [#73 — File: inspect — list, exists, size, and free space](https://github.com/desireco/zhex/issues/73) — shipped | #69 research; executable example deferred until S11's `file.make-folder` |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
 

@@ -3,6 +3,7 @@ package lang
 import (
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -367,6 +368,46 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{}, nil
 	case "file.write":
 		return writeTextFile(x.pos, args[0].text, args[1].text, args[2].boolean), nil
+	case "file.list":
+		folder := args[0].text
+		entries, err := osReadDir(folder)
+		if err != nil {
+			return value{result: &inputResult{err: inspectError(x.pos, CodeFileList, "cannot list %q: %v", folder, err)}}, nil
+		}
+		if len(entries) > maxCollectionElements {
+			return value{result: &inputResult{err: errorAt(x.pos, CodeCollectionLimit, "file.list exceeds element limit")}}, nil
+		}
+		items := make([]value, len(entries))
+		for i, entry := range entries {
+			items[i] = value{text: entry.Name()}
+		}
+		return value{result: &inputResult{value: value{list: &listValue{items: items}}}}, nil
+	case "file.exists":
+		if _, err := osStat(args[0].text); err != nil {
+			if os.IsNotExist(err) {
+				return value{result: &inputResult{value: value{boolean: false}}}, nil
+			}
+			return value{result: &inputResult{err: inspectError(x.pos, CodeFileExists, "cannot check %q: %v", args[0].text, err)}}, nil
+		}
+		return value{result: &inputResult{value: value{boolean: true}}}, nil
+	case "file.size":
+		path := args[0].text
+		info, err := osStat(path)
+		if err != nil {
+			return value{result: &inputResult{err: inspectError(x.pos, CodeFileSize, "cannot get the size of %q: %v", path, err)}}, nil
+		}
+		var size int64
+		if !info.IsDir() {
+			size = int64(info.Size())
+		}
+		return value{result: &inputResult{value: value{number: size}}}, nil
+	case "file.free-space":
+		path := args[0].text
+		avail, err := osFreeSpace(path)
+		if err != nil {
+			return value{result: &inputResult{err: inspectError(x.pos, CodeFileFreeSpace, "cannot get the free space for %q: %v", path, err)}}, nil
+		}
+		return value{result: &inputResult{value: value{number: avail}}}, nil
 	case "console.fail":
 		_, _ = io.WriteString(r.diagnostics, args[0].text+"\n")
 		return value{}, &ExitError{Status: 1}
