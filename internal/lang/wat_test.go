@@ -204,8 +204,10 @@ for i, y in ys
 			t.Errorf("missing %q", want)
 		}
 	}
-	// each traversal resets the counter it raised
-	if count := strings.Count(wat, "struct.set $zhex_list_i64 $active"); count != 2 {
+	// each traversal resets the counter it raised (count only the program
+	// section — the prelude's helpers also touch $active)
+	program := wat[strings.Index(wat, ";; program types"):]
+	if count := strings.Count(program, "struct.set $zhex_list_i64 $active"); count != 2 {
 		t.Errorf("list_i64 active writes = %d, want 2 (inc and dec)", count)
 	}
 }
@@ -860,8 +862,11 @@ for name, score in scores
 			t.Errorf("missing %q", want)
 		}
 	}
-	// Two traversals: increment and decrement each, nothing else touches it.
-	if got := strings.Count(wat, "struct.set "+watMapType(watMapKeyStr, watSpecI64)+" $active"); got != 4 {
+	// Two traversals: increment and decrement each; the program section is
+	// the only place that may touch the counter here (the prelude's map
+	// helpers have their own writes).
+	program := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(program, "struct.set "+watMapType(watMapKeyStr, watSpecI64)+" $active"); got != 4 {
 		t.Errorf("map active writes = %d, want 4", got)
 	}
 }

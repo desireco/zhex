@@ -1351,7 +1351,11 @@ func (e *watEmitter) appendThunk(name string, x *expression, fnParams []valueTyp
 	}
 	params := []string{"(param $clo (ref " + watTypeClosure + "))"}
 	for i, t := range fnParams {
-		params = append(params, fmt.Sprintf("(param $a%d %s)", i, e.watLocalType(t)))
+		typ := "(ref null eq)" // Unit holes ride as a null eq (§2's Unit repr)
+		if !isUnitValue(t) {
+			typ = e.watLocalType(t)
+		}
+		params = append(params, fmt.Sprintf("(param $a%d %s)", i, typ))
 	}
 	result := ""
 	if !isUnitValue(fnResult) {
