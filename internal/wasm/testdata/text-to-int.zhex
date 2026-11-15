@@ -1,0 +1,16 @@
+# text.to-int successes and caught fallbacks (DESIGN-M2 §2, §7.2).
+print(text.to-int("  12  ") try)
+print(text.to-int("\u00a07\u00a0") try)
+print(text.to-int("+7") try)
+print(text.to-int("007") try)
+print(text.to-int("-9223372036854775808") try)
+print(text.to-int("9223372036854775807") try)
+let fallback = text.to-int("x") catch
+    -1
+print(fallback)
+let overflow = text.to-int("9223372036854775808") catch
+    -2
+print(overflow)
+let empty = text.to-int("") catch
+    0
+print(empty)

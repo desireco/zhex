@@ -1,0 +1,5 @@
+# An unhandled text.to-int failure: the artifact prints the staged §2c
+# message without the interpreter's position prefix.
+print("before")
+let n = text.to-int("x") try
+print(n)
