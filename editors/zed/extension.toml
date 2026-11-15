@@ -8,5 +8,5 @@ repository = "https://github.com/desireco/zhex"
 
 [grammars.zhex]
 repository = "https://github.com/desireco/zhex"
-rev = "91470cb8ffb9e32d6ed0e29b959244a2f764b312"
+rev = "b624ee33858e8acf1ffd5b2273e01ed6893b6ea8"
 path = "editors/tree-sitter-zhex"
