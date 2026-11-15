@@ -168,7 +168,7 @@ func (e *watEmitter) emit() string {
 	// byte-identical for both skins with the browser-seam defs stripped, and
 	// only the host layer differs (DESIGN-M3 §1, watnames_m3's emit recipe).
 	out.WriteString(watHostImports(e.skin))
-	out.WriteString(watStripSeamDefs(watPrelude + watPreludeM2 + watPreludeM3))
+	out.WriteString(watStripSeamDefs(watPrelude + watPreludeM2 + watPreludeM3 + watPreludeM4))
 	out.WriteString(watHostFuncs(e.skin))
 	out.WriteString("\n;; program types\n")
 	for _, r := range e.records {
@@ -1375,17 +1375,17 @@ func (e *watEmitter) envGet(i int, t valueType) {
 // partialCreation emits a closure value at a partial site: the supplied
 // arguments evaluate left to right (holes skipped, standing as null slots)
 // into an env array of target arity, paired with a site-local thunk
-// (DESIGN-M2 §4b).
+// (DESIGN-M2 §4b). Since M4 the target may be a closure binding
+// (re-partial application): the callee evaluates first, the env array gains
+// one slot carrying the target closure ref itself, and the thunk
+// call_ref's the target through its own signature (DESIGN-M4 §3b). Unit
+// results compile — the thunk and the target use the grid's void rows (§3a).
 func (e *watEmitter) partialCreation(x *expression) {
-	if x.binding != nil {
-		watFence(x.pos, "re-partial application")
-	}
 	fnParams, fnResult, _ := functionTypeParts(x.typ)
-	if fnResult == unitType {
-		watFence(x.pos, "closures with Unit results")
-	}
 	var paramTypes []valueType
-	if x.word != nil {
+	if x.binding != nil {
+		paramTypes, _, _ = functionTypeParts(x.binding.typ)
+	} else if x.word != nil {
 		if len(x.args) < len(x.word.params) {
 			watFence(x.pos, "word parameter defaults")
 		}
@@ -1402,6 +1402,15 @@ func (e *watEmitter) partialCreation(x *expression) {
 	}
 	id := e.nextID()
 	env := e.temp("env"+id, nullableRef("(ref "+watTypeArrRef+")"))
+	tgt := ""
+	if x.binding != nil {
+		// the callee evaluates first; its ref rides the env array's last slot
+		tgt = e.temp("envt"+id, nullableRef("(ref "+watTypeClosure+")"))
+		clo := e.local(x.binding)
+		e.line("local.get " + clo)
+		e.line("ref.as_non_null")
+		e.line("local.set " + tgt)
+	}
 	for _, a := range x.args {
 		if a.kind == "hole" {
 			e.line("ref.null eq")
@@ -1410,7 +1419,13 @@ func (e *watEmitter) partialCreation(x *expression) {
 		e.expr(a)
 		e.boxEnv(a.typ)
 	}
-	e.line("array.new_fixed %s %d", watTypeArrRef, len(x.args))
+	if x.binding != nil {
+		e.line("local.get " + tgt)
+		e.line("ref.as_non_null")
+		e.line("array.new_fixed %s %d", watTypeArrRef, len(x.args)+1)
+	} else {
+		e.line("array.new_fixed %s %d", watTypeArrRef, len(x.args))
+	}
 	e.line("local.set " + env)
 	thunk := fmt.Sprintf("$zcthunk%s", id)
 	e.line("ref.func " + thunk)
@@ -1450,6 +1465,21 @@ func (e *watEmitter) appendThunk(name string, x *expression, fnParams []valueTyp
 	if !isUnitValue(fnResult) {
 		result = watReprType(watSpecOf(fnResult))
 	}
+	tgt := ""
+	if x.binding != nil {
+		// the target closure rides env slot n; call_ref wants it as arg 0
+		// ahead of the filled params (DESIGN-M4 §3b)
+		tgt = e.temp("rp_tgt", nullableRef("(ref "+watTypeClosure+")"))
+		e.line("local.get $clo")
+		e.line("struct.get " + watTypeClosure + " $env")
+		e.line("ref.as_non_null")
+		e.line("i32.const %d", len(paramTypes))
+		e.line("array.get " + watTypeArrRef)
+		e.line("ref.cast (ref " + watTypeClosure + ")")
+		e.line("local.set " + tgt)
+		e.line("local.get " + tgt)
+		e.line("ref.as_non_null")
+	}
 	for i, t := range paramTypes {
 		if at, isHole := holeAt[i]; isHole {
 			if t == unitType {
@@ -1476,6 +1506,27 @@ func (e *watEmitter) appendThunk(name string, x *expression, fnParams []valueTyp
 	}
 	if x.word != nil {
 		e.line("call " + watWordName(x.word))
+	} else if x.binding != nil {
+		// re-partial: the filled args and the target (arg 0) are on the
+		// stack; call_ref through the target's own signature (§3b)
+		targetParams, targetResult, _ := functionTypeParts(x.binding.typ)
+		specs := make([]watSpec, len(targetParams))
+		for i, p := range targetParams {
+			specs[i] = watSpecOf(p)
+		}
+		cloSpec := watSpecOf(targetResult)
+		if isUnitValue(targetResult) {
+			cloSpec = watCloVoid
+		}
+		cloName := watCloType(specs, cloSpec)
+		e.line("local.get " + tgt)
+		e.line("ref.as_non_null")
+		e.line("struct.get " + watTypeClosure + " $fn")
+		e.line("ref.cast (ref " + cloName + ")")
+		e.line("call_ref " + cloName)
+		if !isUnitValue(targetResult) {
+			e.castFromEqref(targetResult)
+		}
 	} else {
 		e.builtinCore(x)
 	}
@@ -1486,16 +1537,19 @@ func (e *watEmitter) appendThunk(name string, x *expression, fnParams []valueTyp
 // closureInvoke emits a fully-applied call of a bound closure: the closure
 // itself is argument 0, the args follow, then the typed funcref and call_ref
 // (DESIGN-M2 §4c; stack order — the funcref is call_ref's last operand).
+// A Unit result casts to the grid's void row and leaves nothing behind
+// (DESIGN-M4 §3a).
 func (e *watEmitter) closureInvoke(x *expression) {
 	fnParams, fnResult, _ := functionTypeParts(x.binding.typ)
-	if fnResult == unitType {
-		watFence(x.pos, "closures with Unit results")
-	}
 	specs := make([]watSpec, len(fnParams))
 	for i, p := range fnParams {
 		specs[i] = watSpecOf(p)
 	}
-	cloName := watCloType(specs, watSpecOf(fnResult))
+	cloSpec := watSpecOf(fnResult)
+	if isUnitValue(fnResult) {
+		cloSpec = watCloVoid
+	}
+	cloName := watCloType(specs, cloSpec)
 	clo := e.local(x.binding)
 	e.line("local.get " + clo)
 	e.line("ref.as_non_null")
@@ -1509,7 +1563,9 @@ func (e *watEmitter) closureInvoke(x *expression) {
 	e.line("struct.get " + watTypeClosure + " $fn")
 	e.line("ref.cast (ref " + cloName + ")")
 	e.line("call_ref " + cloName)
-	e.castFromEqref(fnResult)
+	if !isUnitValue(fnResult) {
+		e.castFromEqref(fnResult)
+	}
 }
 
 // watThunkableBuiltin reports whether a builtin partial can be thunked: the
@@ -1784,6 +1840,15 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.boxEnv(x.args[1].typ) // uniform eqref defaults, M1 boxing
 		e.emitSchemaCall(x.jsonSchema)
 		e.line("call " + watJsonDecode)
+	case "xml.decode":
+		// mirrors json.decode (DESIGN-M4 §2): boxed defaults, the M3 schema
+		// builder (which also registers node names for `expected <Type>`),
+		// then the pure prelude decode; works as a flow step the same way.
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.boxEnv(x.args[1].typ)
+		e.emitSchemaCall(x.jsonSchema)
+		e.line("call " + watXmlDecode)
 	case "env.get":
 		e.expr(x.args[0])
 		e.line("call " + watEnvGet) // Option<String> as a plain eq reference
@@ -2034,6 +2099,13 @@ func (e *watEmitter) appendSchemaFuncs(name string, root *jsonSchema) {
 		e.locals = append(e.locals, local+" (ref null "+typ+")")
 		return local
 	}
+	// Each schema node registers its Zhex type name beside the node ref in
+	// the M4 names table (reset per build): the xml decode renders
+	// `expected <Type>` failures with the interpreter's jsonSchema.typ
+	// string — record names and aliases included — and nothing else reads
+	// it (DESIGN-M4 §2b).
+	e.locals = append(e.locals, "$zxml_tname (ref null "+watTypeString+")")
+	e.line("(global.set " + watXmlNames + " (ref.null " + watTypeArrRef + "))")
 	var build func(s *jsonSchema) string
 	build = func(s *jsonSchema) string {
 		local := newLocal(watTypeJsonSchema)
@@ -2090,6 +2162,10 @@ func (e *watEmitter) appendSchemaFuncs(name string, root *jsonSchema) {
 		}
 		e.line("struct.new " + watTypeJsonSchema)
 		e.line("local.set " + local)
+		e.stringConst(string(s.typ))
+		e.line("local.set $zxml_tname")
+		e.line("(global.set "+watXmlNames+" (call $zjson_arr_push (global.get "+watXmlNames+") (local.get "+local+")))")
+		e.line("(global.set "+watXmlNames+" (call $zjson_arr_push (global.get "+watXmlNames+") (local.get $zxml_tname)))")
 		return local
 	}
 	rootLocal := build(root)
@@ -2169,10 +2245,21 @@ func (e *watEmitter) printCall(x *expression) {
 }
 
 // indexExpr emits a plain list/array read (or a map lookup returning an
-// Option); the checked (try/catch) form is fenced.
+// Option); the checked List read is a Result helper (DESIGN-M4 §4) while
+// checked Array reads and all checked writes stay fenced.
 func (e *watEmitter) indexExpr(x *expression) {
 	if x.checkedIndex {
-		watFence(x.pos, "checked index reads")
+		kind, inner, ok := collectionInner(x.left.typ)
+		if !ok {
+			watFence(x.pos, string(x.left.typ))
+		}
+		if kind != "List" {
+			watFence(x.pos, "checked index reads") // arrays stay fenced (§4)
+		}
+		e.expr(x.left)
+		e.expr(x.args[0])
+		e.line("call " + watListGetChecked(watSpecOf(inner))) // Result<T, Error>, family 5
+		return
 	}
 	if keyType, valType, isMap := mapTypes(x.left.typ); isMap {
 		k, v := mapKeySpec(keyType), watSpecOf(valType)
@@ -2446,7 +2533,10 @@ func (e *watEmitter) emitResultUnwrap(res string, inner valueType) {
 
 // flowStatement runs the seed into a cursor local, then each call-shaped
 // step with the cursor as its first argument (args[0] is the tree's
-// incoming-value slot); the last step's value is the flow's value.
+// incoming-value slot); the last step's value is the flow's value. A
+// closure binding is a legal step — e.call routes it to closureInvoke with
+// the cursor already in args[0], and steps whose extra args hold holes
+// route to partialCreation (DESIGN-M4 §3c).
 func (e *watEmitter) flowStatement(s *statement) {
 	fid := e.nextID()
 	curType := s.expr.typ
@@ -2459,9 +2549,6 @@ func (e *watEmitter) flowStatement(s *statement) {
 	for idx, step := range s.steps {
 		if step.checkedCollection {
 			watFence(step.pos, "checked "+step.text)
-		}
-		if step.binding != nil {
-			watFence(step.pos, "function values")
 		}
 		e.flowCursor, e.flowCursorType = cur, curType
 		e.call(step)

@@ -423,9 +423,9 @@ func TestWatFencesOutOfSubsetConstructs(t *testing.T) {
 let xs: List<Int> = list.new()
 list.append(xs, 1) try
 `, "checked list.append is not available in this build"},
-		{"checked-index", `
-let xs: List<Int> = [1]
-print(xs[9] try)
+		{"checked-index-array", `
+let grid = array.new([2, 2], 0)
+print(grid[0, 0] try)
 `, "checked index reads is not available in this build"},
 		{"word-defaults", `
 word greet(name: String = "Ada") -> String
@@ -441,30 +441,6 @@ type R = record
 let r = R(1)
 print(r.a)
 `, "record field defaults is not available in this build"},
-		{"re-partial", `
-word add(a: Int, b: Int) -> Int
-    a + b
-
-let once = add(_, 1)
-let twice = once(_)
-print(1)
-`, "re-partial application is not available in this build"},
-		{"unit-result-closure", `
-word side(n: Int)
-    print(n)
-
-let run = side(_)
-run(1)
-`, "closures with Unit results is not available in this build"},
-		{"flow-function-step", `
-word double(n: Int) -> Int
-    n * 2
-
-let f = double(_)
-flow 5
-    f
-    print
-`, "function values is not available in this build"},
 		{"generic-choice", `
 type Pair<T> = choice
     Left(a: T)
@@ -473,13 +449,6 @@ type Pair<T> = choice
 print(1)
 `, "generic choice Pair is not available in this build"},
 		{"file-free-space", `print(file.free-space(".") try)`, "file.free-space is not available in this build"},
-		{"xml-decode", `
-type Server = record
-    name: String
-
-let s = xml.decode("<server><name>a</name></server>", Server("b")) try
-print(s.name)
-`, "xml.decode is not available in this build"},
 		{"temporal", `print(date.to-string(date.new(2020, 1, 1)))`, "date.to-string is not available in this build"},
 		{"console-arg", `let a = console.arg(0) try`, "console.arg is not available in this build"},
 		{"error-new", `let e = error.new("x", "boom")`, "error.new is not available in this build"},
@@ -1684,5 +1653,186 @@ print(decoded.x)
 	// the make thunk unboxes Int fields from $zhex_some_i64; get boxes them
 	if !strings.Contains(wat, "struct.get "+watSomeType(watSpecI64)+" $value") {
 		t.Errorf("the make thunk must unbox Int fields from the boxed array")
+	}
+}
+
+// ------------------------------------------------------ milestone-4 (DESIGN-M4)
+
+// xml.decode mirrors json.decode's emitter case: raw text, boxed defaults,
+// the M3 schema builder (which now also registers node names), one prelude
+// call — and it rides a flow step exactly as json.decode does (§2).
+func TestWatXmlDecodeEmitsPreludeCall(t *testing.T) {
+	wat := watOf(t, `
+type Server = record
+    name: String
+    retries: Int
+
+let s = xml.decode("<server><name>a</name></server>", Server("b", 1)) try
+print(s.name)
+`)
+	for _, want := range []string{
+		"call " + watXmlDecode,
+		"call $zjson_schema1", // one builder per call site
+		"struct.new " + watTypeJsonField,
+		"(global.set " + watXmlNames, // the builder registers node names (§2b)
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	program := wat[strings.Index(wat, ";; program types"):]
+	if got := strings.Count(program, "call "+watXmlDecode); got != 1 {
+		t.Errorf("xml decode calls = %d, want 1", got)
+	}
+}
+
+// The checked List read is a Result helper per element spec (§4); checked
+// Array reads and all checked writes stay fenced.
+func TestWatCheckedListReadEmitsHelper(t *testing.T) {
+	wat := watOf(t, `
+let xs: List<Int> = [1, 2]
+let a = xs[9] try
+print(a)
+let words: List<String> = ["a"]
+let b = words[0] try
+print(b)
+`)
+	for _, want := range []string{
+		"call " + watListGetChecked(watSpecI64),
+		"call " + watListGetChecked(watSpecRef),
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	if strings.Contains(wat, "call "+watListGet(watSpecI64)) {
+		t.Errorf("a checked read must not use the trapping plain get")
+	}
+}
+
+// A Unit-result closure compiles: creation and invocation go through the
+// grid's void rows, and the invoke leaves nothing on the stack (§3a).
+func TestWatVoidClosureInvokeUsesVoidGridRow(t *testing.T) {
+	wat := watOf(t, `
+word side(n: Int)
+    print(n)
+
+let run = side(_)
+run(1)
+flow 2
+    run
+`)
+	for _, want := range []string{
+		"ref.cast (ref " + watCloType([]watSpec{watSpecI64}, watCloVoid) + ")",
+		"call_ref " + watCloType([]watSpec{watSpecI64}, watCloVoid),
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+	if regexp.MustCompile(`call_ref ` + regexp.QuoteMeta(watCloType([]watSpec{watSpecI64}, watCloVoid)) + `\n\s*ref\.cast`).MatchString(wat) {
+		t.Errorf("a void call_ref must not be followed by a result cast")
+	}
+}
+
+// Re-partial application: the callee evaluates first, the env array gains
+// the target-closure slot, and the thunk call_refs the target's own
+// signature (§3b). Partial-of-partial composes the same way.
+func TestWatRePartialRidesEnvSlot(t *testing.T) {
+	wat := watOf(t, `
+word add(a: Int, b: Int) -> Int
+    a + b
+
+let once = add(_, 1)
+let twice = once(_)
+print(twice(5))
+`)
+	thunk := regexp.MustCompile(`\(func \$zcthunk2`).FindString(wat[strings.Index(wat, ";; closure thunks"):])
+	if thunk == "" {
+		t.Fatalf("the re-partial site must emit its own thunk:\n%s", wat)
+	}
+	for _, want := range []string{
+		"array.new_fixed " + watTypeArrRef + " 2", // binding arity 1 + the target slot
+		"ref.cast (ref " + watCloType([]watSpec{watSpecI64}, watSpecI64) + ")",
+		"call_ref " + watCloType([]watSpec{watSpecI64}, watSpecI64),
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+}
+
+// A closure binding is a legal flow step: the cursor is args[0] and the
+// invoke rides closureInvoke's existing paths (§3c).
+func TestWatClosureFlowStepEmitsCallRef(t *testing.T) {
+	wat := watOf(t, `
+word add(a: Int, b: Int) -> Int
+    a + b
+
+let once = add(_, 1)
+flow 5
+    once
+    print
+`)
+	if !strings.Contains(wat, "call_ref "+watCloType([]watSpec{watSpecI64}, watSpecI64)) {
+		t.Errorf("the closure step must call_ref its own signature:\n%s", wat)
+	}
+}
+
+// TestWatMilestone4RoundTrip is the emitter's end-to-end witness for the M4
+// families: xml record/list/scalar decoding with entities, the trio (void
+// closure invoked and as a flow step, re-partial chains, closure flow steps
+// with results), and the checked List read's ok/out-of-range paths. Skipped
+// without wasm-tools or node; the differential corpus is Builder Y's gate.
+func TestWatMilestone4RoundTrip(t *testing.T) {
+	wat := watOf(t, `
+type Endpoint = record
+    host: String
+    port: Int
+type Server = record
+    name: String
+    retries: Int
+    verbose: Bool
+    endpoints: List<Endpoint>
+
+let s = xml.decode("<server retries=\"3\" verbose=\"true\"><name>ingest</name><endpoints><host>db</host><port>5432</port></endpoints></server>", Server("backup", 1, false, [])) try
+print(s.name)
+print(s.retries)
+print(s.verbose)
+print(list.length(s.endpoints))
+let e0 = s.endpoints[0] try
+print(e0.host)
+print(e0.port)
+let n = xml.decode("<n>7</n>", 0) try
+print(n)
+let txt = xml.decode("<t>a &amp; b &#65;</t>", "") try
+print(txt)
+
+word side(n: Int)
+    print(n)
+
+let run = side(_)
+run(1)
+flow 2
+    run
+
+word add(a: Int, b: Int) -> Int
+    a + b
+
+let once = add(_, 1)
+let twice = once(_)
+print(twice(5))
+print(once(9))
+flow 5
+    twice
+    print
+
+let bad = s.endpoints[9] catch Endpoint("none", 0)
+print(bad.host)
+`)
+	got := assembleAndRun(t, wat)
+	want := "ingest\n3\ntrue\n1\ndb\n5432\n7\na & b A\n1\n2\n6\n10\n6\nnone\n"
+	if got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 }
