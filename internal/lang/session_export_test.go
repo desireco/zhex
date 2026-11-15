@@ -46,6 +46,40 @@ func TestSessionExportHeaderUsesAndWordAndTypeSources(t *testing.T) {
 	}
 }
 
+// A doc'd word exports its ## lines above the definition without swallowing
+// the previous word's body, and a fresh session that Enters the export
+// reproduces the doc.
+func TestSessionExportIncludesWordDocLines(t *testing.T) {
+	s := NewSession(strings.NewReader(""), &strings.Builder{}, nil, nil)
+	if _, err := s.Enter("word first() -> Int\n    1\n## documents second\nword second() -> Int\n    2\n"); err != nil {
+		t.Fatal(err)
+	}
+	out, err := s.Export()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "word first() -> Int\n    1\n## documents second\nword second() -> Int\n    2\n"
+	if !strings.Contains(out, want) || strings.Count(out, "## documents second") != 1 {
+		t.Fatalf("export %q misses %q", out, want)
+	}
+	fresh := NewSession(strings.NewReader(""), &strings.Builder{}, nil, nil)
+	if _, err := fresh.Enter(out); err != nil {
+		t.Fatal(err)
+	}
+	words := fresh.Words()
+	for _, candidate := range []string{"first() -> Int", "second() -> Int\n    documents second"} {
+		found := false
+		for _, word := range words {
+			if word == candidate {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("words %q misses %q", words, candidate)
+		}
+	}
+}
+
 func TestSessionExportBindingLiterals(t *testing.T) {
 	s := NewSession(strings.NewReader(""), &bytes.Buffer{}, nil, nil)
 	for _, entry := range []string{

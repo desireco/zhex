@@ -37,6 +37,8 @@ Blank lines are ignored. A `#` starts a comment through the end of that line:
 let line = read-line("Count: ") try
 ```
 
+A `##` comment block directly above a `word` declaration is that word's doc, shown by `words` beneath the signature. The `##` lines must start at column 1 and be contiguous; one optional space after `##` is stripped from each line. A blank line or a plain `#` comment between the block and `word` leaves them plain comments, and `##` anywhere else — including indented inside a word body — stays a plain comment too. `###` reads as `##` plus the text `#…`. Only user words take docs; see [words and flows](words-and-flows.html).
+
 The parser limits syntax nesting and expression-tree depth to 256 so excessively deep source becomes a language diagnostic.
 
 ## Names

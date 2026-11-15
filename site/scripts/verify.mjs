@@ -37,10 +37,12 @@ assert(gettingStarted.includes('aria-current="page"'), 'current documentation to
 for (const id of ['build-and-run', 'read-the-program', 'try-the-repl', 'where-to-go-next']) assert(gettingStarted.includes(`id="${id}"`), `${id} legacy tutorial anchor`);
 for (const id of ['features-title', 'modules-title', 'errors-title', 'setup-title', 'editors-title']) assert(docs.includes(`id="${id}"`), `${id} legacy anchor`);
 for (const filename of ['index.html', 'roadmap.html', 'manifesto.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
+for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'docs.html', 'examples.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
 for (const file of await (await import('node:fs/promises')).readdir('../_site/docs')) {
   if (!file.endsWith('.html')) continue;
   const page = await read(`docs/${file}`);
   assert.equal((page.match(/<h1(?:\s|>)/g) || []).length, 1, `${file} must have one page heading`);
+  assert(page.includes('class="accent-rule"'), `${file} header accent rule`);
 }
 const roadmap = await read('roadmap.html');
 for (const cssClass of ['roadmap-section done', 'roadmap-section next']) assert(roadmap.includes(cssClass), `${cssClass} styling`);

@@ -35,6 +35,52 @@ print(identity(7))
 
 This prints `5` and `7`. `text.length` constrains `character-count`'s parameter to `String`; the call to `identity(7)` supplies the constraint for `identity`. Explicit and inferred parameter types can be mixed, as in `word count-down(n, prefix: String)`. If a parameter remains unconstrained, add its type annotation; conflicting calls are type errors, and a word parameter cannot have a `Result` type. Bindings, assignments, and loops have type `Unit`; an explicit return type must match the final statement's type. An `if`, `match`, or `flow` can produce a value. Escaping failures can give a user word an inferred effective `Result` signature; see [results and error handling](results.html).
 
+A contiguous block of `##` comments directly above a word declares that word's doc (see [syntax](syntax.html)); `words` prints it indented four spaces beneath the signature:
+
+```zhex
+## Greatest common divisor, by repeated subtraction.
+word gcd(a: Int, b: Int) -> Int
+    if b == 0
+        a
+    else
+        gcd(b, a % b)
+```
+
+```text
+gcd(a: Int, b: Int) -> Int
+    Greatest common divisor, by repeated subtraction.
+```
+
+Only user words take docs — a module's words list qualified, as in `math.gcd(...)`, and records, choices, and built-ins get none. A doc lives on its word: redefining the word replaces the doc, and a doc-less redefinition clears it; a doc change alone never makes a redefinition incompatible. A blank doc line (`##` alone) renders as an empty line.
+
+A doc line of the form `## > expression` is a doctest, and the doc lines after it are its expected output until a blank doc line, the next `## >` line, or the end of the doc ends them: a blank line returns the doc to prose, while prose directly after an example reads as output and mismatches. `zhex doctests <file.zhex>` evaluates each expression in the owning module's scope (bare calls resolve inside the module), renders the value exactly as the REPL echoes a bare expression, and compares it with the expected output; `Unit` has no visible value, and a bare `Result` is rejected, so a fallible example uses `try`:
+
+```zhex
+## Greatest common divisor.
+## > gcd(12, 18)
+## 6
+word gcd(a: Int, b: Int) -> Int
+    if b == 0
+        a
+    else
+        gcd(b, a % b)
+```
+
+A mismatch or an expression that fails to check or evaluate prints a diagnostic pointing at the doc line, and any failure exits nonzero; passing doctests print nothing. `zhex run` never executes docs.
+
+## Run tests
+
+A `*.test.zhex` file is a plain program named after what it tests: it finishes, it passed; `console.fail`, a crash, or an unhandled failure fails it. The one-word `test` module ships the assertion — place `test.zhex` beside the module under test, the same sibling rule `use math` follows, and call `check` with the whole expectation stated as fact in the label:
+
+```zhex
+use math
+use test
+
+test.check(math.gcd(12, 18) == 6, "gcd(12, 18) should be 6")
+```
+
+`zhex test` — or `zhex test <path>` to narrow to a file or folder — runs every `*.test.zhex` file under the working folder as its own process and every other `.zhex` file's doctests, skipping `.git`, `node_modules`, and `_site`. Each file gets one PASS or FAIL line with the captured failure line, then a summary such as `7 files: 6 passed, 1 failed`; any failure exits nonzero, and `--report=json` reports each failure in the diagnostic envelope. `zhex test --gaps` lists the public words referenced by no doctest and no test file.
+
 `if`, `match`, and `flow` blocks can also supply the entire right-hand side of a `let`, `var`, or assignment. Their final value becomes the binding or assignment value:
 
 ```zhex

@@ -32,6 +32,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [modules/main.zhex](../examples/modules/main.zhex) | `48`, `18` | `30`, `6`, `144` | A two-file program: `use math` imports the sibling `math.zhex`, calls its words qualified, and keeps one helper underscore-private. |
 | [modules/md-report/main.zhex](../examples/modules/md-report/main.zhex) | None | The escaped heading and paragraph, the aligned pipe table, both lists, the link, and the fenced code block | A two-file program: `use md` imports the sibling `md.zhex` and renders records and lists into a Markdown report accumulated in a buffer. |
 | [modules/html-page/main.zhex](../examples/modules/html-page/main.zhex) | None | A complete HTML status page | A two-file program over the `html` composition module: `escape-text` and `attr` escape text by default, markup nests through `element` with one deliberate `html.raw`, and `link` rejects a `javascript:` target. |
+| [modules/math.test.zhex](../examples/modules/math.test.zhex) | None | `math module tests passed` | A three-file program: `use test` imports the sibling one-word assertion module, `check(condition, label)` fails the run with its label when a condition is false, and the `zhex test` runner discovers every such `*.test.zhex` file. |
 
 ## Algorithms
 
@@ -128,6 +129,7 @@ zhex run examples/recovery.zhex
 printf '0\n' | zhex run examples/exit-status.zhex
 zhex run examples/modules/main.zhex
 zhex run examples/modules/html-page/main.zhex
+zhex run examples/modules/math.test.zhex
 ```
 
 ## Syntax exercised by the examples

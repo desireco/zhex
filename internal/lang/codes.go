@@ -113,6 +113,10 @@ const (
 	CodeEnvParse         Code = "env-parse"
 	CodeArgumentMissing  Code = "argument-missing"
 
+	CodeDoctestMismatch Code = "doctest-mismatch"
+	CodeDoctestCheck    Code = "doctest-check"
+	CodeTestFailed      Code = "test-failed"
+
 	CodeNotAvailableInBuild Code = "not-available-in-build"
 )
 
@@ -130,6 +134,7 @@ var diagnosticCodes = []Code{
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
+	CodeDoctestMismatch, CodeDoctestCheck, CodeTestFailed,
 	CodeNotAvailableInBuild,
 }
 

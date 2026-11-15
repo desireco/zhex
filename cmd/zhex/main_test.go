@@ -163,7 +163,7 @@ func TestRunCommandRejectsMalformedTraceFlag(t *testing.T) {
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 {
 			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
 		}
-		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace]\n" {
+		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]\n" {
 			t.Fatalf("usage %q", diagnostics.String())
 		}
 	}
@@ -255,6 +255,33 @@ func TestReplWordsShadowsBinding(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "1\n") {
 		t.Fatalf("stdout %q echoes the binding, not the signatures", out.String())
+	}
+}
+
+func TestReplWordsShowsWordDocs(t *testing.T) {
+	script := "## doubles n\n## exactly.\nword double(n: Int) -> Int\n    n + n\n\nwords\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	if !strings.Contains(out.String(), "double(n: Int) -> Int\n    doubles n\n    exactly.\n") {
+		t.Fatalf("stdout %q misses the documented signature", out.String())
+	}
+}
+
+// A comment-only line never completes an entry — it must stay in the buffer
+// with the line that follows, and the words command typed after one still
+// lists signatures.
+func TestReplWordsAfterCommentLine(t *testing.T) {
+	script := "# note\nwords\n"
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"repl"}, strings.NewReader(script), &out, &diagnostics)
+	if code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	if !strings.Contains(out.String(), "bye() -> Unit\n") {
+		t.Fatalf("stdout %q misses signatures", out.String())
 	}
 }
 
@@ -574,5 +601,103 @@ func TestReplBareByeExitsNormally(t *testing.T) {
 	status := run([]string{"repl"}, strings.NewReader("bye\nprint(7)\nbye()\n"), &out, &diagnostics)
 	if status != 0 || diagnostics.Len() != 0 || strings.Contains(out.String(), "7\n") {
 		t.Fatalf("exit %d stdout %q stderr %q", status, out.String(), diagnostics.String())
+	}
+}
+
+func TestDoctestsCommandPassesSilently(t *testing.T) {
+	// The seeded math module carries the repo's doctests.
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"doctests", "../../examples/modules/math.zhex"}, strings.NewReader(""), &out, &diagnostics)
+	if code != 0 || out.Len() != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stdout %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+
+	// A file without doctests passes the same way, and so does an importing
+	// file whose module's doctests run with it.
+	for _, path := range []string{"../../examples/hello.zhex", "../../examples/modules/main.zhex"} {
+		out.Reset()
+		diagnostics.Reset()
+		if code := run([]string{"doctests", path}, strings.NewReader(""), &out, &diagnostics); code != 0 || out.Len() != 0 || diagnostics.Len() != 0 {
+			t.Fatalf("%s: code %d, stdout %q, stderr %q", path, code, out.String(), diagnostics.String())
+		}
+	}
+}
+
+func TestDoctestsCommandMismatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	if err := os.WriteFile(path, []byte("## > double(2)\n## 5\nword double(n: Int) -> Int\n    n + n\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"doctests", path}, strings.NewReader(""), &out, &diagnostics)
+	if code != 1 || out.Len() != 0 {
+		t.Fatalf("code %d, stdout %q", code, out.String())
+	}
+	want := strings.Join([]string{
+		path + ":1:1: doctest mismatch in double: expected 5, found 4",
+		"    ## > double(2)",
+		"    ^^^^^^^^^^^^^^",
+		`hint: update the expected output after "## > ", or fix the word`,
+	}, "\n") + "\n"
+	if diagnostics.String() != want {
+		t.Fatalf("stderr:\n%s\nwant:\n%s", diagnostics.String(), want)
+	}
+}
+
+func TestDoctestsCommandFailToCheck(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	if err := os.WriteFile(path, []byte("## > double(\"x\")\nword double(n: Int) -> Int\n    n + n\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"doctests", path}, strings.NewReader(""), &out, &diagnostics)
+	if code != 1 || !strings.HasPrefix(diagnostics.String(), path+":1:6: doctest in double failed to check: argument 1 of double requires type Int, found String") {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+}
+
+func TestDoctestsCommandReportsJSON(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	if err := os.WriteFile(path, []byte("## > double(2)\n## 5\nword double(n: Int) -> Int\n    n + n\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"doctests", path, "--report=json"}, strings.NewReader(""), &out, &diagnostics)
+	if code != 1 {
+		t.Fatalf("code %d", code)
+	}
+	for _, want := range []string{`"code":"doctest-mismatch"`, `"severity":"error"`, `"file":"` + path + `"`, `"line":1`, `"hint":`} {
+		if !strings.Contains(diagnostics.String(), want) {
+			t.Fatalf("stderr %q misses %s", diagnostics.String(), want)
+		}
+	}
+	if strings.Count(strings.TrimSuffix(diagnostics.String(), "\n"), "\n") != 0 {
+		t.Fatalf("JSON report must be a single line: %q", diagnostics.String())
+	}
+}
+
+func TestDoctestsCommandUsage(t *testing.T) {
+	for _, args := range [][]string{{"doctests"}, {"doctests", "--report=xml", "a.zhex"}, {"doctests", "a.zhex", "b.zhex"}} {
+		var out, diagnostics bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || !strings.Contains(diagnostics.String(), "usage:") {
+			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
+		}
+	}
+	var out, diagnostics bytes.Buffer
+	if code := run([]string{"doctests", filepath.Join(t.TempDir(), "missing.zhex")}, strings.NewReader(""), &out, &diagnostics); code != 1 || !strings.Contains(diagnostics.String(), "missing.zhex") {
+		t.Fatalf("missing file: code %d stderr %q", code, diagnostics.String())
+	}
+}
+
+// The run command never executes docs; only zhex doctests does.
+func TestRunCommandIgnoresDoctests(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "program.zhex")
+	source := "## > missing(1)\n## > 1 / 0\nword double(n: Int) -> Int\n    n + n\nprint(double(2))\n"
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	if code := run([]string{"run", path}, strings.NewReader(""), &out, &diagnostics); code != 0 || out.String() != "4\n" || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stdout %q, stderr %q", code, out.String(), diagnostics.String())
 	}
 }

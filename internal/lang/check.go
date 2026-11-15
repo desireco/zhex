@@ -246,6 +246,7 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 		return nil, annotateSource(err, sources)
 	}
 	p.sources = sources
+	p.modules = modules
 	return p, nil
 }
 

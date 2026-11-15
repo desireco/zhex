@@ -323,6 +323,18 @@ A named time zone is invalid or unavailable. Use UTC or an IANA time zone name.
 
 An opening parenthesis, bracket, or brace has no matching closing delimiter.
 
+## doctest-mismatch
+
+A `## >` example in a word's doc produced a different value than the expected output lines after it (they run until a blank doc line or the next `## >` line). Update the expected output, or fix the word. Checked by `zhex doctests <file>`; `zhex run` never executes docs.
+
+## doctest-check
+
+A `## >` example's expression failed to check or evaluate by itself. Fix the expression so it checks and evaluates — a naked fallible call needs `try`, and a Result cannot be echoed bare.
+
+## test-failed
+
+A `.test.zhex` file run by `zhex test` exited nonzero without a diagnostic of its own — a failed `test.check` label, a deliberate exit, or a crash. Run `zhex run <file>` to see the failing check in place.
+
 ## not-available-in-build
 
 This construct is not compiled by zhex compile yet. Run the program with `zhex run`, or rewrite it with constructs the build supports.

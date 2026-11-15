@@ -122,6 +122,11 @@ summary:focus-visible {
 
 .site-header > * { min-width: 0; }
 
+.accent-rule {
+  height: clamp(12px, 1.5vw, 20px);
+  background: var(--accent);
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -221,7 +226,6 @@ p { overflow-wrap: anywhere; }
 
 .hero {
   padding-block: clamp(4.5rem, 9vw, 8rem);
-  border-top: clamp(12px, 1.5vw, 20px) solid var(--accent);
   border-bottom: 1px solid var(--line);
 }
 

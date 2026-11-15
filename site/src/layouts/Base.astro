@@ -12,6 +12,7 @@ const links = [[`${base}/manifesto.html`, 'Manifesto', 'manifesto'], [`${base}/e
       {links.map(([href, label, page]) => <a href={href} aria-current={page === current ? "page" : undefined} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noopener" : undefined}>{label}</a>)}
     </nav>
   </header>
+  <div class="accent-rule" aria-hidden="true"></div>
 
 <slot />
   <footer class="site-footer wrap">

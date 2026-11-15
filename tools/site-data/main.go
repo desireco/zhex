@@ -260,6 +260,7 @@ var exampleSpecs = []struct {
 	{"file-work", "File work folder", "Create a work folder, write reports into it, inspect them, and remove the whole tree.", "", "Language basics", []string{"."}, nil},
 	{"env-config", "Env configuration", "Write a .env fixture, load it, read settings back as options, and clean up.", "", "Language basics", []string{"."}, nil},
 	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", "Language basics", nil, []string{"math.zhex"}},
+	{"modules/math.test", "Module tests", "Check a module's words from a .test.zhex file the zhex test runner discovers.", "", "Language basics", nil, []string{"math.zhex", "test.zhex"}},
 	{"modules/md-report/main", "Markdown report", "Compose records and lists into a Markdown report through a pure-Zhex md module.", "", "Language basics", nil, []string{"md.zhex"}},
 	{"modules/html-page/main", "HTML page", "Compose a page from the html module: text escapes by default, markup nests through element with one deliberate raw, and a javascript: link is rejected.", "", "Language basics", nil, []string{"html.zhex"}},
 	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", "Algorithms", nil, nil},

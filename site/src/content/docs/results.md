@@ -75,6 +75,14 @@ print(count)
 
 On success, the handler does not run and the expression produces the parsed integer. On failure, `problem` is available only in the handler and the last statement supplies the replacement integer. An `if` handler needs compatible branch results. `catch` handles returned Result failures; it does not catch runtime faults such as integer overflow or division by zero, including a runtime fault while evaluating the protected expression.
 
+A short fallback can stay on the same line. Everything after `catch` on that line is one fallback expression:
+
+```zhex
+let count = text.to-int("bad") catch 3
+```
+
+A name directly before the newline still names the error for an indented handler, so `catch problem` followed by an indented block keeps its meaning.
+
 Inside a word, a final `catch` expression can supply the word's success value directly:
 
 ```zhex

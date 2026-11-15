@@ -23,7 +23,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -37,6 +37,12 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	if len(args) >= 1 && args[0] == "compile" {
 		return compileCmd(args[1:], diagnostics)
+	}
+	if len(args) >= 1 && args[0] == "doctests" {
+		return doctests(args[1:], input, output, diagnostics)
+	}
+	if len(args) >= 1 && args[0] == "test" {
+		return testCommand(args[1:], input, output, diagnostics)
 	}
 	if len(args) < 2 || args[0] != "run" {
 		fmt.Fprintln(diagnostics, usage)
@@ -144,6 +150,53 @@ func compileCmd(args []string, diagnostics io.Writer) int {
 		return readModule(dir, name)
 	}, skin); err != nil {
 		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	return 0
+}
+
+// doctests runs the ## > examples in a file's word docs. Each failing
+// doctest prints its diagnostic — one JSON line each with --report=json —
+// and any failure exits 1; passing doctests print nothing.
+func doctests(args []string, input io.Reader, output, diagnostics io.Writer) int {
+	file, report := "", "text"
+	for _, arg := range args {
+		switch {
+		case arg == "--report=text" || arg == "--report=json":
+			report = strings.TrimPrefix(arg, "--report=")
+		case strings.HasPrefix(arg, "--"):
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		case file == "":
+			file = arg
+		default:
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		}
+	}
+	if file == "" {
+		fmt.Fprintln(diagnostics, usage)
+		return 2
+	}
+	source, err := os.ReadFile(file)
+	if err != nil {
+		fmt.Fprintln(diagnostics, err)
+		return 1
+	}
+	dir := filepath.Dir(file)
+	failures := lang.RunDoctests(file, string(source), input, io.Discard, func(name string) (lang.ModuleSource, bool) {
+		return readModule(dir, name)
+	})
+	for _, failure := range failures {
+		if report == "json" {
+			if jsonReport, ok := lang.Report(failure); ok {
+				fmt.Fprintln(diagnostics, jsonReport)
+				continue
+			}
+		}
+		fmt.Fprintln(diagnostics, failure)
+	}
+	if len(failures) != 0 {
 		return 1
 	}
 	return 0
@@ -263,8 +316,17 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 		line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
 		if pending {
 			blank := line == "" || (editor != nil && strings.Trim(line, " ") == "")
+			if !blank && line == "words" && commentOnly(buffer) {
+				// A held comment line must not swallow the words command.
+				buffer, pending, blockPending = "", false, false
+				listWords()
+				continue
+			}
 			if !blank || openDelimiter {
 				buffer += line + "\n"
+				if commentOnly(buffer) {
+					continue
+				}
 				_, cerr := lang.Compile("repl", buffer)
 				_, openDelimiter = lang.DelimiterIndent(buffer, cerr)
 				if openDelimiter || blockPending {
@@ -287,6 +349,12 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 				continue
 			}
 			buffer = line + "\n"
+			if commentOnly(buffer) {
+				// A comment line cannot complete an entry; hold it so a ##
+				// doc block shares its entry with the word it documents.
+				pending, openDelimiter = true, false
+				continue
+			}
 			if _, cerr := lang.Compile("repl", buffer); lang.IsIncomplete(cerr) {
 				_, openDelimiter = lang.DelimiterIndent(buffer, cerr)
 				blockPending = !openDelimiter
@@ -298,4 +366,20 @@ func repl(args []string, input io.Reader, output, diagnostics io.Writer) int {
 			return status
 		}
 	}
+}
+
+// commentOnly reports whether source holds only comment lines; such an entry
+// cannot stand alone, so the loop holds it pending for the line that follows.
+func commentOnly(source string) bool {
+	comments := false
+	for _, line := range strings.Split(source, "\n") {
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(strings.TrimLeft(line, " "), "#") {
+			return false
+		}
+		comments = true
+	}
+	return comments
 }

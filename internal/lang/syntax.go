@@ -248,6 +248,7 @@ type word struct {
 	inferred           bool
 	body               []*statement
 	source             string   // the definition's source slice, for Session.Export
+	doc                string   // ## doc lines directly above the word, for Words
 	host               hostFunc // per-run host-evaluated word (the #65 repl seam); nil for program words
 }
 
@@ -305,7 +306,8 @@ type Program struct {
 	records []*recordType
 	uses    []use
 	body    []*statement
-	sources map[string]string // every file in the program, keyed by path, for annotated errors
+	sources map[string]string  // every file in the program, keyed by path, for annotated errors
+	modules map[string]*module // every loaded module, for doctests in module scope
 }
 
 type expression struct {

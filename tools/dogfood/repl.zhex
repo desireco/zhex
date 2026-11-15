@@ -20,6 +20,18 @@ word enter-entry(source: String)
         case EnterResult.Exited(status)
             console.exit(status)
 
+word comment-only(source: String) -> Bool
+    let lines = text.split(source, "\n")
+    var saw = false
+    var all = true
+    for line in lines
+        if line != ""
+            if text.starts-with(text.replace(line, " ", ""), "#")
+                saw = true
+            else
+                all = false
+    all and saw
+
 word end-of-file(buffer: String, pending: Bool)
     if pending
         let candidate = buffer + "\n"
@@ -44,10 +56,17 @@ word repl-loop()
         if eof
             end-of-file(buffer, pending)
         elif pending
-            if line != "" or open-delimiter
+            if line == "words" and comment-only(buffer)
+                buffer = ""
+                pending = false
+                show-words()
+                submit = false
+            elif line != "" or open-delimiter
                 buffer = buffer + line + "\n"
                 open-delimiter = repl.open-delimiter(buffer)
-                if open-delimiter or block-pending
+                if comment-only(buffer)
+                    submit = false
+                elif open-delimiter or block-pending
                     submit = false
                 elif repl.incomplete(buffer)
                     block-pending = true
@@ -67,7 +86,10 @@ word repl-loop()
                 submit = false
             else
                 buffer = line + "\n"
-                if repl.incomplete(buffer)
+                if comment-only(buffer)
+                    pending = true
+                    submit = false
+                elif repl.incomplete(buffer)
                     open-delimiter = repl.open-delimiter(buffer)
                     block-pending = not open-delimiter
                     pending = true

@@ -223,6 +223,29 @@ func TestReplSeamSaveLoadRoundTripInProcess(t *testing.T) {
 	}
 }
 
+func TestReplSeamSaveLoadRoundTripKeepsDocComments(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "session.zhex")
+	var out bytes.Buffer
+	s := seamSession(&out)
+	for _, entry := range []string{
+		"## doubles n.\nword double(n: Int) -> Int\n    n * 2\n",
+		"let saved = repl.save(" + zstring(path) + ") try\n",
+	} {
+		if _, err := s.Enter(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fresh := seamSession(&bytes.Buffer{})
+	if _, err := fresh.Enter("let loaded = repl.load(" + zstring(path) + ") try\n"); err != nil {
+		t.Fatal(err)
+	}
+	words := fresh.Words()
+	if len(words) != 1 || words[0] != "double(n: Int) -> Int\n    doubles n." {
+		t.Fatalf("words %q", words)
+	}
+}
+
 func TestReplSeamSaveReportsUnwritablePath(t *testing.T) {
 	var out bytes.Buffer
 	s := seamSession(&out)

@@ -65,6 +65,8 @@ When a program uses `read-line`, the terminal reader also supplies its input. It
 
 An open `()`, `[]`, or `{}` keeps an entry open across lines, including blank and comment-only lines. Closing the delimiter submits a completed top-level expression immediately. If the expression is inside a pending indented block, the block still needs a blank line to submit. The same delimiter rules apply to piped source; an unclosed delimiter at piped EOF is an error. Angle brackets in types do not continue an entry.
 
+A comment-only line never completes an entry: it joins the next line's entry, so a `##` doc block shares its entry with the word it documents. `words` typed right after a comment line still runs the command.
+
 ## Results and errors
 
 A bare ordinary expression echoes its value; `Unit` has no visible value. A bare `Result` is rejected and must be handled with `try` or `catch` in the same entry. `let` and `print` entries do not echo a result.
@@ -108,7 +110,20 @@ zhex> greet()
 Hello Ada
 ```
 
-`let` can shadow an earlier value silently. Redefining a word with the same effective signature replaces it and prints `redefined name`. A redefinition that changes a word's effective Result signature is rejected transactionally, so the previous word and its callers remain available. The `words` command lists signatures in name order; `words` is a command even if a user has a binding with that name.
+A word's `##` doc block (see [syntax](syntax.html)) belongs to its entry: type the comment lines, then the word header, then the body, and a blank line submits the whole entry. `words` prints the doc indented four spaces beneath the signature:
+
+```text
+zhex> ## Doubles a number.
+....> word twice(n: Int) -> Int
+....>     n * 2
+....>
+zhex> words
+bye() -> Unit
+twice(n: Int) -> Int
+    Doubles a number.
+```
+
+`let` can shadow an earlier value silently. Redefining a word with the same effective signature replaces it and prints `redefined name`; the redefinition also replaces the word's doc, and a doc-less redefinition clears it. A redefinition that changes a word's effective Result signature is rejected transactionally, so the previous word and its callers remain available. The `words` command lists signatures in name order; `words` is a command even if a user has a binding with that name.
 
 After a compatible redefinition, callers already checked against the earlier word keep using that definition and its defaults. New entries use the replacement.
 

@@ -110,6 +110,7 @@ func TestTranscriptMatrixWriteOrderParity(t *testing.T) {
 		{"incomplete block blank submits", "word f() -> Int\n    42\n\nf()\n"},
 		{"open delimiter blank keeps entry open", "let x = [1,\n2]\n\nx\n"},
 		{"comment line", "# just a comment\n1 + 1\n"},
+		{"spaces-only line", "# hi\n   \nwords\n"},
 		{"EOF mid-block discards", "word f() -> Int\n    42\n"},
 		{"EOF mid-block after body line", "word f() -> Int\n    42\n    43\n"},
 		{"EOF unclosed delimiter", "let x = [1,\n"},

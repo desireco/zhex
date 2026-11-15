@@ -240,6 +240,85 @@ func TestSessionWordsListsSignatures(t *testing.T) {
 	}
 }
 
+// ## doc comments: contiguous full-line ## lines directly above a word
+// declaration become that word's doc; words lists them indented four spaces
+// under the signature, and doc-less words stay one line.
+func TestSessionWordsShowsWordDocComments(t *testing.T) {
+	session := NewSession(strings.NewReader(""), &strings.Builder{}, nil, nil)
+	if _, err := session.Enter("## doubles n.\n## second line.\nword double(n: Int) -> Int\n    n * 2\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Enter("word plain() -> Int\n    1\n"); err != nil {
+		t.Fatal(err)
+	}
+	words := session.Words()
+	want := []string{"double(n: Int) -> Int\n    doubles n.\n    second line.", "plain() -> Int"}
+	seen := make([]bool, len(want))
+	for _, word := range words {
+		for i, candidate := range want {
+			if word == candidate {
+				seen[i] = true
+			}
+		}
+	}
+	for i, ok := range seen {
+		if !ok {
+			t.Fatalf("words %q misses %q", words, want[i])
+		}
+	}
+}
+
+func TestSessionWordDocStripsOneLeadingSpace(t *testing.T) {
+	session := NewSession(strings.NewReader(""), &strings.Builder{}, nil, nil)
+	if _, err := session.Enter("##nospace\n##  two spaces\n##\nword f() -> Int\n    1\n"); err != nil {
+		t.Fatal(err)
+	}
+	words := session.Words()
+	if len(words) != 1 || words[0] != "f() -> Int\n    nospace\n     two spaces\n" {
+		t.Fatalf("words %q", words)
+	}
+}
+
+func TestSessionWordDocDetachesOnBlankLine(t *testing.T) {
+	session := NewSession(strings.NewReader(""), &strings.Builder{}, nil, nil)
+	if _, err := session.Enter("## detached by the blank line\n\nword double(n: Int) -> Int\n    n * 2\n"); err != nil {
+		t.Fatal(err)
+	}
+	words := session.Words()
+	if len(words) != 1 || words[0] != "double(n: Int) -> Int" {
+		t.Fatalf("words %q", words)
+	}
+}
+
+// ## anywhere but directly above a word keyword stays a plain comment: no
+// error, no doc.
+func TestWordMisplacedDocCommentsStayPlainComments(t *testing.T) {
+	source := "## above a binding\nlet x = 1\n\n## above a record\ntype Point = record\n    x: Int\n\n## detached by a plain comment\n# plain\nword f() -> Int\n    ## inside the body\n    7\n\nprint(f())\n"
+	var out bytes.Buffer
+	if err := Run("docs.zhex", source, strings.NewReader(""), &out); err != nil || out.String() != "7\n" {
+		t.Fatalf("output %q, error %v", out.String(), err)
+	}
+}
+
+func TestSessionWordRedefinitionReplacesDoc(t *testing.T) {
+	session := NewSession(strings.NewReader(""), &strings.Builder{}, nil, nil)
+	if _, err := session.Enter("## doubles n.\nword double(n: Int) -> Int\n    n * 2\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Enter("word double(n: Int) -> Int\n    n + n\n"); err != nil {
+		t.Fatal(err)
+	}
+	if words := session.Words(); len(words) != 1 || words[0] != "double(n: Int) -> Int" {
+		t.Fatalf("doc-less redefinition must clear the doc: %q", words)
+	}
+	if _, err := session.Enter("## adds n to itself.\nword double(n: Int) -> Int\n    n + n\n"); err != nil {
+		t.Fatal(err)
+	}
+	if words := session.Words(); len(words) != 1 || words[0] != "double(n: Int) -> Int\n    adds n to itself." {
+		t.Fatalf("redefinition must replace the doc: %q", words)
+	}
+}
+
 func TestSessionSharesBufferedInput(t *testing.T) {
 	input := bufio.NewReader(strings.NewReader("command\nAda\nremaining\n"))
 	if _, err := input.ReadString('\n'); err != nil {
@@ -306,6 +385,38 @@ func TestSessionWordsListQualifiedSignatures(t *testing.T) {
 	}
 	if strings.Contains(words, "_wrap") {
 		t.Fatalf("module-private words must not be listed: %q", words)
+	}
+}
+
+// documentedMathModule carries one doc'd public word and one doc-less public word.
+const documentedMathModule = `## greatest common divisor of a and b.
+word gcd(a: Int, b: Int) -> Int
+    if b == 0
+        a
+    else
+        gcd(b, a % b)
+
+word scale(n: Int, by: Int) -> Int
+    n * by
+`
+
+func TestSessionWordsListQualifiedModuleDoc(t *testing.T) {
+	session := NewSession(strings.NewReader(""), &strings.Builder{}, nil, mapResolver(map[string]string{"math.zhex": documentedMathModule}))
+	if _, err := session.Enter("use math\n"); err != nil {
+		t.Fatal(err)
+	}
+	words := session.Words()
+	want := []string{"math.gcd(a: Int, b: Int) -> Int\n    greatest common divisor of a and b.", "math.scale(n: Int, by: Int) -> Int"}
+	for _, candidate := range want {
+		found := false
+		for _, word := range words {
+			if word == candidate {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("words %q misses %q", words, candidate)
+		}
 	}
 }
 
