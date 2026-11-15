@@ -16,6 +16,7 @@ func TestIsIncomplete(t *testing.T) {
 		{"word header", "word double(n: Int) -> Int", true},
 		{"if header", "if true", true},
 		{"for header", "for n in range(1, 5)", true},
+		{"while header", "while true", true},
 		{"flow header", "flow 4", true},
 		{"dangling operator", "let x = 1 +", false},
 		{"open parenthesis", "let x = (1", true},

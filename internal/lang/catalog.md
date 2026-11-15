@@ -180,7 +180,7 @@ An internal invariant failed: the checker approved something the evaluator canno
 Writing to the output stream failed. Check that the output is writable (closed pipes fail this way).
 
 ## console-input
-Reading a line from the input stream failed, usually because the input ended. The failure propagates through `try` and exits the program; check that input is available.
+Reading a line from the input stream failed, usually because the input ended. The `reason` detail is `end-of-file` when the input ended (Ctrl-D or piped EOF; an empty line is a success, not this error) and `read-failed` for a read failure; read it with `error.detail` to tell them apart. The failure propagates through `try` and exits the program; check that input is available.
 
 ## console-utf8
 The line read from the input stream is not valid UTF-8. Zhex reads UTF-8 text; supply the input as UTF-8.

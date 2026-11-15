@@ -1,11 +1,11 @@
 ---
 title: Control flow
-description: Use typed if branches and bounded range or streaming file loops in Zhex.
+description: Use typed if branches and bounded range, streaming file, and while loops in Zhex.
 section: Language
 order: 40
 ---
 
-`if` selects a branch, and `for` repeats a block. Each block has lexical scope. Conditions, branch results, and loop bounds are checked before the program runs.
+`if` selects a branch, and `for` and `while` repeat a block. Each block has lexical scope. Conditions, branch results, and loop bounds are checked before the program runs.
 
 ## Choose with `if`
 
@@ -52,5 +52,18 @@ Run that program from the repository root so the sample path resolves.
 The loop closes the file when it finishes, including when the body fails. An empty file runs no iterations. A final line without a newline still runs. See [files](files.html) for line ending and failure details.
 
 Lists and arrays can also be traversed with `for value in collection`; see [collection iteration](iteration.html) for index and coordinate bindings, traversal order, and mutation rules.
+
+## Repeat while a condition holds
+
+`while condition` repeats an indented body for as long as its condition holds. The condition must have type `Bool` and is evaluated before each pass, so a false condition runs no passes. A `var` updated in the body drives termination:
+
+```zhex
+var n = 1
+while n <= 4
+    print(n)
+    n = n + 1
+```
+
+This prints `1` through `4`. The loop is a statement of type `Unit`; it cannot be the right-hand side of a binding or assignment. There is no `break` or `continue` — change the condition, or the values it reads, to leave the loop. A `while` may run forever by design: there is no iteration limit, and the word-call depth limit does not apply to iterations.
 
 Loops and branches can contain calls and flows. See [words and flows](words-and-flows.html) and [values](values.html) for the related type and scope rules.

@@ -269,3 +269,17 @@ let f: (Int) -> Int = add _, 5
   (expression_statement (call_expression (identifier) (identifier)))
   (binding (identifier) (type (function_type (type) (type)))
     (bare_call (identifier) (identifier) (integer))))
+
+==================
+While loops are statements
+==================
+var i = 0
+while i < 3
+    i = i + 1
+
+---
+
+(source_file
+  (binding (identifier) (integer))
+  (while_header (binary_expression (identifier) (integer)))
+  (assignment (identifier) (binary_expression (identifier) (integer))))

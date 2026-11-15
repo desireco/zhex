@@ -106,6 +106,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | [Times table](examples/times-table.zhex) | A bounded loop building strings from integers. |
 | [Game of Life](examples/life.zhex) | Carry a finite grid through generations in a flow; out-of-board neighbors are dead. |
 | [Edit distance](examples/edit-distance.zhex) | Use a two-dimensional dynamic-programming table to compare strings by Unicode code point. |
+| [Collatz steps](examples/collatz.zhex) | Count each number's steps to reach 1 with a `while` loop that ends by its condition. |
 
 The [example guide](docs/syntax-examples.md) records expected output and edge cases. The [language contract](docs/initial-language.md) defines the current rules.
 

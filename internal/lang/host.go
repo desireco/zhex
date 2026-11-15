@@ -272,8 +272,15 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			return value{}, err
 		}
 		line, err := r.input.ReadString('\n')
-		if err != nil && (err != io.EOF || len(line) == 0) {
-			return value{result: &inputResult{err: errorAt(x.pos, CodeConsoleInput, "console input failed: %v", err)}}, nil
+		if err == io.EOF && len(line) == 0 {
+			e := errorAt(x.pos, CodeConsoleInput, "end of input").(*diagnostic)
+			e.details = map[string]string{"reason": "end-of-file"}
+			return value{result: &inputResult{err: e}}, nil
+		}
+		if err != nil && err != io.EOF {
+			e := errorAt(x.pos, CodeConsoleInput, "console input failed: %v", err).(*diagnostic)
+			e.details = map[string]string{"reason": "read-failed"}
+			return value{result: &inputResult{err: e}}, nil
 		}
 		line = chomp(line)
 		if !utf8.ValidString(line) {

@@ -17,6 +17,10 @@ else
 for item in range(0, 2)
     print(int.to-string(item))
 
+var steps = 0
+while steps < 2
+    steps = steps + 1
+
 flow "été"
     is-palindrome
     print

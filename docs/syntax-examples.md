@@ -43,6 +43,7 @@ These programs use the same checked values, loops, words, and flows to express f
 | [times-table.zhex](../examples/times-table.zhex) | `7` | `7 x 1 = 7` through `7 x 10 = 70` | A bounded loop building each line from integers and strings. |
 | [life.zhex](../examples/life.zhex) | None | Five generations of a 7×7 glider | Apply Conway's neighbor rules to a rectangular array; cells beyond the board are dead. |
 | [edit-distance.zhex](../examples/edit-distance.zhex) | None | `kitten → sitting: 3`, `empty → abc: 3`, `café → cafe: 1` | Fill a dynamic-programming table for insertion, deletion, and substitution distance over Unicode code points. |
+| [collatz.zhex](../examples/collatz.zhex) | None | `1: 0` through `9: 19` | A `while` loop that terminates by its condition, with branch updates to a mutable counter. |
 
 Each result line ends with a newline. The interactive programs print a prompt before reading. For FizzBuzz with input `15`, the result lines are:
 

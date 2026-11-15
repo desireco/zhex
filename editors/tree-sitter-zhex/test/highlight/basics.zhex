@@ -23,3 +23,7 @@ var count = -12
 
 print 1
 # <- function
+
+while count < 10
+# <- keyword
+    count = count + 1

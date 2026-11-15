@@ -318,6 +318,17 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 				return value{}, err
 			}
 		}
+	case "while":
+		for v.boolean {
+			if _, err := r.block(s.body, env); err != nil {
+				return value{}, err
+			}
+			var err error
+			v, err = r.expression(s.expr, env)
+			if err != nil {
+				return value{}, err
+			}
+		}
 	case "flow":
 		for _, step := range s.steps {
 			r.traceFlowStep(step, v)

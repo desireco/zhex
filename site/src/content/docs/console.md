@@ -14,7 +14,7 @@ let name = read-line("Name: ") try
 print("Hello, " + name + "!")
 ```
 
-The line keeps its spaces, and an empty line is valid. One final `LF`, and an immediately preceding `CR`, are removed. A final line without a newline is accepted. End of input before a line, invalid UTF-8, and input errors fail; they do not silently become an empty string.
+The line keeps its spaces, and an empty line is valid. One final `LF`, and an immediately preceding `CR`, are removed. A final line without a newline is accepted. End of input before a line, invalid UTF-8, and input errors fail; they do not silently become an empty string. The end-of-input and read failures carry a `reason` detail — `end-of-file` for Ctrl-D or piped EOF, `read-failed` for a transport failure — readable with `error.detail`, so a `while` input loop can tell them apart.
 
 ## Program arguments
 

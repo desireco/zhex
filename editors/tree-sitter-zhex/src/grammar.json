@@ -109,6 +109,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "while_header"
+        },
+        {
+          "type": "SYMBOL",
           "name": "flow_header"
         },
         {
@@ -1208,6 +1212,19 @@
               "name": "_expression"
             }
           ]
+        }
+      ]
+    },
+    "while_header": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "while"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_expression"
         }
       ]
     },

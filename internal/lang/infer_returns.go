@@ -199,6 +199,15 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 			}
 		}
 		return value
+	case "while":
+		condition := s.expr(stmt.expr, env, false)
+		if typ, ok := constraintType(condition); ok && typ != boolType && s.err == nil {
+			err := withHint(errorAt(stmt.expr.pos, CodeConditionType, "%s", narrated(fmt.Sprintf("condition must have type Bool, found %s", typ), narrate(stmt.expr))), tryHint(typ))
+			s.err = withSpan(err, stmt.expr)
+		}
+		s.equal(condition, namedType("Bool"), stmt.pos)
+		s.block(stmt.body, copyInferScope(env))
+		return namedType(string(unitType))
 	case "for", "for-lines", "for-collection":
 		first := s.expr(stmt.expr, env, false)
 		nested := copyInferScope(env)

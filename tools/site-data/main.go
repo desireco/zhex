@@ -266,6 +266,7 @@ var exampleSpecs = []struct {
 	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", "Algorithms", nil, nil},
 	{"life", "Game of Life", "Carry a finite grid through each generation in a flow; cells beyond the board are dead.", "", "Algorithms", nil, nil},
 	{"edit-distance", "Edit distance", "Fill a dynamic-programming table to compare Unicode text.", "", "Algorithms", nil, nil},
+	{"collatz", "Collatz steps", "Count the steps each number takes to reach 1 with a while loop.", "", "Algorithms", nil, nil},
 }
 
 func main() {

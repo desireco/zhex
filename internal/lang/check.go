@@ -850,6 +850,16 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
 		}
 		return unitType, err
+	case "while":
+		if typ != boolType {
+			err := withHint(errorAt(s.expr.pos, CodeConditionType, "%s", narrated(fmt.Sprintf("condition must have type Bool, found %s", typ), narrate(s.expr))), tryHint(typ))
+			return "", withSpan(err, s.expr)
+		}
+		bodyType, err := c.block(s.body, newScope(env))
+		if err == nil && isResult(bodyType) {
+			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
+		}
+		return unitType, err
 	case "flow":
 		if isResult(typ) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "flow seed Result must be handled with try or catch")

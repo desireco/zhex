@@ -1,0 +1,14 @@
+# Collatz step counts: a while loop terminates by its condition, not a bound.
+word collatz-steps(start: Int) -> Int
+    var n = start
+    var count = 0
+    while n != 1
+        if n % 2 == 0
+            n = n / 2
+        else
+            n = 3 * n + 1
+        count = count + 1
+    count
+
+for start in range(1, 10)
+    print(int.to-string(start) + ": " + int.to-string(collatz-steps(start)))

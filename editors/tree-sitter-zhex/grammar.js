@@ -11,7 +11,7 @@ module.exports = grammar({
     _newline: _ => '\n',
     _statement: $ => choice(
       $.word_definition, $.record_definition, $.choice_definition, $.alias_definition, $.variant_definition, $.field_definition, $.use_statement, $.binding, $.indexed_assignment, $.assignment, $.if_header, $.elif_header,
-      $.else_header, $.for_header, $.flow_header, $.case_header, $.return_statement, $.expression_statement,
+      $.else_header, $.for_header, $.while_header, $.flow_header, $.case_header, $.return_statement, $.expression_statement,
     ),
     word_definition: $ => seq('word', field('name', $.identifier), choice(group($, '(', ')', alias($.word_parameter, $.parameter)), optional(seq(alias($.word_parameter, $.parameter), repeat(seq(',', alias($.word_parameter, $.parameter)))))), optional(seq('->', field('result', choice($.type, $.result_type))))),
     record_definition: $ => seq('type', field('name', $.identifier), '=', 'record'),
@@ -37,6 +37,7 @@ module.exports = grammar({
       seq('file.stream', '(', soft($), $._expression, soft($), ')'),
       $._expression,
     )),
+    while_header: $ => seq('while', $._expression),
     case_header: $ => seq('case', choice($.identifier, $.call_expression)),
     match_expression: $ => prec.right(-1, seq('match', $._expression)),
     flow_header: $ => seq('flow', $._statement_value),

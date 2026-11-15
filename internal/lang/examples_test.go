@@ -25,6 +25,7 @@ func TestExamples(t *testing.T) {
 		{name: "sorting", want: "Grace: 23\nNancy: 23\nAda: 41\nLin: 41\nsource unchanged: Ada: 41\nsorted: apple, fig, pear\n"},
 		{name: "file-write", want: "Save failed: file-write\nNothing was written; the report stays in memory.\nIn-memory report:\ninvoices: 2\ncredits: 7\n\n"},
 		{name: "paths", want: "/tmp/zhex-out/june/invoices.csv\n/tmp/zhex-out/june\ninvoices.csv\n.csv\n/var/run/state.json\n/tmp/archive/old.csv\n"},
+		{name: "collatz", want: "1: 0\n2: 1\n3: 7\n4: 2\n5: 5\n6: 8\n7: 16\n8: 3\n9: 19\n"},
 		// file-work takes a base folder as its first argument and removes the
 		// zhex-work tree it creates, so the output is deterministic.
 		{name: "file-work", args: []string{filepath.Join(t.TempDir(), "base")}, want: "work folder: credits.txt, invoices.txt\ninvoices.txt: 12 bytes\nvolume still has space\nwork folder removed\n"},
