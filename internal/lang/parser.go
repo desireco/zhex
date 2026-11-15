@@ -48,10 +48,48 @@ func parse(file, source string) (program *Program, err error) {
 	return program, nil
 }
 
+// lastEnd is the last consumed significant token's end position, skipping the
+// position-less indent, dedent, newline, and eof tokens.
+func (p *parser) lastEnd() position {
+	for i := p.index - 1; i >= 0; i-- {
+		t := p.tokens[i]
+		if t.end.line == 0 {
+			continue
+		}
+		return t.end
+	}
+	return position{}
+}
+
+// definitionSource slices the entry's source lines a declaration spans, so
+// Session.Export can re-emit the definition verbatim.
+func definitionSource(start position, end position) string {
+	if start.source == nil || start.line < 1 || end.line < start.line {
+		return ""
+	}
+	lines := strings.Split(*start.source, "\n")
+	if end.line > len(lines) {
+		end.line = len(lines)
+	}
+	slice := append([]string(nil), lines[start.line-1:end.line]...)
+	return strings.Join(slice, "\n") + "\n"
+}
+
 func (p *parser) current() token { return p.tokens[p.index] }
+
+// at matches the current token's kind; keyword-like kinds (word, match, ...)
+// also match a name token spelling them. Pseudo-kinds — indent, dedent,
+// newline, eof — have no name spelling: a binding named eof is a plain name.
 func (p *parser) at(kind string) bool {
 	t := p.current()
-	return t.kind == kind || t.kind == "name" && t.text == kind
+	if t.kind == kind {
+		return true
+	}
+	switch kind {
+	case "indent", "dedent", "newline", "eof", "name", "number", "string":
+		return false
+	}
+	return t.kind == "name" && t.text == kind
 }
 func (p *parser) take() token { t := p.current(); p.index++; return t }
 func (p *parser) accept(kind string) bool {
@@ -131,7 +169,7 @@ func (p *parser) parseType() valueType {
 }
 
 func (p *parser) parseRecord() *recordType {
-	p.require("type")
+	start := p.require("type")
 	name := p.name()
 	param := ""
 	if p.accept("<") {
@@ -145,7 +183,7 @@ func (p *parser) parseRecord() *recordType {
 		}
 		target := p.parseType()
 		p.require("newline")
-		return &recordType{name: name.text, pos: name.pos, alias: true, aliasTarget: target, aliasSource: target}
+		return &recordType{name: name.text, pos: name.pos, alias: true, aliasTarget: target, aliasSource: target, source: definitionSource(start.pos, p.lastEnd())}
 	}
 	choice := p.accept("choice")
 	if param != "" && !choice {
@@ -194,11 +232,12 @@ func (p *parser) parseRecord() *recordType {
 	if len(result.fields) == 0 && len(result.variants) == 0 {
 		panic(errorAt(name.pos, CodeEmptyBlock, "record requires at least one field"))
 	}
+	result.source = definitionSource(start.pos, p.lastEnd())
 	return result
 }
 
 func (p *parser) parseWord() *word {
-	p.require("word")
+	start := p.require("word")
 	t := p.name()
 	w := &word{name: t.text, pos: t.pos}
 	parenthesized := p.accept("(")
@@ -225,6 +264,7 @@ func (p *parser) parseWord() *word {
 	}
 	if !p.accept("->") {
 		w.body = p.block()
+		w.source = definitionSource(start.pos, p.lastEnd())
 		return w
 	}
 	if p.at("Result") {
@@ -244,6 +284,7 @@ func (p *parser) parseWord() *word {
 		w.result = p.parseType()
 	}
 	w.body = p.block()
+	w.source = definitionSource(start.pos, p.lastEnd())
 	return w
 }
 

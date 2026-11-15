@@ -109,6 +109,8 @@ const (
 	CodeFileDelete       Code = "file-delete"
 	CodeFileDeleteFolder Code = "file-delete-folder"
 	CodeFileMove         Code = "file-move"
+	CodeEnvRead          Code = "env-read"
+	CodeEnvParse         Code = "env-parse"
 	CodeArgumentMissing  Code = "argument-missing"
 
 	CodeNotAvailableInBuild Code = "not-available-in-build"
@@ -127,7 +129,7 @@ var diagnosticCodes = []Code{
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
-	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeArgumentMissing,
+	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
 	CodeNotAvailableInBuild,
 }
 

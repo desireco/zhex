@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -393,6 +394,51 @@ func TestFileMoveOverwriteContracts(t *testing.T) {
 	}
 }
 
+// TestFileMoveReplaceSeam pins the routing that honors overwrite on Windows:
+// overwrite true must reach the rename through osReplaceRename (MoveFileEx
+// with MOVEFILE_REPLACE_EXISTING there; os.Rename on Unix, where rename(2)
+// already replaces), while the omitted default stays on osRename.
+func TestFileMoveReplaceSeam(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "s.txt")
+	target := filepath.Join(dir, "t.txt")
+	if err := os.WriteFile(source, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	origReplace := osReplaceRename
+	osReplaceRename = func(oldname, newname string) error {
+		return &os.LinkError{Op: "rename", Old: oldname, New: newname, Err: syscall.EXDEV}
+	}
+	defer func() { osReplaceRename = origReplace }()
+
+	out, err := runFile(t, "let moved = file.move(\""+source+"\", \""+target+"\", true) catch problem\n"+
+		"    print(error.code(problem))\n"+
+		"    print(error.detail(problem, \"reason\"))\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "file-move\nother\n" {
+		t.Fatalf("overwrite must fail through the replace seam: got %q", out)
+	}
+	if readDisk(t, source) != "x" {
+		t.Fatalf("injected failure must leave the source: %q", readDisk(t, source))
+	}
+
+	// The omitted default never touches the replace seam: it stays on osRename.
+	out, err = runFile(t, "let moved = file.move(\""+source+"\", \""+target+"\") catch problem\n"+
+		"    print(\"refused\")\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "refused\n" {
+		t.Fatalf("default must stay on osRename: got %q", out)
+	}
+}
+
 func TestFileMoveFailureTaxonomy(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "s.txt")
@@ -520,6 +566,23 @@ func TestFileOpsDefaultsAndPartials(t *testing.T) {
 	}
 	if out != "new\n" {
 		t.Fatalf("captured overwrite: got %q", out)
+	}
+}
+
+// TestBuiltinTrailingDefaultArity pins every trailing-default entry against
+// the checker's parameter count: the argument-count diagnostic names the
+// checked minimum and maximum, and both must match the eval-time table. A
+// drift would otherwise append defaults from a negative index and panic.
+func TestBuiltinTrailingDefaultArity(t *testing.T) {
+	for _, word := range []string{"file.write", "file.make-folder", "file.delete-folder", "file.move"} {
+		d := builtinTrailingDefaults[word]
+		if len(d.values) == 0 {
+			t.Fatalf("%s: trailing-default entry carries no values", word)
+		}
+		want := fmt.Sprintf("%s requires %d to %d arguments, found 0", word, d.arity-len(d.values), d.arity)
+		if got := runError(t, word+"() try\n"); !strings.Contains(got, want) {
+			t.Errorf("%s: checker/table arity drift: wanted %q, got %q", word, want, got)
+		}
 	}
 }
 

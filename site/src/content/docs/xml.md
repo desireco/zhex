@@ -63,7 +63,7 @@ Unsupported types — `Unit`, Results, buffers, files, arrays, choices other tha
 
 Failures use the common `Error` family with stable codes: `xml-syntax` (malformed XML, DTD or entity declarations, undefined entities, multiple root elements), `xml-type` (wrong type, mixed content, an attribute where structure is required), `xml-field` (unknown, duplicate, missing, or colliding names, and namespace-qualified names), `xml-range` (integer overflow, document or list over the element limit), and `xml-depth` (nesting over 256).
 
-`error.detail(problem, "path")` carries the element path — `/server/endpoints/0/host`, with the root as the empty string and list items by index. `reason` is one of `unknown`, `duplicate`, `missing`, `collision`, and `prefixed`; type failures carry `expected` and `actual`; syntax failures carry `offset`, `line`, and `column`.
+`error.detail(problem, "path")` carries the element path — `/server/endpoints/0/host`, with the root as the empty string and list items by index. `reason` is one of `unknown`, `duplicate`, `missing`, `collision`, `prefixed`, `element-limit`, and `list-limit`; type failures carry `expected` and `actual`; syntax failures carry `offset`, `line`, and `column`.
 
 ```zhex
 type Service = record

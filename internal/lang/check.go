@@ -73,6 +73,7 @@ var hostWords = []string{
 	"file.join", "file.base", "file.extension", "file.directory-of",
 	"file.make-folder", "file.delete", "file.delete-folder", "file.move",
 	"console.arg", "console.args-count", "console.exit", "console.fail",
+	"env.get", "env.load",
 }
 
 // builtinTrailingDefaults names the built-in words whose trailing parameters
@@ -86,6 +87,7 @@ var builtinTrailingDefaults = map[string]builtinDefault{
 	"file.make-folder":   {arity: 2, values: []value{{boolean: false}}},
 	"file.delete-folder": {arity: 2, values: []value{{boolean: false}}},
 	"file.move":          {arity: 3, values: []value{{boolean: false}}},
+	"env.load":           {arity: 1, values: []value{{text: ".env"}}},
 }
 
 type builtinDefault struct {
@@ -167,7 +169,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "xml", "date", "time", "duration", "instant", "timezone", "zoned"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "xml", "date", "time", "duration", "instant", "timezone", "zoned", "env"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -2030,6 +2032,12 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			result = stringResultType
 		case "console.args-count":
 			result = intType
+		case "env.get":
+			params = []valueType{stringType}
+			result = valueType("Option<String>")
+		case "env.load":
+			params = []valueType{stringType}
+			result = valueTypeResultUnitError
 		case "read-line":
 			params = []valueType{stringType}
 			result = stringResultType

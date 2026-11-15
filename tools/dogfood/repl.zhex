@@ -1,0 +1,81 @@
+# Zhex-written REPL front end over the Go session engine (#65 prototype).
+# Owns prompts, dispatch, buffering, incompleteness decisions, and EOF policy,
+# ported from the piped branch of cmd/zhex's Go loop. Piped only.
+
+word show-words()
+    let names = repl.words()
+    if list.length(names) == 0
+        print("no words defined")
+    else
+        for name in names
+            print(name)
+
+word enter-entry(source: String)
+    match repl.enter(source)
+        case EnterResult.Ran(echo)
+            if echo != ""
+                print(echo)
+        case EnterResult.Failed(report)
+            print(report)
+        case EnterResult.Exited(status)
+            console.exit(status)
+
+word end-of-file(buffer: String, pending: Bool)
+    if pending
+        let candidate = buffer + "\n"
+        if repl.open-delimiter(candidate)
+            print(repl.diagnose(candidate))
+    console.exit(0)
+
+word repl-loop()
+    var buffer = ""
+    var pending = false
+    var block-pending = false
+    var open-delimiter = false
+    var eof = false
+    while not eof
+        var prompt = "zhex> "
+        if pending
+            prompt = "....> "
+        var submit = false
+        let line = read-line(prompt) catch
+            eof = true
+            ""
+        if eof
+            end-of-file(buffer, pending)
+        elif pending
+            if line != "" or open-delimiter
+                buffer = buffer + line + "\n"
+                open-delimiter = repl.open-delimiter(buffer)
+                if open-delimiter or block-pending
+                    submit = false
+                elif repl.incomplete(buffer)
+                    block-pending = true
+                    submit = false
+                else
+                    pending = false
+                    submit = true
+            else
+                pending = false
+                block-pending = false
+                submit = true
+        else
+            if line == ""
+                submit = false
+            elif line == "words"
+                show-words()
+                submit = false
+            else
+                buffer = line + "\n"
+                if repl.incomplete(buffer)
+                    open-delimiter = repl.open-delimiter(buffer)
+                    block-pending = not open-delimiter
+                    pending = true
+                    submit = false
+                else
+                    submit = true
+        if submit
+            enter-entry(buffer)
+
+print("Zhex REPL — end multi-line entries with a blank line; bye() or Ctrl-D exits.")
+repl-loop()

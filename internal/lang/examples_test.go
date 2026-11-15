@@ -32,6 +32,9 @@ func TestExamples(t *testing.T) {
 		// zhex-work tree it creates, so the output is deterministic.
 		{name: "file-work", args: []string{filepath.Join(t.TempDir(), "base")}, want: "work folder: credits.txt, invoices.txt\ninvoices.txt: 12 bytes\nvolume still has space\nwork folder removed\n"},
 		{name: "file-work", wantErr: "argument-missing"},
+		// env-config writes its own .env fixture into the base folder and
+		// removes it, so the output is deterministic.
+		{name: "env-config", args: []string{filepath.Join(t.TempDir(), "base")}, want: "title: Weekly status\nmode: set but empty\nlimit: not in the file\nreport configured\n"},
 		{name: "temporal", want: "2024-03-10T12:00:00-04:00[America/New_York]\n2024-03-10T13:00:00-04:00[America/New_York]\n"},
 		{name: "json-config", want: "3\ntrue\n{\"retries\":3,\"verbose\":true}\n"},
 		{name: "json-tree", want: "nodes: 12\nservice = ingest\nretries = 1.5e1\nendpoints = list of 4\nflags = object of 1\n{\"service\":\"ingest\",\"retries\":1.5e1,\"endpoints\":[\"primary\",443,null,{\"host\":\"db\",\"port\":5432}],\"flags\":{\"dry-run\":true}}\n"},
@@ -96,6 +99,10 @@ func TestExamples(t *testing.T) {
 		{name: "modules/main", input: "48\n18\n", want: "First number: Second number: 30\n6\n144\n"},
 		{name: "modules/main", input: "0\n5\n", want: "First number: Second number: Enter two positive integers.\n"},
 		{name: "modules/md-report/main", want: "## Weekly status \\& latency\n\nThree services reported\\; nothing is down\\.\n\n| service            | region   | latency |\n| ------------------ | -------- | ------- |\n| edge\\-cache        | eu\\-west | 12 ms   |\n| search\\-api \\(v2\\) | eu\\-west | 41 ms   |\n| auth               | us\\-east | 87 ms   |\n\n- no renderer\n- no template engine\\, just words\n\n[CommonMark](https://commonmark.org/help)\n\n```zhex\nlet title = md.heading(2, \"Weekly\")\nflow `inline code`\n    text.upper\n```\n"},
+		// html-page composes the html sibling module: escaped text by
+		// default, markup through element and one deliberate html.raw,
+		// and a rejected javascript: link target.
+		{name: "modules/html-page/main", want: "<!DOCTYPE html>\n<html>\n<head>\n<title>Zhex services — café &amp; &lt;status&gt;</title>\n</head>\n<body>\n<p>Everything below is escaped unless it arrives through html.raw.</p>\n<ul class=\"status &#34;live&#34; &amp; &lt;fresh&gt;\">\n<li>api: 2 ms</li>\n<li>web: 9 ms</li>\n<li>db: 41 ms &amp; &lt;degraded&gt;</li>\n</ul>\n<hr>\n<a href=\"https://example.io/zhex\">project home</a> / (link rejected: javascript: is not an allowed scheme)\n</body>\n</html>\n"},
 	}
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%s/%d", tc.name, i), func(t *testing.T) {

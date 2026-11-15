@@ -799,6 +799,8 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 	add("console.args-count", intType)
 	add("console.exit", neverType, intType)
 	add("console.fail", neverType, stringType)
+	add("env.get", "Option<String>", stringType)
+	add("env.load", valueTypeResultUnitError, stringType)
 	add("error.report", unitType, errorType)
 	add("error.new", errorType, stringType, stringType)
 	add("error.wrap", errorType, stringType, stringType, errorType)

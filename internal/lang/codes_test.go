@@ -145,6 +145,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{code: "use-location", source: "word f() -> Unit\n    use math\n    print(1)\n"},
 		{code: "use-missing", source: "use math\nprint(1)\n"},
 		{code: "use-reserved", source: "use text\n"},
+		{code: "use-reserved", source: "use env\n"},
 		{code: "use-cycle", source: "use math\n", resolve: mapResolver(map[string]string{"math.zhex": "use math\n" + mathModule})},
 		{code: "module-body", source: "use math\n", resolve: mapResolver(map[string]string{"math.zhex": "print(1)\n"})},
 		{code: "private-use", source: "use math\nprint(math._wrap(1))\n", resolve: mapResolver(map[string]string{"math.zhex": privateMathModule})},

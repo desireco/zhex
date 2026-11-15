@@ -19,6 +19,7 @@
 #   deliberate read past a mismatching row reports it as the interpreter's
 #   out-of-range diagnostic, so a malformed table never renders silently.
 # - Empty input renders to the empty fragment "".
+# - Dialect: CommonMark core subset; footnotes and task lists excluded.
 
 word heading(level: Int, text: String) -> String
     _repeat("#", _clamped(level)) + " " + _esc(text)

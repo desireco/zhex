@@ -74,6 +74,10 @@ type Session struct {
 	frame       frame
 	reporter    *expression
 	resolve     func(name string) (ModuleSource, bool)
+	active      []*scope // scopes of in-flight entries: a driver entry keeps its bindings framed across nested Enters
+	seam        bool     // RegisterReplSeam ran: the repl vocabulary is live and reserved against shadowing
+	recordOrder []string // session-declared type names in adoption order, for Export
+	wordOrder   []string // own word names in adoption order, for Export
 }
 
 // NewSession shares input's buffer when it is already buffered, mirroring
@@ -91,6 +95,7 @@ func NewSession(input io.Reader, output, trace io.Writer, resolve func(name stri
 		output:      output,
 		diagnostics: io.Discard,
 		trace:       trace,
+		scope:       newScope(nil),
 		records:     make(map[string]*recordType),
 		words:       make(map[string]*word),
 		modules:     make(map[string]*module),
@@ -123,8 +128,19 @@ func (s *Session) usedDirectly(name string) bool {
 // already performed. On success the entry's words, modules, and names are
 // adopted and the entry's last value is echoed (empty for Unit).
 func (s *Session) Enter(source string) (string, error) {
+	// A nested repl.enter/repl.load runs inside this entry's runtime, which
+	// starts at depth 0, so the engine's word-call depth limit cannot see the
+	// recursion — cap concurrent entries instead of exhausting the Go stack.
+	if len(s.active) >= 64 {
+		return "", annotate(withHint(
+			errorAt(position{file: "repl", line: 1, column: 1}, CodeDepthLimit, "repl entry nesting limit of 64 exceeded"),
+			"rewrite the nested repl.enter calls as a while loop — loops have no entry nesting limit"), source)
+	}
 	p, err := parse("repl", source)
 	if err != nil {
+		return "", annotate(err, source)
+	}
+	if err := s.seamReject(p); err != nil {
 		return "", annotate(err, source)
 	}
 	sources := make(map[string]string, len(s.sources)+1)
@@ -183,8 +199,13 @@ func (s *Session) Enter(source string) (string, error) {
 	}
 	c := checker{words: words, types: namedTypeRegistry{visible: records, all: all}, modules: modules, uses: uses}
 	env := newScope(s.scope)
+	s.active = append(s.active, env)
+	// pop leaves the active stack before this entry's own prune, so a failed
+	// entry's dead bindings drop while outer in-flight entries stay framed.
+	pop := func() { s.active = s.active[:len(s.active)-1] }
 	typ, err := c.checkProgram(p, env)
 	if err != nil {
+		pop()
 		return "", annotate(err, source)
 	}
 	// Existing compiled callers retain word pointers. Reject incompatible
@@ -201,6 +222,7 @@ func (s *Session) Enter(source string) (string, error) {
 				}
 			}
 			if !same {
+				pop()
 				return "", annotate(errorAt(w.pos, CodeWordResult, "cannot redefine %q with a different signature in the REPL", w.name), source)
 			}
 		}
@@ -212,11 +234,31 @@ func (s *Session) Enter(source string) (string, error) {
 	if err != nil {
 		err = unwrapPropagation(err)
 		r.report(err, "unhandled", position{})
+		pop()
 		s.pruneFrame()
 		return "", annotateSource(err, sources)
 	}
-	s.words, s.records, s.modules, s.uses, s.sources = words, c.types.visible, modules, uses, sources
-	s.scope = env
+	pop()
+	// Merge this entry's adoptions into the current state rather than
+	// replacing it: a nested Enter (the repl seam) may have adopted words,
+	// modules, or names while this entry ran, and the entry's own definitions
+	// win on collision. The order slices record this entry's additions.
+	s.words = s.mergeWords(p, fresh, modules)
+	s.records = s.mergeRecords(p, fresh, modules)
+	s.modules = s.mergeModules(modules)
+	s.uses = s.mergeUses(fresh)
+	s.sources = s.mergeSources(sources, source)
+	s.adoptScope(env)
+	for _, w := range p.words {
+		if !containsName(s.wordOrder, w.name) {
+			s.wordOrder = append(s.wordOrder, w.name)
+		}
+	}
+	for _, record := range p.records {
+		if !containsName(s.recordOrder, record.name) {
+			s.recordOrder = append(s.recordOrder, record.name)
+		}
+	}
 	s.pruneFrame()
 	for _, name := range redefined {
 		fmt.Fprintf(s.output, "redefined %s\n", name)
@@ -224,15 +266,137 @@ func (s *Session) Enter(source string) (string, error) {
 	return traceValue(v, typ), nil
 }
 
+// mergeWords layers this entry's own words and fresh module adoptions over
+// the current session words, keeping anything a nested Enter adopted.
+func (s *Session) mergeWords(p *Program, fresh []use, modules map[string]*module) map[string]*word {
+	merged := make(map[string]*word, len(s.words)+len(p.words))
+	for name, w := range s.words {
+		merged[name] = w
+	}
+	for _, w := range p.words {
+		merged[w.name] = w
+	}
+	for _, u := range fresh {
+		if m := modules[u.name]; m != nil {
+			for _, w := range m.order {
+				if !strings.HasPrefix(w.name, "_") {
+					merged[m.name+"."+w.name] = w
+				}
+			}
+		}
+	}
+	return merged
+}
+
+// mergeRecords layers this entry's declared types and fresh modules' public
+// types over the current session records.
+func (s *Session) mergeRecords(p *Program, fresh []use, modules map[string]*module) map[string]*recordType {
+	merged := make(map[string]*recordType, len(s.records)+len(p.records))
+	for id, record := range s.records {
+		merged[id] = record
+	}
+	for _, record := range p.records {
+		merged[record.id()] = record
+	}
+	for _, u := range fresh {
+		if m := modules[u.name]; m != nil {
+			for _, record := range m.recordOrder {
+				if !strings.HasPrefix(record.name, "_") {
+					merged[record.id()] = record
+				}
+			}
+		}
+	}
+	return merged
+}
+
+// mergeModules keeps every loaded module, including ones a nested Enter loaded.
+func (s *Session) mergeModules(modules map[string]*module) map[string]*module {
+	merged := make(map[string]*module, len(s.modules)+len(modules))
+	for name, m := range s.modules {
+		merged[name] = m
+	}
+	for name, m := range modules {
+		merged[name] = m
+	}
+	return merged
+}
+
+// mergeUses appends this entry's fresh direct uses without duplicating a name
+// a nested Enter already adopted.
+func (s *Session) mergeUses(fresh []use) []string {
+	uses := append([]string{}, s.uses...)
+	for _, u := range fresh {
+		if !containsName(uses, u.name) {
+			uses = append(uses, u.name)
+		}
+	}
+	return uses
+}
+
+// mergeSources keeps every adopted file's text, current entries first.
+func (s *Session) mergeSources(sources map[string]string, source string) map[string]string {
+	merged := make(map[string]string, len(s.sources)+1)
+	for path, text := range s.sources {
+		merged[path] = text
+	}
+	for path, text := range sources {
+		if merged[path] == "" {
+			merged[path] = text
+		}
+	}
+	merged["repl"] = source
+	return merged
+}
+
+func containsName(names []string, name string) bool {
+	for _, candidate := range names {
+		if candidate == name {
+			return true
+		}
+	}
+	return false
+}
+
+// adoptScope flattens the entry's scope into the session state. The entry's
+// bindings shadow the previous ones, and bindings a nested Enter adopted
+// while this entry was running stay adopted: the merge walks the current
+// state, not the parent chain the entry captured at check time.
+func (s *Session) adoptScope(env *scope) {
+	bindings := map[string]*binding{}
+	collect := func(head *scope) {
+		for current := head; current != nil; current = current.parent {
+			for name, binding := range current.bindings {
+				if bindings[name] == nil {
+					bindings[name] = binding
+				}
+			}
+		}
+	}
+	collect(env)
+	collect(s.scope)
+	s.scope = &scope{bindings: bindings}
+}
+
 // pruneFrame drops values for bindings no longer visible to future entries.
 // Existing binding values and shared-object mutations survive runtime failures.
+// In-flight entries' scopes stay framed (a driver entry looping over nested
+// Enters would otherwise lose its state) without joining the adopted scope, so
+// later entries still cannot name a driver's bindings.
 func (s *Session) pruneFrame() {
-	visible := map[*binding]bool{}
 	bindings := map[string]*binding{}
+	visible := map[*binding]bool{}
 	for current := s.scope; current != nil; current = current.parent {
 		for name, binding := range current.bindings {
 			if bindings[name] == nil {
 				bindings[name] = binding
+				visible[binding] = true
+			}
+		}
+	}
+	for _, entry := range s.active {
+		for current := entry; current != nil; current = current.parent {
+			for _, binding := range current.bindings {
 				visible[binding] = true
 			}
 		}
@@ -319,10 +483,13 @@ func missingInWorkingDirectory(u use, _ string) error {
 }
 
 // Words lists the session's word signatures, sorted by name; a module's
-// word carries its module prefix.
+// word carries its module prefix. Per-run host words stay unlisted.
 func (s *Session) Words() []string {
 	sigs := make([]string, 0, len(s.words))
 	for _, w := range s.words {
+		if w.host != nil {
+			continue
+		}
 		name := w.name
 		if w.module != "" {
 			name = w.module + "." + w.name

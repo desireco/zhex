@@ -247,7 +247,13 @@ type word struct {
 	success            valueType // declared success type of an inferred fallible word
 	inferred           bool
 	body               []*statement
+	source             string   // the definition's source slice, for Session.Export
+	host               hostFunc // per-run host-evaluated word (the #65 repl seam); nil for program words
 }
+
+// hostFunc evaluates a per-run registered word; the runtime calls it instead
+// of a body. It never joins hostWords, so the shipped vocabulary is unchanged.
+type hostFunc func(r *runtime, x *expression, args []value) (value, error)
 
 type recordType struct {
 	module        string
@@ -262,6 +268,7 @@ type recordType struct {
 	aliasSource   valueType
 	aliasResolved bool
 	variants      []choiceVariant
+	source        string // the declaration's source slice, for Session.Export
 }
 
 type choiceVariant struct {

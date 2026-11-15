@@ -230,6 +230,12 @@ A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the fil
 ## file-move
 `file.move` could not rename the source to the target: the source is missing, the target exists (pass `overwrite: true` to replace an existing file), the target is a folder (never replaced in either mode), the two paths are on different devices (no copy fallback), or the process may not rename. The check-then-act window between the target check and the rename is inherent: a target that appears in between is left to the rename itself. The message names both paths and the reason; the failure lives inside the `Result` and surfaces through `try`.
 
+## env-read
+`env.load` could not read the file: it is missing, or the process may not read it. The message names the path and the operating system's reason; the failure lives inside the `Result` and surfaces through `try`.
+
+## env-parse
+A line of the file given to `env.load` is not a KEY=VALUE assignment: the `=` is missing, the key is empty, or the key contains spaces. The message names the line number and the offending text. Lines before the malformed one are already applied and stay applied — env.load never overrides, so rerunning after fixing the file keeps the earlier values.
+
 ## argument-missing
 `console.arg` received an index outside the program's command-line arguments. The message names the index and how many arguments were given; the failure lives inside the `Result` and surfaces through `try`. Check the index against `console.args-count()`.
 

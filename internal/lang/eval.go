@@ -641,7 +641,13 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 	}
 	if x.word == nil {
 		if d := builtinTrailingDefaults[x.text]; len(d.values) > 0 && len(args) < d.arity {
-			args = append(args, d.values[len(args)-(d.arity-len(d.values)):]...)
+			first := len(args) - (d.arity - len(d.values))
+			if first < 0 {
+				// The checker and the default table disagree; degrade to a
+				// diagnostic instead of slicing from a negative index.
+				return value{}, errorAt(x.pos, CodeUnsupportedCode, "%s default table expects %d to %d arguments, found %d", x.text, d.arity-len(d.values), d.arity, len(args))
+			}
+			args = append(args, d.values[first:]...)
 		}
 		result, err := r.builtin(x, args)
 		if d, ok := err.(*diagnostic); ok && d.operation == "" {
@@ -673,6 +679,13 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 		}
 		if err == nil && isCheckedCollectionOperation(x.text) && !x.checkedCollection {
 			return plainReadResult(result)
+		}
+		return result, err
+	}
+	if x.word.host != nil {
+		result, err := x.word.host(r, x, args)
+		if d, ok := err.(*diagnostic); ok && d.operation == "" {
+			d.operation = x.text
 		}
 		return result, err
 	}
