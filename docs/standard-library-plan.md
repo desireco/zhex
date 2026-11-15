@@ -183,7 +183,57 @@ Demand: parse all numeric report fields without silently dropping invalid input.
 
 **S8. Paths and configuration for batch reports.** Stage behind a multi-file report example. Candidate host operations `path.join(base: String, child: String) -> String`, `path.base(path: String) -> String`, `path.extension(path: String) -> String`, and `env.get(name: String) -> Option<String>`. Define OS-native lexical semantics (not URLs), absolute-child behavior, empty/root/trailing-separator cases, invalid environment names/encoding, and missing versus empty values. No existence check hidden in cleanup, no containment guarantee, no process launching. Reserve namespaces only when shipping and assess compatibility with existing sibling modules.
 
-Directory listing/metadata belongs in a separate story with deterministic ordering and explicit I/O errors. CSV needs a real tabular interchange example and quoting/newline contract; split is not a CSV parser. Temporal extraction/comparison should follow a scheduling/report workload rather than another broad date API pass. A user-facing testing library should start from a failing real Zhex test suite and specify runner discovery, assertions, failure locations and exit status; keep the existing Go executable specification meanwhile.
+Directory listing/metadata is now researched in the #69 candidates below; the `path.*` words moved there too (2026-11-14 owner decision on #64 — path operations align with the folder-operations vocabulary, and #64 proceeds with `env.*` only). CSV needs a real tabular interchange example and quoting/newline contract; split is not a CSV parser. Temporal extraction/comparison should follow a scheduling/report workload rather than another broad date API pass. A user-facing testing library should start from a failing real Zhex test suite and specify runner discovery, assertions, failure locations and exit status; keep the existing Go executable specification meanwhile.
+
+### Folder operations research (#69, 2026-11-14)
+
+The following three story candidates come from the [#69 folder-operations research](https://github.com/desireco/zhex/issues/69); they await owner triage and are not filed as numbered issues. All reuse the existing `FileError` family and the not-found/permission-denied/other reason taxonomy established by `file-open`/`file-write`, and stay shallow, deterministic, and explicit about the dangerous cases.
+
+**S9. Folder listing and single-path info.** Proposed in #69; awaiting owner triage. Candidate host signatures:
+
+```text
+file.list(folder: String) -> Result<List<String>, FileError>
+file.exists(path: String) -> Bool
+file.size(path: String) -> Result<Int, FileError>
+```
+
+Demand: the owner's folder vocabulary starts with listing names and sizes and answering "does this path exist" — the most common agent need. The two-word shape (names first, sizes per entry) reuses `List<String>` and `Int` instead of a host-owned `(name, kind, size)` record, which would need new checker machinery for a built-in returning a host record. `file.list` is shallow and returns bare entry names (not paths) in deterministic name order; Go's [os.ReadDir](https://pkg.go.dev/os#ReadDir) sorts entries by filename and its `DirEntry` supplies the cheap type with `Info()` on demand, which is exactly this names-first/sizes-per-entry split (Python's `os.scandir` makes the same split). `file.exists` answers existence; the recommendation is a plain `Bool` where not-found gives false and any other stat failure (permission on a parent, invalid path) raises a runtime diagnostic, matching the plain-collection pattern (ordinary value, runtime diagnostic, opt-in checked form). `file.size` returns the byte size of a regular file; a directory reports 0 with no recursive size. Tests: empty folder, missing folder, file passed as the folder argument, permission failure, deterministic order with mixed-case and digit names, UTF-8 names, empty and nonempty file sizes, `exists` on file/folder/missing/permission paths, flow use, and the one-million-element list limit on huge directories. No array/rectangle machinery is implicated: directory entries are a flat list, not a grid.
+
+Decisions to settle: `file.exists` as Bool-plus-runtime-diagnostic versus `Result<Bool, FileError>`; whether listing order is lexical byte order (Go's ReadDir default) or another deterministic order; whether hidden dot entries are included (recommendation: included — filtering is `list.filter` work); stable diagnostic codes for the new failure paths (`file-list`, `file-size`).
+
+Non-goals: no recursive walk, no glob patterns, no entry-kind or symlink flag in v1 (names only), no watching, no trash/undo, no folder sizes.
+
+Free space: researched and deferred. Go's standard library has no portable free-space call — `syscall.Statfs` is Unix-only and Windows needs the out-of-tree `golang.org/x/sys/windows.GetDiskFreeSpaceEx`; of the six comparison languages only Python's `shutil.disk_usage` is portable stdlib (Ruby needs the Sys::Filesystem gem; Gleam's simplifile, Elm, and Haskell's core/directory have none). If the owner still wants it, it slots as a small standalone story with `file.free-space(path: String) -> Result<Int, FileError>` (bytes available to this process on the volume containing `path`, file or folder accepted, `FileError` family) — recommended after S9/S10, not in the first batch.
+
+**S10. Destructive and structural folder operations.** Proposed in #69; awaiting owner triage. Candidate host signatures:
+
+```text
+file.make-folder(path: String, parents: Bool = false) -> Result<Unit, FileError>
+file.delete(path: String) -> Result<Unit, FileError>
+file.delete-folder(path: String, recursive: Bool = false) -> Result<Unit, FileError>
+file.move(source: String, target: String, overwrite: Bool = false) -> Result<Unit, FileError>
+```
+
+Demand: agents must create work folders, clean up, and rename outputs; today Zhex can read and write files but cannot create, remove, or move anything. Mode parameters follow the owner's #58 append decision (flags over extra words). `file.make-folder` creates one level; `parents: true` creates missing ancestors (Go [os.Mkdir](https://pkg.go.dev/os#Mkdir)/`os.MkdirAll`), mirroring #58's no-implicit-parent-creation stance with an explicit opt-in. `file.delete` removes a file or an empty folder and fails on a nonempty folder (Go `os.Remove` semantics) — the safety default. `file.delete-folder` with `recursive: false` (the default) removes an empty folder and fails otherwise; `recursive: true` removes a whole tree (Go [os.RemoveAll](https://pkg.go.dev/os#RemoveAll): best-effort depth-first, first failure reported, partial deletion possible and documented). The recursive default-off is the safety-critical contract: deleting a tree is always a deliberate, visible `recursive: true` at the call site. `file.move` is rename(2)-based (Go [os.Rename](https://pkg.go.dev/os#Rename)) and therefore moves folders as well as files — stated explicitly, since restricting it to files would fight the syscall; `overwrite: false` (default) fails when the target exists, `overwrite: true` replaces an existing file (atomically where the platform allows) and fails on an existing directory. Cross-device moves fail with the platform's error — no implicit copy fallback in v1 (Python's `os.rename` behaves the same; `shutil.move`'s copy fallback is a separate, explicitly ordered contract). Tests: make single/deep/existing/existing-file collision, delete file/empty folder/nonempty folder/missing, recursive tree with nested content and first-failure reporting, move file/folder/missing source/existing target under both overwrite values, and propagation through `FileError` with reporter/trace coverage. Failures leave earlier effects in place — no transaction promise.
+
+Decisions to settle: whether `parents: true` tolerates an already-existing folder (recommendation: yes, like `os.MkdirAll`) while `parents: false` fails on an existing target; whether `file.delete` on a nonempty folder stays separate from `file.delete-folder` (recommendation: keep both — `delete` mirrors `os.Remove`, and `delete-folder(recursive:)` makes the dangerous call site greppable); the target-existence check in `move` has an unavoidable check-then-act window (documented, not solved in v1); stable diagnostic codes (`file-make-folder`, `file-delete`, `file-move`).
+
+Non-goals: no copy word (a separate contract), no trash/undo, no atomic-replacement promise beyond what rename itself gives, no permission/mode words, no glob deletion.
+
+**S11. Lexical path words in the file namespace.** Proposed in #69, absorbing the path words the owner redirected out of S8/#64 on 2026-11-14; awaiting owner triage. Candidate host signatures:
+
+```text
+file.join(base: String, child: String) -> String
+file.base(path: String) -> String
+file.extension(path: String) -> String
+file.directory-of(path: String) -> String
+```
+
+Demand: compose report paths from folder arguments and pick apart user-supplied paths without string surgery. All four are pure lexical operations on the host's native separator — no I/O, no existence checks, no containment guarantee ([filepath.Clean](https://pkg.go.dev/path/filepath#Clean) is lexical cleanup, not symlink resolution), following the pathlib PurePath-versus-Path split the plan already cites. Semantics default to Go's `path/filepath`: `join` concatenates with the OS separator and cleans the result; `base` returns the final element (`"/"` → `"/"`, `""` → `"."`, trailing separators removed); `extension` returns the final-dot suffix of the final element including the dot, empty when there is none; `directory-of` drops the final element (`"."` when there is none). One deliberate divergence to settle: Python's `PurePath` makes an absolute child replace the base (`join("a/b", "/c")` → `/c`) while Go's `filepath.Join` keeps it (`a/b/c`); the recommendation is the Python replace rule, the safer behavior when building paths from untrusted components. Namespace: `file.*` per ownership rule 1 (external filesystem work under `file`) — a second `folder.*` namespace for a handful of words fragments the vocabulary, `folder` stays out of the reserved-module list, and no `path.*` namespace is reserved, which resolves #64's redirected words without new reservation work. Tests: absolute-child, empty, root, and trailing-separator cases, dotfile extension behavior, lexical `..` cleaning, `directory-of`/`base` round-trips, and that no word touches the filesystem.
+
+Decisions to settle: absolute child replaces versus concatenates; whether `extension` treats a leading-dot name like `.bashrc` as extension `.bashrc` (Go) or no extension (common convention); whether a fifth word (lexical `file.clean`) is wanted now (recommendation: no — `join` already cleans).
+
+Non-goals: no URL paths, no symlink resolution, no normalization to an absolute form, no `path.*` namespace, no filesystem access of any kind.
 
 ## Deferred and excluded scope
 
