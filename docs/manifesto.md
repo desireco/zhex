@@ -8,7 +8,7 @@ You should be able to read a program and follow its values: where they come from
 
 ## Small words that fit together
 
-Forth's idea of words is at the heart of Zhex. Give a useful operation a name, then combine it with other words to express a larger task. A word's signature tells you the types it accepts and returns; its name and body explain what it does. Calls and flows connect words, and the checker catches incompatible types where they meet.
+Forth's idea of words is at the heart of Zhex. Give a useful operation a name, then combine it with other words to express a larger task. A word's signature tells you the types it accepts and returns; its name and body explain what it does. Calls and flows connect words, and the checker catches incompatible types where they meet. In the Forth tradition, you build the vocabulary you program with: every word you write extends the language, which is why Zhex is a language for builders.
 
 Once you understand a word, you can use that understanding wherever it appears. A well-chosen sequence of words should make the larger task easier to follow. We expect this to give us useful pieces to reuse and test, help us narrow down failures, and let improvements to a shared word benefit the programs that use it. As programs grow, modules should help organize these words. Their design should follow what we learn from writing real programs.
 

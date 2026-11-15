@@ -1,6 +1,6 @@
 # Zhex
 
-> Zhex is a Forth-inspired programming language built on small words and big ideas: compact code with visible flow, meaningful names, and checked types, executed by a working Go interpreter. Every program is checked — names, types, and word connections — before any of it runs.
+> Zhex is a Forth-inspired programming language for builders, built on small words and big ideas: you build the vocabulary you program with, and every word you write extends the language. Compact code with visible flow, meaningful names, and checked types, executed by a working Go interpreter. Every program is checked — names, types, and word connections — before any of it runs.
 
 ## Docs
 

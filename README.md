@@ -1,8 +1,8 @@
 # Zhex
 
-**Small words. Readable programs.**
+**Small words. Big ideas.**
 
-Zhex is an experimental **Forth-inspired language** for composing small operations into larger programs. It keeps the idea of passing values through a sequence of words, while adding named inputs, local values, familiar expressions, and clear control flow.
+Zhex is an experimental **Forth-inspired language for builders**: you build the vocabulary you program with, and compose small operations into larger programs. It keeps the idea of passing values through a sequence of words, while adding named inputs, local values, familiar expressions, and clear control flow.
 
 The first interpreter is written in Go. It runs real `.zhex` files with console input and output. The language is still taking shape; syntax and APIs may change. No version numbers exist yet — versioning starts with the standard library's 0.1 release ([versioning policy](docs/versioning.md)).
 
