@@ -1,6 +1,6 @@
 # Standard library research and proposed plan
 
-Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57–62 have since shipped and #63–64 await one-by-one review.
+Research for [#30](https://github.com/desireco/zhex/issues/30), 2026-11-14. The owner approved creating these stories for one-by-one review on 2026-11-14; this is not a specification of new language behavior. The current library inventory below is implemented; every later signature marked proposed is unimplemented. Implementation stories #57–64 were filed in Inbox, then explicitly triaged by the owner to Todo; #57–62 have since shipped, #63 was declined and removed by the owner (2026-11-14), and #64 awaits one-by-one review.
 
 ## Recommendation
 
@@ -40,7 +40,7 @@ Important current constraints:
 - `Int` is checked signed 64-bit. There is no Float, Decimal, BigInt, generic user word, or generic record.
 - Lists, arrays, maps, buffers, and files have shared identity. List/array iteration rejects mutations of the active container. A new outer list does not imply a deep copy of nested values.
 - Routine collection operations are plain with selected opt-in checked forms. Parsing and external input use Results. A Result cannot be deferred, stored inside a collection, or passed as a user-word parameter.
-- Explicit partial function values exist and serve as callbacks to the shipped `list.` transformation and search words; a callback-effect design for fallible traversal stays open (S7). Omitted parameter annotations infer one concrete type; they are not polymorphism.
+- Explicit partial function values exist and serve as callbacks to the shipped `list.` transformation and search words; fallible traversal (S7, #63) was declined and removed by the owner on 2026-11-14, and a select-shaped word is drafted separately as [#70](https://github.com/desireco/zhex/issues/70). Omitted parameter annotations infer one concrete type; they are not polymorphism.
 - `use` loads sibling files, not installed standard packages. Generic source libraries and package resolution are separate future work; #30 decides content, not a new import mechanism.
 
 ## Comparison matrix
@@ -94,7 +94,7 @@ The first-class Result combinators in [Gleam](https://hexdocs.pm/gleam_stdlib/gl
 
 ## Proposed phases and draft stories
 
-These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, and the rest remain Todo proposals, not implemented features. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
+These are reviewable stories; S1 (#57), S2 (#58), S3 (#59), S4 (#60), S5 (#61), and S6 (#62) have shipped, S9 (#73), S11 (#74), and S10 (#75) have shipped from the folder-operations research below, S7 (#63) was declined and removed by the owner (2026-11-14), S8 (#64) remains a Todo proposal, and the document-libraries research below adds candidates S12/S14/S15 awaiting owner triage; none of these is an implemented feature. Each story must first add failing behavioral tests, then implementation, a registered executable example or an updated existing example, contract/reference/llms updates, `just test`, and `go vet ./...`; the full surface list for a new word, signature change, or rename/removal is the [vocabulary-change checklist](vocabulary-checklist.md), which each story follows instead of re-deriving the surfaces. Diagnostics must have stable codes; wrong types must fail before effects. Keep all existing examples and error behavior compatible. New names require checking user-name and module-reservation collisions.
 
 ### Phase 1 — one useful text/report workflow
 
@@ -171,7 +171,7 @@ These are constrained overloads, not new String relational operators. Demand: ra
 
 Shipped notes: both words return stable ascending copies — a fresh outer list with shared elements and an unchanged source, with equal keys keeping source order; `String` order is Unicode code-point order. `list.sort` accepts `List<Int>` or `List<String>` values; `list.sort-by` orders any list by a key function returning `Int` or `String`, evaluated exactly once per element in source order before any comparison while the source holds its traversal guard. Keys follow the S4 callback contract; a `Result`-returning key is rejected under the existing `unhandled-result` code. No new diagnostic codes were added — the constrained types reuse `argument-type` (`list.sort requires a List<Int> or List<String>, found ...`, `list.sort-by requires a key function, found ...`, `list.sort-by key must return Int or String, found ...`); the `sorting` example demonstrates both words.
 
-**S7. Fallible traversal, separately.** Only after S4 and an explicit callback-effect design:
+**S7. Fallible traversal, separately.** Declined and removed: the owner rejected try-map on 2026-11-14 and asked that [#63](https://github.com/desireco/zhex/issues/63) be removed rather than parked; a select-shaped word over lists and arrays is drafted separately as [#70](https://github.com/desireco/zhex/issues/70). The sketch below is the historical research record, not a live proposal. It had been scoped after S4 and an explicit callback-effect design:
 
 ```text
 list.try-map(values: List<T>, transform: (T) -> Result<U, E>) -> Result<List<U>, E>
@@ -240,6 +240,110 @@ Shipped notes: the absolute child replaces the base — the recommended Python r
 
 Non-goals: no URL paths, no symlink resolution, no normalization to an absolute form, no `path.*` namespace, no filesystem access of any kind.
 
+### Document libraries research (#66/#67, 2026-11-14)
+
+The [#66 document research](https://github.com/desireco/zhex/issues/66) (JSON, YAML, and XML as native data) and the [#67 generation research](https://github.com/desireco/zhex/issues/67) (Markdown and HTML around Buffer) completed on 2026-11-14. Six owner decisions from the research window are recorded verbatim-short and baked into the candidates below:
+
+1. JSON heterogeneous trees: design the tree type now — filed as [#76](https://github.com/desireco/zhex/issues/76).
+2. YAML: stay dependency-free — deferred indefinitely.
+3. TOML: the preferred future candidate if the dependency policy ever changes.
+4. XML typed decode: the common `Error` family with `xml-*` codes.
+5. Markdown paragraphs: verbatim — no normalization.
+6. HTML: `html.raw` included from v1, unmistakably unsafe — the module guarantee becomes "escaped unless raw".
+
+Story numbering continues the #69 sequence. S13 was the JSON heterogeneous-tree slot; the owner's mid-research decision filed it as #76, its design lives there, and it is not repeated here. S12, S14, and S15 are candidates awaiting owner triage and are not filed as issues.
+
+Fit, defer, and exclude matrix:
+
+| Area | Verdict | Record |
+| --- | --- | --- |
+| JSON typed decode | Fit — already shipped | [#33](https://github.com/desireco/zhex/issues/33) shipped `json.decode`/`json.encode` with strict fields, defaults, and explicit Results; no new work needed. |
+| JSON heterogeneous trees | Superseded mid-research | Owner decision: the tree type was designed now and filed as #76; reference its design there, do not duplicate it here. |
+| YAML | Defer indefinitely | Owner decision: stay dependency-free. [goccy/go-yaml](https://github.com/goccy/go-yaml) was the researched candidate (MIT, active); [yaml.v3](https://github.com/go-yaml/yaml), archived 2025, is the cautionary precedent. |
+| TOML | Defer — preferred future candidate | Owner note: the preferred candidate if the dependency policy ever changes. Go's stdlib has no TOML either; [BurntSushi/toml](https://github.com/BurntSushi/toml) and [pelletier/go-toml/v2](https://github.com/pelletier/go-toml) are the maintained modules — equally dependency-carrying, better format determinism, healthier ecosystem. |
+| XML typed decode | Fit — S12 candidate | Dependency-free on stdlib [encoding/xml](https://pkg.go.dev/encoding/xml); see S12 below. |
+| XML DOM, mixed content, namespaces-as-data | Defer behind the tree-type wall | #76 now partially addresses the wall by proving the host-predeclared tree pattern for JSON; reopen only when a concrete mixed-content or namespaces-as-data XML workload exists after #76 lands. |
+| Markdown generation | Fit — S14 candidate | Pure-Zhex sibling module; see S14 below. |
+| HTML generation | Fit — S15 candidate | Pure Zhex plus one promotion candidate; see S15 below. |
+| Markdown parsing | Exclude | Generation is the workload; [goldmark](https://github.com/yuin/goldmark) would add a dependency and a parsing contract this research does not support. |
+| Template engines | Exclude | No template syntax; composition stays Zhex words over fragments. |
+
+**S12. XML typed decode.** Candidate from the #66 research, awaiting owner triage; not filed as an issue. Proposed host signature:
+
+```text
+xml.decode(text: String, defaults: Record) -> Result<Record, Error>
+```
+
+Owner decision baked in: the common `Error` family with `xml-*` codes, not a new error family.
+
+Demand: the #66 typed-configuration workload — read XML documents into declared records with the same strictness and immediate Result handling as `json.decode`, dependency-free on Go's [encoding/xml](https://pkg.go.dev/encoding/xml).
+
+Acceptance criteria:
+
+- Strict fields mirroring `json.decode`: unknown elements or attributes are rejected, and supplied defaults fill absent optional elements.
+- Attributes and element text are the only mapped content in v1; repeated sibling elements decode into `List<T>`, and an absent optional element decodes to its default or `Option<T>`.
+- Namespaces: prefixed names are rejected in v1 rather than silently flattened.
+- No DTD or entity definitions are processed, and no network access ever happens during parsing.
+- Depth and size limits and the failure contract follow the json codec precedent, with input position in the diagnostic where available; codes are stable `xml-*` names under the common `Error` family.
+- Tests first per the standing story rules; the new `xml` namespace goes through the [vocabulary-change checklist](vocabulary-checklist.md), including module-name reservation and editor word lists.
+
+Decisions to settle: the concrete `xml-*` code names and message shapes; whether defaults apply to absent elements only or also to empty text; how an element carrying both attributes and text maps onto a record expecting one of them.
+
+Non-goals: no XML encoding or serialization, no DTD/entity expansion, no XPath, no mixed content or namespaces-as-data (deferred behind the tree-type wall above), no streaming.
+
+**S14. Markdown generation module.** Candidate from the #67 research, awaiting owner triage; not filed as an issue. A pure-Zhex sibling module — no host words. Proposed module words:
+
+```text
+md.heading(text: String, level: Int) -> String
+md.paragraph(text: String) -> String
+md.bullet-list(items: List<String>) -> String
+md.ordered-list(items: List<String>) -> String
+md.link(text: String, url: String) -> String
+md.code-block(text: String, language: String = "") -> String
+```
+
+Owner decisions baked in: fragments, not appenders — every word returns a complete `String` fragment and never mutates a buffer, so `Buffer` stays the caller's accumulator; and the verbatim paragraph policy — caller text is emitted as written, with no normalization.
+
+Demand: the #67 report workload — compose native records and lists into a Markdown document through Buffer, without a renderer or template engine; fragment-returning words compose data-first in flows.
+
+Acceptance criteria:
+
+- CommonMark core subset only; the excluded extensions (tables, footnotes, task lists) are listed in the module's documentation.
+- Per-position escaping: heading and paragraph text escape Markdown metacharacters, link text and link URLs each get position-correct escaping, and code blocks select a fence longer than any backtick run in the content.
+- Verbatim paragraphs per the owner decision: no rewrapping, trimming, or blank-line insertion beyond what separates the fragment's own blocks.
+- Empty and multiline inputs are defined per word; nested composition (a link inside a list item) is tested.
+- Fixtures cover the #67 list: Unicode, ampersands, angle brackets, quotes, Markdown metacharacters, multiline code, empty content, and shared Buffer aliases at the call site.
+- Ships as a concrete sibling module (`use md`) with concrete signatures — no checker or host changes.
+
+Decisions to settle: where a distributed sibling module lives (beside the existing `modules/` corpus, in `examples/`, or a new home) and how programs reference it; heading-level bounds outside 1–6 (diagnose versus clamp); whether `md.link` applies a URL scheme policy like S15's or leaves URLs verbatim.
+
+Non-goals: no Markdown parsing, no HTML output, no tables or extension syntax, no text normalization, no Buffer mutation, no template engine.
+
+**S15. HTML generation module.** Candidate from the #67 research, awaiting owner triage; not filed as an issue. A pure-Zhex sibling module plus one promotion candidate: `html.escape-text` as a host word backed by Go's [html](https://pkg.go.dev/html) escaping, because correct context-free text escaping is subtle enough to earn the host boundary. Proposed module words:
+
+```text
+html.escape-text(text: String) -> String
+html.element(tag: String, attributes: Map<String, String>, content: String) -> String
+html.page(title: String, body: String) -> String
+html.raw(markup: String) -> String
+```
+
+Owner decision baked in: `html.raw` is included from v1, named unmistakably unsafe, and documented as bypassing every escaping property — the module guarantee becomes "escaped unless raw".
+
+Demand: the #67 report workload rendered as HTML — element and page composition from native records and lists, escaped text by default, and a deliberate, greppable raw escape hatch.
+
+Acceptance criteria:
+
+- Every text and attribute value is escaped in every position unless the caller passes it through `html.raw`; `html.raw` returns its argument unchanged, and its reference documentation states it bypasses every escaping property.
+- URL scheme policy: `javascript:` and `data:` URLs are rejected in URL-valued positions instead of emitted.
+- `html.element` emits one well-formed element with escaped attribute values; `html.page` emits a complete minimal HTML document.
+- Fixtures cover the #67 list: Unicode, ampersands, angle brackets, quotes, empty content, and nested composition.
+- If the owner approves the `html.escape-text` promotion with this story, it follows the [vocabulary-change checklist](vocabulary-checklist.md); otherwise it stays a module word.
+
+Decisions to settle: the attribute representation (`Map<String, String>` versus pre-escaped `List<String>` pairs); which attribute names are URL-checked (`href`/`src` only or a wider set) and the exact blocklist beyond `javascript:`/`data:`; whether `html.escape-text` ships here or as its own small story.
+
+Non-goals: no HTML parsing, no DOM, no template language, no CSS/JavaScript generation, no sanitization claim (`html.raw` is a documented bypass, not a sanitizer), no network.
+
 ## Deferred and excluded scope
 
 - **HTTP client/server:** optional capability work, not Phase 1. [Go Client.Do](https://pkg.go.dev/net/http#Client.Do) illustrates why status codes are response data while transport failures are errors. Define response records, closure, timeout, redirects, body caps, headers and text/binary representation before introducing a getter. Server lifecycle is another story.
@@ -251,7 +355,7 @@ Non-goals: no URL paths, no symlink resolution, no normalization to an absolute 
 
 ## Decision and completion boundary
 
-Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6 and the deliberately separate S7. S8 and other optional capabilities stay proposals.
+Recommended first batch: S1 and S2, with S3 independently improving the existing algorithm example. Then S4, followed by evidence-driven S5/S6; the deliberately separate S7 was later declined and removed with #63. S8 and other optional capabilities stay proposals.
 
 The owner approved story creation and one-by-one review. The stories were first filed in Inbox with no status, then explicitly moved to Todo at the owner's request; unresolved edge contracts stay explicit for review. Research and story creation do not implement these APIs or change the current reference; S1 (#57) and S2 (#58) have since shipped and are recorded in the inventory above, S3 (#59) shipped as source-level helper words without new host names, and S4 (#60) with S5 (#61) have since added the list callback words, and S6 (#62) the two list sorting words, to that inventory; S9 (#73) from the folder-operations research added the four file inspect words, and S10 (#75) the four destructive file words.
 
@@ -263,7 +367,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S4 | [#60 — List map/filter/fold](https://github.com/desireco/zhex/issues/60) — shipped | #57 workload and existing callable support |
 | S5 | [#61 — Short-circuit find/any/all](https://github.com/desireco/zhex/issues/61) — shipped | #60 callback contract |
 | S6 | [#62 — Stable copied sort/sort-by](https://github.com/desireco/zhex/issues/62) — shipped | #60 callback contract |
-| S7 | [#63 — Explicit fallible try-map](https://github.com/desireco/zhex/issues/63) | #60 plus callback-effect design |
+| S7 | [#63 — Explicit fallible try-map](https://github.com/desireco/zhex/issues/63) — declined and removed | #60 plus callback-effect design; declined 2026-11-14, #70 drafts the replacement |
 | S8 | [#64 — Paths/environment for batch reports](https://github.com/desireco/zhex/issues/64) | #57/#58 and a multi-file workload; later phase |
 | S9 | [#73 — File: inspect — list, exists, size, and free space](https://github.com/desireco/zhex/issues/73) — shipped | #69 research; executable example deferred until S10's `file.make-folder` |
 | S11 | [#74 — File: lexical path words — join, base, extension, directory-of](https://github.com/desireco/zhex/issues/74) — shipped | #69 research; the `paths` example registered |
