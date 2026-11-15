@@ -110,6 +110,8 @@ const (
 	CodeFileDeleteFolder Code = "file-delete-folder"
 	CodeFileMove         Code = "file-move"
 	CodeArgumentMissing  Code = "argument-missing"
+
+	CodeNotAvailableInBuild Code = "not-available-in-build"
 )
 
 var diagnosticCodes = []Code{
@@ -126,6 +128,7 @@ var diagnosticCodes = []Code{
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeArgumentMissing,
+	CodeNotAvailableInBuild,
 }
 
 //go:embed catalog.md

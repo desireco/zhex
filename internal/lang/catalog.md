@@ -316,3 +316,7 @@ A named time zone is invalid or unavailable. Use UTC or an IANA time zone name.
 ## unclosed-delimiter
 
 An opening parenthesis, bracket, or brace has no matching closing delimiter.
+
+## not-available-in-build
+
+The construct is outside the WebAssembly milestone-1 subset this build compiles. Run the program with `zhex run`, or rewrite it with constructs the build supports.
