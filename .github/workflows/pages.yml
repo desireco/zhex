@@ -35,8 +35,8 @@ jobs:
       - name: Install WebAssembly tools for the differential gate
         run: |
           mkdir -p "$HOME/.local/bin"
-          curl -fsSL https://github.com/WebAssembly/wasm-tools/releases/download/v1.263.0/wasm-tools-1.263.0-x86_64-linux.tar.gz | tar -xz -C "$HOME/.local/bin" --strip-components=1 wasm-tools-1.263.0-x86_64-linux/wasm-tools
-          curl -fsSL https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.gz | tar -xz -C "$HOME/.local/bin" --strip-components=1 wasmtime-v50.0.0-x86_64-linux/wasmtime
+          curl -fsSL https://github.com/bytecodealliance/wasm-tools/releases/download/v1.263.0/wasm-tools-1.263.0-x86_64-linux.tar.gz | tar -xz -C "$HOME/.local/bin" --strip-components=1 wasm-tools-1.263.0-x86_64-linux/wasm-tools
+          curl -fsSL https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.0/wasmtime-v50.0.0-x86_64-linux.tar.xz | tar -xJ -C "$HOME/.local/bin" --strip-components=1 wasmtime-v50.0.0-x86_64-linux/wasmtime
           wasm-tools --version
           wasmtime --version
       - name: Test interpreter and site data
