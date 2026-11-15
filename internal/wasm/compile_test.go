@@ -3,6 +3,7 @@ package wasm
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -115,6 +116,79 @@ func TestRunnerContract(t *testing.T) {
 	out, stderr, code := runNode(t, fail)
 	if code != 1 || out != "" || stderr != "runtime error: integer overflow\n" {
 		t.Fatalf("fail run: code=%d out=%q stderr=%q", code, out, stderr)
+	}
+}
+
+// stagedFailWat mimics the DESIGN-M2 §2c staged-message trap: message bytes
+// live at memory offset 0, zhex_msg_len exports their length, and the module
+// fails with the given code. withLen=false models a milestone-1 module that
+// exports no accessor — fixed-table codes must still work there.
+func stagedFailWat(code int, message string, withLen bool) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "(module\n  (import \"env\" \"print\" (func $env.print (param i32 i32)))\n  (memory (export \"memory\") 1)\n  (global $err (mut i32) (i32.const %d))\n  (func (export \"zhex_main\")\n", code)
+	for i, c := range []byte(message) {
+		fmt.Fprintf(&b, "    (i32.store8 (i32.const %d) (i32.const %d))\n", i, c)
+	}
+	b.WriteString("    (unreachable))\n  (func (export \"zhex_last_error\") (result i32) (global.get $err))\n")
+	if withLen {
+		fmt.Fprintf(&b, "  (func (export \"zhex_msg_len\") (result i32) (i32.const %d)))\n", len(message))
+	} else {
+		b.WriteString(")\n")
+	}
+	return b.String()
+}
+
+// The staged-message contract (DESIGN-M2 §2c): dynamic fail codes 12 and 15
+// stage their message as UTF-8 at memory offset 0 and the runner decodes it;
+// fixed codes 13 and 14 stay in the table and work without the accessor.
+func TestRunnerStagedFailMessage(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, tc := range []struct {
+		name    string
+		code    int
+		message string
+		withLen bool
+		stderr  string
+	}{
+		{
+			name:    "text-to-int",
+			code:    12,
+			message: `"x" is not a signed 64-bit decimal integer`,
+			withLen: true,
+			stderr:  "runtime error: \"x\" is not a signed 64-bit decimal integer\n",
+		},
+		{
+			name:    "text-to-int multibyte decodes as UTF-8",
+			code:    12,
+			message: `"é" is not a signed 64-bit decimal integer`,
+			withLen: true,
+			stderr:  "runtime error: \"é\" is not a signed 64-bit decimal integer\n",
+		},
+		{
+			name:    "array-select rank",
+			code:    15,
+			message: "array.select requires a rank-2 array, found rank 3",
+			withLen: true,
+			stderr:  "runtime error: array.select requires a rank-2 array, found rank 3\n",
+		},
+		{
+			name:    "replace-empty without the accessor",
+			code:    13,
+			message: "",
+			withLen: false,
+			stderr:  "runtime error: text.replace old text is empty\n",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			wasmPath := filepath.Join(t.TempDir(), "staged.wasm")
+			if err := assemble(stagedFailWat(tc.code, tc.message, tc.withLen), wasmPath); err != nil {
+				t.Fatalf("assemble staged module: %v", err)
+			}
+			out, stderr, code := runNode(t, wasmPath)
+			if code != 1 || out != "" || stderr != tc.stderr {
+				t.Fatalf("code=%d out=%q stderr=%q, want code 1 and %q", code, out, stderr, tc.stderr)
+			}
+		})
 	}
 }
 
