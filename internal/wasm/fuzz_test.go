@@ -39,8 +39,8 @@ var fuzzAtoms = []string{"a", "b", "abc", "Zx", " pad ", "é", "😀", " ", "li
 // grammar widens automatically (DESIGN-M4 §3, §7).
 const fuzzTrioProbe = `word fuzz-add(a: Int, b: Int) -> Int
     a + b
-let g: (Int, Int) -> Int = fuzz-add _, _
-let h = g _, 2
+let g: (Int, Int) -> Int = fuzz-add(_, _)
+let h: (Int) -> Int = g(_, 2)
 let show: (Int) -> Unit = print _
 show h(5)
 flow 7

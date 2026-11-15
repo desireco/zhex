@@ -28,7 +28,9 @@ type corpusRow struct {
 // files). Blocker spellings are the emitter's fence names, prefix-matched
 // because some carry a dynamic suffix (e.g. "generic choice Maybe").
 var corpusTable = map[string]corpusRow{
-	// in-subset today (DESIGN-M4 §1): 23 files, no args, stdin per the manifest
+	// in-subset (DESIGN-M4 §1 after M4): 24 files, no args, stdin per the
+	// manifest; xml-config flipped in with xml.decode and the checked list
+	// read (DESIGN-M4 §1 "In-subset after M4 — +1")
 	"collatz.zhex":                {in: true},
 	"composition.zhex":            {in: true},
 	"edit-distance.zhex":          {in: true},
@@ -52,6 +54,7 @@ var corpusTable = map[string]corpusRow{
 	"score-report.zhex":           {in: true},
 	"sorting.zhex":                {in: true},
 	"times-table.zhex":            {in: true, stdin: "7\n"},
+	"xml-config.zhex":             {in: true},
 
 	// out-of-subset (DESIGN-M4 §1 table): the first fence the emitter hits
 	// must name one of the row's blockers — emission order picks which
@@ -68,7 +71,6 @@ var corpusTable = map[string]corpusRow{
 	"temporal.zhex":               {blockers: []string{"timezone.load", "zoned.", "date.new", "time.new"}},
 	"text-stats.zhex":             {blockers: []string{"console.arg", "console.args-count"}},
 	"word-defaults.zhex":          {blockers: []string{"word parameter defaults"}},
-	"xml-config.zhex":             {blockers: []string{"xml.decode", "checked index reads"}},
 	"modules/html-page/html.zhex": {blockers: []string{"error.new"}},
 	"modules/html-page/main.zhex": {blockers: []string{"error.new"}},
 	"modules/math.test.zhex":      {blockers: []string{"console.fail"}},
