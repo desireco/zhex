@@ -174,7 +174,7 @@ func compileFixture(t *testing.T, name string) string {
 // the exit status must agree.
 func TestDifferential(t *testing.T) {
 	requireTool(t, "wasm-tools")
-	for _, name := range []string{"fib", "core", "lists", "choices"} {
+	for _, name := range []string{"fib", "core", "lists", "choices", "arrays"} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name)
 			source, err := os.ReadFile(filepath.Join("testdata", name+".zhex"))
