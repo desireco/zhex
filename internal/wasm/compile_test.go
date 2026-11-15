@@ -821,7 +821,7 @@ func TestCompiledDiagnosticsM3(t *testing.T) {
 func TestM3Fences(t *testing.T) {
 	for _, tc := range []struct{ name, source, construct string }{
 		{"free-space", "let free = file.free-space(\".\") try\nprint(int.to-string(free))\n", "file.free-space"},
-		{"xml-decode", "type Doc = record\n    a: Int\n\nlet doc = xml.decode(\"<a>1</a>\", Doc(a: 0)) try\n", "xml.decode"},
+		// xml-decode unfenced in M4 (DESIGN-M4 2) — B1's sanctioned touch
 		{"date-new", "let d = date.new(2026, 1, 15)\nprint(date.to-string(d))\n", "date.new"},
 		{"console-arg", "let first = console.arg(0) try\nprint(first)\n", "console.arg"},
 	} {
