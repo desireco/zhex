@@ -119,6 +119,9 @@ the handler runs with it — nothing in M2 can read it (`error.*` stays fenced,
 `file:line:col: "x" is not a signed 64-bit decimal integer` (verified); the
 compiled artifact drops only the position, per the M1 convention.
 
+(2026-11-15 amendment: §2d's top-level fail-12 was superseded by M3's fail-16 — see
+DESIGN-M3 §8; the fail table itself is unchanged, bytes 12/15 included.)
+
 ## 3. `Map` representation
 
 **(a) Structure.** Maps are reference values (aliases observe one map). One

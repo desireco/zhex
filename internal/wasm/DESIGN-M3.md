@@ -92,7 +92,7 @@ the fixture set). Verb table (the prelude renders the interpreter's wrapper plus
 | `file.read`, `file.open`, `env.load` read, `file.stream` open | `open <path>: <err>`; EISDIR from `fs_read_file` → `read <path>: is a directory` |
 | `file.write` phases | `open <path>: <err>` / `write <path>: <err>` / `close <path>: <err>` (hosts never report short writes) |
 | `file.exists` (code 18), `file.size` | `stat <path>: <err>` |
-| `file.list` | `open <path>: <err>`; ENOTDIR → `readdirent <path>: not a directory` (shortcut: open-stage ENOTDIR under a file path also renders `readdirent` — fixtures never list `file/child`) |
+| `file.list` | `open <path>: <err>`; ENOTDIR → `open <path>: not a directory` (2026-11-15 amendment: ENOTDIR renders at the open stage as `open <path>: not a directory`, matching the interpreter and the pinned fixture — the earlier `readdirent` wording was wrong) |
 | `file.make-folder` | `mkdir <path>: <err>` (both modes) |
 | `file.delete`, `file.delete-folder` | `remove <path>: <err>` |
 | `file.move` | `rename <src> <dst>: <err>` (LinkError, both paths) |
@@ -197,7 +197,9 @@ second (µ = U+00B5), `1.5s`, `1h30m0s`, leading `-`. No clocks;
   $zhex_arr_ref)}` with `$zjson_member {key, val}` (kinds 0 null … 5 object), and decode schemas
   `$zjson_schema {kind i32, element (ref null $zjson_schema), fields (ref null $zhex_arr_ref)}`
   + `$zjson_field {name, schema}` (kinds 0 int … 6 record). One `$zjson_schema<N>` builder func
-  per `json.decode`/typed `json.encode` call site (emitted; no caching).
+  per `json.decode`/typed `json.encode` call site (emitted; no caching). (2026-11-15 amendment:
+  `$zjson_schema` additionally carries `$make`/`$get` thunk fields beyond the three-field pin
+  above; the deviation flag in `watnames_m3.go:191` documents why.)
 - **`json.parse(raw)`** → `$zhex_json_parse((ref $zhex_string)) (ref $zhex_result)` (family 5).
   Strictness preamble: module strings are valid UTF-8 by construction (noted, not re-checked);
   the surrogate scan follows `validateJSONSurrogates` verbatim (per-byte, inside string literals
@@ -254,8 +256,9 @@ environ and earlier lines alike). Returns `ok(Unit)`.
 ## 8. Fence inventory and fail codes after M3
 
 **Unfenced:** all of `file.*` except `free-space`; `read-line`; `for line in file.stream`;
-`buffer.*`; `json.parse`/`encode`/`decode`; `duration.*`; `env.get`/`env.load`; `print` of
-Duration. **Still fenced** (code `not-available-in-build`, M2's milestone-neutral hint):
+`buffer.*`; `json.parse`/`encode`/`decode`; `duration.*`; `env.get`/`env.load`. (2026-11-15
+amendment: `print` of a Duration stays FENCED — the language checker rejects it, and parity with
+the interpreter wins; it was wrongly listed as unfenced.) **Still fenced** (code `not-available-in-build`, M2's milestone-neutral hint):
 `file.free-space`; `xml.decode`; `date.* time.* instant.* timezone.* zoned.*` (D3); `console.arg
 args-count exit fail` (M4); all `error.*` (caught err values stay opaque `$zhex_err` refs);
 checked forms (`try`/`catch` on `list.append`, `array.new`, `array.resize`, `file.exists`);
@@ -293,7 +296,8 @@ exit status against `zhex run`. Portable-path discipline (§2) applies to every 
 6. `buffers.zhex` — add/count/line/set/to-text, two-name aliasing, caught out-of-range;
    `buffer-fail.zhex` → `runtime error: buffer index 5 is outside 0..2`.
 7. `duration.zhex` — new/parse/to-string (0, negative, ns, `1.5h`, `2h45m`, `500ms`, µs with
-   U+00B5), caught `invalid duration`, `print(duration)`.
+   U+00B5), caught `invalid duration` (2026-11-15 amendment: no `print(duration)` — Duration print
+is fenced, §8; the fixture renders with `duration.to-string`).
 8. `json.zhex` — parse + match over all six variants, encode round-trip (key order, `1.50`
    preserved, exponents), tree mutation then encode; typed decode with records/Option/list/map,
    missing-field default fill, caught unknown field and duplicate key; a depth-256 tree walked
@@ -342,7 +346,9 @@ exit status against `zhex run`. Portable-path discipline (§2) applies to every 
 - Linear-scan `ref.eq` memo for decode-defaults aliasing; Go json syntax-context table with an
   upgrade shortcut.
 - Duration unboxed i64 ns; Go `ParseDuration`/`String` reimplemented; family Error.
-- Fail codes 16–18, families 2–5; M2's code-12 unhandled reuse retired.
+- Fail codes 16–18, families 2–5; M2's code-12 unhandled reuse retired. (2026-11-15 note:
+  sanctioned M3 cross-file touch — `watnames_m2_test.go`'s exact-set check became
+  membership-based to accept the M3 additions.)
 - Virtual FS in `run.mjs` (in-memory tree, no permissions); stdout + exit status is the
   differential assertion; final-tree state is asserted through the program's own output
   (list/exists).
