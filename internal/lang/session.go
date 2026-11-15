@@ -75,6 +75,7 @@ type Session struct {
 	reporter    *expression
 	resolve     func(name string) (ModuleSource, bool)
 	active      []*scope // scopes of in-flight entries: a driver entry keeps its bindings framed across nested Enters
+	seam        bool     // RegisterReplSeam ran: the repl vocabulary is live and reserved against shadowing
 	recordOrder []string // session-declared type names in adoption order, for Export
 	wordOrder   []string // own word names in adoption order, for Export
 }
@@ -127,8 +128,19 @@ func (s *Session) usedDirectly(name string) bool {
 // already performed. On success the entry's words, modules, and names are
 // adopted and the entry's last value is echoed (empty for Unit).
 func (s *Session) Enter(source string) (string, error) {
+	// A nested repl.enter/repl.load runs inside this entry's runtime, which
+	// starts at depth 0, so the engine's word-call depth limit cannot see the
+	// recursion — cap concurrent entries instead of exhausting the Go stack.
+	if len(s.active) >= 64 {
+		return "", annotate(withHint(
+			errorAt(position{file: "repl", line: 1, column: 1}, CodeDepthLimit, "repl entry nesting limit of 64 exceeded"),
+			"rewrite the nested repl.enter calls as a while loop — loops have no entry nesting limit"), source)
+	}
 	p, err := parse("repl", source)
 	if err != nil {
+		return "", annotate(err, source)
+	}
+	if err := s.seamReject(p); err != nil {
 		return "", annotate(err, source)
 	}
 	sources := make(map[string]string, len(s.sources)+1)

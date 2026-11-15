@@ -79,14 +79,14 @@ func (s *Session) exportBinding(name string, b *binding, v value) ([]string, boo
 		if v.buffer == nil {
 			return nil, false
 		}
-		statements := []string{"let " + name + ": Buffer = buffer.new()"}
+		statements := []string{keyword + " " + name + ": Buffer = buffer.new()"}
 		for _, line := range v.buffer.lines {
 			statements = append(statements, "buffer.add-line("+name+", "+strconv.Quote(line)+")")
 		}
 		return statements, true
 	}
 	if kind, inner, ok := collectionInner(b.typ); ok && kind == "Array" {
-		return s.exportArray(name, b.typ, inner, v)
+		return s.exportArray(name, keyword, b.typ, inner, v)
 	}
 	literal, ok := s.literal(v, b.typ)
 	if !ok {
@@ -98,7 +98,7 @@ func (s *Session) exportBinding(name string, b *binding, v value) ([]string, boo
 // exportArray renders an array binding as array.new with the first element as
 // fill, then one indexed write per differing element, reproducing the flat
 // row-major contents exactly.
-func (s *Session) exportArray(name string, typ, inner valueType, v value) ([]string, bool) {
+func (s *Session) exportArray(name, keyword string, typ, inner valueType, v value) ([]string, bool) {
 	if v.array == nil {
 		return nil, false
 	}
@@ -125,7 +125,7 @@ func (s *Session) exportArray(name string, typ, inner valueType, v value) ([]str
 	for i, n := range v.array.shape {
 		dims[i] = strconv.FormatInt(n, 10)
 	}
-	statements := []string{"let " + name + ": " + string(typ) + " = array.new([" + strings.Join(dims, ", ") + "], " + fill + ") try"}
+	statements := []string{keyword + " " + name + ": " + string(typ) + " = array.new([" + strings.Join(dims, ", ") + "], " + fill + ") try"}
 	for i, item := range v.array.items {
 		literal, ok := s.literal(item, inner)
 		if !ok {

@@ -282,6 +282,88 @@ func TestReplSeamLoadPropagatesExit(t *testing.T) {
 	}
 }
 
+// Nested repl.enter recursion cannot reach the runtime word-call depth limit:
+// each Enter runs in a fresh runtime at depth 0, so Session.Enter caps
+// concurrent entries and the recursion unwinds with a diagnostic, not a crash.
+func TestReplSeamEnterNestingCapYieldsDiagnostic(t *testing.T) {
+	var out bytes.Buffer
+	s := seamSession(&out)
+	definition := "word ping()\n" +
+		"    match repl.enter(\"ping()\")\n" +
+		"        case EnterResult.Ran(echo)\n            print(echo)\n" +
+		"        case EnterResult.Failed(report)\n            print(report)\n" +
+		"        case EnterResult.Exited(status)\n            console.exit(status)\n"
+	for _, entry := range []string{definition, "ping()\n"} {
+		if _, err := s.Enter(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !strings.Contains(out.String(), "repl entry nesting limit of 64 exceeded") {
+		t.Fatalf("diagnostic missing from output %q", out.String())
+	}
+}
+
+// The same cap covers recursion routed through repl.load: a file that loads
+// itself fails at the cap instead of exhausting the Go stack.
+func TestReplSeamLoadRecursionHitsNestingCap(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "loop.zhex")
+	source := "let done = repl.load(" + zstring(path) + ") try\n"
+	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	s := seamSession(&out)
+	if _, err := s.Enter(source); err == nil || !strings.Contains(err.Error(), "repl entry nesting limit of 64 exceeded") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+// While the seam is registered, a sibling repl.zhex module is rejected: its
+// qualified words would silently replace the seam's own. Without the seam the
+// same module name stays an ordinary module — the rejection is seam-scoped.
+func TestReplSeamRejectsUseReplModule(t *testing.T) {
+	resolver := mapResolver(map[string]string{"repl.zhex": "word enter(source: String) -> String\n    source\n"})
+	var out bytes.Buffer
+	s := NewSession(strings.NewReader(""), &out, nil, resolver)
+	s.RegisterReplSeam()
+	if _, err := s.Enter("use repl\n"); err == nil || !strings.Contains(err.Error(), "module name \"repl\" is reserved by the active repl seam") {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := s.Enter("match repl.enter(\"2 + 3\")\n" +
+		"    case EnterResult.Ran(echo)\n        print(echo)\n" +
+		"    case EnterResult.Failed(report)\n        print(report)\n" +
+		"    case EnterResult.Exited(status)\n        console.exit(status)\n"); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "5\n" {
+		t.Fatalf("seam words disturbed: %q", out.String())
+	}
+	plain := NewSession(strings.NewReader(""), &bytes.Buffer{}, nil, resolver)
+	if _, err := plain.Enter("use repl\nprint(repl.enter(\"x\"))\n"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A user EnterResult declaration would shadow the seam's outcome choice; the
+// seam session rejects it by name.
+func TestReplSeamRejectsEnterResultDeclaration(t *testing.T) {
+	var out bytes.Buffer
+	s := seamSession(&out)
+	if _, err := s.Enter("type EnterResult = choice\n    Ran(echo: String)\n"); err == nil || !strings.Contains(err.Error(), `type "EnterResult" is reserved by the active repl seam`) {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := s.Enter("match repl.enter(\"1\")\n" +
+		"    case EnterResult.Ran(echo)\n        print(echo)\n" +
+		"    case EnterResult.Failed(report)\n        print(report)\n" +
+		"    case EnterResult.Exited(status)\n        console.exit(status)\n"); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n" {
+		t.Fatalf("seam choice disturbed: %q", out.String())
+	}
+}
+
 // A driver entry holds its state in bindings across a while loop; nested
 // repl.enter calls prune the session frame between passes, so the engine must
 // keep an in-flight entry's bindings framed (the active-scope stack).

@@ -36,6 +36,10 @@ func run(input io.Reader, output, diagnostics io.Writer) int {
 		return 1
 	}
 	session.RegisterReplSeam()
+	// Load-bearing invariant: the driver always ends through console.exit (the
+	// eof branch), so Enter takes the error path here and never adopts the
+	// driver's words — that is what keeps repl.words() and exports clean. A
+	// driver that returned normally would silently pollute every session.
 	if _, err := session.Enter(driverSource); err != nil {
 		var exit *lang.ExitError
 		if errors.As(err, &exit) {

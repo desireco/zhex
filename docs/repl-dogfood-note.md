@@ -48,6 +48,12 @@ them (pinned by test).
   (the type-level family is FileError; `error.code` reports the entry's
   real code); an exit requested by the loaded file propagates as an exit.
 
+While the seam is registered the session rejects `use repl` and a user
+`type EnterResult` declaration (`use-reserved` / `duplicate-name`): a
+sibling `repl.zhex` would silently replace seam words through the qualified
+merge, and a shadowing type would hide the outcome choice. The rejection is
+prototype-scoped — an unregistered session accepts both names.
+
 ## Engine machinery this needed
 
 - In-flight entry scopes: `Session.active` keeps a running entry's scope
@@ -67,6 +73,12 @@ them (pinned by test).
 - Parser fix: the pseudo-kind lookahead treated a binding *named* `eof`
   as the end-of-file token; `indent`/`dedent`/`newline`/`eof` no longer
   match by name text (pre-existing bug, found by the driver).
+- Entry nesting cap: concurrent `Session.Enter` calls (nested
+  `repl.enter`/`repl.load`) are capped at 64. Each nested entry runs in a
+  fresh runtime at depth 0, so the word-call depth limit cannot see the
+  recursion — the cap reports `depth-limit` ("repl entry nesting limit of
+  64 exceeded") instead of letting a self-referential script exhaust the
+  Go stack.
 
 ## Session export format
 
@@ -78,9 +90,9 @@ use math                 every direct use, in adoption order
 <type source slices>     session-declared types, adoption order
 <word source slices>     own words, adoption order, current bodies
 let b: Buffer = buffer.new()      bindings, sorted by name, always
-buffer.add-line(b, "one")         annotated; buffers add one line per
-let grid: Array<Int> = array.new([2, 2], 0) try   arrays rebuild with
-grid[0, 1] = 5                   fill + indexed writes
+buffer.add-line(b, "one")         annotated, let/var kept; buffers add
+let grid: Array<Int> = array.new([2, 2], 0) try   one line per; arrays
+grid[0, 1] = 5                   rebuild with fill + indexed writes
 var count: Int = 4
 error.set-reporter(report)       when a reporter is installed
 ```
@@ -129,7 +141,7 @@ read, so the driver submits it through the normal path instead).
 
 `tools/dogfood/main_test.go` runs both binaries as subprocesses with
 stderr sharing stdout's file descriptor, so the merged transcript is the
-true write order. 29 scripted cases plus 350 generated entries match
+true write order. 28 scripted cases plus 350 generated entries match
 byte-for-byte in write order: bindings, compatible/incompatible
 redefinitions, words, use (with module), check errors, runtime errors
 with retained effects, session survival, incomplete blocks, open
@@ -138,7 +150,8 @@ program input, bye/console.exit/console.fail, and empty scripts. Exit
 statuses match, including `console.exit(999)` — a runtime diagnostic,
 after which both REPLs continue to EOF and exit 0.
 
-Measured divergences (all pinned by tests):
+Measured divergences (the first two are pinned by tests; the third was
+measured by hand):
 
 1. **Diagnostic stream.** Zhex has no stderr writer, so the driver
    routes `Failed` reports and the EOF unclosed-delimiter diagnostic
@@ -162,9 +175,7 @@ restoration) as its own gate — the existing PTY suite stays the
 boundary. Conveniences deferred: editor indent probing
 (`DelimiterIndent` composition) is deliberately outside this seam; a
 driver-side transcript/history is unnecessary while export is
-engine-side; no guard bounds nested `repl.enter` recursion (each nested
-entry gets a fresh runtime, so the engine's depth limit does not apply —
-a self-referential script can exhaust the Go stack).
+engine-side.
 
 ## Invocation
 

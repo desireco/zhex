@@ -24,6 +24,7 @@ func (s *Session) RegisterReplSeam() {
 		},
 	}
 	s.records[enterResult.id()] = enterResult
+	s.seam = true
 	words := []*word{
 		seamWord("repl.enter", []parameter{{name: "source", typ: stringType}}, "EnterResult", s.seamEnter),
 		seamWord("repl.words", nil, "List<String>", s.seamWords),
@@ -36,6 +37,32 @@ func (s *Session) RegisterReplSeam() {
 	for _, w := range words {
 		s.words[w.module+"."+w.name] = w
 	}
+}
+
+// seamReject guards the seam's own vocabulary while it is registered: a
+// module named repl would silently replace seam words through the qualified
+// merge, and a user EnterResult would shadow the seam's outcome choice. The
+// rejection is prototype-scoped — an unregistered session keeps accepting the
+// module name and the type name.
+func (s *Session) seamReject(p *Program) error {
+	if !s.seam {
+		return nil
+	}
+	for _, u := range p.uses {
+		if u.name == "repl" {
+			return withSpanRange(withHint(
+				errorAt(u.pos, CodeUseReserved, "module name %q is reserved by the active repl seam", u.name),
+				"rename the module file — the repl namespace belongs to the seam while it is registered"), u.pos, u.end)
+		}
+	}
+	for _, record := range p.records {
+		if record.name == "EnterResult" {
+			return withHint(
+				errorAt(record.pos, CodeDuplicateName, "type %q is reserved by the active repl seam", record.name),
+				"choose another type name — EnterResult is the seam's outcome choice")
+		}
+	}
+	return nil
 }
 
 // seamWord builds one host-evaluated session word under the repl namespace;

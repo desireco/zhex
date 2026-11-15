@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The transcript matrix: diff the prototype against production `zhex repl` on
@@ -42,11 +44,14 @@ func TestMain(m *testing.M) {
 }
 
 // runMerged runs one binary over a piped script with stderr sharing stdout's
-// file, so the returned transcript records the true write order.
+// file, so the returned transcript records the true write order. The 30s cap
+// keeps a future hang from stalling the matrix; healthy runs take milliseconds.
 func runMerged(t *testing.T, bin, script, dir string) (string, int) {
 	t.Helper()
 	var out bytes.Buffer
-	cmd := exec.Command(bin, "repl")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "repl")
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader(script)
 	cmd.Stdout = &out
@@ -55,11 +60,13 @@ func runMerged(t *testing.T, bin, script, dir string) (string, int) {
 	return out.String(), status
 }
 
-// runSplit captures stdout and stderr separately.
+// runSplit captures stdout and stderr separately, under the same 30s cap.
 func runSplit(t *testing.T, bin, script, dir string) (string, string, int) {
 	t.Helper()
 	var out, errs bytes.Buffer
-	cmd := exec.Command(bin, "repl")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "repl")
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader(script)
 	cmd.Stdout, cmd.Stderr = &out, &errs
@@ -208,7 +215,7 @@ func TestTranscriptExitStatuses(t *testing.T) {
 	}
 }
 
-func TestTranscriptThreeHundredEntries(t *testing.T) {
+func TestTranscript350Entries(t *testing.T) {
 	var script strings.Builder
 	for i := 0; i < 350; i++ {
 		script.WriteString("let v" + itoa(i) + " = " + itoa(i) + "\n")
@@ -222,6 +229,21 @@ func TestTranscriptThreeHundredEntries(t *testing.T) {
 	}
 	if !strings.Contains(dog, "349\n") {
 		t.Fatal("last entry did not run")
+	}
+}
+
+// The ping recursion — a word whose body re-enters itself through the seam —
+// hits the session's entry nesting cap and unwinds as an EnterResult instead
+// of exhausting the Go stack; the binary finishes cleanly.
+func TestDogfoodPingRecursionHitsNestingCap(t *testing.T) {
+	dir := t.TempDir()
+	script := "word ping()\n    repl.enter(\"ping()\")\n\nping()\n"
+	merged, status := runMerged(t, dogfoodBin, script, dir)
+	if status != 0 {
+		t.Fatalf("status %d, transcript %s", status, merged)
+	}
+	if !strings.Contains(merged, "choice(EnterResult.Ran)") || strings.Contains(merged, "goroutine") {
+		t.Fatalf("transcript %s", merged)
 	}
 }
 

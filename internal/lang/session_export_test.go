@@ -65,7 +65,7 @@ func TestSessionExportBindingLiterals(t *testing.T) {
 		"let some: Option<Int> = Option.Some(7)\n",
 		"let none: Option<Int> = Option.None\n",
 		"let tree = Json.Object({\"k\": Json.Number(\"1.5\"), \"z\": Json.List([Json.Null, Json.Bool(true)])})\n",
-		"let grid = array.new([2, 2], 0) try\n",
+		"var grid = array.new([2, 2], 0) try\n",
 		"grid[0, 1] = 5\n",
 		"let day = date.parse(\"2026-11-14\") try\n",
 		"let clock = time.parse(\"12:34:56.5\") try\n",
@@ -73,7 +73,7 @@ func TestSessionExportBindingLiterals(t *testing.T) {
 		"let moment = instant.parse(\"2026-11-14T10:00:00.25Z\") try\n",
 		"let zone = timezone.load(\"UTC\") try\n",
 		"let stamp = zoned.new(day, clock, zone)\n",
-		"let b = buffer.new()\n",
+		"var b = buffer.new()\n",
 		"buffer.add-line(b, \"one\")\n",
 		"buffer.add-line(b, \"\")\n",
 	} {
@@ -90,7 +90,7 @@ func TestSessionExportBindingLiterals(t *testing.T) {
 	want := "# zhex session v1\n" +
 		"type Point = record\n    x: Int\n    y: Int = 0\n" +
 		"type Status = choice\n    Pending\n    Failed(reason: String)\n" +
-		"let b: Buffer = buffer.new()\n" +
+		"var b: Buffer = buffer.new()\n" +
 		"buffer.add-line(b, \"one\")\n" +
 		"buffer.add-line(b, \"\")\n" +
 		"let bare: Map<String, Int> = {}\n" +
@@ -100,7 +100,7 @@ func TestSessionExportBindingLiterals(t *testing.T) {
 		"let defaulted: Point = Point(x: 9, y: 0)\n" +
 		"let empty: List<String> = []\n" +
 		"let flag: Bool = true\n" +
-		"let grid: Array<Int> = array.new([2, 2], 0) try\n" +
+		"var grid: Array<Int> = array.new([2, 2], 0) try\n" +
 		"grid[0, 1] = 5\n" +
 		"let moment: Instant = instant.parse(\"2026-11-14T10:00:00.25Z\") try\n" +
 		"let name: String = \"Ada \\\"Ace\\\"\"\n" +
@@ -182,6 +182,10 @@ func TestSessionExportRoundTripRestoresState(t *testing.T) {
 		"let b = buffer.new()\n",
 		"buffer.add-line(b, \"alpha\")\n",
 		"buffer.add-line(b, \"beta\")\n",
+		"var log = buffer.new()\n",
+		"buffer.add-line(log, \"old\")\n",
+		"var cells = array.new([1, 2], 7) try\n",
+		"cells[0, 1] = 9\n",
 		"let tree = Json.List([Json.Number(\"2\"), Json.Text(\"x\")])\n",
 		"let day = date.parse(\"2026-01-02\") try\n",
 	} {
@@ -209,6 +213,19 @@ func TestSessionExportRoundTripRestoresState(t *testing.T) {
 	}
 	if echo, err := fresh.Enter("buffer.to-text(b)"); err != nil || echo != "alpha\nbeta" {
 		t.Fatalf("buffer did not round-trip: %q, %v", echo, err)
+	}
+	// A var Buffer or Array keeps its var-ness: rebinding after load succeeds.
+	if _, err := fresh.Enter("log = buffer.new()\nbuffer.add-line(log, \"next\")\n"); err != nil {
+		t.Fatalf("var buffer lost mutability: %v", err)
+	}
+	if echo, err := fresh.Enter("buffer.to-text(log)"); err != nil || echo != "next" {
+		t.Fatalf("rebound buffer wrong: %q, %v", echo, err)
+	}
+	if _, err := fresh.Enter("cells = array.new([1, 2], 3) try\n"); err != nil {
+		t.Fatalf("var array lost mutability: %v", err)
+	}
+	if echo, err := fresh.Enter("cells[0, 1]"); err != nil || echo != "3" {
+		t.Fatalf("rebound array wrong: %q, %v", echo, err)
 	}
 	if echo, err := fresh.Enter("json.encode(tree) try"); err != nil || echo != "[2,\"x\"]" {
 		t.Fatalf("json tree did not round-trip: %q, %v", echo, err)
