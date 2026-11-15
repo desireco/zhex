@@ -82,6 +82,10 @@ Fixed types (owned by the prelude, always emitted; `X` ∈ {i64, i32, ref} speci
   the wrapper's shape + items. Both wrappers carry `$active` for iteration-mutation checks.
 - **Choices**: one struct per variant (`$zt_<mangled-type>_<Variant>`) holding that variant's
   payload fields in declaration order; payload-less variants get a fieldless struct.
+  (Amended 2026-11-15: WasmGC declared types are **structural** — same-shape variants
+  canonicalize to one type, so `ref.test` cannot distinguish them and plain struct-per-variant
+  is insufficient. The emitter therefore pads variant *i* with *i* i64 fields ahead of the
+  payload plus a trailing i32 discriminant, making every variant's shape unique.)
   **Option** = `$zhex_some_X` per payload repr + one shared `$zhex_none`.
 - **Result** = the single `$zhex_result` struct: tag 0 ok / 1 err, payload boxed with
   `(struct.new $zhex_some_i64 v)` for Int payloads (amended 2026-11-14: `ref.i31` holds 31
@@ -279,7 +283,10 @@ suffix differs). No other flags in M1 (no `--report`).
   repr); no boxing except Result payloads (i31 for Bool; Int payloads box as `$zhex_some_i64` —
   the 31-bit i31 corruption was found during prelude review, §2 amendment).
 - Choice = struct-per-variant, match = `ref.test` chain in source order; `Option` via per-repr
-  `Some` + shared `None`.
+  `Some` + shared `None` (variants padded to distinct shapes because WasmGC types are
+  structural — §2 amendment). All-named record constructions mint a unique temporary id per
+  construction (fixed 2026-11-15: a shared id collided across differently-typed constructions
+  in one word, feeding a value to a local of the wrong type).
 - Result = one `{tag, eqref}` struct; `try`-on-err traps fail 11 (defensive — `err()` is
   unconstructible in the M1 subset because `error.new` is fenced); `try/catch` on collection
   ops (checked form) fenced.
