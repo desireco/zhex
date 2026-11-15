@@ -65,15 +65,21 @@ type Config = record
     retries: Int
     verbose: Bool
     endpoints: List<Endpoint>
+    limits: Map<String, Int>
     timeout: Option<Int>
 
-let defaults = Config(service: "ingest", retries: 3, verbose: false, endpoints: list.new(), timeout: Option.None)
-let cfg = json.decode("{ \"service\": \"batch\", \"endpoints\": [ { \"host\": \"db\", \"port\": 5432 } ] }", defaults) try
+let defaults = Config(service: "ingest", retries: 3, verbose: false, endpoints: list.new(), limits: {}, timeout: Option.None)
+let cfg = json.decode("{ \"service\": \"batch\", \"endpoints\": [ { \"host\": \"db\", \"port\": 5432 } ], \"limits\": { \"cpu\": 4, \"mem\": 2 } }", defaults) try
 print(cfg.service)
 print(int.to-string(cfg.retries))
 let ep = cfg.endpoints[0]
 print(ep.host)
 print(int.to-string(ep.port))
+match cfg.limits["cpu"]
+    case Option.Some(v)
+        print("cpu limit: " + int.to-string(v))
+    case Option.None
+        print("cpu limit: unset")
 print(json.encode(cfg) try)
 
 let missing-default = json.decode("{\"service\": \"batch\", \"endpoints\": [], \"retries\": 9}", defaults) try

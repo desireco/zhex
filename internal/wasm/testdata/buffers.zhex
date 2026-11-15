@@ -17,5 +17,6 @@ let fresh = buffer.new()
 print("fresh: <" + buffer.to-text(fresh) + ">")
 print("fresh count: " + int.to-string(buffer.line-count(fresh)))
 
-let bad = buffer.line(b, 5) catch "caught"
+let bad = buffer.line(b, 5) catch
+    "caught"
 print(bad)

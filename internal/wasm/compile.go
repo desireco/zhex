@@ -25,10 +25,12 @@ type MissingToolError struct{}
 func (e *MissingToolError) Error() string { return missingToolMessage }
 
 // Compile checks the source, emits WAT (lang.CompileWat), and assembles it
-// into outPath; a nil return means the artifact is written. Checker errors
-// pass through unchanged so the CLI renders them exactly as run does.
-func Compile(path, source, outPath string, resolve func(string) (lang.ModuleSource, bool)) error {
-	wat, err := lang.CompileWat(path, source, resolve)
+// into outPath; a nil return means the artifact is written. The skin selects
+// the host layer (DESIGN-M3 §1c): browser by default, WASI for wasmtime.
+// Checker errors pass through unchanged so the CLI renders them exactly as
+// run does.
+func Compile(path, source, outPath string, resolve func(string) (lang.ModuleSource, bool), skin lang.WatSkin) error {
+	wat, err := lang.CompileWat(path, source, resolve, skin)
 	if err != nil {
 		return err
 	}

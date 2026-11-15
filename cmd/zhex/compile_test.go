@@ -17,6 +17,8 @@ func TestCompileUsageErrors(t *testing.T) {
 		{"compile", "-o", "out.wasm"},
 		{"compile", "a.zhex", "b.zhex"},
 		{"compile", "a.zhex", "-o", "x.wasm", "-o", "y.wasm"},
+		{"compile", "a.zhex", "--target=wasm3"},
+		{"compile", "a.zhex", "--target"},
 	} {
 		var out, diagnostics bytes.Buffer
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || !strings.Contains(diagnostics.String(), "usage:") {

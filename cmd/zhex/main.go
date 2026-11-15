@@ -23,7 +23,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] | zhex repl [--trace]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -91,12 +91,15 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	return 0
 }
 
-// compileCmd implements `zhex compile <file.zhex> [-o <out.wasm>]`: check,
-// emit WAT, assemble with wasm-tools, write the artifact. Checker errors
-// render exactly as run's; a missing wasm-tools prints the pinned
-// missing-tool diagnostic; either way no artifact is written.
+// compileCmd implements `zhex compile <file.zhex> [-o <out.wasm>]
+// [--target=browser|wasi]`: check, emit WAT, assemble with wasm-tools, write
+// the artifact. The target picks the host layer (browser by default per D4);
+// an unknown value is a usage error. Checker errors render exactly as run's;
+// a missing wasm-tools prints the pinned missing-tool diagnostic; either way
+// no artifact is written.
 func compileCmd(args []string, diagnostics io.Writer) int {
 	file, outPath := "", ""
+	skin := lang.WatSkinBrowser
 	for i := 0; i < len(args); i++ {
 		switch arg := args[i]; {
 		case arg == "-o":
@@ -106,6 +109,10 @@ func compileCmd(args []string, diagnostics io.Writer) int {
 			}
 			i++
 			outPath = args[i]
+		case arg == "--target=browser":
+			skin = lang.WatSkinBrowser
+		case arg == "--target=wasi":
+			skin = lang.WatSkinWASI
 		case strings.HasPrefix(arg, "-"):
 			fmt.Fprintln(diagnostics, usage)
 			return 2
@@ -135,7 +142,7 @@ func compileCmd(args []string, diagnostics io.Writer) int {
 	dir := filepath.Dir(file)
 	if err := wasm.Compile(file, string(source), outPath, func(name string) (lang.ModuleSource, bool) {
 		return readModule(dir, name)
-	}); err != nil {
+	}, skin); err != nil {
 		fmt.Fprintln(diagnostics, err)
 		return 1
 	}
