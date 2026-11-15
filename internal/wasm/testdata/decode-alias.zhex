@@ -1,0 +1,14 @@
+# decode aliasing probe: an absent List<Int> field falls back to the
+# defaults record's list; the decode must deep-clone it, so a plain indexed
+# write on the first decode cannot reach a second decode from the same
+# defaults (DESIGN-M4 review round).
+
+type Config = record
+    xs: List<Int>
+
+let template = Config([1])
+let first = json.decode("{}", template) try
+first.xs[0] = 99
+print(first.xs[0] try)
+let second = json.decode("{}", template) try
+print(second.xs[0] try)

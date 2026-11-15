@@ -227,6 +227,7 @@ func TestDifferentialM4(t *testing.T) {
 	for _, tc := range []struct{ name, stderr string }{
 		{name: "xml"},
 		{name: "trio"},
+		{name: "decode-alias"},
 		{name: "xml-fail", stderr: "runtime error: unknown element \"ghost\" at \"/ghost\"\n"},
 		{name: "xml-syntax", stderr: "runtime error: invalid XML: XML syntax error on line 1: element <body> closed by </doc> at \"\"\n"},
 		{name: "xml-entity", stderr: "runtime error: invalid XML: XML syntax error on line 1: invalid character entity &bogus; at \"\"\n"},
