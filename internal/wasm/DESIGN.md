@@ -14,8 +14,11 @@ This document pins every interface three parallel builders share. Where a sectio
    **Decision:** D2's route (hand-written WAT text + external assembler, no binary encoder in Go)
    stands, but the assembler is `wasm-tools` (BytecodeAlliance `wat` crate — same family as the
    installed wasmtime 50; on Arch via `pacman -S wasm-tools`, elsewhere `cargo install wasm-tools`).
-   Invocation: `wasm-tools parse <in.wat> -o <out.wasm>` (validates by default; no feature flags
-   needed). The entire runtime idiom below was assembled with wasm-tools 1.263 and executed
+   Invocation: `wasm-tools parse <in.wat> -o <out.wasm>` assembles the binary but does **not**
+   validate it (verified 2026-11-15: parse exits 0 on type-invalid modules, e.g. an i64 returned
+   where i32 is declared), so the pipeline runs `wasm-tools validate <out.wasm>` as a separate
+   step and treats a nonzero exit as a compile failure. No feature flags needed. The entire
+   runtime idiom below was assembled with wasm-tools 1.263 and executed
    correctly under Node 22.23: imports, GC structs/arrays, mutable ref fields, i31 boxing,
    depth-counter trap mapped back through an exported error code.
 2. **The checked tree is package-private.** `internal/lang` exports `CompileModules` but every
@@ -216,8 +219,10 @@ short-circuit; the unguarded `Min/-1` traps). Unary `-` on `Min` → fail 1.
   `$zhex_main` for `p.body`, then the three exports. No `(start)` section — the runner calls
   `zhex_main()` explicitly so imports can close over `instance.exports` and traps land in JS.
 - **Assembly**: `internal/wasm.assemble` writes the WAT to `os.CreateTemp("", "zhex-*.wat")`,
-  runs `wasm-tools parse <tmp.wat> -o <outPath>` (LookPath first, §8), removes the temp; a
-  non-zero exit wraps as `wasm-tools failed: <stderr tail>` (it is a compiler bug).
+  runs `wasm-tools parse <tmp.wat> -o <outPath>` then `wasm-tools validate <outPath>`
+  (LookPath first, §8; parse assembles without validating — Surprises 1), removes the temp; a
+  non-zero exit from either step wraps the tool's stderr as
+  `wasm-tools failed: <stderr>` (it is a compiler bug).
 
 ## 8. CLI contract
 

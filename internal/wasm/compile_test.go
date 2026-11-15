@@ -126,6 +126,22 @@ func TestAssembleRejectsInvalidWat(t *testing.T) {
 	}
 }
 
+// wasm-tools parse assembles type-invalid modules with exit 0 (DESIGN.md,
+// Surprises 1); the pipeline's separate validate step must catch them and
+// surface the tool's stderr.
+func TestAssembleRejectsTypeInvalidModule(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	outPath := filepath.Join(t.TempDir(), "bad.wasm")
+	err := assemble("(module (func (result i32) (i64.const 0)))", outPath)
+	if err == nil || !strings.HasPrefix(err.Error(), "wasm-tools failed:") ||
+		!strings.Contains(err.Error(), "type mismatch") {
+		t.Fatalf("type-invalid module: got %v, want a wasm-tools failed error naming the mismatch", err)
+	}
+	if _, statErr := os.Stat(outPath); !os.IsNotExist(statErr) {
+		t.Fatalf("artifact left behind despite validation failure: %v", statErr)
+	}
+}
+
 // exitCode maps an interpreter error to the status the CLI would exit with.
 func exitCode(err error) int {
 	if err == nil {

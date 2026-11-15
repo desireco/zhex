@@ -36,9 +36,11 @@ func Compile(path, source, outPath string, resolve func(string) (lang.ModuleSour
 }
 
 // assemble writes wat to a temporary file and assembles it with
-// `wasm-tools parse <in.wat> -o <out.wasm>`. wabt's wat2wasm cannot
-// assemble WasmGC instructions (DESIGN.md, Surprises 1), so wasm-tools is
-// the only supported assembler.
+// `wasm-tools parse <in.wat> -o <out.wasm>`, then validates the result —
+// parse assembles without checking types (DESIGN.md, Surprises 1), so the
+// validate step is what catches emitter bugs. wabt's wat2wasm cannot
+// assemble WasmGC instructions, so wasm-tools is the only supported
+// assembler.
 func assemble(wat, outPath string) error {
 	tool, err := exec.LookPath("wasm-tools")
 	if err != nil {
@@ -60,14 +62,24 @@ func assemble(wat, outPath string) error {
 	cmd := exec.Command(tool, "parse", tmp.Name(), "-o", outPath)
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("wasm-tools failed: %s", lastLine(stderr.String()))
+		return toolFailure(stderr.String())
+	}
+	stderr.Reset()
+	validate := exec.Command(tool, "validate", outPath)
+	validate.Stderr = &stderr
+	if err := validate.Run(); err != nil {
+		os.Remove(outPath)
+		return toolFailure(stderr.String())
 	}
 	return nil
 }
 
-// lastLine trims an error stream to its final non-empty line — wasm-tools
-// ends its diagnostics with the failing token's summary.
-func lastLine(s string) string {
-	lines := strings.Split(strings.TrimSpace(s), "\n")
-	return lines[len(lines)-1]
+// toolFailure renders a failed wasm-tools invocation; the tool's own stderr
+// is the only detail available, so it is always included.
+func toolFailure(stderr string) error {
+	detail := strings.TrimSpace(stderr)
+	if detail == "" {
+		detail = "(no output)"
+	}
+	return fmt.Errorf("wasm-tools failed: %s", detail)
 }
