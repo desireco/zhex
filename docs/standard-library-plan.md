@@ -334,7 +334,7 @@ Acceptance criteria:
 - CommonMark core subset only; the excluded extensions (tables, footnotes, task lists) are listed in the module's documentation.
 - Per-position escaping: heading and paragraph text escape Markdown metacharacters, link text and link URLs each get position-correct escaping, and code blocks select a fence longer than any backtick run in the content.
 - Verbatim paragraphs per the owner decision: no rewrapping, trimming, or blank-line insertion beyond what separates the fragment's own blocks.
-- Empty and multiline inputs are defined per word; nested composition (a link inside a list item) is tested.
+- Empty and multiline inputs are defined per word; composition happens at the fragment level — `md.link` and `md.bullet-list` as sibling fragments joined by the caller (`TestMdModuleFragmentsComposeWithCallerBlankLines`) — while nested composition on the html side carries the named test (`TestHTMLElementAssembly` via div>ul>li).
 - Fixtures cover the #67 list: Unicode, ampersands, angle brackets, quotes, Markdown metacharacters, multiline code, empty content, and shared Buffer aliases at the call site.
 - Ships as a concrete sibling module (`use md`) with concrete signatures — no checker or host changes.
 
