@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"zhex/internal/lang"
 )
 
 // missingToolMessage is the D6 missing-tool diagnostic, pinned verbatim in
@@ -21,6 +23,17 @@ const missingToolMessage = "wasm-tools is not installed; zhex compile needs it t
 type MissingToolError struct{}
 
 func (e *MissingToolError) Error() string { return missingToolMessage }
+
+// Compile checks the source, emits WAT (lang.CompileWat), and assembles it
+// into outPath; a nil return means the artifact is written. Checker errors
+// pass through unchanged so the CLI renders them exactly as run does.
+func Compile(path, source, outPath string, resolve func(string) (lang.ModuleSource, bool)) error {
+	wat, err := lang.CompileWat(path, source, resolve)
+	if err != nil {
+		return err
+	}
+	return assemble(wat, outPath)
+}
 
 // assemble writes wat to a temporary file and assembles it with
 // `wasm-tools parse <in.wat> -o <out.wasm>`. wabt's wat2wasm cannot

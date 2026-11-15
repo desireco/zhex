@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"zhex/internal/lang"
 )
 
 // The missing-tool diagnostic is pinned verbatim in internal/wasm/DESIGN.md
@@ -121,5 +123,90 @@ func TestAssembleRejectsInvalidWat(t *testing.T) {
 	err := assemble("(module\n  (bogus", filepath.Join(t.TempDir(), "bad.wasm"))
 	if err == nil || !strings.HasPrefix(err.Error(), "wasm-tools failed:") {
 		t.Fatalf("invalid WAT: got %v, want a wasm-tools failed error", err)
+	}
+}
+
+// exitCode maps an interpreter error to the status the CLI would exit with.
+func exitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var exit *lang.ExitError
+	if errors.As(err, &exit) {
+		return exit.Status
+	}
+	return 1
+}
+
+// compileFixture compiles one testdata fixture to a temp artifact, skipping
+// while the emitter skeleton answers "not implemented" — the harness turns
+// real the moment the emitter does.
+func compileFixture(t *testing.T, name string) string {
+	t.Helper()
+	path := filepath.Join("testdata", name+".zhex")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outPath := filepath.Join(t.TempDir(), name+".wasm")
+	if err := Compile(path, string(source), outPath, nil); err != nil {
+		if strings.Contains(err.Error(), "not implemented") {
+			t.Skipf("wat emitter skeleton in place: %v", err)
+		}
+		t.Fatalf("compile %s: %v", name, err)
+	}
+	return outPath
+}
+
+// The differential gate (DESIGN.md §9): every fixture runs through the
+// interpreter and the compiled module; stdout must match byte for byte and
+// the exit status must agree.
+func TestDifferential(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, name := range []string{"fib", "core", "lists", "choices"} {
+		t.Run(name, func(t *testing.T) {
+			wasmPath := compileFixture(t, name)
+			source, err := os.ReadFile(filepath.Join("testdata", name+".zhex"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var interpreted bytes.Buffer
+			runErr := lang.Run(filepath.Join("testdata", name+".zhex"), string(source), strings.NewReader(""), &interpreted)
+			out, _, code := runNode(t, wasmPath)
+			if out != interpreted.String() {
+				t.Fatalf("stdout mismatch:\ninterpreted: %q\ncompiled:    %q", interpreted.String(), out)
+			}
+			if code != exitCode(runErr) {
+				t.Fatalf("exit status mismatch: interpreted %d, compiled %d", exitCode(runErr), code)
+			}
+		})
+	}
+}
+
+// Runtime diagnostics in the artifact print the pinned §6a strings without
+// positions; stdout produced before the failure still matches the
+// interpreter byte for byte.
+func TestCompiledDiagnostics(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, tc := range []struct{ name, stderr string }{
+		{"overflow", "runtime error: integer overflow\n"},
+		{"depth", "runtime error: word call depth limit of 256 exceeded\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			wasmPath := compileFixture(t, tc.name)
+			source, err := os.ReadFile(filepath.Join("testdata", tc.name+".zhex"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var interpreted bytes.Buffer
+			_ = lang.Run(filepath.Join("testdata", tc.name+".zhex"), string(source), strings.NewReader(""), &interpreted) // failure is expected
+			out, stderr, code := runNode(t, wasmPath)
+			if code != 1 || stderr != tc.stderr {
+				t.Fatalf("code=%d stderr=%q, want code 1 and %q", code, stderr, tc.stderr)
+			}
+			if out != interpreted.String() {
+				t.Fatalf("stdout before failure mismatch:\ninterpreted: %q\ncompiled:    %q", interpreted.String(), out)
+			}
+		})
 	}
 }
