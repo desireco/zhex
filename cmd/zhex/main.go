@@ -122,7 +122,7 @@ func doctests(args []string, input io.Reader, output, diagnostics io.Writer) int
 		return 1
 	}
 	dir := filepath.Dir(file)
-	failures := lang.RunDoctests(file, string(source), input, output, func(name string) (lang.ModuleSource, bool) {
+	failures := lang.RunDoctests(file, string(source), input, io.Discard, func(name string) (lang.ModuleSource, bool) {
 		return readModule(dir, name)
 	})
 	for _, failure := range failures {

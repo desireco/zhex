@@ -18,8 +18,8 @@ import (
 // .test.zhex file; tests point it at a built binary.
 var testBinary = os.Executable
 
-// skippedFolders never hold tests: version control, dependencies, site output.
-var skippedFolders = map[string]bool{".git": true, "node_modules": true, "_site": true}
+// skippedFolders never hold tests: version control, dependencies, site output, editor syntax data, tools.
+var skippedFolders = map[string]bool{".git": true, "node_modules": true, "_site": true, "editors": true, "tools": true}
 
 // testCommand runs a project's tests under one scope: every *.test.zhex file
 // as its own process — the exit code is the whole contract — and every other
@@ -132,7 +132,7 @@ func testDoctests(file string, input io.Reader, report string, output, diagnosti
 		return false
 	}
 	dir := filepath.Dir(file)
-	failures := lang.RunDoctests(file, string(source), input, output, func(name string) (lang.ModuleSource, bool) {
+	failures := lang.RunDoctests(file, string(source), input, io.Discard, func(name string) (lang.ModuleSource, bool) {
 		return readModule(dir, name)
 	})
 	if len(failures) == 0 {
@@ -170,8 +170,8 @@ func testFile(file, report string, output, diagnostics io.Writer) bool {
 	cmd := exec.Command(bin, args...)
 	cmd.Stdout, cmd.Stderr = &outBuf, &errBuf
 	runErr := cmd.Run()
+	var exit *exec.ExitError
 	if runErr != nil {
-		var exit *exec.ExitError
 		if !errors.As(runErr, &exit) {
 			fmt.Fprintln(diagnostics, runErr)
 			reportFail(output, report, file, runErr.Error())
@@ -186,14 +186,14 @@ func testFile(file, report string, output, diagnostics io.Writer) bool {
 		line = firstLine(outBuf.String())
 	}
 	if line == "" {
-		line = fmt.Sprintf("exit status %d", runErr.(*exec.ExitError).ExitCode())
+		line = fmt.Sprintf("exit status %d", exit.ExitCode())
 	}
 	reportFail(output, report, file, line)
 	if report == "json" {
 		if relayEnvelopes(errBuf.String(), diagnostics) {
 			return false
 		}
-		failure := lang.TestFailure(file, fmt.Sprintf("test file failed with exit status %d: %s", runErr.(*exec.ExitError).ExitCode(), line), "run zhex run "+file+" to see the failing check")
+		failure := lang.TestFailure(file, fmt.Sprintf("test file failed with exit status %d: %s", exit.ExitCode(), line), "run zhex run "+file+" to see the failing check")
 		if jsonReport, ok := lang.Report(failure); ok {
 			fmt.Fprintln(diagnostics, jsonReport)
 		}
@@ -277,7 +277,7 @@ func testGaps(doctestFiles, testFiles []string, output, diagnostics io.Writer) i
 		module := strings.TrimSuffix(filepath.Base(file), ".zhex")
 		for _, w := range words {
 			// shortcut: a comment mentioning module.word counts as a reference; match on text when gaps lie
-			if w.Doctested || strings.Contains(covered, module+"."+w.Name) {
+			if w.Doctested || containsWordReference(covered, module+"."+w.Name) {
 				continue
 			}
 			fmt.Fprintf(output, "%s: word %s has no doctest and no test file\n", file, w.Name)
@@ -287,4 +287,27 @@ func testGaps(doctestFiles, testFiles []string, output, diagnostics io.Writer) i
 		return 1
 	}
 	return 0
+}
+
+func isIdentChar(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '-'
+}
+
+// containsWordReference reports whether ref appears in text bounded by non-identifier runes.
+func containsWordReference(text, ref string) bool {
+	offset := 0
+	for {
+		idx := strings.Index(text[offset:], ref)
+		if idx < 0 {
+			return false
+		}
+		at := offset + idx
+		after := at + len(ref)
+		beforeOk := at == 0 || (!isIdentChar(text[at-1]) && text[at-1] != '.')
+		afterOk := after >= len(text) || !isIdentChar(text[after])
+		if beforeOk && afterOk {
+			return true
+		}
+		offset = at + 1
+	}
 }
