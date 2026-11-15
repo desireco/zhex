@@ -122,6 +122,9 @@ in either domain) mirroring Go's decoder for every fixture-reachable behavior:
   `illegal character code U+XXXX`, uppercase hex); undefined name → `invalid character
   entity &<name>;`; missing `;` → `invalid character entity &<text> (no semicolon)`;
   out-of-range numeric → `invalid character entity &#x110000;` (literal as written).
+  (2026-11-15 amendment: the legality check's strict-letter wording is retired for the
+  surrogate band — numeric refs `&#xD800;`–`&#xDFFF;` do not fail; both engines decode
+  them to U+FFFD identically, probe-verified in the interpreter and the compiled skins.)
 - Malformed XML wraps Go's phrasing: `invalid XML: XML syntax error on line N: <detail>`
   with the detail table (probed on this toolchain): `unexpected EOF` (unterminated
   tag/element, at input end), `element <open> closed by </close>` (position = closing tag),
@@ -175,8 +178,10 @@ would be a stack bug, hence the fence). Design: a `v` result marker — six new 
 with no result) declared in `watprelude_m4.go` (arity 0 impossible — a partial needs a
 hole). `partialCreation` and `closureInvoke` drop their `fnResult == unitType` fences;
 `closureInvoke` casts to the `_r_v` type and skips the final `castFromEqref`;
-`appendThunk` already omits the result section. Callback prelude helpers never take
-void-result closures (no such builtin position). Void closures as non-final flow steps
+`appendThunk` already omits the result section. (2026-11-15 amendment: the "no such builtin
+position" claim is false — the interpreter's `list.map`/`list.fold` do accept Unit-result
+callbacks, and the emitter correctly fences those two sites (`wat.go`, "callbacks with
+Unit results"); the sentence stands only for the other callback helpers.) Void closures as non-final flow steps
 make the cursor Unit — the existing `cur=""` path handles it. Justification: nothing about
 Unit is unrepresentable — wasm void is the natural repr of a Zhex word that produces no
 value; `print _` (partials.zhex) is the flagship witness and the fence was a naming-gap
@@ -384,5 +389,7 @@ there is no expected-output file.
 - Artifact sizes measured once at M4 and recorded in-plan (Part 9), not regenerated in CI.
 - Not claimed (named, one line each, per the lazy-senior rule): `console.*`, `error.*`,
   word/record defaults, generic choices, checked array/collection forms, `array.shape`,
-  `array.resize`, `file.free-space`, temporal beyond `duration.` — all stay fenced with
+  `array.resize`, `file.free-space`, temporal beyond `duration.`, `list.map`/`list.fold`
+  with Unit-result callbacks (the interpreter accepts them; the void-callback grid has no
+  collection-callback rows yet, §3a amendment) — all stay fenced with
   `not-available-in-build` and honest blocker rows in §1.
