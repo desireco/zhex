@@ -516,6 +516,8 @@ pre {
 
 .examples-intro { padding-block: 3rem 2rem; }
 .examples-intro h1 { font-size: clamp(2.75rem, 6vw, 5rem); }
+.demos-intro { padding-block: 3rem 0; }
+.demos-intro h1 { font-size: clamp(2.75rem, 6vw, 5rem); }
 .example-index { padding: 0 0 2rem; }
 .example-index h2 { margin: 0 0 .75rem; font-size: 1rem; }
 .example-index section + section { margin-top: .8rem; }
@@ -620,12 +622,10 @@ pre {
 }
 
 .more-examples h2,
-.example-notes h2,
-.demos-section h2 { font-size: clamp(2.3rem, 4vw, 3.8rem); }
+.example-notes h2 { font-size: clamp(2.3rem, 4vw, 3.8rem); }
 
 .more-examples p,
-.example-notes li,
-.demos-lede {
+.example-notes li {
   max-width: 850px;
   font-size: 19px;
   line-height: 1.7;
@@ -637,8 +637,6 @@ pre {
 }
 
 .example-notes li { margin-bottom: .65rem; }
-
-.demos-section { scroll-margin-top: 2rem; }
 
 .demo-player {
   max-width: 850px;
@@ -671,7 +669,7 @@ pre {
 
 .demo-generation {
   margin: 0;
-  color: var(--accent-strong);
+  color: var(--ink);
   font: 750 13px/1.5 var(--mono);
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -836,6 +834,8 @@ pre {
 
   .examples-intro { padding-block: 2rem 1.5rem; }
   .examples-intro h1 { font-size: clamp(2.5rem, 10vw, 3.5rem); }
+  .demos-intro { padding-block: 2rem 0; }
+  .demos-intro h1 { font-size: clamp(2.5rem, 10vw, 3.5rem); }
   .example-index ul { flex-wrap: nowrap; overflow-x: auto; }
   .example-index a { white-space: nowrap; }
   .program-heading { padding: 1.5rem .25rem 1rem; }
@@ -849,7 +849,6 @@ pre {
 
   .more-examples p,
   .example-notes li,
-  .demos-lede,
   .roadmap-stage li { font-size: 17px; }
 
   .site-footer {

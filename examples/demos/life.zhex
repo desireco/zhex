@@ -1,0 +1,64 @@
+# Conway's Game of Life on a 25 by 25 board with a fixed-dead exterior: a
+# glider crosses the board while a toad, a blinker, and a beacon pulse in the
+# corners. The demos page replays this run frame by frame.
+word next-cell(grid: Array<Int>, row: Int, column: Int) -> Int
+    let current = grid[row, column]
+    var around = 0
+    for r in range(row - 1, row + 2)
+        for c in range(column - 1, column + 2)
+            if r >= 0 and r < 25 and c >= 0 and c < 25 and (r != row or c != column)
+                if grid[r, c] == 1
+                    around = around + 1
+
+    if current == 1
+        if around == 2 or around == 3
+            1
+        else
+            0
+    else
+        if around == 3
+            1
+        else
+            0
+
+word advance(grid: Array<Int>) -> Array<Int>
+    let following: Array<Int> = array.new([25, 25], 0)
+    for row in range(0, 25)
+        for column in range(0, 25)
+            following[row, column] = next-cell(grid, row, column)
+    following
+
+word show(grid: Array<Int>, generation: Int) -> Array<Int>
+    print("Generation " + int.to-string(generation))
+    for row in range(0, 25)
+        var line = ""
+        for column in range(0, 25)
+            if grid[row, column] == 1
+                line = line + "#"
+            else
+                line = line + "."
+        print line
+    grid
+
+word stamp(grid: Array<Int>, top: Int, left: Int, pattern: List<String>) -> Array<Int>
+    for row in range(0, list.length(pattern))
+        let line = pattern[row]
+        for column in range(0, text.length(line))
+            if text.slice(line, column, column + 1) == "#"
+                grid[top + row, left + column] = 1
+    grid
+
+word generations(grid: Array<Int>, count: Int) -> Array<Int>
+    var current = grid
+    for generation in range(1, count + 1)
+        current = advance(current)
+        show(current, generation)
+    current
+
+flow array.new([25, 25], 0)
+    stamp(1, 1, [".#.", "..#", "###"])
+    stamp(2, 18, [".###", "###."])
+    stamp(19, 3, ["#", "#", "#"])
+    stamp(18, 18, ["##..", "##..", "..##", "..##"])
+    show 0
+    generations 54

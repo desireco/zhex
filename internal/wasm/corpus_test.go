@@ -28,11 +28,13 @@ type corpusRow struct {
 // files). Blocker spellings are the emitter's fence names, prefix-matched
 // because some carry a dynamic suffix (e.g. "generic choice Maybe").
 var corpusTable = map[string]corpusRow{
-	// in-subset (DESIGN-M4 §1 after M4): 24 files, no args, stdin per the
+	// in-subset (DESIGN-M4 §1 after M4): 25 files, no args, stdin per the
 	// manifest; xml-config flipped in with xml.decode and the checked list
-	// read (DESIGN-M4 §1 "In-subset after M4 — +1")
+	// read (DESIGN-M4 §1 "In-subset after M4 — +1"); demos/life.zhex is the
+	// demos page's longer run (#115) — a demo, not an examples-page card
 	"collatz.zhex":                {in: true},
 	"composition.zhex":            {in: true},
+	"demos/life.zhex":             {in: true},
 	"edit-distance.zhex":          {in: true},
 	"factorial.zhex":              {in: true, stdin: "5\n"},
 	"fibonacci.zhex":              {in: true, stdin: "10\n"},

@@ -1,0 +1,170 @@
+---
+import Base from "../layouts/Base.astro";
+import data from "../../data.json";
+---
+<Base title="Demos — Zhex" description="Zhex programs running as themselves — compiled to WebAssembly and replayed in your browser." current="demos">
+  <main id="main" class="wrap">
+    <section class="page-intro demos-intro">
+      <p class="eyebrow">The language, alive</p>
+      <h1 id="demos-title">Demos.</h1>
+      <p class="lede">Zhex programs, running as themselves — compiled to WebAssembly and replayed right here in your browser.</p>
+      <p class="aside">Every frame is the compiled program's real output, captured once and replayed frame by frame — nothing is drawn by hand. Each demo links its own readable source beneath the player.</p>
+    </section>
+
+    <section class="demos-section" aria-labelledby="demos-title">
+      {data.Demos.map(demo => (
+        <div class="demo">
+          <article class="demo-player" data-wasm={demo.Wasm} hidden>
+            <p class="demo-caption"><a class="text-link" href={`examples/demos/${demo.ID}.zhex`}><code>{demo.ID}.zhex</code></a> — its stdout, captured once from the compiled artifact and replayed frame by frame.</p>
+            <div class="demo-stage">
+              <canvas class="demo-grid" width="336" height="336" role="img" aria-label="Game of Life board"></canvas>
+              <p class="demo-generation" role="status">Generation 0</p>
+            </div>
+            <div class="demo-controls">
+              <button class="button demo-play" type="button">Play</button>
+              <button class="button demo-step" type="button">Step <span aria-hidden="true">→</span></button>
+            </div>
+          </article>
+          <p class="demo-failure" role="alert" hidden></p>
+        </div>
+      ))}
+    </section>
+
+    <a class="to-top" href="#top">Back to top ↑</a>
+    <script is:inline>
+      const link = document.querySelector('.to-top');
+      new IntersectionObserver(([entry]) =>
+        link.classList.toggle('shown', !entry.isIntersecting)
+      ).observe(document.querySelector('.demos-intro'));
+    </script>
+
+    <script>
+      // The Game of Life demo (#90, on its own page since #115): run the
+      // compiled artifact once through the same shim as the run panels, split
+      // its stdout into frames with the shared parser (which refuses any
+      // output its frames cannot byte-reconstruct), and replay those frames
+      // client-side. The player stays hidden until a run succeeds — no dead
+      // controls, ever. Every demo on the page goes through this loop.
+      import { runZhex } from "../scripts/zhex-run.mjs";
+      import { parseLifeFrames } from "../scripts/life-frames.mjs";
+      import { fetchArtifact, loadFailedMessage } from "../scripts/artifact.mjs";
+
+      const frameMs = 500; // one generation per tick — a comfortable watchable pace
+      const holdMs = 1500; // a deliberate beat on the final frame before the loop restarts
+
+      for (const demo of document.querySelectorAll(".demo")) {
+        const player = demo.querySelector(".demo-player");
+        const failure = demo.querySelector(".demo-failure");
+        const canvas = player.querySelector(".demo-grid");
+        const generation = player.querySelector(".demo-generation");
+        const playButton = player.querySelector(".demo-play");
+        const stepButton = player.querySelector(".demo-step");
+
+        const fail = (message) => {
+          failure.textContent = message;
+          failure.hidden = false;
+        };
+
+        async function init() {
+          const bytes = await fetchArtifact(player.dataset.wasm);
+          const { stdout, error } = runZhex(bytes, { stdin: "" });
+          if (error) throw new Error(`The compiled program failed: ${error}`);
+          const frames = parseLifeFrames(new TextDecoder().decode(stdout));
+
+          // The parser pins every frame to one square board, so the geometry
+          // is its contract, not a constant of the page; cells keep at least
+          // 12px on the 336px stage across the manifest's board range.
+          const board = frames[0].rows.length;
+          const cell = Math.ceil(336 / board);
+          const side = cell * board;
+          // Draw at device resolution so cells stay crisp on high-dpi screens.
+          const scale = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = side * scale;
+          canvas.height = side * scale;
+          canvas.setAttribute("aria-label", `Game of Life board, ${board} by ${board} cells`);
+          const ctx = canvas.getContext("2d");
+          ctx.scale(scale, scale);
+
+          // Tokens only: read the palette from the stylesheet at draw time.
+          const root = getComputedStyle(document.documentElement);
+          const token = (name) => root.getPropertyValue(name).trim();
+          const palette = { paper: token("--paper"), line: token("--line"), ink: token("--ink") };
+
+          function draw(rows) {
+            ctx.fillStyle = palette.paper;
+            ctx.fillRect(0, 0, side, side);
+            ctx.strokeStyle = palette.line;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let at = 0; at <= board; at++) {
+              const edge = at * cell + 0.5;
+              ctx.moveTo(edge, 0);
+              ctx.lineTo(edge, side);
+              ctx.moveTo(0, edge);
+              ctx.lineTo(side, edge);
+            }
+            ctx.stroke();
+            ctx.fillStyle = palette.ink;
+            for (let row = 0; row < board; row++) {
+              for (let column = 0; column < board; column++) {
+                if (rows[row][column] === "#") ctx.fillRect(column * cell + 4, row * cell + 4, cell - 8, cell - 8);
+              }
+            }
+          }
+
+          const last = frames.length - 1;
+          let frame = 0;
+          let timer = null;
+
+          const stop = () => {
+            clearTimeout(timer);
+            timer = null;
+          };
+
+          const play = (delay = frameMs) => {
+            timer = setTimeout(tick, delay);
+          };
+
+          function show() {
+            const current = frames[frame];
+            draw(current.rows);
+            generation.textContent = `Generation ${current.generation}`;
+            playButton.textContent = timer === null ? "Play" : "Pause";
+          }
+
+          // Looping playback (#115): the run wraps to generation 0 after a
+          // beat on the final frame, and Step wraps the same way — looping is
+          // presentation, the frames stay the artifact's real output.
+          const tick = () => {
+            frame = frame === last ? 0 : frame + 1;
+            play(frame === last ? holdMs : frameMs);
+            show();
+          };
+
+          playButton.addEventListener("click", () => {
+            if (timer !== null) stop();
+            else play(frame === last ? holdMs : frameMs);
+            show();
+          });
+          stepButton.addEventListener("click", () => {
+            frame = frame === last ? 0 : frame + 1;
+            show();
+          });
+
+          player.hidden = false;
+          show();
+        }
+
+        // Lazy init (#113): fetch and run only when the demos section first
+        // crosses into view — the to-top observer's idiom — so an arrival at
+        // the section pays for the fetch and frame 0 is drawn in place.
+        const observer = new IntersectionObserver(([entry]) => {
+          if (!entry.isIntersecting) return;
+          observer.disconnect();
+          init().catch(failureMessage => fail(failureMessage?.message ?? loadFailedMessage));
+        });
+        observer.observe(demo);
+      }
+    </script>
+  </main>
+</Base>

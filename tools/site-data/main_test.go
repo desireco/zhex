@@ -264,3 +264,41 @@ func TestLoadExamplesRejectsNonzeroDeliberateExit(t *testing.T) {
 		t.Fatalf("nonzero exit error = %v", err)
 	}
 }
+
+// TestDemoSpecsAreWellFormedAndOnDisk pins the demos manifest: unique ids,
+// every file on disk, and each generated demo row carries its oracle stdout
+// as Life frame output — a drifted row fails go test before the site build.
+func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
+	root := filepath.Join("..", "..")
+	seen := map[string]bool{}
+	for _, spec := range demoSpecs {
+		if spec.id == "" {
+			t.Fatal("demo spec with empty id")
+		}
+		if seen[spec.id] {
+			t.Fatalf("duplicate demo id %q", spec.id)
+		}
+		seen[spec.id] = true
+		if !strings.HasSuffix(spec.file, ".zhex") {
+			t.Fatalf("demo %s names non-source file %q", spec.id, spec.file)
+		}
+		if _, err := os.ReadFile(filepath.Join(root, "examples", spec.file)); err != nil {
+			t.Fatalf("demo %s file: %v", spec.id, err)
+		}
+	}
+	demos, err := loadDemos(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(demos) != len(demoSpecs) {
+		t.Fatalf("got %d demos, want %d", len(demos), len(demoSpecs))
+	}
+	for _, demo := range demos {
+		if !strings.HasPrefix(demo.Output, "Generation 0\n") || !strings.HasSuffix(demo.Output, "\n") {
+			t.Fatalf("demo %s output is not Life frame output", demo.ID)
+		}
+		if demo.Stdin != "" {
+			t.Fatalf("demo %s declared stdin %q; demos run without input", demo.ID, demo.Stdin)
+		}
+	}
+}

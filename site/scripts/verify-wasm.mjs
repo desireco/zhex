@@ -14,11 +14,12 @@ for (const example of data.Examples) {
   if (!example.Wasm) assert(example.WasmNote, `${example.ID} fence note`);
 }
 // Astro copies public/wasm into _site/wasm verbatim, so exactly the runnable
-// set may exist there — a stale artifact from a removed or newly fenced
-// example must fail the build instead of shipping dead bytes.
+// set plus the demos-page artifacts may exist there — a stale artifact from a
+// removed or newly fenced example must fail the build instead of shipping
+// dead bytes.
 const onDisk = await readdir('../_site/wasm');
-const expected = runnable.map(e => e.Wasm.replace('wasm/', ''));
-assert.deepEqual([...onDisk].sort(), [...expected].sort(), '_site/wasm holds exactly the runnable artifacts');
+const expected = [...runnable.map(e => e.Wasm.replace('wasm/', '')), ...data.Demos.map(d => d.Wasm.replace('wasm/', ''))];
+assert.deepEqual([...onDisk].sort(), [...expected].sort(), '_site/wasm holds exactly the runnable and demo artifacts');
 for (const example of runnable) {
   const bytes = await readFile(`../_site/${example.Wasm}`);
   assert(WebAssembly.validate(bytes), `${example.ID} artifact validates`);
@@ -42,12 +43,19 @@ assert.deepEqual(greeted.stdout, encoder.encode('Your name: Hello, Grace!\n'), '
 const rerun = runZhex(factorialBytes, { stdin: byId.factorial.Stdin });
 assert.equal(rerun.error, null, 'factorial default re-run');
 assert.deepEqual(rerun.stdout, encoder.encode(byId.factorial.Output), 'factorial default re-run matches the oracle after the edit (fresh-instance proof)');
-// #90's demo replays exactly what parseLifeFrames extracts from the artifact's
-// stdout — the page runs the same parser over the bytes it captures in the
-// browser, so this pin and the demo cannot drift apart. The reconstruction
-// check inside parseLifeFrames is the differential: these frames rebuild the
-// oracle output byte-for-byte or the build fails.
-const lifeFrames = parseLifeFrames(byId.life.Output);
-assert.equal(lifeFrames.length, 5, 'life stdout holds exactly five frames');
-assert.equal(lifeFrames[0].generation, 0, 'life frames start at generation 0');
-assert.deepEqual(lifeFrames.map(f => f.generation), [0, 1, 2, 3, 4], 'life generations run 0 through 4');
+// #115's demos page replays exactly what parseLifeFrames extracts from each
+// demo artifact's oracle stdout — the page runs the same parser over the
+// bytes it captures in the browser, so this pin and the demo cannot drift
+// apart. The reconstruction check inside parseLifeFrames is the differential:
+// these frames rebuild the oracle output byte-for-byte or the build fails.
+// The pins derive from the parse — contiguous generations from 0, one square
+// board in the size range the canvas renders at ≥12px cells, a run long
+// enough to be worth a loop — never a hard-coded frame list. The examples
+// page's 7×7 life card keeps its own pins through the general loop above.
+assert.equal(data.Demos.length, 1, 'demo manifest holds one demo');
+const demoFrames = parseLifeFrames(data.Demos[0].Output);
+assert.deepEqual(demoFrames.map(f => f.generation), demoFrames.map((_, i) => i), 'demo generations run contiguously from 0');
+const board = demoFrames[0].rows.length;
+assert(demoFrames.every(f => f.rows.length === board), 'demo frames share one square board');
+assert(board >= 21 && board <= 30, 'demo board stays in the 21-30 range (336px stage, ≥12px cells)');
+assert(demoFrames.length >= 49 && demoFrames.length <= 61, 'demo runs 48-60 computed generations');

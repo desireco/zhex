@@ -50,12 +50,24 @@ type ExampleModule struct {
 	Highlighted       string
 }
 
+// Demo is one demos-page program: the demo is not an examples-page card, so
+// it carries no source or run panel — the demos page replays Output's frames
+// from the compiled artifact client-side. Stdin is always empty today; the
+// field travels with the data so a future demo can read input.
+type Demo struct {
+	ID     string
+	Wasm   string
+	Stdin  string
+	Output string
+}
+
 type pageData struct {
 	Manifesto  Manifesto
 	HeroSource string
 	HeroInput  string
 	HeroOutput string
 	Examples   []Example
+	Demos      []Demo
 	Roadmap    Roadmap
 	Catalog    []CatalogEntry
 	Nav        template.HTML
@@ -352,10 +364,28 @@ var exampleSpecs = []exampleSpec{
 	{"collatz", "Collatz steps", "Count the steps each number takes to reach 1 with a while loop.", "", "Algorithms", nil, nil, "none", 0, ""},
 }
 
+// demoSpec is one demos-page program under examples/ (outside the examples
+// page's spec list): the generator runs it for the oracle stdout and the
+// -wasm pass compiles it to its own browser artifact.
+type demoSpec struct {
+	id   string
+	file string // relative to examples/
+}
+
+// demoSpecs is the demos manifest; corpusTable in internal/wasm/corpus_test.go
+// pins each file's corpus membership, and verify-wasm re-parses each demo's
+// Output with the page's frame parser — keep all three in sync.
+var demoSpecs = []demoSpec{
+	{"life", "demos/life.zhex"},
+}
+
 func main() {
 	wasmDir := flag.String("wasm", "", "compile each example's browser WebAssembly artifact into this directory")
 	flag.Parse()
 	data, err := loadExamples(".")
+	if err == nil {
+		data.Demos, err = loadDemos(".")
+	}
 	if err == nil {
 		data.Roadmap, err = readRoadmap("ROADMAP.md")
 	}
@@ -470,6 +500,25 @@ func loadExamples(root string) (pageData, error) {
 	return data, nil
 }
 
+// loadDemos runs every demo for its oracle stdout; the -wasm pass compiles
+// the same programs to browser artifacts beside the examples'.
+func loadDemos(root string) ([]Demo, error) {
+	var demos []Demo
+	for _, spec := range demoSpecs {
+		path := filepath.Join(root, "examples", spec.file)
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read demo %s: %w", spec.file, err)
+		}
+		var output bytes.Buffer
+		if err := lang.RunWithModules(path, string(source), strings.NewReader(""), &output, nil, nil, resolveSibling(path)); err != nil {
+			return nil, fmt.Errorf("run demo %s: %w", spec.file, err)
+		}
+		demos = append(demos, Demo{ID: spec.id, Stdin: "", Output: output.String()})
+	}
+	return demos, nil
+}
+
 // resolveSibling builds the module resolver the interpreter applies: `use
 // name` reads the sibling name.zhex next to the entry file.
 func resolveSibling(entryPath string) func(string) (lang.ModuleSource, bool) {
@@ -485,11 +534,11 @@ func resolveSibling(entryPath string) func(string) (lang.ModuleSource, bool) {
 }
 
 // compileExamples writes each in-subset example's browser WebAssembly
-// artifact into dir (flat names: modules/main becomes modules-main.wasm) and
-// records on the matching Example the relative artifact URL (Wasm) or the
-// fence diagnostic message (WasmNote). Any other failure — a missing
-// assembler, an emitter bug — fails the build loudly: no silent button-less
-// site.
+// artifact into dir (flat names: modules/main becomes modules-main.wasm,
+// demos join as demo-<id>.wasm) and records on the matching Example the
+// relative artifact URL (Wasm) or the fence diagnostic message (WasmNote).
+// Any other failure — a missing assembler, an emitter bug — fails the build
+// loudly: no silent button-less site.
 func compileExamples(data *pageData, dir string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -509,6 +558,20 @@ func compileExamples(data *pageData, dir string) error {
 			return fmt.Errorf("compile example %s: %w", spec.id+".zhex", err)
 		}
 		example.WasmNote = report.Message
+	}
+	// A demo artifact is required, never fenced: a demos page without its
+	// artifact fails the build loudly, like a missing example compile does.
+	for i, spec := range demoSpecs {
+		path := filepath.Join("examples", spec.file)
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read demo %s: %w", spec.file, err)
+		}
+		name := "demo-" + spec.id + ".wasm"
+		if err := wasm.Compile(path, string(source), filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser); err != nil {
+			return fmt.Errorf("compile demo %s: %w", spec.file, err)
+		}
+		data.Demos[i].Wasm = "wasm/" + name
 	}
 	return nil
 }

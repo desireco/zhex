@@ -7,8 +7,12 @@ const shownSources = new Set(data.Examples.flatMap(e => [e.SourceURL, ...(e.Modu
 // Tools that live beside the examples but need command-line arguments, so the
 // site cannot execute them; they run in TestExamples instead of at build time.
 const argTools = new Set(['filter.zhex']);
+// Files under demos/ are demos-page material, not examples-page cards: each
+// one must be a demo manifest row (id naming the file) instead.
 for (const file of await readdir('../examples', { recursive: true })) {
-  if (file.endsWith('.zhex') && !argTools.has(file)) assert(shownSources.has(`examples/${file}`), `${file} must appear on the examples page`);
+  if (!file.endsWith('.zhex') || argTools.has(file)) continue;
+  if (file.startsWith('demos/')) assert(data.Demos.some(d => file === `demos/${d.ID}.zhex`), `${file} must be a demo manifest row`);
+  else assert(shownSources.has(`examples/${file}`), `${file} must appear on the examples page`);
 }
 assert(!/<details\b/i.test(examples), 'examples must be visible without expanding');
 for (const example of data.Examples) {
@@ -36,8 +40,14 @@ assert(gettingStarted.includes('docs-nav-mobile') && gettingStarted.includes('<d
 assert(gettingStarted.includes('aria-current="page"'), 'current documentation topic');
 for (const id of ['build-and-run', 'read-the-program', 'try-the-repl', 'where-to-go-next']) assert(gettingStarted.includes(`id="${id}"`), `${id} legacy tutorial anchor`);
 for (const id of ['features-title', 'modules-title', 'errors-title', 'setup-title', 'editors-title']) assert(docs.includes(`id="${id}"`), `${id} legacy anchor`);
-for (const filename of ['index.html', 'roadmap.html', 'changelog.html', 'manifesto.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
-for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'docs.html', 'examples.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
+for (const filename of ['index.html', 'roadmap.html', 'changelog.html', 'manifesto.html', 'demos.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
+for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'docs.html', 'examples.html', 'demos.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
+// #115: the demos page carries the demo players, and the examples page
+// points to it from the top instead of holding the section itself.
+const demos = await read('demos.html');
+assert(demos.includes('class="demo-player"'), 'demos page carries the demo players');
+assert(examples.includes('href="demos.html"'), 'examples page links to the demos page');
+assert(!examples.includes('demo-player'), 'the demo players moved off the examples page');
 for (const file of await (await import('node:fs/promises')).readdir('../_site/docs')) {
   if (!file.endsWith('.html')) continue;
   const page = await read(`docs/${file}`);
