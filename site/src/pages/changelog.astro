@@ -1,0 +1,29 @@
+---
+import Base from "../layouts/Base.astro";
+import data from "../../data.json";
+// The changelog renders the roadmap's Done section, grouped by the
+// generator; the title-case label doubles as the section heading.
+const done = data.Roadmap.Sections[0];
+const heading = (group) => group.Name === "More" ? "More milestones" : group.Name;
+---
+<Base title="Changelog — Zhex" description="Everything Zhex has shipped so far, grouped from the roadmap's Done section." current="roadmap">
+  <main id="main">
+    <section class="page-intro wrap">
+      <p class="eyebrow">The changelog</p>
+      <h1>Shipped, so far.</h1>
+      <p class="lede">{done.Summary} Every entry below renders the roadmap's Done section — {done.Items.length} milestones in {data.Roadmap.DoneGroups.length} groups — straight from ROADMAP.md, the single source. Where it goes next: the <a href="roadmap.html">roadmap</a>.</p>
+    </section>
+
+    {data.Roadmap.DoneGroups.map(group => (
+    <section class="section roadmap-section" aria-labelledby={group.Anchor}>
+      <div class="wrap roadmap-stage">
+        <div><p class="eyebrow">Shipped</p><h2 id={group.Anchor}>{heading(group)}</h2><p class="aside">{group.Count} shipped.</p></div>
+        <ul>{group.Items.map(item => <li>{item.split("`").map((part, i) => i % 2 ? <code>{part}</code> : part)}</li>)}</ul>
+      </div>
+    </section>
+    ))}
+
+    <p class="roadmap-source wrap"><a href="roadmap.html">Where Zhex goes next →</a> · <a href="ROADMAP.md">View the roadmap source</a> · <a href="examples.html">Try what shipped →</a></p>
+  </main>
+
+</Base>

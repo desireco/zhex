@@ -77,6 +77,72 @@ func TestRoadmapToleratesCRLFAndRejectsIntroBullets(t *testing.T) {
 	}
 }
 
+func TestRoadmapGroupsDoneBulletsByLeadingPrefix(t *testing.T) {
+	source := "# Zhex roadmap\n\nIntro.\n\n## Done\n\nBase.\n\n- Vocabulary: first ships.\n- Language: second ships.\n- Vocabulary: third ships.\n- No prefix here.\n- A leading prefix well past the forty-byte heading limit: demoted.\n## Next\n- REPL.\n## Future\n- Compilation.\n"
+	roadmap, err := loadRoadmap([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantNames := []string{"Vocabulary", "Language", "More"}
+	wantItems := []string{
+		"Vocabulary: first ships.\nVocabulary: third ships.",
+		"Language: second ships.",
+		"No prefix here.\nA leading prefix well past the forty-byte heading limit: demoted.",
+	}
+	if len(roadmap.DoneGroups) != len(wantNames) {
+		t.Fatalf("got %d groups, want %d: %+v", len(roadmap.DoneGroups), len(wantNames), roadmap.DoneGroups)
+	}
+	for i, group := range roadmap.DoneGroups {
+		if group.Name != wantNames[i] {
+			t.Fatalf("group %d is %q; want %q", i, group.Name, wantNames[i])
+		}
+		if strings.Join(group.Items, "\n") != wantItems[i] {
+			t.Fatalf("group %q holds %q; want %q", group.Name, strings.Join(group.Items, "\n"), wantItems[i])
+		}
+		if group.Count != len(group.Items) {
+			t.Fatalf("group %q count %d disagrees with %d items", group.Name, group.Count, len(group.Items))
+		}
+		if group.Anchor != "done-"+strings.ToLower(strings.ReplaceAll(group.Name, " ", "-")) {
+			t.Fatalf("group %q anchor %q", group.Name, group.Anchor)
+		}
+	}
+	if roadmap.Sections[0].Title != "Done" || len(roadmap.Sections[0].Items) != 5 {
+		t.Fatalf("grouping disturbed the Done section: %+v", roadmap.Sections[0])
+	}
+}
+
+// TestRoadmapDoneGroupsCoverEveryDoneBullet pins the real ROADMAP.md: the
+// changelog grouping partitions the Done section — every bullet exactly once,
+// each anchor unique — so neither page can silently drop shipped work.
+func TestRoadmapDoneGroupsCoverEveryDoneBullet(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join("..", "..", "ROADMAP.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	roadmap, err := loadRoadmap(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchors := map[string]bool{}
+	total := 0
+	for _, group := range roadmap.DoneGroups {
+		if group.Name == "" || group.Anchor == "" {
+			t.Fatalf("group with empty name or anchor: %+v", group)
+		}
+		if anchors[group.Anchor] {
+			t.Fatalf("duplicate changelog anchor %q", group.Anchor)
+		}
+		anchors[group.Anchor] = true
+		if group.Count != len(group.Items) {
+			t.Fatalf("group %q count %d disagrees with %d items", group.Name, group.Count, len(group.Items))
+		}
+		total += len(group.Items)
+	}
+	if total != len(roadmap.Sections[0].Items) {
+		t.Fatalf("changelog groups hold %d bullets; Done section has %d", total, len(roadmap.Sections[0].Items))
+	}
+}
+
 func TestWebsiteExamplesUseRepositorySourcesAndActualOutputs(t *testing.T) {
 	root := filepath.Join("..", "..")
 	data, err := loadExamples(root)

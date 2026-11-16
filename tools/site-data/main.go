@@ -88,11 +88,23 @@ func loadCatalog() ([]CatalogEntry, error) {
 type Roadmap struct {
 	Intro    string
 	Sections []RoadmapSection
+	// DoneGroups renders the Done section for the changelog page: the
+	// grouping is mechanical, derived from each bullet's leading prefix.
+	DoneGroups []RoadmapGroup
 }
 
 type RoadmapSection struct {
 	Title, Summary string
 	Items          []string
+}
+
+// RoadmapGroup is one changelog group: every Done bullet whose leading
+// "Name:" prefix shares the name, in first-appearance order, with the
+// section's own items untouched underneath.
+type RoadmapGroup struct {
+	Name, Anchor string
+	Count        int
+	Items        []string
 }
 
 // The roadmap uses plain paragraphs, level-two headings, and single-line bullets.
@@ -136,7 +148,45 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 			return roadmap, fmt.Errorf("ROADMAP.md needs Done, Next, and Future sections with bullets")
 		}
 	}
+	roadmap.DoneGroups = groupDone(roadmap.Sections[0].Items)
 	return roadmap, nil
+}
+
+// groupDone derives the changelog grouping from data, not curation: a
+// bullet's leading "Name:" prefix (colon plus space) names its group, groups
+// keep first-appearance order, and prefix-less bullets or prefixes over 40
+// bytes fall under "More" so a long sentence never becomes a heading.
+func groupDone(items []string) []RoadmapGroup {
+	index := map[string]int{}
+	var groups []RoadmapGroup
+	for _, item := range items {
+		name := "More"
+		if prefix, _, found := strings.Cut(item, ": "); found && prefix != "" && len(prefix) <= 40 {
+			name = prefix
+		}
+		i, ok := index[name]
+		if !ok {
+			i = len(groups)
+			index[name] = i
+			groups = append(groups, RoadmapGroup{Name: name, Anchor: anchorSlug(name)})
+		}
+		groups[i].Items = append(groups[i].Items, item)
+		groups[i].Count = len(groups[i].Items)
+	}
+	return groups
+}
+
+// anchorSlug turns a group name into the changelog page's stable anchor id.
+func anchorSlug(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		} else if b.Len() > 0 && !strings.HasSuffix(b.String(), "-") {
+			b.WriteRune('-')
+		}
+	}
+	return "done-" + strings.Trim(b.String(), "-")
 }
 
 // highlight marks up Zhex source with the design system's token classes.
