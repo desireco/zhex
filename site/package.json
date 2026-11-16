@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "cd .. && go run ./tools/site-data > site/data.json && cd site && astro build && node scripts/finish.mjs && node scripts/verify.mjs",
-    "dev": "cd .. && go run ./tools/site-data > site/data.json && cd site && astro dev",
+    "build": "cd .. && go run ./tools/site-data -wasm site/public/wasm > site/data.json && cd site && astro build && node scripts/finish.mjs && node scripts/verify.mjs && node scripts/verify-wasm.mjs",
+    "dev": "cd .. && go run ./tools/site-data -wasm site/public/wasm > site/data.json && cd site && astro dev",
     "preview": "astro preview"
   },
   "dependencies": {

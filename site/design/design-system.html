@@ -12,6 +12,7 @@
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; scroll-padding-top: 2rem; }
     body { margin: 0; background: var(--paper); color: var(--ink); font: var(--text-base)/1.7 var(--body); -webkit-font-smoothing: antialiased; }
+    button { font: inherit; }
     a { color: inherit; text-underline-offset: .22em; }
     a:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
     code, pre { font-family: var(--mono); }
@@ -52,6 +53,10 @@
     .space-item i { display: block; width: var(--size); height: var(--size); max-width: 96px; max-height: 96px; background: var(--accent); }
     .space-item code { display: block; margin-top: var(--space-2); font-size: var(--text-xs); }
     .demo-button { min-height: 52px; display: inline-flex; align-items: center; justify-content: space-between; gap: var(--space-6); padding: .85rem 1.15rem; border: 2px solid var(--ink); background: var(--ink); color: var(--paper); font-weight: 800; text-decoration: none; }
+    .demo-button:disabled { opacity: .6; }
+    .demo-run-label { display: block; margin-bottom: var(--space-2); color: var(--accent-strong); font: 750 var(--text-xs)/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    .demo-input { display: block; width: 100%; min-height: 96px; padding: 1rem; background: var(--surface); border: 1px solid var(--line); color: var(--ink); font: 14px/1.8 var(--mono); resize: vertical; }
+    .demo-message { padding: 1rem; background: var(--surface); border: 1px solid var(--line); font: 14px/1.8 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
     .demo-link { min-height: 44px; display: inline-flex; align-items: center; font-weight: 800; }
     .demo-status { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--muted); font: 650 var(--text-sm)/1.5 var(--mono); }
     .demo-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-strong); box-shadow: 0 0 0 5px var(--accent-soft); }
@@ -218,6 +223,9 @@
           <div class="tile"><h3>Primary action</h3><p><a class="demo-button" href="#components">Read examples →</a></p><p>One solid action per viewport whenever possible.</p></div>
           <div class="tile"><h3>Text action</h3><p><a class="demo-link" href="#components">Review the roadmap →</a></p><p>Use for secondary navigation and lower commitment.</p></div>
           <div class="tile"><h3>Status</h3><p><span class="demo-status">Working Go interpreter</span></p><p>Pair color with explicit text; never use the dot alone.</p></div>
+          <div class="tile"><h3>Run input</h3><p><label class="demo-run-label" for="demo-run-input">Program input</label><textarea class="demo-input" id="demo-run-input" rows="2" spellcheck="false">Ada</textarea></p><p>Labeled, prefilled with the example's real input, and styled like the output pane.</p></div>
+          <div class="tile"><h3>Run action</h3><p><button class="demo-button" type="button" disabled>Run <span aria-hidden="true">→</span></button></p><p>The primary action for runnable examples; dimmed while the artifact loads.</p></div>
+          <div class="tile"><h3>Run message</h3><div class="demo-message">runtime error: "abc" is not a signed 64-bit decimal integer</div><p>Runtime and load failures wrap inside the output pane instead of clipping.</p></div>
         </div>
         <div class="table-wrap">
           <table>
@@ -227,6 +235,9 @@
               <tr><td>Section heading</td><td>Pair a clear claim with concise context</td><td>Decorative headings without informational value</td></tr>
               <tr><td>Code window</td><td>Real syntax, filename, and visible result</td><td>Fake terminal noise or code used only as texture</td></tr>
               <tr><td>Feature row</td><td>Link a concept directly to a working example</td><td>Rows that look interactive but do nothing</td></tr>
+              <tr><td>Run input</td><td>Collect program stdin beside a runnable example, byte-honest</td><td>Unlabeled fields or inputs that quietly rewrite the sample</td></tr>
+              <tr><td>Run action</td><td>Run the compiled example; dim while disabled</td><td>A busy state that hides the disabled affordance</td></tr>
+              <tr><td>Run message</td><td>Explain runtime and load failures inside the output pane</td><td>Long lines clipped behind horizontal scroll</td></tr>
             </tbody>
           </table>
         </div>

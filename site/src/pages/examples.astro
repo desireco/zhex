@@ -12,6 +12,7 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
       <p class="eyebrow">The language in use</p>
       <h1>Zhex, by example.</h1>
       <p class="lede">Read every program, see its output, and run it yourself.</p>
+      <p class="aside">Runnable examples are compiled to WebAssembly and run entirely in your browser, using WebAssembly garbage collection — roughly Chrome 119+, Firefox 120+, or Safari 18.2+.</p>
     </section>
 
     <nav class="example-index" aria-label="Browse examples by group">
@@ -43,8 +44,19 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
             </div>
             <div class="program-result">
               <h4>Run</h4><pre><code>{e.Command}</code></pre>
-              {e.Input && <><h4>Sample input</h4><pre><samp>{e.Input}</samp></pre></>}
-              <h4>Output</h4><pre><samp>{e.Output}</samp></pre>
+              {!e.Wasm && e.Input && <><h4>Sample input</h4><pre><samp>{e.Input}</samp></pre></>}
+              {e.Wasm && (
+                <div class="run-panel" data-wasm={e.Wasm}>
+                  <label class="run-label" for={`${e.ID}-stdin`}>Program input</label>
+                  <textarea id={`${e.ID}-stdin`} rows={3} spellcheck="false">{e.Stdin}</textarea>
+                  <button class="button run-button" type="button">Run <span aria-hidden="true">→</span></button>
+                </div>
+              )}
+              <h4>Output</h4>
+              {e.Wasm
+                ? <pre aria-live="polite"><samp data-run-output>{e.Output}</samp></pre>
+                : <pre><samp>{e.Output}</samp></pre>}
+              {e.WasmNote && <p class="wasm-note">Not compiled to WebAssembly yet — {e.WasmNote}.</p>}
             </div>
           </div>
         </section>
@@ -71,6 +83,69 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
       new IntersectionObserver(([entry]) =>
         link.classList.toggle('shown', !entry.isIntersecting)
       ).observe(document.querySelector('.examples-intro'));
+    </script>
+
+    <script>
+      // One module script for every run panel: the artifact is fetched lazily
+      // on first Run and its bytes cached per example (the shim compiles a
+      // fresh instance per call, so each click is a clean run).
+      import { runZhex } from "../scripts/zhex-run.mjs";
+
+      const oldBrowserMessage = "This browser can't run Zhex programs — it lacks WebAssembly garbage collection. Zhex needs roughly Chrome 119+, Firefox 120+, or Safari 18.2+.";
+      const loadFailedMessage = "The compiled program could not be loaded. Check your connection and try again.";
+      const decoder = new TextDecoder();
+      const artifactCache = new Map();
+
+      async function artifact(url) {
+        if (!artifactCache.has(url)) {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`fetch ${url}: ${response.status}`);
+          artifactCache.set(url, new Uint8Array(await response.arrayBuffer()));
+        }
+        return artifactCache.get(url);
+      }
+
+      function withErrorLine(stdout, error) {
+        if (!error) return stdout;
+        return stdout && !stdout.endsWith("\n") ? `${stdout}\n${error}` : stdout + error;
+      }
+
+      for (const panel of document.querySelectorAll(".run-panel")) {
+        const button = panel.querySelector("button");
+        const input = panel.querySelector("textarea");
+        const output = panel.closest(".program-result").querySelector("[data-run-output]");
+        const pane = output.closest("pre");
+        // Messages can run wider than the pane: wrap them instead of clipping.
+        const showMessage = (text) => {
+          pane.classList.add("run-error");
+          output.textContent = text;
+        };
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            if (typeof WebAssembly === "undefined") {
+              showMessage(oldBrowserMessage);
+              return;
+            }
+            const bytes = await artifact(panel.dataset.wasm);
+            if (WebAssembly.validate(bytes) === false) {
+              showMessage(oldBrowserMessage);
+              return;
+            }
+            const { stdout, error } = runZhex(bytes, { stdin: input.value });
+            const text = decoder.decode(stdout);
+            if (error) showMessage(withErrorLine(text, error));
+            else {
+              pane.classList.remove("run-error"); // a clean re-run unwraps the pane again
+              output.textContent = text;
+            }
+          } catch {
+            showMessage(loadFailedMessage);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      }
     </script>
   </main>
 </Base>

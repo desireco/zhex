@@ -87,8 +87,12 @@ body {
 a { color: inherit; text-underline-offset: .22em; }
 button, a { -webkit-tap-highlight-color: transparent; }
 
+button { font: inherit; }
+
 a:focus-visible,
-summary:focus-visible {
+summary:focus-visible,
+button:focus-visible,
+textarea:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
@@ -266,6 +270,8 @@ p { overflow-wrap: anywhere; }
   color: var(--ink);
   transform: translateY(-2px);
 }
+
+.button:disabled { opacity: .6; }
 
 .text-link {
   min-height: 44px;
@@ -555,6 +561,42 @@ pre {
   padding: 1rem;
   background: var(--surface);
   border: 1px solid var(--line);
+}
+
+.program-result pre.run-error samp {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.run-panel {
+  margin-bottom: 1.25rem;
+}
+
+.run-label {
+  display: block;
+  margin: 0 0 .55rem;
+  color: var(--accent-strong);
+  font: 750 12px/1.5 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.run-panel textarea {
+  width: 100%;
+  min-height: 96px;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: 14px/1.8 var(--mono);
+  resize: vertical;
+}
+
+.wasm-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .more-examples,

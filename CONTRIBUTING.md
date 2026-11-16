@@ -49,6 +49,8 @@ cd zhex
 go run ./cmd/zhex run examples/hello.zhex
 ```
 
+The website build (`just site`, and the same build inside `just test`) compiles the examples' browser WebAssembly artifacts, so it also needs the free [wasm-tools](https://github.com/bytecodealliance/wasm-tools) assembler — the only extra tool. Install it with `cargo install wasm-tools`, `pacman -S wasm-tools`, `brew install wasm-tools`, or a [release binary](https://github.com/bytecodealliance/wasm-tools/releases); without it the site build fails right away with these hints. The [compiling guide](site/src/content/docs/compiling.md) covers targets and the requirement.
+
 ## License
 
 By contributing, you agree your contributions are licensed under the [MIT License](LICENSE).

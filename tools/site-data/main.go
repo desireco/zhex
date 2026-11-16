@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"html"
 	"html/template"
@@ -14,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"zhex/internal/lang"
+	"zhex/internal/wasm"
 )
 
 type Example struct {
@@ -22,6 +24,13 @@ type Example struct {
 	Source, Input, Output  string
 	Highlighted            string
 	Command, SourceURL     string
+	// Stdin is the raw manifest input, trailing newline included; Input is
+	// the trimmed display value.
+	Stdin string
+	// Wasm is the compiled artifact's relative URL when the example is in
+	// the compiled subset, and WasmNote the fence diagnostic message when it
+	// is not; the -wasm pass sets them.
+	Wasm, WasmNote string
 	// File labels the entry source's code block; Modules stacks labeled
 	// library files under it when the example spans several files.
 	File    string
@@ -278,6 +287,8 @@ var exampleSpecs = []struct {
 }
 
 func main() {
+	wasmDir := flag.String("wasm", "", "compile each example's browser WebAssembly artifact into this directory")
+	flag.Parse()
 	data, err := loadExamples(".")
 	if err == nil {
 		data.Roadmap, err = readRoadmap("ROADMAP.md")
@@ -291,6 +302,9 @@ func main() {
 	}
 	if err == nil {
 		data.Catalog, err = loadCatalog()
+	}
+	if err == nil && *wasmDir != "" {
+		err = compileExamples(&data, *wasmDir)
 	}
 	if err == nil {
 		err = json.NewEncoder(os.Stdout).Encode(data)
@@ -320,14 +334,7 @@ func loadExamples(root string) (pageData, error) {
 		}
 		// Modules resolve as sibling files next to the entry, the rule the
 		// interpreter applies; single-file examples never call the resolver.
-		dir := filepath.Dir(path)
-		resolve := func(name string) (lang.ModuleSource, bool) {
-			module, err := os.ReadFile(filepath.Join(dir, name+".zhex"))
-			if err != nil {
-				return lang.ModuleSource{}, false
-			}
-			return lang.ModuleSource{Path: filepath.Join(dir, name+".zhex"), Source: string(module)}, true
-		}
+		resolve := resolveSibling(path)
 		var output bytes.Buffer
 		runArgs := make([]string, len(spec.args))
 		for i, arg := range spec.args {
@@ -346,13 +353,13 @@ func loadExamples(root string) (pageData, error) {
 		example := Example{
 			ID: spec.id, Title: spec.title, Description: spec.description,
 			Group:  spec.group,
-			Source: string(source), Highlighted: string(highlight(string(source))), Input: strings.TrimSuffix(spec.input, "\n"), Output: output.String(),
+			Source: string(source), Highlighted: string(highlight(string(source))), Input: strings.TrimSuffix(spec.input, "\n"), Stdin: spec.input, Output: output.String(),
 			Command:   command,
 			SourceURL: "examples/" + filename,
 			File:      filepath.Base(filename),
 		}
 		for _, file := range spec.files {
-			moduleSource, err := os.ReadFile(filepath.Join(dir, file))
+			moduleSource, err := os.ReadFile(filepath.Join(filepath.Dir(path), file))
 			if err != nil {
 				return pageData{}, fmt.Errorf("read example %s: %w", file, err)
 			}
@@ -367,4 +374,47 @@ func loadExamples(root string) (pageData, error) {
 		}
 	}
 	return data, nil
+}
+
+// resolveSibling builds the module resolver the interpreter applies: `use
+// name` reads the sibling name.zhex next to the entry file.
+func resolveSibling(entryPath string) func(string) (lang.ModuleSource, bool) {
+	dir := filepath.Dir(entryPath)
+	return func(name string) (lang.ModuleSource, bool) {
+		path := filepath.Join(dir, name+".zhex")
+		module, err := os.ReadFile(path)
+		if err != nil {
+			return lang.ModuleSource{}, false
+		}
+		return lang.ModuleSource{Path: path, Source: string(module)}, true
+	}
+}
+
+// compileExamples writes each in-subset example's browser WebAssembly
+// artifact into dir (flat names: modules/main becomes modules-main.wasm) and
+// records on the matching Example the relative artifact URL (Wasm) or the
+// fence diagnostic message (WasmNote). Any other failure — a missing
+// assembler, an emitter bug — fails the build loudly: no silent button-less
+// site.
+func compileExamples(data *pageData, dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for i, spec := range exampleSpecs {
+		example := &data.Examples[i]
+		path := filepath.Join("examples", spec.id+".zhex")
+		name := strings.ReplaceAll(spec.id, "/", "-") + ".wasm"
+		err := wasm.Compile(path, example.Source, filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser)
+		if err == nil {
+			example.Wasm = "wasm/" + name
+			continue
+		}
+		reportJSON, ok := lang.Report(err)
+		var report struct{ Code, Message string }
+		if !ok || json.Unmarshal([]byte(reportJSON), &report) != nil || report.Code != string(lang.CodeNotAvailableInBuild) {
+			return fmt.Errorf("compile example %s: %w", spec.id+".zhex", err)
+		}
+		example.WasmNote = report.Message
+	}
+	return nil
 }
