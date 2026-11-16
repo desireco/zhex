@@ -118,23 +118,12 @@ const life = data.Examples.find(example => example.ID === "life");
 
     <script>
       // One module script for every run panel: the artifact is fetched lazily
-      // on first Run and its bytes cached per example (the shim compiles a
+      // on first Run through the shared fetchArtifact (the shim compiles a
       // fresh instance per call, so each click is a clean run).
       import { runZhex } from "../scripts/zhex-run.mjs";
+      import { fetchArtifact, loadFailedMessage } from "../scripts/artifact.mjs";
 
-      const oldBrowserMessage = "This browser can't run Zhex programs — it lacks WebAssembly garbage collection. Zhex needs roughly Chrome 119+, Firefox 120+, or Safari 18.2+.";
-      const loadFailedMessage = "The compiled program could not be loaded. Check your connection and try again.";
       const decoder = new TextDecoder();
-      const artifactCache = new Map();
-
-      async function artifact(url) {
-        if (!artifactCache.has(url)) {
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`fetch ${url}: ${response.status}`);
-          artifactCache.set(url, new Uint8Array(await response.arrayBuffer()));
-        }
-        return artifactCache.get(url);
-      }
 
       function withErrorLine(stdout, error) {
         if (!error) return stdout;
@@ -195,15 +184,7 @@ const life = data.Examples.find(example => example.ID === "life");
           if (validation) validation.hidden = true;
           button.disabled = true;
           try {
-            if (typeof WebAssembly === "undefined") {
-              showMessage(oldBrowserMessage);
-              return;
-            }
-            const bytes = await artifact(panel.dataset.wasm);
-            if (WebAssembly.validate(bytes) === false) {
-              showMessage(oldBrowserMessage);
-              return;
-            }
+            const bytes = await fetchArtifact(panel.dataset.wasm);
             const { stdout, error } = runZhex(bytes, { stdin: input ? input.value : "" });
             const text = decoder.decode(stdout);
             if (error) showMessage(withErrorLine(text, error));
@@ -211,8 +192,8 @@ const life = data.Examples.find(example => example.ID === "life");
               pane.classList.remove("run-error"); // a clean re-run unwraps the pane again
               output.textContent = text;
             }
-          } catch {
-            showMessage(loadFailedMessage);
+          } catch (error) {
+            showMessage(error?.message ?? loadFailedMessage); // curated artifact messages and runZhex's raw errors alike
           } finally {
             button.disabled = false;
           }
@@ -228,9 +209,8 @@ const life = data.Examples.find(example => example.ID === "life");
       // stays hidden until a run succeeds — no dead controls, ever.
       import { runZhex } from "../scripts/zhex-run.mjs";
       import { parseLifeFrames } from "../scripts/life-frames.mjs";
+      import { fetchArtifact, loadFailedMessage } from "../scripts/artifact.mjs";
 
-      const oldBrowserMessage = "This browser can't run Zhex programs — it lacks WebAssembly garbage collection. Zhex needs roughly Chrome 119+, Firefox 120+, or Safari 18.2+.";
-      const loadFailedMessage = "The compiled program could not be loaded. Check your connection and try again.";
       const frameMs = 500; // one generation per tick — a comfortable watchable pace
 
       const demo = document.querySelector(".demo");
@@ -247,22 +227,8 @@ const life = data.Examples.find(example => example.ID === "life");
           failure.hidden = false;
         };
 
-        async function artifact(url) {
-          if (typeof WebAssembly === "undefined") throw new Error(oldBrowserMessage);
-          let response;
-          try {
-            response = await fetch(url);
-          } catch {
-            throw new Error(loadFailedMessage);
-          }
-          if (!response.ok) throw new Error(loadFailedMessage);
-          const bytes = new Uint8Array(await response.arrayBuffer());
-          if (WebAssembly.validate(bytes) === false) throw new Error(oldBrowserMessage);
-          return bytes;
-        }
-
         async function init() {
-          const bytes = await artifact(player.dataset.wasm);
+          const bytes = await fetchArtifact(player.dataset.wasm);
           const { stdout, error } = runZhex(bytes, { stdin: "" });
           if (error) throw new Error(`The compiled program failed: ${error}`);
           const frames = parseLifeFrames(new TextDecoder().decode(stdout));
@@ -344,7 +310,16 @@ const life = data.Examples.find(example => example.ID === "life");
           show();
         }
 
-        init().catch(failureMessage => fail(failureMessage?.message ?? loadFailedMessage));
+        // Lazy init (#113): fetch and run only when the demos section first
+        // crosses into view — the to-top observer's idiom — so an arrival at
+        // the section pays for the fetch and frame 0 is drawn in place.
+        const demos = document.getElementById("demos");
+        const observer = new IntersectionObserver(([entry]) => {
+          if (!entry.isIntersecting) return;
+          observer.disconnect();
+          init().catch(failureMessage => fail(failureMessage?.message ?? loadFailedMessage));
+        });
+        observer.observe(demos);
       }
     </script>
   </main>
