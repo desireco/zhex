@@ -47,13 +47,15 @@ go build -o bin\zhex.exe .\cmd\zhex
 $env:Path = "$PWD\bin;$env:Path"
 ```
 
-The `PATH` change applies to the current terminal only. Run the greeting program; it asks for your name and prints a greeting:
+The `PATH` change applies to the current terminal only. To make the command permanent, run `just install` — it builds the interpreter and copies it to `~/.local/bin` (created if missing; pass another folder as an argument), which must be on your `PATH`; [getting started](docs/getting-started.md) covers the details, including Windows and common problems.
+
+Run the greeting program; it asks for your name and prints a greeting:
 
 ```sh
 zhex run examples/hello.zhex
 ```
 
-No third-party Go dependencies are required.
+The first build downloads the few small Go modules the interpreter uses; later builds work offline.
 
 For more examples:
 
@@ -173,6 +175,7 @@ With [just](https://just.systems/man/en/) installed, run `just` to list the proj
 just test
 just check
 just build
+just install
 just run fibonacci
 just serve
 ```

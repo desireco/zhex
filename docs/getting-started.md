@@ -53,6 +53,23 @@ $env:Path = "$PWD\bin;$env:Path"
 
 The `PATH` change applies to the current terminal only. In a new terminal, run the last line again after changing to the repository.
 
+To make the command permanent, install the binary into a bin folder with [just](https://just.systems/man/en/):
+
+```sh
+just install
+```
+
+The recipe builds `bin/zhex` and copies it to `~/.local/bin`, creating the folder when missing; pass any bin directory you choose to change the destination — system paths like `/usr/local/bin` need sudo. `~/.local/bin` must be on your `PATH` — if a new terminal cannot find `zhex`, add `export PATH="$HOME/.local/bin:$PATH"` to `~/.bashrc`, `~/.zshrc`, or your shell's profile and open a new terminal. The plain build plus `export PATH` above keeps working without `just`.
+
+**Windows (PowerShell):** `just install` needs a POSIX shell; build as shown above, copy the executable, and put its folder on `Path`:
+
+```powershell
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.local\bin" | Out-Null
+Copy-Item bin\zhex.exe "$env:USERPROFILE\.local\bin\"
+```
+
+Add `%USERPROFILE%\.local\bin` to `Path` in "Edit the system environment variables" and open a new terminal.
+
 Create `hello.zhex` in the repository root with this line, using any text editor — Notepad works:
 
 ```zhex
@@ -260,7 +277,16 @@ zhex compile examples/hello.zhex --target=wasi
 printf 'Ada\n' | wasmtime run --dir .::/ examples/hello.wasm
 ```
 
-Compiling needs the free wasm-tools assembler, installed with one line — `cargo install wasm-tools`, `pacman -S wasm-tools`, `brew install wasm-tools`, or a release binary from the BytecodeAlliance releases page. Without it, `zhex compile` stops with the coded `missing-tool` diagnostic and those install hints, and no artifact is written. Running a compiled module needs nothing extra in a browser; standalone runs need a runner such as wasmtime. The [compiling guide](../site/src/content/docs/compiling.md) covers targets, the wasm-tools requirement, and which constructs compile today.
+Compiling needs the free wasm-tools assembler — install it with `cargo install wasm-tools`, `pacman -S wasm-tools`, or `brew install wasm-tools`; a release binary from the BytecodeAlliance releases page also works. Without it, `zhex compile` stops with the coded `missing-tool` diagnostic and those three install hints, and no artifact is written. Running a compiled module needs nothing extra in a browser; standalone runs need a runner such as wasmtime. The [compiling guide](../site/src/content/docs/compiling.md) covers targets, the wasm-tools requirement, and which constructs compile today.
+
+## Common problems
+
+- `zhex: command not found` — this terminal's `PATH` does not include the binary. Run the `export PATH` (or `$env:Path`) line from [Run your first program](#run-your-first-program) again, or run `just install` once for a permanent install.
+- `go` is not found or older than 1.23 — check with `go version`, then follow the per-OS install steps in [Install the tools](#install-the-tools).
+- `go build` fails — the two usual causes are an old Go (`go version` must report 1.23 or newer) and no network on the first build, which downloads the project's small Go modules once. Update Go, or build once from a connected terminal.
+- `just test` or `just site` reports `missing-tool` — the website build needs the free wasm-tools assembler; install it with the one-line command the diagnostic prints (`cargo install wasm-tools`, `pacman -S wasm-tools`, or `brew install wasm-tools`); a release binary from the [wasm-tools releases page](https://github.com/bytecodealliance/wasm-tools/releases) also works.
+
+When a run prints a coded diagnostic, its meaning is cataloged on the [Errors page](https://desireco.github.io/zhex/errors.html).
 
 ## Explore and validate
 

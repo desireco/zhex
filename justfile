@@ -31,6 +31,11 @@ bench:
 build:
     go build -o bin/zhex ./cmd/zhex
 
+# Build bin/zhex and copy it to a bin folder, default ~/.local/bin: just install [dir]
+install $dir='$HOME/.local/bin': build
+    mkdir -p "{{dir}}"
+    cp bin/zhex "{{dir}}"
+
 # Run an example by name, such as: just run fibonacci.
 run $example='hello':
     go run ./cmd/zhex run "examples/$example.zhex"
