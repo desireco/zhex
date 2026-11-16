@@ -5,6 +5,7 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
   name,
   examples: data.Examples.filter(example => example.Group === name),
 }));
+const life = data.Examples.find(example => example.ID === "life");
 ---
 <Base title="Examples — Zhex" description="Read, download, and run Zhex examples." current="examples">
   <main id="main" class="wrap">
@@ -74,6 +75,26 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
       </section>
     ))}
     </div>
+
+    <section class="demos-section" id="demos" aria-labelledby="demos-title">
+      <p class="eyebrow">Examples, alive</p>
+      <h2 id="demos-title">Demos.</h2>
+      <p class="demos-lede">The programs above, running as themselves — compiled to WebAssembly and replayed right here in your browser.</p>
+      <div class="demo">
+        <article class="demo-player" data-wasm={life.Wasm} hidden>
+          <p class="demo-caption"><code>{life.File}</code> — its stdout, captured once from the compiled artifact and replayed frame by frame.</p>
+          <div class="demo-stage">
+            <canvas class="demo-grid" width="336" height="336" role="img" aria-label="Game of Life board, 7 by 7 cells"></canvas>
+            <p class="demo-generation" role="status">Generation 0</p>
+          </div>
+          <div class="demo-controls">
+            <button class="button demo-play" type="button">Play</button>
+            <button class="button demo-step" type="button">Step <span aria-hidden="true">→</span></button>
+          </div>
+        </article>
+        <p class="demo-failure" role="alert" hidden></p>
+      </div>
+    </section>
 
     <section class="example-notes">
       <p class="eyebrow">Language details</p>
@@ -196,6 +217,134 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
             button.disabled = false;
           }
         });
+      }
+    </script>
+
+    <script>
+      // The Game of Life demo (#90): run the compiled artifact once through
+      // the same shim as the run panels, split its stdout into frames with
+      // the shared parser (which refuses any output its frames cannot
+      // byte-reconstruct), and replay those frames client-side. The player
+      // stays hidden until a run succeeds — no dead controls, ever.
+      import { runZhex } from "../scripts/zhex-run.mjs";
+      import { parseLifeFrames } from "../scripts/life-frames.mjs";
+
+      const oldBrowserMessage = "This browser can't run Zhex programs — it lacks WebAssembly garbage collection. Zhex needs roughly Chrome 119+, Firefox 120+, or Safari 18.2+.";
+      const loadFailedMessage = "The compiled program could not be loaded. Check your connection and try again.";
+      const frameMs = 500; // one generation per tick — a comfortable watchable pace
+
+      const demo = document.querySelector(".demo");
+      if (demo) {
+        const player = demo.querySelector(".demo-player");
+        const failure = demo.querySelector(".demo-failure");
+        const canvas = player.querySelector(".demo-grid");
+        const generation = player.querySelector(".demo-generation");
+        const playButton = player.querySelector(".demo-play");
+        const stepButton = player.querySelector(".demo-step");
+
+        const fail = (message) => {
+          failure.textContent = message;
+          failure.hidden = false;
+        };
+
+        async function artifact(url) {
+          if (typeof WebAssembly === "undefined") throw new Error(oldBrowserMessage);
+          let response;
+          try {
+            response = await fetch(url);
+          } catch {
+            throw new Error(loadFailedMessage);
+          }
+          if (!response.ok) throw new Error(loadFailedMessage);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          if (WebAssembly.validate(bytes) === false) throw new Error(oldBrowserMessage);
+          return bytes;
+        }
+
+        async function init() {
+          const bytes = await artifact(player.dataset.wasm);
+          const { stdout, error } = runZhex(bytes, { stdin: "" });
+          if (error) throw new Error(`The compiled program failed: ${error}`);
+          const frames = parseLifeFrames(new TextDecoder().decode(stdout));
+
+          // The parser pins each frame to 7×7, so the board geometry is its
+          // contract, not a constant of the page.
+          const board = frames[0].rows.length;
+          const cell = 48;
+          const side = cell * board;
+          // Draw at device resolution so cells stay crisp on high-dpi screens.
+          const scale = Math.min(window.devicePixelRatio || 1, 2);
+          canvas.width = side * scale;
+          canvas.height = side * scale;
+          const ctx = canvas.getContext("2d");
+          ctx.scale(scale, scale);
+
+          // Tokens only: read the palette from the stylesheet at draw time.
+          const root = getComputedStyle(document.documentElement);
+          const token = (name) => root.getPropertyValue(name).trim();
+          const palette = { paper: token("--paper"), line: token("--line"), ink: token("--ink") };
+
+          function draw(rows) {
+            ctx.fillStyle = palette.paper;
+            ctx.fillRect(0, 0, side, side);
+            ctx.strokeStyle = palette.line;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let at = 0; at <= board; at++) {
+              const edge = at * cell + 0.5;
+              ctx.moveTo(edge, 0);
+              ctx.lineTo(edge, side);
+              ctx.moveTo(0, edge);
+              ctx.lineTo(side, edge);
+            }
+            ctx.stroke();
+            ctx.fillStyle = palette.ink;
+            for (let row = 0; row < board; row++) {
+              for (let column = 0; column < board; column++) {
+                if (rows[row][column] === "#") ctx.fillRect(column * cell + 4, row * cell + 4, cell - 8, cell - 8);
+              }
+            }
+          }
+
+          const last = frames.length - 1;
+          let frame = 0;
+          let timer = null;
+
+          const stop = () => {
+            clearInterval(timer);
+            timer = null;
+          };
+
+          function show() {
+            const current = frames[frame];
+            draw(current.rows);
+            generation.textContent = `Generation ${current.generation}`;
+            playButton.textContent = timer === null ? "Play" : "Pause";
+            playButton.disabled = timer === null && frame === last;
+            stepButton.disabled = timer !== null || frame === last;
+          }
+
+          const tick = () => {
+            frame += 1;
+            if (frame === last) stop(); // the run's final frame pauses playback
+            show();
+          };
+
+          playButton.addEventListener("click", () => {
+            if (timer !== null) stop();
+            else timer = setInterval(tick, frameMs);
+            show();
+          });
+          stepButton.addEventListener("click", () => {
+            frame += 1;
+            show();
+          });
+
+          player.hidden = false;
+          show();
+        }
+
+        init().catch(failureMessage => fail(failureMessage?.message ?? loadFailedMessage));
       }
     </script>
   </main>

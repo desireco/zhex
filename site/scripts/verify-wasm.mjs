@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { runZhex } from '../src/scripts/zhex-run.mjs';
+import { parseLifeFrames } from '../src/scripts/life-frames.mjs';
 const encoder = new TextEncoder();
 const data = JSON.parse(await readFile('data.json', 'utf8'));
 const runnable = data.Examples.filter(e => e.Wasm);
@@ -41,3 +42,12 @@ assert.deepEqual(greeted.stdout, encoder.encode('Your name: Hello, Grace!\n'), '
 const rerun = runZhex(factorialBytes, { stdin: byId.factorial.Stdin });
 assert.equal(rerun.error, null, 'factorial default re-run');
 assert.deepEqual(rerun.stdout, encoder.encode(byId.factorial.Output), 'factorial default re-run matches the oracle after the edit (fresh-instance proof)');
+// #90's demo replays exactly what parseLifeFrames extracts from the artifact's
+// stdout — the page runs the same parser over the bytes it captures in the
+// browser, so this pin and the demo cannot drift apart. The reconstruction
+// check inside parseLifeFrames is the differential: these frames rebuild the
+// oracle output byte-for-byte or the build fails.
+const lifeFrames = parseLifeFrames(byId.life.Output);
+assert.equal(lifeFrames.length, 5, 'life stdout holds exactly five frames');
+assert.equal(lifeFrames[0].generation, 0, 'life frames start at generation 0');
+assert.deepEqual(lifeFrames.map(f => f.generation), [0, 1, 2, 3, 4], 'life generations run 0 through 4');

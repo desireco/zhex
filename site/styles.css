@@ -612,16 +612,19 @@ pre {
 }
 
 .more-examples,
-.example-notes {
+.example-notes,
+.demos-section {
   padding-block: clamp(3rem, 6vw, 5rem);
   border-bottom: 1px solid var(--line);
 }
 
 .more-examples h2,
-.example-notes h2 { font-size: clamp(2.3rem, 4vw, 3.8rem); }
+.example-notes h2,
+.demos-section h2 { font-size: clamp(2.3rem, 4vw, 3.8rem); }
 
 .more-examples p,
-.example-notes li {
+.example-notes li,
+.demos-lede {
   max-width: 850px;
   font-size: 19px;
   line-height: 1.7;
@@ -633,6 +636,68 @@ pre {
 }
 
 .example-notes li { margin-bottom: .65rem; }
+
+.demos-section { scroll-margin-top: 2rem; }
+
+.demo-player {
+  max-width: 850px;
+  margin-top: 1.5rem;
+}
+
+.demo-caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.demo-stage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin-top: 1rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.demo-grid {
+  width: min(336px, 100%);
+  height: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.demo-generation {
+  margin: 0;
+  color: var(--accent-strong);
+  font: 750 13px/1.5 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.demo-controls .button {
+  min-width: 9.5rem;
+  justify-content: center;
+  gap: .5rem;
+}
+
+.demo-failure {
+  margin: 1rem 0 0;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font: 14px/1.8 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 /* Roadmap */
 .roadmap-stage {
@@ -777,9 +842,13 @@ pre {
   .program-heading p { font-size: 15px; line-height: 1.5; }
   .program-body { gap: 1.25rem; padding-inline: .25rem; }
   .program-result pre { margin-bottom: 1rem; }
+  .demo-stage { padding: 1rem; }
+  .demo-controls { gap: .5rem; }
+  .demo-controls .button { min-width: 0; flex: 1; }
 
   .more-examples p,
   .example-notes li,
+  .demos-lede,
   .roadmap-stage li { font-size: 17px; }
 
   .site-footer {
