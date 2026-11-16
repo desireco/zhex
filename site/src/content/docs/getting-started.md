@@ -5,30 +5,68 @@ section: Start
 order: 1
 ---
 
-Build the interpreter, create `hello.zhex`, and run it from your terminal. You need Git, Go 1.23 or newer, and [`just`](https://just.systems/).
+Build the interpreter, create `hello.zhex`, and run it from your terminal. You need Git and Go 1.23 or newer — both come from your system's package manager.
+
+## Install the tools
+
+**Linux** — use your distribution's package manager:
+
+```sh
+sudo apt install git golang-go    # Debian, Ubuntu
+sudo dnf install git golang       # Fedora
+sudo pacman -S git go             # Arch
+```
+
+Check `go version`. If your distribution's Go is older than 1.23, install the current release from [go.dev/dl](https://go.dev/dl/) instead.
+
+**macOS** — use [Homebrew](https://brew.sh/):
+
+```sh
+brew install git go
+```
+
+**Windows** — run PowerShell and use [winget](https://learn.microsoft.com/windows/package-manager/winget/):
+
+```powershell
+winget install Git.Git
+winget install GoLang.Go
+```
+
+With [Scoop](https://scoop.sh/) or Chocolatey, `scoop install git go` or `choco install git golang` work too. Open a new terminal after installing so both tools are on your `PATH`. If you use WSL, follow the Linux steps unchanged inside a WSL shell.
 
 ## Build and run
 
-Clone the repository, build the interpreter once, and add it to this terminal's `PATH`:
+Clone the repository, build the interpreter once, and add it to this terminal's `PATH`.
+
+**Linux and macOS:**
 
 ```sh
 git clone https://github.com/desireco/zhex.git
 cd zhex
-just build
+go build -o bin/zhex ./cmd/zhex
 export PATH="$PWD/bin:$PATH"
 ```
 
-The `export` command applies to the current shell. In a new terminal, run it again after changing to the repository.
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/desireco/zhex.git
+cd zhex
+go build -o bin\zhex.exe .\cmd\zhex
+$env:Path = "$PWD\bin;$env:Path"
+```
+
+The `PATH` change applies to the current terminal only. In a new terminal, run the last line again after changing to the repository.
 
 ## Create and run a program
 
-Create `hello.zhex` in the repository root with this line:
+Create `hello.zhex` in the repository root with this line, using any text editor — Notepad works:
 
 ```zhex
 print("Hello, Zhex!")
 ```
 
-Run it with `zhex run`:
+Run it with `zhex run` — the command is the same on every platform:
 
 ```sh
 zhex run hello.zhex
@@ -66,6 +104,10 @@ For a file you already have, run `zhex run examples/hello.zhex`. With piped inpu
 
 ```sh
 printf 'Ada\n' | zhex run examples/hello.zhex
+```
+
+```powershell
+'Ada' | zhex run examples\hello.zhex
 ```
 
 ```text

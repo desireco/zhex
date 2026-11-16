@@ -27,37 +27,48 @@ Enter `7` and it prints `49`. A word is a function. A `flow` passes each result 
 
 ## Try it
 
-Install Go 1.23 or newer, then clone the public repository:
+Install Git and Go 1.23 or newer — [getting started](docs/getting-started.md) lists the per-OS install commands — then clone the repository and build the interpreter once.
+
+Linux and macOS:
 
 ```sh
 git clone https://github.com/desireco/zhex.git
 cd zhex
-go run ./cmd/zhex run examples/hello.zhex
+go build -o bin/zhex ./cmd/zhex
+export PATH="$PWD/bin:$PATH"
 ```
 
-The program asks for your name and prints a greeting. No third-party Go dependencies are required.
+Windows (PowerShell):
+
+```powershell
+git clone https://github.com/desireco/zhex.git
+cd zhex
+go build -o bin\zhex.exe .\cmd\zhex
+$env:Path = "$PWD\bin;$env:Path"
+```
+
+The `PATH` change applies to the current terminal only. Run the greeting program; it asks for your name and prints a greeting:
+
+```sh
+zhex run examples/hello.zhex
+```
+
+No third-party Go dependencies are required.
 
 For more examples:
 
 ```sh
-go run ./cmd/zhex run examples/fizzbuzz.zhex
-go run ./cmd/zhex run examples/fibonacci.zhex
-go run ./cmd/zhex run examples/factorial.zhex
-go run ./cmd/zhex run examples/palindrome.zhex
-go run ./cmd/zhex run examples/gcd.zhex
-go run ./cmd/zhex run examples/times-table.zhex
-go run ./cmd/zhex run examples/life.zhex
-go run ./cmd/zhex run examples/edit-distance.zhex
-go run ./cmd/zhex run examples/text-stats.zhex examples/text-stats-sample.txt
-go run ./cmd/zhex run examples/file-work.zhex .
-go run ./cmd/zhex run examples/env-config.zhex .
-```
-
-Build an executable when you want to use it directly:
-
-```sh
-go build -o bin/zhex ./cmd/zhex
-./bin/zhex run examples/fibonacci.zhex
+zhex run examples/fizzbuzz.zhex
+zhex run examples/fibonacci.zhex
+zhex run examples/factorial.zhex
+zhex run examples/palindrome.zhex
+zhex run examples/gcd.zhex
+zhex run examples/times-table.zhex
+zhex run examples/life.zhex
+zhex run examples/edit-distance.zhex
+zhex run examples/text-stats.zhex examples/text-stats-sample.txt
+zhex run examples/file-work.zhex .
+zhex run examples/env-config.zhex .
 ```
 
 [Start with the short guide](docs/getting-started.md) for input, output, and the main language constructs.
@@ -69,7 +80,7 @@ go build -o bin/zhex ./cmd/zhex
 `zhex compile file.zhex [-o out.wasm] [--target=browser|wasi]` turns a program into a standalone WebAssembly module. The whole program is checked first, exactly as `zhex run` checks it — a program that fails the checker produces no artifact. The default `--target=browser` builds a module for a web page or JavaScript host; `--target=wasi` builds one that runs under a WebAssembly runner such as wasmtime:
 
 ```sh
-go run ./cmd/zhex compile examples/collatz.zhex --target=wasi
+zhex compile examples/collatz.zhex --target=wasi
 wasmtime run --dir .::/ examples/collatz.wasm
 ```
 

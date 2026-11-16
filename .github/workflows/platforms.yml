@@ -1,0 +1,51 @@
+name: Platform smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Run the getting-started steps from the docs
+        shell: pwsh
+        run: |
+          go build -o bin\zhex.exe .\cmd\zhex
+          $env:Path = "$PWD\bin;$env:Path"
+          Set-Content -Path hello.zhex -Value 'print("Hello, Zhex!")'
+          $first = zhex run hello.zhex
+          if ($LASTEXITCODE -ne 0 -or $first -notmatch 'Hello, Zhex!') { throw "hello.zhex exited $LASTEXITCODE and printed: $first" }
+          $greeting = 'Ada' | zhex run examples\hello.zhex
+          if ($LASTEXITCODE -ne 0 -or $greeting -notmatch 'Hello, Ada!') { throw "examples\hello.zhex exited $LASTEXITCODE and printed: $greeting" }
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Run the getting-started steps from the docs
+        run: |
+          set -o pipefail
+          go build -o bin/zhex ./cmd/zhex
+          export PATH="$PWD/bin:$PATH"
+          printf 'print("Hello, Zhex!")\n' > hello.zhex
+          zhex run hello.zhex | grep -q 'Hello, Zhex!'
+          printf 'Ada\n' | zhex run examples/hello.zhex | grep -q 'Hello, Ada!'
