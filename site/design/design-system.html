@@ -56,6 +56,8 @@
     .demo-button:disabled { opacity: .6; }
     .demo-run-label { display: block; margin-bottom: var(--space-2); color: var(--accent-strong); font: 750 var(--text-xs)/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
     .demo-input { display: block; width: 100%; min-height: 96px; padding: 1rem; background: var(--surface); border: 1px solid var(--line); color: var(--ink); font: 14px/1.8 var(--mono); resize: vertical; }
+    .demo-hint { display: block; margin-bottom: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
+    .demo-validation { display: block; color: var(--accent-strong); font: 650 var(--text-sm)/1.5 var(--mono); }
     .demo-message { padding: 1rem; background: var(--surface); border: 1px solid var(--line); font: 14px/1.8 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
     .demo-link { min-height: 44px; display: inline-flex; align-items: center; font-weight: 800; }
     .demo-status { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--muted); font: 650 var(--text-sm)/1.5 var(--mono); }
@@ -224,6 +226,9 @@
           <div class="tile"><h3>Text action</h3><p><a class="demo-link" href="#components">Review the roadmap →</a></p><p>Use for secondary navigation and lower commitment.</p></div>
           <div class="tile"><h3>Status</h3><p><span class="demo-status">Working Go interpreter</span></p><p>Pair color with explicit text; never use the dot alone.</p></div>
           <div class="tile"><h3>Run input</h3><p><label class="demo-run-label" for="demo-run-input">Program input</label><textarea class="demo-input" id="demo-run-input" rows="2" spellcheck="false">Ada</textarea></p><p>Labeled, prefilled with the example's real input, and styled like the output pane.</p></div>
+          <div class="tile"><h3>Input hint</h3><p><label class="demo-run-label" for="demo-hint-input">Program input</label><span class="demo-hint">Two numbers, one per line</span><textarea class="demo-input" id="demo-hint-input" rows="2" spellcheck="false">48
+18</textarea></p><p>Says what the box expects, straight from the example's data; a card that reads nothing says so and offers no box.</p></div>
+          <div class="tile"><h3>Inline validation</h3><p><span class="demo-validation">Expected one number — "abc" is not an integer.</span></p><p>Checks the run input against its declared kind before the program runs; the message names what was expected.</p></div>
           <div class="tile"><h3>Run action</h3><p><button class="demo-button" type="button" disabled>Run <span aria-hidden="true">→</span></button></p><p>The primary action for runnable examples; dimmed while the artifact loads.</p></div>
           <div class="tile"><h3>Run message</h3><div class="demo-message">runtime error: "abc" is not a signed 64-bit decimal integer</div><p>Runtime and load failures wrap inside the output pane instead of clipping.</p></div>
         </div>
@@ -236,6 +241,8 @@
               <tr><td>Code window</td><td>Real syntax, filename, and visible result</td><td>Fake terminal noise or code used only as texture</td></tr>
               <tr><td>Feature row</td><td>Link a concept directly to a working example</td><td>Rows that look interactive but do nothing</td></tr>
               <tr><td>Run input</td><td>Collect program stdin beside a runnable example, byte-honest</td><td>Unlabeled fields or inputs that quietly rewrite the sample</td></tr>
+              <tr><td>Input hint</td><td>State the entry a run input expects, straight from the example's data; no-input cards say so instead of offering a box</td><td>Placeholder text that vanishes while typing, or a guessed format</td></tr>
+              <tr><td>Inline validation</td><td>Check the box against its declared kind before running, naming what was expected</td><td>Program trap lines as the entry's only guidance</td></tr>
               <tr><td>Run action</td><td>Run the compiled example; dim while disabled</td><td>A busy state that hides the disabled affordance</td></tr>
               <tr><td>Run message</td><td>Explain runtime and load failures inside the output pane</td><td>Long lines clipped behind horizontal scroll</td></tr>
             </tbody>

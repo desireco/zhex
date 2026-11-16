@@ -46,9 +46,19 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
               <h4>Run</h4><pre><code>{e.Command}</code></pre>
               {!e.Wasm && e.Input && <><h4>Sample input</h4><pre><samp>{e.Input}</samp></pre></>}
               {e.Wasm && (
-                <div class="run-panel" data-wasm={e.Wasm}>
-                  <label class="run-label" for={`${e.ID}-stdin`}>Program input</label>
-                  <textarea id={`${e.ID}-stdin`} rows={3} spellcheck="false">{e.Stdin}</textarea>
+                <div class="run-panel" data-wasm={e.Wasm} data-input-kind={e.InputKind} data-input-lines={e.InputLines}>
+                  {e.InputKind !== "none" && (
+                    <>
+                      <label class="run-label" for={`${e.ID}-stdin`}>Program input</label>
+                      <p class="run-input-hint" id={`${e.ID}-hint`}>{e.InputHint}</p>
+                    </>
+                  )}
+                  {e.InputKind !== "none" && (
+                    <>
+                      <textarea id={`${e.ID}-stdin`} rows={3} spellcheck="false" aria-describedby={`${e.ID}-hint`}>{e.Stdin}</textarea>
+                      <p class="run-input-error" role="alert" hidden></p>
+                    </>
+                  )}
                   <button class="button run-button" type="button">Run <span aria-hidden="true">→</span></button>
                 </div>
               )}
@@ -110,9 +120,43 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
         return stdout && !stdout.endsWith("\n") ? `${stdout}\n${error}` : stdout + error;
       }
 
+      // The page validates the box against its declared kind before any run,
+      // so a wrong entry is named here instead of surfacing as the program's
+      // own trap; the trap path stays as the backstop for what this cannot
+      // predict. Integer lines mirror text.to-int: trimmed, then a signed
+      // 64-bit decimal integer.
+      const INT64_MIN = -(2n ** 63n);
+      const INT64_MAX = 2n ** 63n - 1n;
+
+      function isInt64(text) {
+        if (!/^[+-]?[0-9]+$/.test(text)) return false;
+        const value = BigInt(text);
+        return value >= INT64_MIN && value <= INT64_MAX;
+      }
+
+      function inputProblem(panel, value) {
+        if (panel.dataset.inputKind !== "int") return "";
+        const count = Number(panel.dataset.inputLines);
+        const phrases = { 1: "one number", 2: "two numbers, one per line" };
+        const expected = phrases[count] ?? `${count} numbers, one per line`;
+        const raw = value.replace(/\n$/, "");
+        const lines = raw === "" ? [] : raw.split("\n");
+        if (lines.length !== Number(panel.dataset.inputLines)) {
+          return lines.length === 0
+            ? `Expected ${expected} — the box is empty.`
+            : `Expected ${expected} — ${lines.length} ${lines.length === 1 ? "line" : "lines"} found.`;
+        }
+        const bad = lines.find(line => !isInt64(line.trim()));
+        if (bad === undefined) return "";
+        return bad.trim() === ""
+          ? `Expected ${expected} — a blank line is not an integer.`
+          : `Expected ${expected} — "${bad.trim()}" is not an integer.`;
+      }
+
       for (const panel of document.querySelectorAll(".run-panel")) {
         const button = panel.querySelector("button");
         const input = panel.querySelector("textarea");
+        const validation = panel.querySelector(".run-input-error");
         const output = panel.closest(".program-result").querySelector("[data-run-output]");
         const pane = output.closest("pre");
         // Messages can run wider than the pane: wrap them instead of clipping.
@@ -121,6 +165,13 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
           output.textContent = text;
         };
         button.addEventListener("click", async () => {
+          const problem = inputProblem(panel, input ? input.value : "");
+          if (problem) {
+            validation.textContent = problem;
+            validation.hidden = false;
+            return;
+          }
+          if (validation) validation.hidden = true;
           button.disabled = true;
           try {
             if (typeof WebAssembly === "undefined") {
@@ -132,7 +183,7 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
               showMessage(oldBrowserMessage);
               return;
             }
-            const { stdout, error } = runZhex(bytes, { stdin: input.value });
+            const { stdout, error } = runZhex(bytes, { stdin: input ? input.value : "" });
             const text = decoder.decode(stdout);
             if (error) showMessage(withErrorLine(text, error));
             else {

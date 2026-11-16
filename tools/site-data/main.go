@@ -27,6 +27,13 @@ type Example struct {
 	// Stdin is the raw manifest input, trailing newline included; Input is
 	// the trimmed display value.
 	Stdin string
+	// InputKind names what the run panel's box expects — "none" (the
+	// program reads nothing), "int" (InputLines integer lines), or "text"
+	// (InputLines lines of text) — and InputHint is the short human
+	// description rendered under the Program input label.
+	InputKind  string
+	InputLines int
+	InputHint  string
 	// Wasm is the compiled artifact's relative URL when the example is in
 	// the compiled subset, and WasmNote the fence diagnostic message when it
 	// is not; the -wasm pass sets them.
@@ -243,47 +250,56 @@ func highlight(source string) template.HTML {
 // exampleSpecs is the human-facing manifest; its enforced twin is
 // corpusTable in internal/wasm/corpus_test.go — the manifest is the matrix,
 // that table is the gate; keep both in sync when an example's inputs change.
-var exampleSpecs = []struct {
+type exampleSpec struct {
 	id, title, description, input, group string
 	args                                 []string
 	files                                []string // labeled library files beside the entry (a module)
-}{
-	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", "Language basics", nil, nil},
-	{"composition", "Composition", "Build larger operations from small typed words.", "", "Language basics", nil, nil},
-	{"calls", "Calls and defaults", "Call words with or without parentheses and compose them in flows.", "", "Language basics", nil, nil},
-	{"word-defaults", "Word defaults", "Use inferred parameter defaults and fresh values for each call.", "", "Language basics", nil, nil},
-	{"partials", "Explicit partial application", "Capture arguments with holes, then call the resulting word value.", "", "Language basics", nil, nil},
-	{"records", "Named records", "Group related values in a checked named type.", "", "Language basics", nil, nil},
-	{"choices", "Choices and matching", "Select and handle alternatives with a checked match.", "", "Language basics", nil, nil},
-	{"collections", "Lists and arrays", "Build and safely iterate lists and rectangular arrays.", "", "Language basics", nil, nil},
-	{"temporal", "Dates and time zones", "Compare calendar days with elapsed time across a daylight-saving transition.", "", "Language basics", nil, nil},
-	{"json-config", "Typed JSON configuration", "Decode configuration with typed defaults and encode it again.", "", "Language basics", nil, nil},
-	{"json-tree", "JSON trees", "Parse a heterogeneous payload into a Json tree, walk it recursively, and encode it back.", "", "Language basics", nil, nil},
-	{"xml-config", "Typed XML configuration", "Decode an embedded XML document with attribute fields, a list of endpoint records, and an optional owner.", "", "Language basics", nil, nil},
-	{"maps", "Maps and lookup", "Store keyed values, match optional lookups, and merge maps.", "", "Language basics", nil, nil},
-	{"recovery", "Error recovery", "Catch invalid numeric input and continue with a useful fallback.", "", "Language basics", nil, nil},
-	{"exit-status", "Exit status", "Choose a valid status; invalid input exits with status 2.", "0\n", "Language basics", nil, nil},
-	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", "Language basics", []string{"examples/text-stats-sample.txt"}, nil},
-	{"line-filter", "Line filter", "Split embedded records, select them by literal prefix and suffix, and join a report.", "", "Language basics", nil, nil},
-	{"score-report", "Score report", "Trim and score embedded records with list map, filter, fold, find, any, and all.", "", "Language basics", nil, nil},
-	{"sorting", "Sorting", "Rank records with list.sort-by and a named key word, and sort plain text with list.sort.", "", "Language basics", nil, nil},
-	{"file-write", "File write", "Attempt a checked report write and handle the failed Result with catch.", "", "Language basics", nil, nil},
-	{"paths", "Lexical paths", "Compose and decompose paths with file.join, base, extension, and directory-of.", "", "Language basics", nil, nil},
-	{"file-work", "File work folder", "Create a work folder, write reports into it, inspect them, and remove the whole tree.", "", "Language basics", []string{"."}, nil},
-	{"env-config", "Env configuration", "Write a .env fixture, load it, read settings back as options, and clean up.", "", "Language basics", []string{"."}, nil},
-	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", "Language basics", nil, []string{"math.zhex"}},
-	{"modules/math.test", "Module tests", "Check a module's words from a .test.zhex file the zhex test runner discovers.", "", "Language basics", nil, []string{"math.zhex", "test.zhex"}},
-	{"modules/md-report/main", "Markdown report", "Compose records and lists into a Markdown report through a pure-Zhex md module.", "", "Language basics", nil, []string{"md.zhex"}},
-	{"modules/html-page/main", "HTML page", "Compose a page from the html module: text escapes by default, markup nests through element with one deliberate raw, and a javascript: link is rejected.", "", "Language basics", nil, []string{"html.zhex"}},
-	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", "Algorithms", nil, nil},
-	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", "Algorithms", nil, nil},
-	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", "Algorithms", nil, nil},
-	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", "Algorithms", nil, nil},
-	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", "Algorithms", nil, nil},
-	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", "Algorithms", nil, nil},
-	{"life", "Game of Life", "Carry a finite grid through each generation in a flow; cells beyond the board are dead.", "", "Algorithms", nil, nil},
-	{"edit-distance", "Edit distance", "Fill a dynamic-programming table to compare Unicode text.", "", "Algorithms", nil, nil},
-	{"collatz", "Collatz steps", "Count the steps each number takes to reach 1 with a while loop.", "", "Algorithms", nil, nil},
+	// kind is the run panel's input kind ("none", "int", or "text"),
+	// lines the expected line count for int and text, and hint the short
+	// human description of the entry; none rows leave it empty and the
+	// generator renders the standard no-input sentence.
+	kind  string
+	lines int
+	hint  string
+}
+
+var exampleSpecs = []exampleSpec{
+	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", "Language basics", nil, nil, "text", 1, "One line of text"},
+	{"composition", "Composition", "Build larger operations from small typed words.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"calls", "Calls and defaults", "Call words with or without parentheses and compose them in flows.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"word-defaults", "Word defaults", "Use inferred parameter defaults and fresh values for each call.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"partials", "Explicit partial application", "Capture arguments with holes, then call the resulting word value.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"records", "Named records", "Group related values in a checked named type.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"choices", "Choices and matching", "Select and handle alternatives with a checked match.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"collections", "Lists and arrays", "Build and safely iterate lists and rectangular arrays.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"temporal", "Dates and time zones", "Compare calendar days with elapsed time across a daylight-saving transition.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"json-config", "Typed JSON configuration", "Decode configuration with typed defaults and encode it again.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"json-tree", "JSON trees", "Parse a heterogeneous payload into a Json tree, walk it recursively, and encode it back.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"xml-config", "Typed XML configuration", "Decode an embedded XML document with attribute fields, a list of endpoint records, and an optional owner.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"maps", "Maps and lookup", "Store keyed values, match optional lookups, and merge maps.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"recovery", "Error recovery", "Catch invalid numeric input and continue with a useful fallback.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"exit-status", "Exit status", "Choose a valid status; invalid input exits with status 2.", "0\n", "Language basics", nil, nil, "int", 1, "One number"},
+	{"text-stats", "Text statistics", "Read a file two ways: whole-buffer counts and a streamed uppercased echo.", "", "Language basics", []string{"examples/text-stats-sample.txt"}, nil, "none", 0, ""},
+	{"line-filter", "Line filter", "Split embedded records, select them by literal prefix and suffix, and join a report.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"score-report", "Score report", "Trim and score embedded records with list map, filter, fold, find, any, and all.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"sorting", "Sorting", "Rank records with list.sort-by and a named key word, and sort plain text with list.sort.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"file-write", "File write", "Attempt a checked report write and handle the failed Result with catch.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"paths", "Lexical paths", "Compose and decompose paths with file.join, base, extension, and directory-of.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"file-work", "File work folder", "Create a work folder, write reports into it, inspect them, and remove the whole tree.", "", "Language basics", []string{"."}, nil, "none", 0, ""},
+	{"env-config", "Env configuration", "Write a .env fixture, load it, read settings back as options, and clean up.", "", "Language basics", []string{"."}, nil, "none", 0, ""},
+	{"modules/main", "Modules", "Split a program across files: main imports a sibling math library.", "48\n18\n", "Language basics", nil, []string{"math.zhex"}, "int", 2, "Two numbers, one per line"},
+	{"modules/math.test", "Module tests", "Check a module's words from a .test.zhex file the zhex test runner discovers.", "", "Language basics", nil, []string{"math.zhex", "test.zhex"}, "none", 0, ""},
+	{"modules/md-report/main", "Markdown report", "Compose records and lists into a Markdown report through a pure-Zhex md module.", "", "Language basics", nil, []string{"md.zhex"}, "none", 0, ""},
+	{"modules/html-page/main", "HTML page", "Compose a page from the html module: text escapes by default, markup nests through element with one deliberate raw, and a javascript: link is rejected.", "", "Language basics", nil, []string{"html.zhex"}, "none", 0, ""},
+	{"fizzbuzz", "FizzBuzz", "Combine conditions, integer remainders, and a bounded loop.", "15\n", "Algorithms", nil, nil, "int", 1, "One number"},
+	{"fibonacci", "Fibonacci", "Use explicit mutable locals for an iterative algorithm.", "10\n", "Algorithms", nil, nil, "int", 1, "One number"},
+	{"factorial", "Factorial", "Accumulate a result using a half-open integer range.", "5\n", "Algorithms", nil, nil, "int", 1, "One number"},
+	{"times-table", "Times table", "Iterate a bounded range and build output strings from integers.", "7\n", "Algorithms", nil, nil, "int", 1, "One number"},
+	{"palindrome", "Palindrome", "Compare text with its Unicode code-point reversal.", "racecar\n", "Algorithms", nil, nil, "text", 1, "One line of text"},
+	{"gcd", "Greatest common divisor", "Recurse with Euclid's method and pipe a computed result through a flow.", "48\n18\n", "Algorithms", nil, nil, "int", 2, "Two numbers, one per line"},
+	{"life", "Game of Life", "Carry a finite grid through each generation in a flow; cells beyond the board are dead.", "", "Algorithms", nil, nil, "none", 0, ""},
+	{"edit-distance", "Edit distance", "Fill a dynamic-programming table to compare Unicode text.", "", "Algorithms", nil, nil, "none", 0, ""},
+	{"collatz", "Collatz steps", "Count the steps each number takes to reach 1 with a while loop.", "", "Algorithms", nil, nil, "none", 0, ""},
 }
 
 func main() {
@@ -323,9 +339,36 @@ func readRoadmap(path string) (Roadmap, error) {
 	return loadRoadmap(source)
 }
 
+// validateSpec enforces the run-panel declaration: the kind must classify
+// the row and agree with the stdin it pairs with; the page validates the
+// box against it, so a wrong declaration would teach visitors the wrong
+// entry.
+func validateSpec(spec exampleSpec) error {
+	if spec.kind != "none" && spec.kind != "int" && spec.kind != "text" {
+		return fmt.Errorf("example %s: kind must be none, int, or text", spec.id)
+	}
+	if spec.kind != "none" && spec.hint == "" {
+		return fmt.Errorf("example %s: kind %s needs a hint", spec.id, spec.kind)
+	}
+	if spec.kind != "none" && spec.lines < 1 {
+		return fmt.Errorf("example %s: kind %s needs at least one line", spec.id, spec.kind)
+	}
+	if stdinLines := strings.Count(spec.input, "\n"); (spec.kind == "none" && stdinLines != 0) || (spec.kind != "none" && stdinLines != spec.lines) {
+		return fmt.Errorf("example %s: stdin %q disagrees with kind %s of %d lines", spec.id, spec.input, spec.kind, spec.lines)
+	}
+	return nil
+}
+
 func loadExamples(root string) (pageData, error) {
 	var data pageData
 	for _, spec := range exampleSpecs {
+		if err := validateSpec(spec); err != nil {
+			return pageData{}, err
+		}
+		kind, hint := spec.kind, spec.hint
+		if kind == "none" {
+			hint = "No input — this example is self-contained"
+		}
 		filename := spec.id + ".zhex"
 		path := filepath.Join(root, "examples", filename)
 		source, err := os.ReadFile(path)
@@ -354,6 +397,7 @@ func loadExamples(root string) (pageData, error) {
 			ID: spec.id, Title: spec.title, Description: spec.description,
 			Group:  spec.group,
 			Source: string(source), Highlighted: string(highlight(string(source))), Input: strings.TrimSuffix(spec.input, "\n"), Stdin: spec.input, Output: output.String(),
+			InputKind: kind, InputLines: spec.lines, InputHint: hint,
 			Command:   command,
 			SourceURL: "examples/" + filename,
 			File:      filepath.Base(filename),

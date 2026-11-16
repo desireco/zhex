@@ -41,6 +41,31 @@ func TestRoadmapRejectsMissingOrRenamedMilestones(t *testing.T) {
 	}
 }
 
+func TestValidateSpecRejectsWrongRunPanelDeclarations(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		spec exampleSpec
+		want string // error substring; empty means accepted
+	}{
+		{"unknown kind", exampleSpec{id: "x", kind: "number", lines: 1, hint: "h", input: "5\n"}, "kind must be none, int, or text"},
+		{"missing hint", exampleSpec{id: "x", kind: "int", lines: 1, input: "5\n"}, "needs a hint"},
+		{"lines under one", exampleSpec{id: "x", kind: "int", lines: 0, hint: "h", input: ""}, "at least one line"},
+		{"int count disagrees with stdin", exampleSpec{id: "x", kind: "int", lines: 1, hint: "h", input: "5\n7\n"}, "disagrees with kind"},
+		{"valid int row", exampleSpec{id: "x", kind: "int", lines: 1, hint: "h", input: "5\n"}, ""},
+	} {
+		err := validateSpec(tc.spec)
+		if tc.want == "" {
+			if err != nil {
+				t.Fatalf("%s: rejected valid spec: %v", tc.name, err)
+			}
+			continue
+		}
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("%s: wanted error containing %q, got %v", tc.name, tc.want, err)
+		}
+	}
+}
+
 func TestRoadmapToleratesCRLFAndRejectsIntroBullets(t *testing.T) {
 	crlf := "# Zhex roadmap\r\n\r\nIntro.\r\n\r\n## Done\r\n\r\nBase.\r\n\r\n- Interpreter.\r\n## Next\r\n- REPL.\r\n## Future\r\n- Compilation.\r\n"
 	if _, err := loadRoadmap([]byte(crlf)); err != nil {

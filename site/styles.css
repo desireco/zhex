@@ -581,6 +581,12 @@ pre {
   text-transform: uppercase;
 }
 
+.run-input-hint {
+  margin: 0 0 .55rem;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .run-panel textarea {
   width: 100%;
   min-height: 96px;
@@ -591,6 +597,12 @@ pre {
   color: var(--ink);
   font: 14px/1.8 var(--mono);
   resize: vertical;
+}
+
+.run-input-error {
+  margin: 0 0 1rem;
+  color: var(--accent-strong);
+  font: 650 14px/1.5 var(--mono);
 }
 
 .wasm-note {
