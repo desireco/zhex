@@ -44,5 +44,16 @@ for (const file of await (await import('node:fs/promises')).readdir('../_site/do
   assert.equal((page.match(/<h1(?:\s|>)/g) || []).length, 1, `${file} must have one page heading`);
   assert(page.includes('class="accent-rule"'), `${file} header accent rule`);
 }
+const search = JSON.parse(await read('search-index.json'));
+const docPages = (await readdir('../_site/docs')).filter(f => f.endsWith('.html'));
+assert.equal(search.length, docPages.length, 'search index covers every docs page');
+for (const entry of search) {
+  assert(docPages.includes(`${entry.slug}.html`), `search index entry ${entry.slug} matches a docs page`);
+  assert(entry.title && entry.section && entry.url.endsWith(`docs/${entry.slug}.html`), `${entry.slug} search fields`);
+  assert(entry.text.length > 100, `${entry.slug} search body text`);
+  const page = await read(`docs/${entry.slug}.html`);
+  assert(page.includes('docs-search-input'), `${entry.slug} sidebar search box`);
+  for (const [slug] of entry.headings) assert(page.includes(`id="${slug}"`), `${entry.slug} search heading anchor ${slug}`);
+}
 const roadmap = await read('roadmap.html');
 for (const cssClass of ['roadmap-section done', 'roadmap-section next']) assert(roadmap.includes(cssClass), `${cssClass} styling`);

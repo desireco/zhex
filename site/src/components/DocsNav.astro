@@ -2,6 +2,14 @@
 const { entries, current, base } = Astro.props;
 const groups = ['Start', 'Language', 'Standard library', 'Tools'];
 ---
+<div class="docs-search" data-index={`${base}/search-index.json`}>
+  <label class="docs-search-box">
+    <span class="docs-search-label">Search the docs</span>
+    <input class="docs-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="flow, try, files…">
+  </label>
+  <p class="docs-search-status" role="status"></p>
+  <ol class="docs-search-results" aria-label="Search results" hidden></ol>
+</div>
 <nav class="docs-nav" aria-label="Documentation navigation">
   {groups.map(group => <section><h2>{group}</h2><ul>{entries.filter(e => e.data.section === group).map(e => <li><a href={`${base}/docs/${e.id}.html`} aria-current={e.id === current ? 'page' : undefined}>{e.data.title}</a></li>)}</ul></section>)}
   <a href={`${base}/errors.html`}>Diagnostic catalog</a>

@@ -92,6 +92,7 @@ button { font: inherit; }
 a:focus-visible,
 summary:focus-visible,
 button:focus-visible,
+input:focus-visible,
 textarea:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 4px;
@@ -906,6 +907,46 @@ pre {
 .docs-nav ul { list-style: none; padding: 0; }
 .docs-nav li { margin: .35rem 0; }
 .docs-nav [aria-current="page"] { font-weight: 700; }
+.docs-search { margin: 0 0 1rem; }
+.docs-search-box { display: block; }
+.docs-search-label {
+  display: block;
+  margin: 0 0 .5rem;
+  color: var(--accent-strong);
+  font: 750 12px/1.5 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.docs-search-input {
+  width: 100%;
+  padding: .65rem .85rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: 650 14px/1.5 var(--mono);
+}
+.docs-search-input:disabled { opacity: .6; }
+.docs-search-status { margin: .5rem 0 0; color: var(--muted); font: 650 12px/1.5 var(--mono); }
+.docs-search-results { margin: .5rem 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.docs-search-results li { margin: 0; border-bottom: 1px solid var(--line); }
+.docs-search-results a {
+  display: block;
+  padding: .45rem .25rem;
+  text-decoration: none;
+  transition: background var(--transition);
+}
+.docs-search-results a:hover { background: var(--surface); }
+.docs-search-results a:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+  background: var(--surface);
+}
+.docs-search-results strong { display: block; font-size: 15px; }
+.docs-search-results .where {
+  display: block;
+  color: var(--muted);
+  font: 650 11px/1.5 var(--mono);
+}
 @media (max-width: 700px) {
   .docs-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .docs-nav-desktop { display: none; }

@@ -19,4 +19,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <article class="section docs-article">{headings.some(h => h.depth === 2) && <details class="docs-toc"><summary>On this page</summary><nav aria-label="On this page"><ul>{headings.filter(h => h.depth === 2).map(h => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}</ul></nav></details>}<Content /></article>
     </div>
   </main>
+  <script>
+    import '../../scripts/docs-search.mjs';
+  </script>
 </Base>

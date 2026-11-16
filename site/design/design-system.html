@@ -62,6 +62,14 @@
     .demo-grid-demo { display: block; background: var(--paper); border: 1px solid var(--line); }
     .demo-playback { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; }
     .demo-playback .demo-button { min-height: 44px; justify-content: center; padding: .5rem .9rem; }
+    .demo-search-input { display: block; width: 100%; padding: .65rem .85rem; background: var(--surface); border: 1px solid var(--line); color: var(--ink); font: 650 14px/1.5 var(--mono); }
+    .demo-search-results { margin: var(--space-2) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+    .demo-search-results li { border-bottom: 1px solid var(--line); }
+    .demo-search-results a { display: block; padding: .45rem .25rem; text-decoration: none; }
+    .demo-search-results a:hover, .demo-search-results a:focus-visible { background: var(--surface); }
+    .demo-search-results a:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+    .demo-search-results strong { display: block; font-size: 15px; }
+    .demo-search-results span { display: block; color: var(--muted); font: 650 var(--text-xs)/1.5 var(--mono); }
     .demo-link { min-height: 44px; display: inline-flex; align-items: center; font-weight: 800; }
     .demo-status { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--muted); font: 650 var(--text-sm)/1.5 var(--mono); }
     .demo-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-strong); box-shadow: 0 0 0 5px var(--accent-soft); }
@@ -236,6 +244,8 @@
           <div class="tile"><h3>Run message</h3><div class="demo-message">runtime error: "abc" is not a signed 64-bit decimal integer</div><p>Runtime and load failures wrap inside the output pane instead of clipping.</p></div>
           <div class="tile"><h3>Demo grid</h3><svg class="demo-grid-demo" viewBox="0 0 84 84" width="126" height="126" role="img" aria-label="A 7 by 7 demo grid with live ink cells"><rect width="84" height="84" fill="var(--paper)"></rect><path d="M12 0V84M24 0V84M36 0V84M48 0V84M60 0V84M72 0V84M0 12H84M0 24H84M0 36H84M0 48H84M0 60H84M0 72H84" stroke="var(--line)" fill="none"></path><g fill="var(--ink)"><rect x="37" y="25" width="10" height="10"></rect><rect x="49" y="37" width="10" height="10"></rect><rect x="25" y="49" width="10" height="10"></rect><rect x="37" y="49" width="10" height="10"></rect><rect x="49" y="49" width="10" height="10"></rect></g></svg><p>Draws a captured run's frames cell by cell on paper, with a line grid and ink cells — tokens only.</p></div>
           <div class="tile"><h3>Playback controls</h3><p class="demo-playback"><button class="demo-button" type="button">Pause</button><button class="demo-button" type="button">Step →</button></p><p>Play, pause, and single-step a captured run at a fixed pace; the label carries the state, and controls dim when spent.</p></div>
+          <div class="tile"><h3>Docs search</h3><p><label class="demo-run-label" for="demo-search-input">Search the docs</label><input class="demo-search-input" id="demo-search-input" type="search" placeholder="flow, try, files…" autocomplete="off" spellcheck="false"></p><p>Lives at the top of the documentation sidebar; labeled in text, never placeholder-only.</p></div>
+          <div class="tile"><h3>Search results</h3><ol class="demo-search-results"><li><a href="#components"><strong>Words and flows</strong><span>Language · Words and flows</span></a></li><li><a href="#components"><strong>Handle a failure</strong><span>Language · Results</span></a></li></ol><p>A handful of ranked page and heading links; the count is announced and arrows plus Enter open a match.</p></div>
         </div>
         <div class="table-wrap">
           <table>
@@ -252,6 +262,8 @@
               <tr><td>Run message</td><td>Explain runtime and load failures inside the output pane</td><td>Long lines clipped behind horizontal scroll</td></tr>
               <tr><td>Demo grid</td><td>Draw a captured run's output cell by cell, tokens only, honest to the artifact's frames</td><td>Invented colors or cell sizes outside the tokens</td></tr>
               <tr><td>Playback controls</td><td>Play, pause, or single-step a captured run; the label carries the state</td><td>Controls that look active but do nothing</td></tr>
+              <tr><td>Docs search</td><td>Find documentation pages and headings from the sidebar, against the build's generated index</td><td>A hand-maintained word list, or a field named only by its placeholder</td></tr>
+              <tr><td>Search results</td><td>A handful of ranked page and heading links, opened by keyboard or click</td><td>A wall of matches, or results that look clickable but do nothing</td></tr>
             </tbody>
           </table>
         </div>
