@@ -1,0 +1,18 @@
+# Advent of Code 2023, day 9 — Mirage Maintenance.
+# Reads the histories from stdin until end of input, prints both answers.
+use day09-core
+
+# shortcut: a history line holds signed numbers and spaces, so this
+# sentinel cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let histories = day09-core.parse(buffer.to-text(input)) try
+print(day09-core.part-one(histories))
+print(day09-core.part-two(histories))
