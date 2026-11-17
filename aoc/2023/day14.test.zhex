@@ -1,0 +1,9 @@
+use day14-core
+use test
+
+let sample = "O....#....\nO.OO#....#\n.....##...\nOO.#O....O\n.O.....O#.\nO.#..O.#.#\n..O..#O..O\n.......O..\n#....###..\n#OO..#...."
+let dish = day14-core.parse(sample)
+
+test.check(day14-core.part-one(dish) == 136, "day 14 part 1")
+test.check(day14-core.part-two(dish) == 64, "day 14 part 2")
+print "day 14 tests passed"
