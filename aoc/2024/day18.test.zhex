@@ -1,0 +1,10 @@
+use day18-core
+use test
+
+# The page's example: a 7 by 7 grid, byte count 12.
+let sample = "5,4\n4,2\n4,5\n3,0\n2,1\n6,3\n2,4\n1,5\n0,6\n3,3\n2,6\n5,1\n1,2\n5,5\n2,5\n6,5\n1,4\n0,4\n6,4\n1,1\n6,1\n1,0\n0,5\n1,6\n2,0"
+let space = day18-core.parse(sample)
+
+test.check(day18-core.part-one(space) == 22, "day 18 part 1")
+test.check(day18-core.part-two(space) == "6,1", "day 18 part 2")
+print "day 18 tests passed"
