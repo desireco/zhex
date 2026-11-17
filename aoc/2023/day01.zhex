@@ -1,0 +1,19 @@
+# Advent of Code 2023, day 1 — Trebuchet?!.
+# Reads the calibration document from stdin until end of input, prints both
+# answers.
+use day01-core
+
+# shortcut: a calibration line holds letters and digits only, so this
+# sentinel cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let lines = day01-core.parse(buffer.to-text(input))
+print(day01-core.part-one(lines))
+print(day01-core.part-two(lines))
