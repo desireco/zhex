@@ -3,13 +3,17 @@ default:
     @just --list
 
 # Run interpreter and website tests.
-test: doctests
+test: doctests aoc
     go test ./...
     npm --prefix site run build
 
 # Check every example's ## > doctests and run its .test.zhex files with one built binary.
 doctests: build
     bin/zhex test examples
+
+# Run the AoC 2025 suite: every aoc/2025 *.test.zhex file with one built binary.
+aoc: build
+    bin/zhex test aoc/2025
 
 # Run the WASM corpus gate: every examples/ file classified, in-subset byte-identical, out-of-subset fenced.
 corpus:
