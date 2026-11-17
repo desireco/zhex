@@ -1,0 +1,9 @@
+use day04-core
+use test
+
+let sample = "..@@.@@@@.\n@@@.@.@.@@\n@@@@@.@.@@\n@.@@@@..@.\n@@.@@@@.@@\n.@@@@@@@.@\n.@.@.@.@@@\n@.@@@.@@@@\n.@@@@@@@@.\n@.@.@@@.@."
+let grid = day04-core.parse(sample)
+
+test.check(day04-core.part-one(grid) == 13, "day 4 part 1")
+test.check(day04-core.part-two(grid) == 43, "day 4 part 2")
+print "day 4 tests passed"

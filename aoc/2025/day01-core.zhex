@@ -1,0 +1,58 @@
+# Advent of Code 2025, day 1 — Secret Entrance (solution words).
+# The safe dial runs 0..99 and starts at 50; each input line is one
+# rotation, R or L plus a click count. Part 1 counts the rotations that
+# end with the dial on 0; part 2 counts every pass over 0, including the
+# passes between the start and end of one long rotation.
+
+# / truncates toward zero, and % inherits that, so negative wraps fix up here.
+word _floored-mod(value: Int, modulus: Int) -> Int
+    let wrapped = value % modulus
+    if wrapped < 0
+        wrapped + modulus
+    else
+        wrapped
+
+## Parse newline-separated rotations into signed click counts,
+## negative for left turns.
+word parse(text: String) -> List<Int>
+    let rotations: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let clicks = text.to-int(text.slice(line, 1, text.length(line))) try
+            if text.slice(line, 0, 1) == "L"
+                list.append(rotations, 0 - clicks)
+            else
+                list.append(rotations, clicks)
+    rotations
+
+## Count the rotations that land the dial on 0.
+word part-one(rotations: List<Int>) -> Int
+    var position = 50
+    var zeros = 0
+    for rotation in rotations
+        position = _floored-mod(position + rotation, 100)
+        if position == 0
+            zeros = zeros + 1
+    zeros
+
+# Zeros passed within one rotation, derived from the unnormalized landing
+# spot: a right turn crosses a multiple of 100 once per 100 clicks, a left
+# turn the same from the other side, minus a start already sitting on 0.
+word _zeros-in-rotation(landed: Int, rotation: Int) -> Int
+    if rotation > 0
+        landed / 100
+    else
+        var passed = (100 - landed) / 100
+        if landed - rotation == 0
+            passed = passed - 1
+        passed
+
+## Count every pass over 0, crossings inside one rotation included.
+word part-two(rotations: List<Int>) -> Int
+    var position = 50
+    var zeros = 0
+    for rotation in rotations
+        let landed = position + rotation
+        zeros = zeros + _zeros-in-rotation(landed, rotation)
+        position = _floored-mod(landed, 100)
+    zeros

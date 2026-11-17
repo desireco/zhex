@@ -1,0 +1,49 @@
+# Advent of Code 2025, day 3 — Lobby (solution words).
+# Each input line is one bank of batteries, one digit 1..9 per battery.
+# Switching on batteries keeps their line order and forms a number, so the
+# best output takes the largest digit that still leaves room for the rest.
+# Part 1 forms a two-digit number per bank; part 2 forms twelve digits.
+
+# Largest number keepable in line order: scan a shrinking window for its
+# largest digit, take it, and continue after it.
+word _best-output(bank: List<Int>, digits: Int) -> Int
+    var output = 0
+    var start = 0
+    var remaining = digits
+    while remaining > 0
+        var best-digit = 0
+        var best-index = start
+        for index in range(start, list.length(bank) - remaining + 1)
+            let digit = bank[index]
+            if digit > best-digit
+                best-digit = digit
+                best-index = index
+        output = output * 10 + best-digit
+        start = best-index + 1
+        remaining = remaining - 1
+    output
+
+## Parse the input into its banks, one digit list per line.
+word parse(text: String) -> List<List<Int>>
+    let banks: List<List<Int>> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let digits: List<Int> = []
+            for index in range(0, text.length(line))
+                list.append(digits, text.to-int(text.slice(line, index, index + 1)) try)
+            list.append(banks, digits)
+    banks
+
+## Sum the largest two-digit number each bank can produce.
+word part-one(banks: List<List<Int>>) -> Int
+    var total = 0
+    for bank in banks
+        total = total + _best-output(bank, 2)
+    total
+
+## Sum the largest twelve-digit number each bank can produce.
+word part-two(banks: List<List<Int>>) -> Int
+    var total = 0
+    for bank in banks
+        total = total + _best-output(bank, 12)
+    total

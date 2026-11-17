@@ -1,0 +1,9 @@
+use day01-core
+use test
+
+let sample = "L68\nL30\nR48\nL5\nR60\nL55\nL1\nL99\nR14\nL82"
+let rotations = day01-core.parse(sample) try
+
+test.check(day01-core.part-one(rotations) == 3, "day 1 part 1")
+test.check(day01-core.part-two(rotations) == 6, "day 1 part 2")
+print "day 1 tests passed"
