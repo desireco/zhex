@@ -1,0 +1,237 @@
+# Advent of Code 2024, day 15 — Warehouse Woes (solution words).
+# The warehouse is a rank-2 Array of single-character tiles, the same
+# shape the Game of Life example uses. Part 1 pushes single-tile boxes:
+# one chain scan along the move direction shifts a whole run into the
+# first gap. Part 2 scales the map to double width — boxes become [ ]
+# pairs — and pushes boxes as pairs: horizontal pushes shift the run of
+# halves, vertical pushes collect every half that must move by walking
+# the pairs ahead of the robot, wall-blocked pushes move nothing.
+# A box's GPS coordinate is 100 times its row plus its column, counted
+# at the O tile in part 1 and at the [ half in part 2.
+
+type Warehouse = record
+    grid: Array<String>
+    rows: Int
+    cols: Int
+    moves: List<String>
+
+type Offset = record
+    dr: Int
+    dc: Int
+
+## Parse the warehouse map and the move sequence.
+word parse(text: String) -> Warehouse
+    let sections = text.split(text, "\n\n")
+    let lines: List<String> = []
+    for line in text.split(sections[0], "\n")
+        if text.length(line) > 0
+            list.append(lines, line)
+    let rows = list.length(lines)
+    let cols = text.length(lines[0])
+    let grid: Array<String> = array.new([rows, cols], ".")
+    for r, line in lines
+        for c in range(0, text.length(line))
+            grid[r, c] = text.slice(line, c, c + 1)
+    let moves: List<String> = []
+    for line in text.split(sections[1], "\n")
+        for c in range(0, text.length(line))
+            list.append(moves, text.slice(line, c, c + 1))
+    Warehouse(grid, rows, cols, moves)
+
+# The robot's row and column in the grid.
+word _robot(grid: Array<String>, rows: Int, cols: Int) -> List<Int>
+    var rr = 0
+    var rc = 0
+    for r in range(0, rows)
+        for c in range(0, cols)
+            if grid[r, c] == "@"
+                rr = r
+                rc = c
+    grid[rr, rc] = "."
+    [rr, rc]
+
+word _delta(move: String) -> Offset
+    if move == "^"
+        Offset(-1, 0)
+    elif move == "v"
+        Offset(1, 0)
+    elif move == "<"
+        Offset(0, -1)
+    else
+        Offset(0, 1)
+
+# The sum of 100 * row + column over the tiles holding the mark.
+word _gps(grid: Array<String>, rows: Int, cols: Int, mark: String) -> Int
+    var total = 0
+    for r in range(0, rows)
+        for c in range(0, cols)
+            if grid[r, c] == mark
+                total = total + (100 * r + c)
+    total
+
+# One part-one move: walk the box chain to its first gap, shift the run
+# into it, and return the robot's new position.
+word _step-one(grid: Array<String>, row: Int, column: Int, dr: Int, dc: Int) -> List<Int>
+    let nr = row + dr
+    let nc = column + dc
+    let front = grid[nr, nc]
+    if front == "#"
+        [row, column]
+    else
+        if front == "."
+            [nr, nc]
+        else
+            var er = nr
+            var ec = nc
+            while grid[er, ec] == "O"
+                er = er + dr
+                ec = ec + dc
+            if grid[er, ec] == "#"
+                [row, column]
+            else
+                var ar = er
+                var ac = ec
+                while ar != nr or ac != nc
+                    grid[ar, ac] = grid[ar - dr, ac - dc]
+                    ar = ar - dr
+                    ac = ac - dc
+                grid[nr, nc] = "."
+                [nr, nc]
+
+## The sum of the boxes' GPS coordinates after all moves.
+word part-one(wh: Warehouse) -> Int
+    let grid: Array<String> = array.new([wh.rows, wh.cols], ".")
+    for r in range(0, wh.rows)
+        for c in range(0, wh.cols)
+            grid[r, c] = wh.grid[r, c]
+    let at = _robot(grid, wh.rows, wh.cols)
+    for move in wh.moves
+        let d = _delta(move)
+        let next = _step-one(grid, at[0], at[1], d.dr, d.dc)
+        at[0] = next[0]
+        at[1] = next[1]
+    _gps(grid, wh.rows, wh.cols, "O")
+
+# The double-width map: # becomes ##, O becomes [ ], @ becomes @ .
+word _scaled(grid: Array<String>, rows: Int, cols: Int) -> Array<String>
+    let wide: Array<String> = array.new([rows, cols * 2], ".")
+    for r in range(0, rows)
+        for c in range(0, cols)
+            if grid[r, c] == "#"
+                wide[r, c * 2] = "#"
+                wide[r, c * 2 + 1] = "#"
+            else
+                if grid[r, c] == "O"
+                    wide[r, c * 2] = "["
+                    wide[r, c * 2 + 1] = "]"
+                else
+                    if grid[r, c] == "@"
+                        wide[r, c * 2] = "@"
+    wide
+
+# Whether the encoded cell is already collected.
+word _has(cells: List<Int>, id: Int) -> Bool
+    var found = false
+    for other in cells
+        if other == id
+            found = true
+    found
+
+# The column of the other half of the box half at this position.
+word _partner(grid: Array<String>, row: Int, column: Int) -> Int
+    if grid[row, column] == "["
+        column + 1
+    else
+        column - 1
+
+# Every box half a vertical push must shift, worklist style with a
+# cursor, or Option.None when a wall stands ahead of any of them.
+word _lifted(grid: Array<String>, cols: Int, row: Int, column: Int, dr: Int) -> Option<List<Int>>
+    let cells: List<Int> = []
+    list.append(cells, row * cols + column)
+    var blocked = false
+    var at = 0
+    while at < list.length(cells) and not blocked
+        let id = cells[at]
+        at = at + 1
+        let r = id / cols
+        let c = id % cols
+        let pc = _partner(grid, r, c)
+        if not _has(cells, r * cols + pc)
+            list.append(cells, r * cols + pc)
+        if grid[r + dr, c] == "#"
+            blocked = true
+        else
+            if grid[r + dr, c] != "."
+                if not _has(cells, (r + dr) * cols + c)
+                    list.append(cells, (r + dr) * cols + c)
+                let bp = _partner(grid, r + dr, c)
+                if not _has(cells, (r + dr) * cols + bp)
+                    list.append(cells, (r + dr) * cols + bp)
+    if blocked
+        Option.None
+    else
+        Option.Some(cells)
+
+# Shift the collected box halves one tile along dr, farthest row first.
+word _shift(grid: Array<String>, cells: List<Int>, cols: Int, row: Int, dr: Int)
+    var depth = 0
+    for id in cells
+        let d = (id / cols - row) * dr
+        if d > depth
+            depth = d
+    while depth >= 0
+        for id in cells
+            if (id / cols - row) * dr == depth
+                let r = id / cols
+                let c = id % cols
+                grid[r + dr, c] = grid[r, c]
+                grid[r, c] = "."
+        depth = depth - 1
+
+# One part-two move: wide boxes push as pairs, vertically through the
+# collected halves, horizontally through the run of halves.
+word _step-two(grid: Array<String>, cols: Int, row: Int, column: Int, dr: Int, dc: Int) -> List<Int>
+    let nr = row + dr
+    let nc = column + dc
+    let front = grid[nr, nc]
+    if front == "#"
+        [row, column]
+    else
+        if front == "."
+            [nr, nc]
+        else
+            if dr == 0
+                var ec = nc
+                while grid[nr, ec] == "[" or grid[nr, ec] == "]"
+                    ec = ec + dc
+                if grid[nr, ec] == "#"
+                    [row, column]
+                else
+                    var ac = ec
+                    while ac != nc
+                        grid[nr, ac] = grid[nr, ac - dc]
+                        ac = ac - dc
+                    grid[nr, nc] = "."
+                    [nr, nc]
+            else
+                match _lifted(grid, cols, nr, nc, dr)
+                    case Option.Some(cells)
+                        _shift(grid, cells, cols, nr, dr)
+                        [nr, nc]
+                    case Option.None
+                        [row, column]
+
+## The sum of the boxes' GPS coordinates after all moves in the scaled
+## warehouse, each box counted at its [ half.
+word part-two(wh: Warehouse) -> Int
+    let grid = _scaled(wh.grid, wh.rows, wh.cols)
+    let cols = wh.cols * 2
+    let at = _robot(grid, wh.rows, cols)
+    for move in wh.moves
+        let d = _delta(move)
+        let next = _step-two(grid, cols, at[0], at[1], d.dr, d.dc)
+        at[0] = next[0]
+        at[1] = next[1]
+    _gps(grid, wh.rows, cols, "[")
+
