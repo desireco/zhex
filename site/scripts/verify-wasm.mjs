@@ -16,12 +16,13 @@ for (const example of data.Examples) {
   if (!example.Wasm) assert(example.WasmNote, `${example.ID} fence note`);
 }
 // Astro copies public/wasm into _site/wasm verbatim, so exactly the runnable
-// set plus the demos-page artifacts may exist there — a stale artifact from a
-// removed or newly fenced example must fail the build instead of shipping
-// dead bytes.
+// set plus the demos-page artifacts plus the solved AoC days' artifacts may
+// exist there — a stale artifact from a removed or newly fenced example must
+// fail the build instead of shipping dead bytes.
+const aocDays = data.Aoc.filter(d => d.Wasm);
 const onDisk = await readdir('../_site/wasm');
-const expected = [...runnable.map(e => e.Wasm.replace('wasm/', '')), ...data.Demos.map(d => d.Wasm.replace('wasm/', ''))];
-assert.deepEqual([...onDisk].sort(), [...expected].sort(), '_site/wasm holds exactly the runnable and demo artifacts');
+const expected = [...runnable.map(e => e.Wasm.replace('wasm/', '')), ...data.Demos.map(d => d.Wasm.replace('wasm/', '')), ...aocDays.map(d => d.Wasm.replace('wasm/', ''))];
+assert.deepEqual([...onDisk].sort(), [...expected].sort(), '_site/wasm holds exactly the runnable, demo, and aoc artifacts');
 for (const example of runnable) {
   const bytes = await readFile(`../_site/${example.Wasm}`);
   assert(WebAssembly.validate(bytes), `${example.ID} artifact validates`);
@@ -78,4 +79,20 @@ for (const demo of data.Demos) {
   const demoRun = runZhex(demoBytes, { stdin: '' });
   assert.equal(demoRun.error, null, `demo ${demo.ID} artifact run`);
   assert.deepEqual(demoRun.stdout, encoder.encode(demo.Output), `demo ${demo.ID} artifact stdout bytes equal the build-time Go output`);
+}
+// The solved AoC days pin the same way the examples do (#129): each day's
+// artifact runs on its committed sample input and must print the manifest's
+// expected answers — the run panel's contract, proven at build time. A day
+// that steps outside the compiled subset carries WasmNote instead of Wasm
+// and is simply absent here.
+for (const day of aocDays) {
+  assert(!day.WasmNote, `aoc day ${day.Day} cannot be runnable and fenced at once`);
+  assert.deepEqual(day.ExpectedAnswers.length, 2, `aoc day ${day.Day} pins two answers`);
+  const bytes = await readFile(`../_site/${day.Wasm}`);
+  assert(WebAssembly.validate(bytes), `aoc day ${day.Day} artifact validates`);
+  const sample = await readFile(`../aoc/2025/${day.Sample}`);
+  const result = runZhex(bytes, { stdin: sample });
+  assert.equal(result.error, null, `aoc day ${day.Day} artifact run`);
+  const answers = new TextDecoder().decode(result.stdout).trim().split('\n');
+  assert.deepEqual(answers, day.ExpectedAnswers, `aoc day ${day.Day} prints the expected sample answers`);
 }
