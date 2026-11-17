@@ -57,6 +57,7 @@ type ExampleModule struct {
 // demo can read input.
 type Demo struct {
 	ID     string
+	Group  string
 	Title  string
 	Blurb  string
 	Wasm   string
@@ -374,6 +375,7 @@ var exampleSpecs = []exampleSpec{
 type demoSpec struct {
 	id    string
 	file  string // relative to examples/
+	group string
 	title string
 	blurb string
 }
@@ -382,13 +384,15 @@ type demoSpec struct {
 // pins each file's corpus membership, and verify-wasm re-parses each demo's
 // Output with the page's frame parser — keep all three in sync. The order is
 // the page order (#116, trimmed by #118): the glider gun, the acorn, and
-// diehard.
+// diehard, grouped as Game of Life (#119) — the page heads each distinct
+// group in first-appearance order, so more groups can arrive as new kinds of
+// demo do.
 var demoSpecs = []demoSpec{
-	{"gun", "demos/gun.zhex", "Gosper glider gun",
+	{"gun", "demos/gun.zhex", "Game of Life", "Gosper glider gun",
 		"The classic gun fires a new glider every thirty generations; the stream keeps crossing the board, so the run never settles."},
-	{"acorn", "demos/acorn.zhex", "Acorn",
+	{"acorn", "demos/acorn.zhex", "Game of Life", "Acorn",
 		"Seven cells explode into a drifting cloud of chaos — the methuselah's first 150 generations, the run's densest stretch."},
-	{"diehard", "demos/diehard.zhex", "Diehard",
+	{"diehard", "demos/diehard.zhex", "Game of Life", "Diehard",
 		"Seven cells churn for exactly 130 generations and then vanish completely — the run ends on an empty board."},
 }
 
@@ -518,6 +522,9 @@ func loadExamples(root string) (pageData, error) {
 func loadDemos(root string) ([]Demo, error) {
 	var demos []Demo
 	for _, spec := range demoSpecs {
+		if spec.group == "" {
+			return nil, fmt.Errorf("demo %s: missing group", spec.id)
+		}
 		path := filepath.Join(root, "examples", spec.file)
 		source, err := os.ReadFile(path)
 		if err != nil {
@@ -527,7 +534,7 @@ func loadDemos(root string) ([]Demo, error) {
 		if err := lang.RunWithModules(path, string(source), strings.NewReader(""), &output, nil, nil, resolveSibling(path)); err != nil {
 			return nil, fmt.Errorf("run demo %s: %w", spec.file, err)
 		}
-		demos = append(demos, Demo{ID: spec.id, Title: spec.title, Blurb: spec.blurb, Stdin: "", Output: output.String()})
+		demos = append(demos, Demo{ID: spec.id, Group: spec.group, Title: spec.title, Blurb: spec.blurb, Stdin: "", Output: output.String()})
 	}
 	return demos, nil
 }

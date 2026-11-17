@@ -57,6 +57,7 @@ assert.deepEqual(rerun.stdout, encoder.encode(byId.factorial.Output), 'factorial
 // count for any demo fails the build). The examples page's 7×7 life
 // card keeps its own pins through the general loop above.
 assert.deepEqual(data.Demos.map(d => d.ID), ['gun', 'acorn', 'diehard'], 'demo order: glider gun, acorn, diehard');
+for (const demo of data.Demos) assert.equal(demo.Group, 'Game of Life', `demo ${demo.ID} is grouped under Game of Life (#119)`);
 const demoPins = {
   gun: { board: [54, 54], frames: [121, 121] },
   acorn: { board: [60, 60], frames: [151, 151] },

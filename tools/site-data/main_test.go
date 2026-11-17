@@ -266,7 +266,9 @@ func TestLoadExamplesRejectsNonzeroDeliberateExit(t *testing.T) {
 }
 
 // TestDemoSpecsAreWellFormedAndOnDisk pins the demos manifest: unique ids,
-// every file on disk, and each generated demo row carries its oracle stdout
+// every file on disk, each row grouped (a missing group fails the build —
+// the page heads every distinct group, so a group-less row would render
+// ungrouped), and each generated demo row carries its oracle stdout
 // as Life frame output — a drifted row fails go test before the site build.
 func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
 	root := filepath.Join("..", "..")
@@ -279,6 +281,9 @@ func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
 			t.Fatalf("duplicate demo id %q", spec.id)
 		}
 		seen[spec.id] = true
+		if spec.group == "" {
+			t.Fatalf("demo %s: missing group", spec.id)
+		}
 		if !strings.HasSuffix(spec.file, ".zhex") {
 			t.Fatalf("demo %s names non-source file %q", spec.id, spec.file)
 		}
@@ -293,7 +298,10 @@ func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
 	if len(demos) != len(demoSpecs) {
 		t.Fatalf("got %d demos, want %d", len(demos), len(demoSpecs))
 	}
-	for _, demo := range demos {
+	for i, demo := range demos {
+		if demo.Group != demoSpecs[i].group {
+			t.Fatalf("demo %s group %q, want %q", demo.ID, demo.Group, demoSpecs[i].group)
+		}
 		if !strings.HasPrefix(demo.Output, "Generation 0\n") || !strings.HasSuffix(demo.Output, "\n") {
 			t.Fatalf("demo %s output is not Life frame output", demo.ID)
 		}

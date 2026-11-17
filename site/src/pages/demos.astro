@@ -1,6 +1,12 @@
 ---
 import Base from "../layouts/Base.astro";
 import data from "../../data.json";
+
+// One group heading per distinct group, in first-appearance order (#119).
+const groups = [...new Set(data.Demos.map(d => d.Group))].map(name => ({
+  name,
+  demos: data.Demos.filter(d => d.Group === name),
+}));
 ---
 <Base title="Demos — Zhex" description="Zhex programs running as themselves — compiled to WebAssembly and replayed in your browser." current="demos">
   <main id="main" class="wrap">
@@ -12,21 +18,26 @@ import data from "../../data.json";
     </section>
 
     <section class="demos-section" aria-labelledby="demos-title">
-      {data.Demos.map(demo => (
-        <div class="demo">
-          <header class="program-heading"><h2>{demo.Title}</h2><p>{demo.Blurb}</p></header>
-          <article class="demo-player" data-wasm={demo.Wasm} hidden>
-            <p class="demo-caption"><a class="text-link" href={`examples/demos/${demo.ID}.zhex`}><code>{demo.ID}.zhex</code></a> — its stdout, captured once from the compiled artifact and replayed frame by frame.</p>
-            <div class="demo-stage">
-              <canvas class="demo-grid" width="336" height="336" role="img" aria-label="Game of Life board"></canvas>
-              <p class="demo-generation" role="status">Generation 0</p>
+      {groups.map(group => (
+        <div class="demo-group">
+          <header class="example-group-heading"><h2>{group.name}</h2></header>
+          {group.demos.map(demo => (
+            <div class="demo">
+              <header class="program-heading"><h3>{demo.Title}</h3><p>{demo.Blurb}</p></header>
+              <article class="demo-player" data-wasm={demo.Wasm} hidden>
+                <p class="demo-caption"><a class="text-link" href={`examples/demos/${demo.ID}.zhex`}><code>{demo.ID}.zhex</code></a> — its stdout, captured once from the compiled artifact and replayed frame by frame.</p>
+                <div class="demo-stage">
+                  <canvas class="demo-grid" width="336" height="336" role="img" aria-label="Game of Life board"></canvas>
+                  <p class="demo-generation" role="status">Generation 0</p>
+                </div>
+                <div class="demo-controls">
+                  <button class="button demo-play" type="button">Play</button>
+                  <button class="button demo-step" type="button">Step <span aria-hidden="true">→</span></button>
+                </div>
+              </article>
+              <p class="demo-failure" role="alert" hidden></p>
             </div>
-            <div class="demo-controls">
-              <button class="button demo-play" type="button">Play</button>
-              <button class="button demo-step" type="button">Step <span aria-hidden="true">→</span></button>
-            </div>
-          </article>
-          <p class="demo-failure" role="alert" hidden></p>
+          ))}
         </div>
       ))}
     </section>
