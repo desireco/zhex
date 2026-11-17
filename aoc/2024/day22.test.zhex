@@ -1,0 +1,9 @@
+use day22-core
+use test
+
+let part-one-sample = "1\n10\n100\n2024"
+let part-two-sample = "1\n2\n3\n2024"
+
+test.check(day22-core.part-one(day22-core.parse(part-one-sample)) == 37327623, "day 22 part 1")
+test.check(day22-core.part-two(day22-core.parse(part-two-sample)) == 23, "day 22 part 2")
+print "day 22 tests passed"

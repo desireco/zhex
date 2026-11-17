@@ -1,0 +1,86 @@
+# Advent of Code 2024, day 22 — Monkey Market (solution words).
+# Each buyer's secret evolves by three mix-and-prune steps: multiply by 64,
+# divide by 32, multiply by 2048, each XOR-ed into the secret and pruned to
+# 2^24. Zhex has no bitwise words, so the XOR is a 24-bit bit loop —
+# operands are reduced mod 2^24 first, which the prune allows because XOR
+# and mod commute on the low bits. Part 2 keys a Map on the string of the
+# last four price changes and banks only each buyer's first occurrence of a
+# window.
+
+## Parse the initial secrets: one per nonempty line.
+word parse(text: String) -> List<Int>
+    let secrets: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let secret = text.to-int(line) catch 0
+            list.append(secrets, secret)
+    secrets
+
+# XOR of two values below 2^24, one bit at a time: a bit is set exactly when
+# the operands disagree there.
+word _xor24(a: Int, b: Int) -> Int
+    var result = 0
+    var place = 1
+    for bit in range(0, 24)
+        let left = (a / place) % 2
+        let right = (b / place) % 2
+        if left != right
+            result = result + place
+        place = place * 2
+    result
+
+# One secret evolution: mix with secret*64, then secret/32, then
+# secret*2048, pruning to 2^24 each time.
+word _evolve(secret: Int) -> Int
+    let first = _xor24(secret, (secret * 64) % 16777216)
+    let second = _xor24(first, first / 32)
+    _xor24(second, (second * 2048) % 16777216)
+
+## Sum of every buyer's 2000th secret number.
+word part-one(secrets: List<Int>) -> Int
+    var total = 0
+    for secret in secrets
+        var current = secret
+        for step in range(0, 2000)
+            current = _evolve(current)
+        total = total + current
+    total
+
+# Best total bananas: for each buyer, bank the price at the first occurrence
+# of every four-change window, then take the largest window total.
+word part-two(secrets: List<Int>) -> Int
+    let totals: Map<String, Int> = {}
+    for secret in secrets
+        let seen: Map<String, Bool> = {}
+        var current = secret
+        var prev = secret % 10
+        var d1 = 0
+        var d2 = 0
+        var d3 = 0
+        var d4 = 0
+        var count = 0
+        for step in range(0, 2000)
+            current = _evolve(current)
+            let price = current % 10
+            d1 = d2
+            d2 = d3
+            d3 = d4
+            d4 = price - prev
+            prev = price
+            count = count + 1
+            if count >= 4
+                let window = d1 + "," + d2 + "," + d3 + "," + d4
+                if not map.contains(seen, window)
+                    let marked = map.put(seen, window, true)
+                    var added = 0
+                    match totals[window]
+                        case Option.Some(bananas)
+                            added = bananas
+                        case Option.None
+                            added = 0
+                    totals[window] = added + price
+    var best = 0
+    for window, bananas in totals
+        if bananas > best
+            best = bananas
+    best
