@@ -1,0 +1,17 @@
+use day12-core
+use test
+
+let first = "AAAA\nBBCD\nBBCC\nEEEC"
+let grid = day12-core.parse(first)
+
+test.check(day12-core.part-one(grid) == 140, "day 12 part 1, first map")
+test.check(day12-core.part-two(grid) == 80, "day 12 part 2, first map")
+
+let second = day12-core.parse("OOOOO\nOXOXO\nOOOOO\nOXOXO\nOOOOO")
+test.check(day12-core.part-one(second) == 772, "day 12 part 1, second map")
+test.check(day12-core.part-two(second) == 436, "day 12 part 2, second map")
+
+let third = day12-core.parse("RRRRIICCFF\nRRRRIICCCF\nVVRRRCCFFF\nVVRCCCJFFF\nVVVVCJJCFE\nVVIVCCJJEE\nVVIIICJJEE\nMIIIIIJJEE\nMIIISIJEEE\nMMMISSJEEE")
+test.check(day12-core.part-one(third) == 1930, "day 12 part 1, third map")
+test.check(day12-core.part-two(third) == 1206, "day 12 part 2, third map")
+print "day 12 tests passed"
