@@ -1,0 +1,18 @@
+# Advent of Code 2025, day 5 — Cafeteria.
+# Reads the database from stdin until end of input, prints both answers.
+use day05-core
+
+# shortcut: every database line is digits and one dash, so this sentinel
+# cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let database = day05-core.parse(buffer.to-text(input)) try
+print(day05-core.part-one(database))
+print(day05-core.part-two(database))
