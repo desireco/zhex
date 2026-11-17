@@ -331,11 +331,21 @@ func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	write("day01.zhex", "let n = text.to-int(read-line(\"\") try) try\nprint(n * 2)\n")
 	write("samples/day02.txt", "7\n")
 	write("day02.zhex", "print(1)\n")
+	write("samples/day03.txt", "8\n")
+	write("day03.zhex", "print(3)\n")
+	write("samples/day04.txt", "9\n")
+	write("day04.zhex", "print(4)\n")
 
 	original := aocSpecs
 	defer func() { aocSpecs = original }()
 
-	// All-empty statuses stay byte-empty over a fully stocked tree.
+	// All-empty statuses stay byte-empty over a fully stocked tree; the
+	// real manifest ships solved days, so reset every status first.
+	allEmpty := append([]aocSpec(nil), aocSpecs...)
+	for i := range allEmpty {
+		allEmpty[i].status = "empty"
+	}
+	aocSpecs = allEmpty
 	days, err := loadAoc(root)
 	if err != nil {
 		t.Fatalf("empty manifest: %v", err)
@@ -367,34 +377,35 @@ func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	}
 
 	// A solved day without its sample fails, naming the day.
-	specs[2].status = "solved"
+	write("samples/day03.txt", "1\n")
+	specs[4].status = "solved"
 	aocSpecs = specs
-	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 3") || !strings.Contains(err.Error(), "sample") {
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 5") || !strings.Contains(err.Error(), "sample") {
 		t.Fatalf("missing sample error = %v", err)
 	}
 
 	// A part1 day without its solution fails, naming the day.
-	write("samples/day03.txt", "1\n")
-	specs[2].status = "part1"
+	write("samples/day05.txt", "1\n")
+	specs[4].status = "part1"
 	aocSpecs = specs
-	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 3") || !strings.Contains(err.Error(), "solution") {
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 5") || !strings.Contains(err.Error(), "solution") {
 		t.Fatalf("missing solution error = %v", err)
 	}
 
 	// A broken solution fails the run, naming the day.
-	write("day03.zhex", "print(unknown)\n")
-	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "run aoc day 3") {
+	write("day05.zhex", "print(unknown)\n")
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "run aoc day 5") {
 		t.Fatalf("broken solution error = %v", err)
 	}
 
 	// A working day needs the sample but not the solution.
-	specs[2].status = "working"
+	specs[4].status = "working"
 	aocSpecs = specs
 	days, err = loadAoc(root)
 	if err != nil {
 		t.Fatalf("working day without solution: %v", err)
 	}
-	if days[2].Stdin != "1\n" || days[2].Output != "" {
-		t.Fatalf("working day stdin %q output %q; want sample only", days[2].Stdin, days[2].Output)
+	if days[4].Stdin != "1\n" || days[4].Output != "" {
+		t.Fatalf("working day stdin %q output %q; want sample only", days[4].Stdin, days[4].Output)
 	}
 }

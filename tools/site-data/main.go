@@ -440,6 +440,11 @@ type aocSpec struct {
 	kind    string   // input box kind: text for every solved day so far
 }
 
+// aocSamplePath names the day's sample input file under aoc/2025; specs
+// leave sample empty until the day ships one, and aocSamplePath is the
+// convention the loader falls back to.
+func aocSamplePath(day int) string { return fmt.Sprintf("samples/day%02d.txt", day) }
+
 // aocSolutionPath names the day's solution under aoc/2025.
 func aocSolutionPath(day int) string { return fmt.Sprintf("day%02d.zhex", day) }
 
@@ -631,6 +636,9 @@ func loadAoc(root string) ([]AocDay, error) {
 			InputKind:       spec.kind,
 		}
 		if spec.status != "empty" {
+			if day.Sample == "" {
+				day.Sample = aocSamplePath(spec.day)
+			}
 			sample, err := os.ReadFile(filepath.Join(root, "aoc", "2025", day.Sample))
 			if err != nil {
 				return nil, fmt.Errorf("read aoc day %d sample: %w", spec.day, err)
