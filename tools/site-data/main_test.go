@@ -319,6 +319,16 @@ func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
 // empty or working day carries neither, so its door keeps the honest status
 // line. The rows name 2023, and every path the loader derives lands under
 // aoc/2023, proving the year generalization.
+// emptyYear builds the synthetic manifest rows the loadAoc tests swap in:
+// no titles, outlines, samples, or statuses beyond empty.
+func emptyYear(year, days int) []aocSpec {
+	specs := make([]aocSpec, days)
+	for at := range specs {
+		specs[at] = aocSpec{year: year, day: at + 1, status: "empty"}
+	}
+	return specs
+}
+
 func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, contents string) {
