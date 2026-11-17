@@ -52,10 +52,13 @@ type ExampleModule struct {
 
 // Demo is one demos-page program: the demo is not an examples-page card, so
 // it carries no source or run panel — the demos page replays Output's frames
-// from the compiled artifact client-side. Stdin is always empty today; the
-// field travels with the data so a future demo can read input.
+// from the compiled artifact client-side. Title and Blurb head the player;
+// Stdin is always empty today; the field travels with the data so a future
+// demo can read input.
 type Demo struct {
 	ID     string
+	Title  string
+	Blurb  string
 	Wasm   string
 	Stdin  string
 	Output string
@@ -366,17 +369,29 @@ var exampleSpecs = []exampleSpec{
 
 // demoSpec is one demos-page program under examples/ (outside the examples
 // page's spec list): the generator runs it for the oracle stdout and the
-// -wasm pass compiles it to its own browser artifact.
+// -wasm pass compiles it to its own browser artifact. Title and blurb head
+// the player on the page.
 type demoSpec struct {
-	id   string
-	file string // relative to examples/
+	id    string
+	file  string // relative to examples/
+	title string
+	blurb string
 }
 
 // demoSpecs is the demos manifest; corpusTable in internal/wasm/corpus_test.go
 // pins each file's corpus membership, and verify-wasm re-parses each demo's
-// Output with the page's frame parser — keep all three in sync.
+// Output with the page's frame parser — keep all three in sync. The order is
+// the page order (#116): the gentle patterns intro first, then the evolving
+// runs — the glider gun, the acorn, and diehard.
 var demoSpecs = []demoSpec{
-	{"life", "demos/life.zhex"},
+	{"life", "demos/life.zhex", "Patterns",
+		"A glider crosses the board while a toad, a blinker, and a beacon pulse in the corners — the classic small patterns, generation by generation."},
+	{"gun", "demos/gun.zhex", "Gosper glider gun",
+		"The classic gun fires a new glider every thirty generations; the stream keeps crossing the board, so the run never settles."},
+	{"acorn", "demos/acorn.zhex", "Acorn",
+		"Seven cells explode into a drifting cloud of chaos — the methuselah's first 150 generations, the run's densest stretch."},
+	{"diehard", "demos/diehard.zhex", "Diehard",
+		"Seven cells churn for exactly 130 generations and then vanish completely — the run ends on an empty board."},
 }
 
 func main() {
@@ -514,7 +529,7 @@ func loadDemos(root string) ([]Demo, error) {
 		if err := lang.RunWithModules(path, string(source), strings.NewReader(""), &output, nil, nil, resolveSibling(path)); err != nil {
 			return nil, fmt.Errorf("run demo %s: %w", spec.file, err)
 		}
-		demos = append(demos, Demo{ID: spec.id, Stdin: "", Output: output.String()})
+		demos = append(demos, Demo{ID: spec.id, Title: spec.title, Blurb: spec.blurb, Stdin: "", Output: output.String()})
 	}
 	return demos, nil
 }

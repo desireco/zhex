@@ -14,6 +14,7 @@ import data from "../../data.json";
     <section class="demos-section" aria-labelledby="demos-title">
       {data.Demos.map(demo => (
         <div class="demo">
+          <header class="program-heading"><h2>{demo.Title}</h2><p>{demo.Blurb}</p></header>
           <article class="demo-player" data-wasm={demo.Wasm} hidden>
             <p class="demo-caption"><a class="text-link" href={`examples/demos/${demo.ID}.zhex`}><code>{demo.ID}.zhex</code></a> — its stdout, captured once from the compiled artifact and replayed frame by frame.</p>
             <div class="demo-stage">
@@ -39,12 +40,13 @@ import data from "../../data.json";
     </script>
 
     <script>
-      // The Game of Life demo (#90, on its own page since #115): run the
-      // compiled artifact once through the same shim as the run panels, split
-      // its stdout into frames with the shared parser (which refuses any
-      // output its frames cannot byte-reconstruct), and replay those frames
-      // client-side. The player stays hidden until a run succeeds — no dead
-      // controls, ever. Every demo on the page goes through this loop.
+      // The Game of Life demos (#90, on their own page since #115, the
+      // evolving set since #116): run each compiled artifact once through the
+      // same shim as the run panels, split its stdout into frames with the
+      // shared parser (which refuses any output its frames cannot
+      // byte-reconstruct), and replay those frames client-side. The player
+      // stays hidden until a run succeeds — no dead controls, ever. Every
+      // demo on the page goes through this loop.
       import { runZhex } from "../scripts/zhex-run.mjs";
       import { parseLifeFrames } from "../scripts/life-frames.mjs";
       import { fetchArtifact, loadFailedMessage } from "../scripts/artifact.mjs";
@@ -72,15 +74,19 @@ import data from "../../data.json";
           const frames = parseLifeFrames(new TextDecoder().decode(stdout));
 
           // The parser pins every frame to one square board, so the geometry
-          // is its contract, not a constant of the page; cells keep at least
-          // 12px on the 336px stage across the manifest's board range.
+          // is its contract, not a constant of the page; the stage adapts per
+          // board (#116) with cells never below 12px — boards up to 28 still
+          // take the 336px scale the intro demo set, larger boards render at
+          // the 12px floor, and the CSS width scales the stage down on mobile
+          // while the backing cells stay legible.
           const board = frames[0].rows.length;
-          const cell = Math.ceil(336 / board);
+          const cell = Math.max(12, Math.ceil(336 / board));
           const side = cell * board;
           // Draw at device resolution so cells stay crisp on high-dpi screens.
           const scale = Math.min(window.devicePixelRatio || 1, 2);
           canvas.width = side * scale;
           canvas.height = side * scale;
+          canvas.style.maxWidth = `${side}px`;
           canvas.setAttribute("aria-label", `Game of Life board, ${board} by ${board} cells`);
           const ctx = canvas.getContext("2d");
           ctx.scale(scale, scale);

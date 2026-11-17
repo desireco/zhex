@@ -5,9 +5,11 @@ import { parseLifeFrames } from '../src/scripts/life-frames.mjs';
 const encoder = new TextEncoder();
 const data = JSON.parse(await readFile('data.json', 'utf8'));
 const runnable = data.Examples.filter(e => e.Wasm);
-// 22 = the corpus's 24 in-subset files minus the two library files (math.zhex,
+// 22 = the corpus's 28 in-subset files minus the two library files (math.zhex,
 // md.zhex) that appear only as Modules of their entry example, never as
-// runnable entries; twin pin of corpusTable in internal/wasm/corpus_test.go.
+// runnable entries, minus the four demos-page programs under examples/demos/
+// that are not examples-page cards; twin pin of corpusTable in
+// internal/wasm/corpus_test.go.
 assert.equal(runnable.length, 22, 'runnable example count');
 for (const example of data.Examples) {
   assert.ok(!example.Wasm || !example.WasmNote, `${example.ID} cannot be runnable and fenced at once`);
@@ -45,17 +47,36 @@ assert.equal(rerun.error, null, 'factorial default re-run');
 assert.deepEqual(rerun.stdout, encoder.encode(byId.factorial.Output), 'factorial default re-run matches the oracle after the edit (fresh-instance proof)');
 // #115's demos page replays exactly what parseLifeFrames extracts from each
 // demo artifact's oracle stdout — the page runs the same parser over the
-// bytes it captures in the browser, so this pin and the demo cannot drift
+// bytes it captures in the browser, so these pins and the demos cannot drift
 // apart. The reconstruction check inside parseLifeFrames is the differential:
-// these frames rebuild the oracle output byte-for-byte or the build fails.
-// The pins derive from the parse — contiguous generations from 0, one square
-// board in the size range the canvas renders at ≥12px cells, a run long
-// enough to be worth a loop — never a hard-coded frame list. The examples
-// page's 7×7 life card keeps its own pins through the general loop above.
-assert.equal(data.Demos.length, 1, 'demo manifest holds one demo');
-const demoFrames = parseLifeFrames(data.Demos[0].Output);
-assert.deepEqual(demoFrames.map(f => f.generation), demoFrames.map((_, i) => i), 'demo generations run contiguously from 0');
-const board = demoFrames[0].rows.length;
-assert(demoFrames.every(f => f.rows.length === board), 'demo frames share one square board');
-assert(board >= 21 && board <= 30, 'demo board stays in the 21-30 range (336px stage, ≥12px cells)');
-assert(demoFrames.length >= 49 && demoFrames.length <= 61, 'demo runs 48-60 computed generations');
+// each demo's frames rebuild its oracle output byte-for-byte or the build
+// fails, and the artifact run must match the oracle stdout bytes too. The
+// pins derive from the parse — contiguous generations from 0, one square
+// board, per-demo board/frame bounds, and a stdout size sanity cap (#116;
+// the evolving set's boards and run lengths are pinned individually — a
+// wrong board or count for any demo fails the build — while the intro keeps
+// the looser ranges it has carried since #115). The examples page's 7×7 life
+// card keeps its own pins through the general loop above.
+assert.deepEqual(data.Demos.map(d => d.ID), ['life', 'gun', 'acorn', 'diehard'], 'demo order: patterns intro, glider gun, acorn, diehard');
+const demoPins = {
+  life: { board: [21, 30], frames: [49, 61] },
+  gun: { board: [54, 54], frames: [121, 121] },
+  acorn: { board: [60, 60], frames: [151, 151] },
+  diehard: { board: [24, 24], frames: [131, 131] },
+};
+for (const demo of data.Demos) {
+  const pin = demoPins[demo.ID];
+  assert(pin, `demo ${demo.ID} has verify pins`);
+  assert(demo.Output.length < 600 * 1024, `demo ${demo.ID} stdout stays under ~600 KB`);
+  const demoFrames = parseLifeFrames(demo.Output);
+  assert.deepEqual(demoFrames.map(f => f.generation), demoFrames.map((_, i) => i), `demo ${demo.ID} generations run contiguously from 0`);
+  const board = demoFrames[0].rows.length;
+  assert(demoFrames.every(f => f.rows.length === board), `demo ${demo.ID} frames share one square board`);
+  assert(board >= pin.board[0] && board <= pin.board[1], `demo ${demo.ID} board of ${board} stays within ${pin.board[0]}-${pin.board[1]} (≥12px cells)`);
+  assert(demoFrames.length >= pin.frames[0] && demoFrames.length <= pin.frames[1], `demo ${demo.ID} runs ${demoFrames.length} frames, within ${pin.frames[0]}-${pin.frames[1]}`);
+  const demoBytes = await readFile(`../_site/${demo.Wasm}`);
+  assert(WebAssembly.validate(demoBytes), `demo ${demo.ID} artifact validates`);
+  const demoRun = runZhex(demoBytes, { stdin: '' });
+  assert.equal(demoRun.error, null, `demo ${demo.ID} artifact run`);
+  assert.deepEqual(demoRun.stdout, encoder.encode(demo.Output), `demo ${demo.ID} artifact stdout bytes equal the build-time Go output`);
+}

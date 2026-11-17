@@ -1,0 +1,74 @@
+# Conway's Game of Life on a 54 by 54 board with a fixed-dead exterior: a
+# Gosper glider gun sits at the top left and streams gliders across the board
+# toward the bottom right corner. The demos page replays this run frame by
+# frame.
+word next-cell(grid: Array<Int>, row: Int, column: Int) -> Int
+    let current = grid[row, column]
+    var around = 0
+    for r in range(row - 1, row + 2)
+        for c in range(column - 1, column + 2)
+            if r >= 0 and r < 54 and c >= 0 and c < 54 and (r != row or c != column)
+                if grid[r, c] == 1
+                    around = around + 1
+
+    if current == 1
+        if around == 2 or around == 3
+            1
+        else
+            0
+    else
+        if around == 3
+            1
+        else
+            0
+
+word advance(grid: Array<Int>) -> Array<Int>
+    let following: Array<Int> = array.new([54, 54], 0)
+    for row in range(0, 54)
+        for column in range(0, 54)
+            following[row, column] = next-cell(grid, row, column)
+    following
+
+word show(grid: Array<Int>, generation: Int) -> Array<Int>
+    print("Generation " + int.to-string(generation))
+    for row in range(0, 54)
+        var line = ""
+        for column in range(0, 54)
+            if grid[row, column] == 1
+                line = line + "#"
+            else
+                line = line + "."
+        print line
+    grid
+
+word stamp(grid: Array<Int>, top: Int, left: Int, pattern: List<String>) -> Array<Int>
+    for row in range(0, list.length(pattern))
+        let line = pattern[row]
+        for column in range(0, text.length(line))
+            if text.slice(line, column, column + 1) == "#"
+                grid[top + row, left + column] = 1
+    grid
+
+word seed(grid: Array<Int>) -> Array<Int>
+    stamp(grid, 3, 3, [
+        "........................#",
+        "......................#.#",
+        "............##......##............##",
+        "...........#...#....##............##",
+        "##........#.....#...##",
+        "##........#...#.##....#.#",
+        "..........#.....#.......#",
+        "...........#...#",
+        "............##"])
+
+word generations(grid: Array<Int>, count: Int) -> Array<Int>
+    var current = grid
+    for generation in range(1, count + 1)
+        current = advance(current)
+        show(current, generation)
+    current
+
+flow array.new([54, 54], 0)
+    seed
+    show 0
+    generations 120

@@ -45,6 +45,7 @@ The first language milestone runs real programs with checked types and console i
 - Website: the Game of Life demo — the compiled example runs in the browser with play, pause, and step over its parsed generations, byte-checked against the interpreter on every build (#90).
 - Website: one shared artifact fetch and lazy demo init on the examples page — no double downloads, demos load when scrolled into view (#113).
 - Website: the demos move to their own page — a 25 by 25 Game of Life (glider plus toad, blinker, and beacon) runs 54 generations as the first demoSpecs manifest row with its browser artifact and derived verify pins, playback loops with an end-of-run beat and no dead controls, and the examples page links to the page from its top (#115).
+- Website: the demos grow to four evolving Game of Life runs — the Gosper glider gun (54 by 54, 120 generations of streaming gliders), the acorn (60 by 60, the methuselah's first 150 generations), and diehard (24 by 24, all 130 generations to its extinction) join the patterns intro, each with its own board, title, and blurb, per-demo verify pins (board size, frame count, stdout size cap, artifact-oracle byte match), and a stage that adapts per board with cells never below 12px (#116).
 
 ## Next
 
