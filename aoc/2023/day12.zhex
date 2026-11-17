@@ -1,0 +1,19 @@
+# Advent of Code 2023, day 12 — Hot Springs.
+# Reads the condition records from stdin until end of input, prints both
+# answers.
+use day12-core
+
+# shortcut: the records hold dots, hashes, question marks, digits, spaces,
+# and commas only, so this sentinel cannot collide; it stands in for the
+# end-of-file failure because error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let records = day12-core.parse(buffer.to-text(input)) try
+print(day12-core.part-one(records))
+print(day12-core.part-two(records))

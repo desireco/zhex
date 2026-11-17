@@ -1,0 +1,9 @@
+use day15-core
+use test
+
+let sample = "rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7"
+let steps = day15-core.parse(sample)
+
+test.check(day15-core.part-one(steps) == 1320, "day 15 part 1")
+test.check(day15-core.part-two(steps) try == 145, "day 15 part 2")
+print "day 15 tests passed"

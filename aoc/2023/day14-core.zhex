@@ -1,0 +1,125 @@
+# Advent of Code 2023, day 14 — Parabolic Reflector Dish (solution words).
+# Rounded rocks roll until something stops them, and a tilt acts on whole
+# lines at a time: transpose the grid, slide each column-line's rocks into
+# the gaps between cube rocks (`_tilt-line` rebuilds every # separated
+# segment rocks-first), transpose back. A spin is four of those with a
+# quarter turn between, and part 2's billion spins never run — the joined
+# grid is remembered in a Map, and once a state repeats, the remaining
+# spins jump over whole cycles to the state the billionth lands on.
+
+type Dish = record
+    grid: List<String>
+
+## Parse the platform grid.
+word parse(text: String) -> Dish
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            list.append(grid, line)
+    Dish(grid)
+
+# n copies of a one-character string joined.
+word _repeat(ch: String, n: Int) -> String
+    var out = ""
+    for index in range(0, n)
+        out = out + ch
+    out
+
+# One line with its rounded rocks slid to the line's start.
+word _tilt-line(line: String) -> String
+    var out = ""
+    var rocks = 0
+    var dots = 0
+    for index in range(0, text.length(line))
+        let ch = text.slice(line, index, index + 1)
+        if ch == "#"
+            out = out + _repeat("O", rocks) + _repeat(".", dots) + "#"
+            rocks = 0
+            dots = 0
+        elif ch == "O"
+            rocks = rocks + 1
+        else
+            dots = dots + 1
+    out = out + _repeat("O", rocks) + _repeat(".", dots)
+    out
+
+# The grid turned a quarter turn clockwise.
+word _rotate(grid: List<String>) -> List<String>
+    let turned: List<String> = []
+    for c in range(0, text.length(grid[0]))
+        var column = ""
+        for r in range(0, list.length(grid))
+            column = column + text.slice(grid[list.length(grid) - 1 - r], c, c + 1)
+        list.append(turned, column)
+    turned
+
+# The grid's rows read as columns.
+word _transpose(grid: List<String>) -> List<String>
+    let turned: List<String> = []
+    for c in range(0, text.length(grid[0]))
+        var column = ""
+        for r in range(0, list.length(grid))
+            column = column + text.slice(grid[r], c, c + 1)
+        list.append(turned, column)
+    turned
+
+# The grid with every column tilted north.
+word _tilt-north(grid: List<String>) -> List<String>
+    let columns: List<String> = []
+    let source = _transpose(grid)
+    for index in range(0, list.length(source))
+        list.append(columns, _tilt-line(source[index]))
+    _transpose(columns)
+
+# The grid after one north-west-south-east spin.
+word _spin(grid: List<String>) -> List<String>
+    var current = grid
+    for side in range(0, 4)
+        current = _tilt-north(current)
+        current = _rotate(current)
+    current
+
+# The total load: each rounded rock loads its rows from the south edge.
+word _load(grid: List<String>) -> Int
+    let height = list.length(grid)
+    var total = 0
+    for r in range(0, height)
+        let row = grid[r]
+        for c in range(0, text.length(row))
+            if text.slice(row, c, c + 1) == "O"
+                total = total + height - r
+    total
+
+# The iteration a grid state was first seen at, -1 when never.
+word _seen-at(seen: Map<String, Int>, key: String) -> Int
+    match seen[key]
+        case Option.Some(start)
+            start
+        case Option.None
+            -1
+
+## The load on the north support beam after one north tilt.
+word part-one(dish: Dish) -> Int
+    _load(_tilt-north(dish.grid))
+
+## The load after a billion north-west-south-east spins.
+word part-two(dish: Dish) -> Int
+    let seen: Map<String, Int> = {}
+    var grid = dish.grid
+    var it = 0
+    let target = 1000000000
+    while it < target
+        let key = text.join(grid, "\n")
+        let start = _seen-at(seen, key)
+        if start < 0
+            let stored = map.put(seen, key, it)
+        let jump = if start >= 0
+            let cycle = it - start
+            let remaining = target - it
+            (remaining / cycle) * cycle
+        else
+            0
+        it = it + jump
+        grid = _spin(grid)
+        it = it + 1
+    _load(grid)
