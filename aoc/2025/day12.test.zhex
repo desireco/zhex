@@ -1,0 +1,9 @@
+use day12-core
+use test
+
+let sample = "0:\n###\n##.\n##.\n\n1:\n###\n##.\n.##\n\n2:\n.##\n###\n##.\n\n3:\n##.\n###\n##.\n\n4:\n###\n#..\n###\n\n5:\n###\n.#.\n###\n\n4x4: 0 0 0 0 2 0\n12x5: 1 0 1 0 2 2\n12x5: 1 0 1 0 3 2"
+let farm = day12-core.parse(sample) try
+
+test.check(day12-core.part-one(farm) == 2, "day 12 part 1")
+test.check(day12-core.part-two(farm) == "*", "day 12 part 2")
+print "day 12 tests passed"
