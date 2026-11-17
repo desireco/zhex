@@ -432,18 +432,18 @@ type aocSpec struct {
 // per day of the 12-day event; the build emits the data beside the demo
 // data even though no page consumes it yet (#126).
 var aocSpecs = []aocSpec{
-	{1, "Secret Entrance", "Dial rotations; part one simulates, part two closes form.", "empty", ""},
-	{2, "Gift Shop", "Sum IDs of expanded ranges with repeated substrings.", "empty", ""},
-	{3, "Lobby", "Greedy largest digit in a shrinking window.", "empty", ""},
-	{4, "Printing Department", "Remove grid cells with fewer than four neighbors; part two runs to a fixpoint.", "empty", ""},
-	{5, "Cafeteria", "Range membership via sort-and-merge disjoint union.", "empty", ""},
-	{6, "Trash Compactor", "Row-wise then column-wise digit reads through one-character slices.", "empty", ""},
-	{7, "Laboratories", "Tachyon paths through splitters, row-by-row dynamic programming.", "empty", ""},
-	{8, "Playground", "Three-dimensional junction boxes, shortest pairs, union-find merging.", "empty", ""},
-	{9, "Movie Theater", "Largest rectangle over drawn edges, coordinate compression, flood fill.", "empty", ""},
-	{10, "Factory", "Fewest button presses by breadth-first search over machine states; part two needs hand linear algebra.", "empty", ""},
-	{11, "Reactor", "Count directed acyclic graph paths by reverse-topological accumulation.", "empty", ""},
-	{12, "Christmas Tree Farm", "Fit presents under trees with a packing search over rotations.", "empty", ""},
+	{1, "Secret Entrance", "The password for the North Pole base sits in a safe, and the input lists turns of the safe's dial: each turn is a direction, left or right, plus a number of clicks. The dial shows 0 to 99, starts at 50, and wraps around at both ends. Part one asks how many times the dial points at 0 right after a turn.", "empty", ""},
+	{2, "Gift Shop", "The gift shop's price list is riddled with made-up product IDs, and the input is a list of ranges, each written as a first and last ID separated by a dash, all separated by commas. An ID is invalid when its digits are one block repeated exactly twice, like 55 or 123123, with no leading zero. Part one asks for the sum of every invalid ID found inside the ranges.", "empty", ""},
+	{3, "Lobby", "The input gives one line of digits per bank of batteries, where each digit is a battery's power rating from 1 to 9. From a bank you switch on exactly two batteries, and their digits, kept in line order, form a two-digit number. Part one asks for the sum of the largest number each bank can produce.", "empty", ""},
+	{4, "Printing Department", "The input is a diagram of the printing department floor, with rolls of paper shown as @ marks on a grid. A roll counts as accessible when fewer than four of its eight neighboring positions hold rolls. Part one asks how many rolls on the grid are accessible.", "empty", ""},
+	{5, "Cafeteria", "The input has two sections: a list of fresh-ingredient ID ranges, then a blank line and a list of the ingredient IDs on hand, and the ranges overlap one another. An ID counts as fresh when it falls inside any of the ranges. Part one asks how many of the IDs on hand are fresh.", "empty", ""},
+	{6, "Trash Compactor", "Stuck under a trash compactor, you work through the cephalopods' math homework. The worksheet sets numbers in vertical columns, puts a + or * at the bottom of each problem, and separates problems with a column of spaces; spacing inside a problem can be ignored. Part one asks for the total of all the problems' answers.", "empty", ""},
+	{7, "Laboratories", "A broken teleporter reports a fault in its tachyon manifold, and the input draws that manifold: open space, splitter tiles marked ^, and one entry marked S. Beams enter at S and always travel down; a beam that reaches a splitter stops, and two new beams continue from the splitter's left and right sides. Part one asks for the total number of times the beams split.", "empty", ""},
+	{8, "Playground", "The input lists the 3D coordinates of junction boxes hung in an underground playground, joined into circuits by strings. Each string connects the closest pair of boxes not already in the same circuit; a string between boxes of one circuit does nothing. Part one asks for the product of the sizes of the three largest circuits once the 1000 shortest connections have been made.", "empty", ""},
+	{9, "Movie Theater", "Elves are re-tiling a movie theater floor, and the input lists the coordinates of the red tiles. Any two red tiles can serve as opposite corners of a rectangle of new tiles. Part one asks for the largest area such a rectangle can cover.", "empty", ""},
+	{10, "Factory", "Each input line describes one broken machine: a light diagram in brackets, button schematics in parentheses naming which lights each press toggles, and joltage requirements in braces. Every machine's lights start off, and each press flips its listed lights on or off. Part one ignores the joltage requirements and asks for the fewest total button presses that set every machine's lights to its target pattern.", "empty", ""},
+	{11, "Reactor", "The input maps the wiring of a reactor under a factory floor: each line names a device and lists the devices its output feeds, and data never flows backward. Part one asks for the number of distinct routes from the device named you to the device named out.", "empty", ""},
+	{12, "Christmas Tree Farm", "The input lists six present shapes as small grids, then a set of regions, each sized width by length and followed by how many of each shape should fit inside. Presents can be rotated or flipped, must sit on the grid, may not overlap, and cannot stack. Part one asks how many regions can hold all the presents listed for them.", "empty", ""},
 }
 
 func main() {
