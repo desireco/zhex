@@ -419,31 +419,35 @@ var demoSpecs = []demoSpec{
 
 // aocSpec is one Advent of Code 2025 day: the manifest row the loader turns
 // into an AocDay. Statuses stay `empty` until the verification sweep (#132)
-// flips them; day and title come from the epic's day table (#123).
+// flips them; day and title come from the epic's day table (#123). Answers
+// are the sample input's part 1 and part 2 results — the run panel compares
+// against them; kind is the input-box vocabulary the examples use.
 type aocSpec struct {
 	day     int
 	title   string
 	outline string
 	status  string
-	sample  string // relative to aoc/2025/; empty until the day has one
+	sample  string   // relative to aoc/2025/; empty until the day has one
+	answers []string // sample answers, part 1 then part 2, once computed
+	kind    string   // input box kind: text for every solved day so far
 }
 
 // aocSpecs is the AoC 2025 manifest — twelve pre-created empty rows, one
 // per day of the 12-day event; the build emits the data beside the demo
 // data even though no page consumes it yet (#126).
 var aocSpecs = []aocSpec{
-	{1, "Secret Entrance", "The password for the North Pole base sits in a safe, and the input lists turns of the safe's dial: each turn is a direction, left or right, plus a number of clicks. The dial shows 0 to 99, starts at 50, and wraps around at both ends. Part one asks how many times the dial points at 0 right after a turn.", "empty", ""},
-	{2, "Gift Shop", "The gift shop's price list is riddled with made-up product IDs, and the input is a list of ranges, each written as a first and last ID separated by a dash, all separated by commas. An ID is invalid when its digits are one block repeated exactly twice, like 55 or 123123, with no leading zero. Part one asks for the sum of every invalid ID found inside the ranges.", "empty", ""},
-	{3, "Lobby", "The input gives one line of digits per bank of batteries, where each digit is a battery's power rating from 1 to 9. From a bank you switch on exactly two batteries, and their digits, kept in line order, form a two-digit number. Part one asks for the sum of the largest number each bank can produce.", "empty", ""},
-	{4, "Printing Department", "The input is a diagram of the printing department floor, with rolls of paper shown as @ marks on a grid. A roll counts as accessible when fewer than four of its eight neighboring positions hold rolls. Part one asks how many rolls on the grid are accessible.", "empty", ""},
-	{5, "Cafeteria", "The input has two sections: a list of fresh-ingredient ID ranges, then a blank line and a list of the ingredient IDs on hand, and the ranges overlap one another. An ID counts as fresh when it falls inside any of the ranges. Part one asks how many of the IDs on hand are fresh.", "empty", ""},
-	{6, "Trash Compactor", "Stuck under a trash compactor, you work through the cephalopods' math homework. The worksheet sets numbers in vertical columns, puts a + or * at the bottom of each problem, and separates problems with a column of spaces; spacing inside a problem can be ignored. Part one asks for the total of all the problems' answers.", "empty", ""},
-	{7, "Laboratories", "A broken teleporter reports a fault in its tachyon manifold, and the input draws that manifold: open space, splitter tiles marked ^, and one entry marked S. Beams enter at S and always travel down; a beam that reaches a splitter stops, and two new beams continue from the splitter's left and right sides. Part one asks for the total number of times the beams split.", "empty", ""},
-	{8, "Playground", "The input lists the 3D coordinates of junction boxes hung in an underground playground, joined into circuits by strings. Each string connects the closest pair of boxes not already in the same circuit; a string between boxes of one circuit does nothing. Part one asks for the product of the sizes of the three largest circuits once the 1000 shortest connections have been made.", "empty", ""},
-	{9, "Movie Theater", "Elves are re-tiling a movie theater floor, and the input lists the coordinates of the red tiles. Any two red tiles can serve as opposite corners of a rectangle of new tiles. Part one asks for the largest area such a rectangle can cover.", "empty", ""},
-	{10, "Factory", "Each input line describes one broken machine: a light diagram in brackets, button schematics in parentheses naming which lights each press toggles, and joltage requirements in braces. Every machine's lights start off, and each press flips its listed lights on or off. Part one ignores the joltage requirements and asks for the fewest total button presses that set every machine's lights to its target pattern.", "empty", ""},
-	{11, "Reactor", "The input maps the wiring of a reactor under a factory floor: each line names a device and lists the devices its output feeds, and data never flows backward. Part one asks for the number of distinct routes from the device named you to the device named out.", "empty", ""},
-	{12, "Christmas Tree Farm", "The input lists six present shapes as small grids, then a set of regions, each sized width by length and followed by how many of each shape should fit inside. Presents can be rotated or flipped, must sit on the grid, may not overlap, and cannot stack. Part one asks how many regions can hold all the presents listed for them.", "empty", ""},
+	{1, "Secret Entrance", "The password for the North Pole base sits in a safe, and the input lists turns of the safe's dial: each turn is a direction, left or right, plus a number of clicks. The dial shows 0 to 99, starts at 50, and wraps around at both ends. Part one asks how many times the dial points at 0 right after a turn. Part two makes the turns enormous and asks how many times the dial passes over 0 anywhere inside a single turn, not only where it stops.", "solved", "samples/day01.txt", []string{"3", "6"}, "text"},
+	{2, "Gift Shop", "The gift shop's price list is riddled with made-up product IDs, and the input is a list of ranges, each written as a first and last ID separated by a dash, all separated by commas. An ID is invalid when its digits are one block repeated exactly twice, like 55 or 123123, with no leading zero. Part one asks for the sum of every invalid ID found inside the ranges.", "empty", "", nil, ""},
+	{3, "Lobby", "The input gives one line of digits per bank of batteries, where each digit is a battery's power rating from 1 to 9. From a bank you switch on exactly two batteries, and their digits, kept in line order, form a two-digit number. Part one asks for the sum of the largest number each bank can produce.", "empty", "", nil, ""},
+	{4, "Printing Department", "The input is a diagram of the printing department floor, with rolls of paper shown as @ marks on a grid. A roll counts as accessible when fewer than four of its eight neighboring positions hold rolls. Part one asks how many rolls on the grid are accessible.", "empty", "", nil, ""},
+	{5, "Cafeteria", "The input has two sections: a list of fresh-ingredient ID ranges, then a blank line and a list of the ingredient IDs on hand, and the ranges overlap one another. An ID counts as fresh when it falls inside any of the ranges. Part one asks how many of the IDs on hand are fresh.", "empty", "", nil, ""},
+	{6, "Trash Compactor", "Stuck under a trash compactor, you work through the cephalopods' math homework. The worksheet sets numbers in vertical columns, puts a + or * at the bottom of each problem, and separates problems with a column of spaces; spacing inside a problem can be ignored. Part one asks for the total of all the problems' answers.", "empty", "", nil, ""},
+	{7, "Laboratories", "A broken teleporter reports a fault in its tachyon manifold, and the input draws that manifold: open space, splitter tiles marked ^, and one entry marked S. Beams enter at S and always travel down; a beam that reaches a splitter stops, and two new beams continue from the splitter's left and right sides. Part one asks for the total number of times the beams split.", "empty", "", nil, ""},
+	{8, "Playground", "The input lists the 3D coordinates of junction boxes hung in an underground playground, joined into circuits by strings. Each string connects the closest pair of boxes not already in the same circuit; a string between boxes of one circuit does nothing. Part one asks for the product of the sizes of the three largest circuits once the 1000 shortest connections have been made.", "empty", "", nil, ""},
+	{9, "Movie Theater", "Elves are re-tiling a movie theater floor, and the input lists the coordinates of the red tiles. Any two red tiles can serve as opposite corners of a rectangle of new tiles. Part one asks for the largest area such a rectangle can cover.", "empty", "", nil, ""},
+	{10, "Factory", "Each input line describes one broken machine: a light diagram in brackets, button schematics in parentheses naming which lights each press toggles, and joltage requirements in braces. Every machine's lights start off, and each press flips its listed lights on or off. Part one ignores the joltage requirements and asks for the fewest total button presses that set every machine's lights to its target pattern.", "empty", "", nil, ""},
+	{11, "Reactor", "The input maps the wiring of a reactor under a factory floor: each line names a device and lists the devices its output feeds, and data never flows backward. Part one asks for the number of distinct routes from the device named you to the device named out.", "empty", "", nil, ""},
+	{12, "Christmas Tree Farm", "The input lists six present shapes as small grids, then a set of regions, each sized width by length and followed by how many of each shape should fit inside. Presents can be rotated or flipped, must sit on the grid, may not overlap, and cannot stack. Part one asks how many regions can hold all the presents listed for them.", "empty", "", nil, ""},
 }
 
 func main() {
@@ -609,14 +613,19 @@ func loadAoc(root string) ([]AocDay, error) {
 				return nil, fmt.Errorf("read aoc day %d sample %s: %w", spec.day, spec.sample, err)
 			}
 		}
+		kind := spec.kind
+		if kind == "" {
+			kind = "text"
+		}
 		days = append(days, AocDay{
-			Day:         spec.day,
-			Title:       spec.title,
-			Outline:     spec.outline,
-			OfficialURL: fmt.Sprintf("https://adventofcode.com/2025/day/%d", spec.day),
-			Status:      spec.status,
-			Sample:      spec.sample,
-			InputKind:   "text",
+			Day:             spec.day,
+			Title:           spec.title,
+			Outline:         spec.outline,
+			OfficialURL:     fmt.Sprintf("https://adventofcode.com/2025/day/%d", spec.day),
+			Status:          spec.status,
+			Sample:          spec.sample,
+			ExpectedAnswers: spec.answers,
+			InputKind:       kind,
 		})
 	}
 	return days, nil
@@ -675,6 +684,31 @@ func compileExamples(data *pageData, dir string) error {
 			return fmt.Errorf("compile demo %s: %w", spec.file, err)
 		}
 		data.Demos[i].Wasm = "wasm/" + name
+	}
+	// An AoC day artifact is fenceable like an example's: solutions prefer
+	// the compiled subset so the run panel works, and a day that must step
+	// outside carries the fence message instead (#123 standing rules).
+	for i, spec := range aocSpecs {
+		if spec.status == "empty" {
+			continue
+		}
+		path := filepath.Join("aoc", "2025", fmt.Sprintf("day%02d.zhex", spec.day))
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read aoc day %d solution: %w", spec.day, err)
+		}
+		name := fmt.Sprintf("aoc-2025-day%02d.wasm", spec.day)
+		err = wasm.Compile(path, string(source), filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser)
+		if err == nil {
+			data.Aoc[i].Wasm = "wasm/" + name
+			continue
+		}
+		reportJSON, ok := lang.Report(err)
+		var report struct{ Code, Message string }
+		if !ok || json.Unmarshal([]byte(reportJSON), &report) != nil || report.Code != string(lang.CodeNotAvailableInBuild) {
+			return fmt.Errorf("compile aoc day %d: %w", spec.day, err)
+		}
+		data.Aoc[i].WasmNote = report.Message
 	}
 	return nil
 }

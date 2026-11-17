@@ -1,0 +1,18 @@
+# Advent of Code 2025, day 1 — Secret Entrance.
+# Reads rotations from stdin until end of input, prints both answers.
+use day01-core
+
+# shortcut: a rotation line is always R or L plus digits, so this sentinel
+# cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let rotations = day01-core.parse(buffer.to-text(input)) try
+print(day01-core.part-one(rotations))
+print(day01-core.part-two(rotations))
