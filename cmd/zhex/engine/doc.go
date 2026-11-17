@@ -5,6 +5,7 @@
 // engine recipe), it exposes the engine API on globalThis.zhex:
 //
 //   runSource(source, stdin) -> {output, diagnostics, report, trace, exit}
+//   runInteractive(source, onOutput, onDone) -> {deliver(line), close()}
 //   newSession(stdin) -> {enter, words, takeOutput, takeDiagnostics}
 //   isIncomplete(source) -> boolean
 //   delimiterIndent(source) -> number | null
@@ -14,7 +15,15 @@
 // runSource is one-shot: output is program stdout, diagnostics the
 // console.fail channel, report the --report=json envelope of a failed run
 // (null otherwise), trace the --trace JSONL events ("" when none), and exit
-// the status zhex run would exit with. newSession carries the REPL law —
+// the status zhex run would exit with. runInteractive (#122) is the async
+// stdin seam over the same one-shot run: the program runs on its own
+// goroutine, read-line parks on host-delivered input, onOutput(text)
+// receives every write as it happens (prompts included, so they land before
+// the read parks), and onDone(result) receives runSource's result shape once
+// the program finishes; the returned handle's deliver(line) queues one line
+// (a missing trailing newline is added) and close() ends the stream — a read
+// past close fails with the coded end-of-file failure, exactly like
+// runSource's supplied stdin running out. newSession carries the REPL law —
 // words, names, and adopted modules survive entries; enter(source) ->
 // {echo, error, report, exit} with the redefined note and print output in the
 // buffer takeOutput drains, console.fail output in takeDiagnostics.
@@ -22,5 +31,6 @@
 // The capability boundary is coded: the filesystem words, file.stream,
 // console.arg, and env.load fail with not-available-in-build diagnostics
 // (internal/lang/boundary.go); the lexical path words, read-line against the
-// supplied stdin, console.args-count, and env.get keep working.
+// supplied stdin or the delivered interactive stream, console.args-count,
+// and env.get keep working.
 package main

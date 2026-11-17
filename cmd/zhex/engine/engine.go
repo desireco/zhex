@@ -5,7 +5,9 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"strings"
+	"sync"
 	"syscall/js"
 
 	"zhex/internal/lang"
@@ -17,6 +19,7 @@ var resolver js.Value
 func main() {
 	api := js.Global().Get("Object").New()
 	api.Set("runSource", js.FuncOf(runSource))
+	api.Set("runInteractive", js.FuncOf(runInteractive))
 	api.Set("newSession", js.FuncOf(newSession))
 	api.Set("isIncomplete", js.FuncOf(func(_ js.Value, args []js.Value) any {
 		_, err := lang.Compile("repl", text(args, 0))
@@ -66,6 +69,13 @@ func runSource(_ js.Value, args []js.Value) any {
 		options.Trace = &trace
 	}
 	err := lang.RunWithModulesOptions("playground", text(args, 0), strings.NewReader(text(args, 1)), &out, options, resolveModule)
+	return finishResult(err, &out, &diagnostics, &trace)
+}
+
+// finishResult shapes the one-shot answer: program output, the console.fail
+// channel, the --report=json envelope of a failed run (nil otherwise), the
+// trace text, and the status zhex run would exit with.
+func finishResult(err error, out, diagnostics, trace *bytes.Buffer) js.Value {
 	result := js.Global().Get("Object").New()
 	result.Set("output", out.String())
 	result.Set("diagnostics", diagnostics.String())
@@ -85,6 +95,97 @@ func runSource(_ js.Value, args []js.Value) any {
 	result.Set("exit", exit)
 	result.Set("report", report)
 	return result
+}
+
+// interactiveInput is the async stdin (#122): Read parks on host-delivered
+// lines until the host closes the stream, the same shape of wait a blocking
+// console read takes. Read runs on the program goroutine only; deliver and
+// close run on JS callback goroutines. shortcut: the line channel holds 16
+// undelivered lines, far past user typing pace — a host streaming bulk input
+// through it would park its deliver callback, which still drains.
+type interactiveInput struct {
+	pending []byte
+	lines   chan []byte
+	done    chan struct{}
+	once    sync.Once
+}
+
+func newInteractiveInput() *interactiveInput {
+	return &interactiveInput{lines: make(chan []byte, 16), done: make(chan struct{})}
+}
+
+// deliver queues one line; a missing trailing newline is added, so a typed
+// line reads back exactly as a terminated line of piped stdin.
+func (in *interactiveInput) deliver(line string) {
+	if line == "" || line[len(line)-1] != '\n' {
+		line += "\n"
+	}
+	in.lines <- []byte(line)
+}
+
+// close ends the stream: queued lines still deliver first, then reads see
+// end-of-file.
+func (in *interactiveInput) close() {
+	in.once.Do(func() { close(in.done) })
+}
+
+func (in *interactiveInput) Read(p []byte) (int, error) {
+	for len(in.pending) == 0 {
+		select {
+		case in.pending = <-in.lines:
+		case <-in.done:
+			select { // close raced queued lines: deliver them before EOF
+			case in.pending = <-in.lines:
+			default:
+				return 0, io.EOF
+			}
+		}
+	}
+	n := copy(p, in.pending)
+	in.pending = in.pending[n:]
+	return n, nil
+}
+
+// forwardedOutput streams every write to the host as it happens, so a prompt
+// lands before the read that follows it parks, while keeping the accumulated
+// text the result reports.
+type forwardedOutput struct {
+	onOutput js.Value
+	buf      bytes.Buffer
+}
+
+func (w *forwardedOutput) Write(p []byte) (int, error) {
+	w.onOutput.Invoke(string(p))
+	return w.buf.Write(p)
+}
+
+// runInteractive is the async seam (#122): like runSource, but the program
+// runs on its own goroutine with read-line parking on host-delivered input
+// instead of draining a supplied string. onOutput(text) receives each write
+// as it happens; onDone(result) receives runSource's result shape once the
+// program finishes. The returned handle's deliver(line) queues one line and
+// close() ends the stream — a read past close fails with the coded
+// end-of-file failure, matching runSource's supplied-stdin exhaustion.
+func runInteractive(_ js.Value, args []js.Value) any {
+	source, onOutput, onDone := text(args, 0), args[1], args[2]
+	in := newInteractiveInput()
+	handle := js.Global().Get("Object").New()
+	handle.Set("deliver", js.FuncOf(func(_ js.Value, callArgs []js.Value) any {
+		in.deliver(text(callArgs, 0))
+		return nil
+	}))
+	handle.Set("close", js.FuncOf(func(js.Value, []js.Value) any {
+		in.close()
+		return nil
+	}))
+	go func() {
+		defer in.close()
+		out := &forwardedOutput{onOutput: onOutput}
+		var diagnostics bytes.Buffer
+		err := lang.RunWithModulesOptions("playground", source, in, out, lang.RunOptions{Diagnostics: &diagnostics}, resolveModule)
+		onDone.Invoke(finishResult(err, &out.buf, &diagnostics, &bytes.Buffer{}))
+	}()
+	return handle
 }
 
 // newSession is the REPL seam: one session with its own stdin string and
