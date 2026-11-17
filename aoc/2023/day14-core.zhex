@@ -120,6 +120,8 @@ word part-two(dish: Dish) -> Int
         else
             0
         it = it + jump
-        grid = _spin(grid)
-        it = it + 1
+        # an exact-division jump already lands on the target grid
+        if it < target
+            grid = _spin(grid)
+            it = it + 1
     _load(grid)

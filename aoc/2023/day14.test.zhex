@@ -7,3 +7,8 @@ let dish = day14-core.parse(sample)
 test.check(day14-core.part-one(dish) == 136, "day 14 part 1")
 test.check(day14-core.part-two(dish) == 64, "day 14 part 2")
 print "day 14 tests passed"
+
+# A dish whose cycle jump lands exactly on the billionth spin: the old
+# unconditional spin answered the load one spin late (oracle 15, was 17).
+let exact-jump = "O.O.\n.O..\nOO.#\nOOO."
+test.check(day14-core.part-two(day14-core.parse(exact-jump)) == 15, "day 14 part 2, exact-division cycle jump")
