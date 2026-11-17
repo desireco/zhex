@@ -1,0 +1,9 @@
+use day02-core
+use test
+
+let sample = "7 6 4 2 1\n1 2 7 8 9\n9 7 6 2 1\n1 3 2 4 5\n8 6 4 4 1\n1 3 6 7 9"
+let reports = day02-core.parse(sample) try
+
+test.check(day02-core.part-one(reports) == 2, "day 2 part 1")
+test.check(day02-core.part-two(reports) == 4, "day 2 part 2")
+print "day 2 tests passed"

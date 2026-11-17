@@ -1,0 +1,18 @@
+# Advent of Code 2024, day 2 — Red-Nosed Reports.
+# Reads the reports from stdin until end of input, prints both answers.
+use day02-core
+
+# shortcut: a report line is always integers around spaces, so this
+# sentinel cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let reports = day02-core.parse(buffer.to-text(input)) try
+print(day02-core.part-one(reports))
+print(day02-core.part-two(reports))

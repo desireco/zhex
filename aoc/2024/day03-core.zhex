@@ -1,0 +1,109 @@
+# Advent of Code 2024, day 3 — Mull It Over (solution words).
+# Corrupted memory holds mul(X,Y) instructions; part 1 totals every intact
+# product, part 2 only the ones the do()/don't() toggles leave enabled.
+# There is no regex, so both parts scan by text.index-of.
+
+type Token = record
+    kind: String
+    at: Int
+
+type Step = record
+    gained: Int
+    rest: String
+    enabled: Bool
+
+## Join the input lines into one memory string, as the reference scans do.
+word parse(text: String) -> String
+    flow text
+        text.split("\n")
+        text.join("")
+        text.trim
+
+word _earliest(rest: String, token: String, kind: String, best: Token) -> Token
+    let at = text.index-of(rest, token)
+    if at >= 0 and (best.at < 0 or at < best.at)
+        Token(kind, at)
+    else
+        best
+
+# Whether the fragment is one to three plain digits.
+word _digits(fragment: String) -> Bool
+    var ok = text.length(fragment) >= 1
+    var index = 0
+    while ok and index < text.length(fragment)
+        if not text.contains("0123456789", text.slice(fragment, index, index + 1))
+            ok = false
+        index = index + 1
+    ok
+
+# The product of a "digits,digits" fragment, or -1 when it is malformed.
+# A valid product is never negative, so -1 is an unambiguous reject.
+word _product(inner: String) -> Int
+    let comma = text.index-of(inner, ",")
+    if comma < 0
+        -1
+    else
+        let x-part = text.slice(inner, 0, comma)
+        let y-part = text.slice(inner, comma + 1, text.length(inner))
+        if _digits(x-part) and _digits(y-part) and text.length(x-part) <= 3 and text.length(y-part) <= 3 and not text.contains(y-part, ",")
+            let x = text.to-int(x-part) catch 0
+            let y = text.to-int(y-part) catch 0
+            x * y
+        else
+            -1
+
+# Consume the mul( that starts `after`: a well-formed instruction gains its
+# product and skips past its closing paren, a malformed one gains nothing
+# and rescans from just past "mul(" so nested instructions still surface.
+word _step-mul(after: String, enabled: Bool) -> Step
+    let close = text.index-of(after, ")")
+    if close < 0
+        Step(0, "", enabled)
+    else
+        let product = _product(text.slice(after, 0, close))
+        if product >= 0 and enabled
+            Step(product, text.slice(after, close + 1, text.length(after)), enabled)
+        else
+            if product >= 0
+                Step(0, text.slice(after, close + 1, text.length(after)), enabled)
+            else
+                Step(0, after, enabled)
+
+## Total every intact mul instruction, toggles ignored.
+word part-one(text: String) -> Int
+    var rest = text
+    var total = 0
+    while text.length(rest) > 0
+        let at = text.index-of(rest, "mul(")
+        if at < 0
+            rest = ""
+        else
+            let step = _step-mul(text.slice(rest, at + 4, text.length(rest)), true)
+            total = total + step.gained
+            rest = step.rest
+    total
+
+## Total only the mul instructions the do()/don't() toggles leave enabled.
+word part-two(text: String) -> Int
+    var rest = text
+    var total = 0
+    var enabled = true
+    while text.length(rest) > 0
+        var best = Token("none", -1)
+        best = _earliest(rest, "mul(", "mul", best)
+        best = _earliest(rest, "do()", "do", best)
+        best = _earliest(rest, "don't()", "dont", best)
+        if best.at < 0
+            rest = ""
+        else
+            if best.kind == "do"
+                enabled = true
+                rest = text.slice(rest, best.at + 4, text.length(rest))
+            elif best.kind == "dont"
+                enabled = false
+                rest = text.slice(rest, best.at + 7, text.length(rest))
+            else
+                let step = _step-mul(text.slice(rest, best.at + 4, text.length(rest)), enabled)
+                total = total + step.gained
+                rest = step.rest
+    total
