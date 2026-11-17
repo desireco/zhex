@@ -1,0 +1,136 @@
+# Advent of Code 2025, day 8 — Playground (solution words).
+# The input lists the 3D positions of junction boxes. Connecting two boxes
+# joins their circuits, and connecting boxes already in one circuit does
+# nothing. Distances only ever order the candidate pairs, so squared
+# straight-line distance ranks them exactly — integer arithmetic
+# throughout, no square roots. Part 1 makes a number of the closest
+# connections and multiplies the sizes of the three largest circuits;
+# part 2 keeps connecting until every box shares one circuit and
+# multiplies the completing pair's X coordinates.
+
+## One junction box position.
+type Box = record
+    x: Int
+    y: Int
+    z: Int
+
+## One candidate connection between box indexes, ranked by squared
+## straight-line distance.
+type Connection = record
+    distance: Int
+    a: Int
+    b: Int
+
+## Parse the comma-separated X,Y,Z lines into box records.
+word parse(text: String) -> List<Box>
+    let boxes: List<Box> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let parts = text.split(line, ",")
+            let x = text.to-int(parts[0]) try
+            let y = text.to-int(parts[1]) try
+            let z = text.to-int(parts[2]) try
+            list.append(boxes, Box(x, y, z))
+    boxes
+
+word _rank(connection: Connection) -> Int
+    connection.distance
+
+# Every candidate connection between two boxes, shortest first.
+word _connections(boxes: List<Box>) -> List<Connection>
+    let pairs: List<Connection> = []
+    for a in range(0, list.length(boxes))
+        for b in range(a + 1, list.length(boxes))
+            let first = boxes[a]
+            let second = boxes[b]
+            let dx = first.x - second.x
+            let dy = first.y - second.y
+            let dz = first.z - second.z
+            list.append(pairs, Connection(dx * dx + dy * dy + dz * dz, a, b))
+    list.sort-by(pairs, _rank(_))
+
+# The circuit a box belongs to; a box missing from the map is its own.
+word _circuit-of(owner: Map<Int, Int>, box: Int) -> Int
+    match owner[box]
+        case Option.Some(circuit)
+            circuit
+        case Option.None
+            box
+
+# The member list of one circuit; an unknown circuit holds nobody.
+word _members-of(members: Map<Int, List<Int>>, circuit: Int) -> List<Int>
+    match members[circuit]
+        case Option.Some(group)
+            group
+        case Option.None
+            let empty: List<Int> = []
+            empty
+
+# Join the circuits of two boxes, merging the smaller into the larger;
+# false when they already share one circuit.
+word _connect(owner: Map<Int, Int>, members: Map<Int, List<Int>>, a: Int, b: Int) -> Bool
+    let circuit-a = _circuit-of(owner, a)
+    let circuit-b = _circuit-of(owner, b)
+    if circuit-a == circuit-b
+        false
+    else
+        var keep = circuit-a
+        var drop = circuit-b
+        if list.length(_members-of(members, circuit-b)) > list.length(_members-of(members, circuit-a))
+            keep = circuit-b
+            drop = circuit-a
+        let winners = _members-of(members, keep)
+        for box in _members-of(members, drop)
+            map.put(owner, box, keep)
+            list.append(winners, box)
+        map.remove(members, drop)
+        true
+
+## Make the closest connections and multiply the sizes of the three
+## largest circuits.
+word part-one(boxes: List<Box>, connections: Int) -> Int
+    let owner: Map<Int, Int> = {}
+    let members: Map<Int, List<Int>> = {}
+    for index in range(0, list.length(boxes))
+        map.put(owner, index, index)
+        let alone: List<Int> = []
+        list.append(alone, index)
+        map.put(members, index, alone)
+    let pairs = _connections(boxes)
+    var limit = connections
+    if limit > list.length(pairs)
+        limit = list.length(pairs)
+    for index in range(0, limit)
+        let pair = pairs[index]
+        _connect(owner, members, pair.a, pair.b)
+    let sizes: List<Int> = []
+    for circuit, group in members
+        list.append(sizes, list.length(group))
+    let ranked = list.sort(sizes)
+    let last = list.length(ranked) - 1
+    ranked[last] * ranked[last - 1] * ranked[last - 2]
+
+## Keep connecting the closest pairs until one circuit holds every box,
+## then multiply the completing pair's X coordinates.
+word part-two(boxes: List<Box>) -> Int
+    let owner: Map<Int, Int> = {}
+    let members: Map<Int, List<Int>> = {}
+    for index in range(0, list.length(boxes))
+        map.put(owner, index, index)
+        let alone: List<Int> = []
+        list.append(alone, index)
+        map.put(members, index, alone)
+    let pairs = _connections(boxes)
+    var circuits = list.length(boxes)
+    var index = 0
+    var answer = 0
+    while circuits > 1 and index < list.length(pairs)
+        let pair = pairs[index]
+        if _connect(owner, members, pair.a, pair.b)
+            circuits = circuits - 1
+            if circuits == 1
+                let first = boxes[pair.a]
+                let second = boxes[pair.b]
+                answer = first.x * second.x
+        index = index + 1
+    answer

@@ -1,0 +1,24 @@
+# Advent of Code 2025, day 8 — Playground.
+# Reads box positions from stdin until end of input, prints both answers.
+use day08-core
+
+# shortcut: a position line is digits and commas, so this sentinel cannot
+# collide; it stands in for the end-of-file failure because error.detail
+# is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let boxes = day08-core.parse(buffer.to-text(input)) try
+# the puzzle fixes 1000 connections for the full list and walks its 20-box
+# example through the ten shortest; the door runs the example
+let connections = if list.length(boxes) > 20
+    1000
+else
+    10
+print(day08-core.part-one(boxes, connections))
+print(day08-core.part-two(boxes))
