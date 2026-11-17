@@ -1,0 +1,18 @@
+use day08-core
+use test
+
+let sample = "RL\n\nAAA = (BBB, CCC)\nBBB = (DDD, EEE)\nCCC = (ZZZ, GGG)\nDDD = (DDD, DDD)\nEEE = (EEE, EEE)\nGGG = (GGG, GGG)\nZZZ = (ZZZ, ZZZ)"
+let network = day08-core.parse(sample)
+
+test.check(day08-core.part-one(network) == 2, "day 8 part 1, first example")
+test.check(day08-core.part-two(network) == 2, "day 8 part 2, first example")
+
+let second = "LLR\n\nAAA = (BBB, BBB)\nBBB = (AAA, ZZZ)\nZZZ = (ZZZ, ZZZ)"
+let second-network = day08-core.parse(second)
+test.check(day08-core.part-one(second-network) == 6, "day 8 part 1, second example")
+test.check(day08-core.part-two(second-network) == 6, "day 8 part 2, second example")
+
+let ghosts = "LR\n\n11A = (11B, XXX)\n11B = (XXX, 11Z)\n11Z = (11B, XXX)\n22A = (22B, XXX)\n22B = (22C, 22C)\n22C = (22Z, 22Z)\n22Z = (22B, 22B)\nXXX = (XXX, XXX)"
+let ghost-network = day08-core.parse(ghosts)
+test.check(day08-core.part-two(ghost-network) == 6, "day 8 part 2, ghost example")
+print "day 8 tests passed"
