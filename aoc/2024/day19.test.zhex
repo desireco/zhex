@@ -1,0 +1,10 @@
+use day19-core
+use test
+
+# The page's worked example: eight patterns, eight designs, six possible.
+let sample = "r, wr, b, g, bwu, rb, gb, br\n\nbrwrr\nbggr\ngbbr\nrrbgbr\nubwu\nbwurrg\nbrgr\nbbrgwb"
+let layout = day19-core.parse(sample)
+
+test.check(day19-core.part-one(layout) == 6, "day 19 part 1")
+test.check(day19-core.part-two(layout) == 16, "day 19 part 2")
+print "day 19 tests passed"

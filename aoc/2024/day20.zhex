@@ -1,0 +1,28 @@
+# Advent of Code 2024, day 20 — Race Condition.
+# Reads the racetrack from stdin until end of input, prints both answers.
+# The real racetrack counts cheats saving at least 100 picoseconds; the
+# page's 15-row example track is far shorter than that, so it keeps the
+# page's own example counts instead (12 for 2-step cheats, 76 for 20-step
+# cheats), the same sample-versus-real adaptation day 18 makes for its
+# grid size.
+use day20-core
+
+# shortcut: a racetrack row is map characters, so this sentinel cannot
+# collide; it stands in for the end-of-input failure because error.detail
+# is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let track = day20-core.parse(buffer.to-text(input))
+var save-one = 100
+var save-two = 100
+if list.length(track.path) < 200
+    save-one = 12
+    save-two = 76
+print(day20-core.part-one(track, save-one))
+print(day20-core.part-two(track, save-two))

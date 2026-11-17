@@ -1,0 +1,158 @@
+# Advent of Code 2024, day 17 — Chronospatial Computer (solution words).
+# A three-register machine runs a program of opcode-and-operand pairs;
+# operand 4, 5, or 6 reads register A, B, or C as a combo operand. Part 1
+# runs the parsed registers and joins the out values with commas. Part 2
+# searches for the lowest positive A that makes the program output a copy
+# of itself: every program digit is one octal digit of A, so the search
+# starts at the smallest A with that many digits and nudges the octal
+# digit behind the last mismatching output until the copy matches.
+
+## The registers and program from the debugger screen.
+type Machine = record
+    a: Int
+    b: Int
+    c: Int
+    program: List<Int>
+
+## Parse the Register A, B, C lines and the Program line.
+word parse(text: String) -> Machine
+    var a = 0
+    var b = 0
+    var c = 0
+    let program: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let parts = text.split(line, ": ")
+            if parts[0] == "Register A"
+                let value = text.to-int(parts[1]) catch 0
+                a = value
+            elif parts[0] == "Register B"
+                let value = text.to-int(parts[1]) catch 0
+                b = value
+            elif parts[0] == "Register C"
+                let value = text.to-int(parts[1]) catch 0
+                c = value
+            elif parts[0] == "Program"
+                for token in text.split(parts[1], ",")
+                    let value = text.to-int(token) catch 0
+                    list.append(program, value)
+    Machine(a, b, c, program)
+
+## Two raised to a power; the machine's divisors stay tiny.
+word _pow2(power: Int) -> Int
+    var value = 1
+    for _i in range(0, power)
+        value = value * 2
+    value
+
+## Eight raised to a power: one more octal digit of A.
+word _pow8(power: Int) -> Int
+    var value = 1
+    for _i in range(0, power)
+        value = value * 8
+    value
+
+## Bitwise xor of two nonnegative integers, one binary digit at a time.
+## There is no xor word, and the registers never go negative.
+word _xor(left: Int, right: Int) -> Int
+    var a = left
+    var b = right
+    var value = 0
+    var place = 1
+    while a > 0 or b > 0
+        let bit = (a % 2 + b % 2) % 2
+        if bit == 1
+            value = value + place
+        a = a / 2
+        b = b / 2
+        place = place * 2
+    value
+
+## A combo operand's value: 0 to 3 are literals, 4 to 6 read registers.
+word _combo(operand: Int, a: Int, b: Int, c: Int) -> Int
+    if operand <= 3
+        operand
+    elif operand == 4
+        a
+    elif operand == 5
+        b
+    else
+        c
+
+## Run the program with A starting at a-start, returning the out values.
+word _run(machine: Machine, a-start: Int) -> List<Int>
+    var a = a-start
+    var b = machine.b
+    var c = machine.c
+    var ip = 0
+    let out: List<Int> = []
+    while ip < list.length(machine.program)
+        let opcode = machine.program[ip]
+        let operand = machine.program[ip + 1]
+        if opcode == 0
+            a = a / _pow2(_combo(operand, a, b, c))
+            ip = ip + 2
+        elif opcode == 1
+            b = _xor(b, operand)
+            ip = ip + 2
+        elif opcode == 2
+            b = _combo(operand, a, b, c) % 8
+            ip = ip + 2
+        elif opcode == 3
+            if a != 0
+                ip = operand
+            else
+                ip = ip + 2
+        elif opcode == 4
+            b = _xor(b, c)
+            ip = ip + 2
+        elif opcode == 5
+            list.append(out, _combo(operand, a, b, c) % 8)
+            ip = ip + 2
+        elif opcode == 6
+            b = a / _pow2(_combo(operand, a, b, c))
+            ip = ip + 2
+        else
+            c = a / _pow2(_combo(operand, a, b, c))
+            ip = ip + 2
+    out
+
+## Run the parsed registers and join the out values with commas.
+word part-one(machine: Machine) -> String
+    let out = _run(machine, machine.a)
+    var joined = ""
+    for index, value in out
+        if index > 0
+            joined = joined + ","
+        joined = joined + value
+    joined
+
+## The lowest positive A that makes the program output a copy of itself.
+word part-two(machine: Machine) -> Int
+    let n = list.length(machine.program)
+    if n == 0
+        0
+    else
+        var a = _pow8(n - 1)
+        var found = false
+        while not found
+            let out = _run(machine, a)
+            if list.length(out) > n
+                # shortcut: no A can shrink an overlong output, so the
+                # search stops with -1 for programs that never self-output
+                found = true
+                a = -1
+            else
+                var mismatch = -1
+                var index = list.length(out) - 1
+                while mismatch == -1 and index >= 0
+                    if out[index] != machine.program[index]
+                        mismatch = index
+                    index = index - 1
+                if mismatch == -1 and list.length(out) == n
+                    found = true
+                else
+                    if mismatch == -1
+                        mismatch = 0
+                    a = a + _pow8(mismatch)
+        a

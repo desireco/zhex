@@ -1,0 +1,16 @@
+use day16-core
+use test
+
+# The page's first worked example.
+let sample = "###############\n#.......#....E#\n#.#.###.#.###.#\n#.....#.#...#.#\n#.###.#####.#.#\n#.#.#.......#.#\n#.#.#####.###.#\n#...........#.#\n###.#.#####.#.#\n#...#.....#.#.#\n#.#.#.###.#.#.#\n#.....#...#.#.#\n#.###.#.#.#.#.#\n#S..#.....#...#\n###############"
+let grid = day16-core.parse(sample)
+
+# The page's second, larger example.
+let wide = "#################\n#...#...#...#..E#\n#.#.#.#.#.#.#.#.#\n#.#.#.#...#...#.#\n#.#.#.#.###.#.#.#\n#...#.#.#.....#.#\n#.#.#.#.#.#####.#\n#.#...#.#.#.....#\n#.#.#####.#.###.#\n#.#.#.......#...#\n#.#.###.#####.###\n#.#.#...#.....#.#\n#.#.#.#####.###.#\n#.#.#.........#.#\n#.#.#.#########.#\n#S#.............#\n#################"
+let wide-grid = day16-core.parse(wide)
+
+test.check(day16-core.part-one(grid) == 7036, "day 16 part 1 first example")
+test.check(day16-core.part-two(grid) == 45, "day 16 part 2 first example")
+test.check(day16-core.part-one(wide-grid) == 11048, "day 16 part 1 second example")
+test.check(day16-core.part-two(wide-grid) == 64, "day 16 part 2 second example")
+print "day 16 tests passed"
