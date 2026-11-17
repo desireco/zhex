@@ -52,13 +52,15 @@ word _dy(direction: Int) -> Int
         0
 
 # Whether the tile a step in some direction connects back the way it came:
-# north and south steps need a north-south-opening neighbor shape, east
-# and west steps an east-west-opening one.
+# a north step needs a south-opening neighbor (| 7 F), a south step a
+# north-opening one (| L J), and an east or west step an east-west-opening one.
 word _connects-back(tile: String, direction: Int) -> Bool
     if direction == 1
         text.contains("-7J", tile)
     elif direction == 3
         text.contains("-LF", tile)
+    elif direction == 0
+        text.contains("|7F", tile)
     else
         text.contains("|LJ", tile)
 

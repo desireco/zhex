@@ -17,3 +17,12 @@ let sprawling = "FF7FSF7F7F7F7F7F---7\nL|LJ||||||||||||F--J\nFL-7LJLJ||||||LJL-7
 test.check(day10-core.part-one(day10-core.parse(sprawling)) == 80, "day 10 part 1, sprawling example")
 test.check(day10-core.part-two(day10-core.parse(sprawling)) == 10, "day 10 part 2, sprawling example")
 print "day 10 tests passed"
+
+# A loop whose S (shape J) connects north through a 7: the north branch of
+# _connects-back must accept | 7 F, and a junk L above S must be refused.
+let corner = "F7\nLS"
+test.check(day10-core.part-one(day10-core.parse(corner)) == 2, "day 10 part 1, S connects north through 7")
+test.check(day10-core.part-two(day10-core.parse(corner)) == 0, "day 10 part 2, S connects north through 7")
+let junk-above = ".L..\n.S-7\n.|.|\n.L-J"
+test.check(day10-core.part-one(day10-core.parse(junk-above)) == 4, "day 10 part 1, junk L above S survives")
+test.check(day10-core.part-two(day10-core.parse(junk-above)) == 1, "day 10 part 2, junk L above S ignored")
