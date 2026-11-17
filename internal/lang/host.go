@@ -28,6 +28,9 @@ func (r *runtime) write(pos position, text string) error {
 }
 
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
+	if err := wordBoundary(x); err != nil {
+		return value{result: &inputResult{err: err}}, nil
+	}
 	switch x.text {
 	case "date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string":
 		return temporalBuiltin(x, args)

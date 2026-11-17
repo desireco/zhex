@@ -293,6 +293,9 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			}
 		}
 	case "for-lines":
+		if err := streamBoundary(s.pos); err != nil {
+			return value{}, err
+		}
 		f, err := openFile(s.pos, v.text)
 		if err != nil {
 			if d, ok := err.(*diagnostic); ok {
