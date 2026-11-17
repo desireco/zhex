@@ -1,0 +1,108 @@
+# Advent of Code 2023, day 7 — Camel Cards (solution words). Each hand
+# orders first by its type — five of a kind down to high card — then by its
+# cards left to right, and wins its bid times its rank, weakest first. A
+# hand becomes one Int score: the type tier shifted up five base-14 digits,
+# plus one digit per card, so list.sort-by ranks weakest to strongest.
+# Part 2 turns J into a joker: it acts as whichever card makes the type
+# best (tried one label at a time) while comparing as the lowest card.
+
+## One hand: its five cards and its bid.
+type Hand = record
+    cards: String
+    bid: Int
+
+# How many times one label occurs in a five-card hand.
+word _count(cards: String, label: String) -> Int
+    var count = 0
+    for index in range(0, 5)
+        if text.slice(cards, index, index + 1) == label
+            count = count + 1
+    count
+
+# The hand's type tier on the cards as dealt: six for five of a kind down
+# to zero for high card. Counting how many labels occur 0 to 5 times keeps
+# the seven tiers a bucket check each.
+word _tier(cards: String) -> Int
+    let buckets: List<Int> = []
+    for _ in range(0, 6)
+        list.append(buckets, 0)
+    for index in range(0, 13)
+        let label = text.slice("AKQJT98765432", index, index + 1)
+        let count = _count(cards, label)
+        buckets[count] = buckets[count] + 1
+    if buckets[5] == 1
+        6
+    elif buckets[4] == 1
+        5
+    elif buckets[3] == 1 and buckets[2] == 1
+        4
+    elif buckets[3] == 1
+        3
+    elif buckets[2] == 2
+        2
+    elif buckets[2] == 1
+        1
+    else
+        0
+
+# The best tier the jokers can reach: every non-joker label is tried as
+# their stand-in, so even five jokers land on five of a kind.
+word _joker-tier(cards: String) -> Int
+    var best = 0
+    for index in range(0, 12)
+        let label = text.slice("AKQT98765432", index, index + 1)
+        let tier = _tier(text.replace(cards, "J", label))
+        if tier > best
+            best = tier
+    best
+
+# One card's comparison digit within the order, highest card first.
+word _card-value(card: String, order: String) -> Int
+    13 - text.index-of(order, card)
+
+# The hand's whole ordering as one Int: tier first, then five base-14
+# card digits.
+word _score(cards: String, jokers: Bool) -> Int
+    let order = if jokers
+        "AKQT98765432J"
+    else
+        "AKQJT98765432"
+    let tier = if jokers
+        _joker-tier(cards)
+    else
+        _tier(cards)
+    var score = tier
+    for index in range(0, 5)
+        score = score * 14 + _card-value(text.slice(cards, index, index + 1), order)
+    score
+
+## Parse the hands and their bids.
+word parse(text: String) -> List<Hand>
+    let hands: List<Hand> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let parts = text.split(line, " ")
+            let bid = text.to-int(parts[1]) try
+            list.append(hands, Hand(parts[0], bid))
+    hands
+
+word _part-one-key(hand: Hand) -> Int
+    _score(hand.cards, false)
+
+word _part-two-key(hand: Hand) -> Int
+    _score(hand.cards, true)
+
+# The total winnings once the hands are ranked weakest first.
+word _winnings(hands: List<Hand>) -> Int
+    var total = 0
+    for index, hand in hands
+        total = total + hand.bid * (index + 1)
+    total
+
+## Sum every hand's bid times its rank, jacks in their usual place.
+word part-one(hands: List<Hand>) -> Int
+    _winnings(list.sort-by(hands, _part-one-key(_)))
+
+## The same sum once jacks are jokers: best possible type, lowest card.
+word part-two(hands: List<Hand>) -> Int
+    _winnings(list.sort-by(hands, _part-two-key(_)))

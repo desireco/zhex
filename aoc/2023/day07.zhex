@@ -1,0 +1,18 @@
+# Advent of Code 2023, day 7 — Camel Cards.
+# Reads the hands from stdin until end of input, prints both answers.
+use day07-core
+
+# shortcut: a hand line holds card labels, one space, and digits, so this
+# sentinel cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let hands = day07-core.parse(buffer.to-text(input)) try
+print(day07-core.part-one(hands))
+print(day07-core.part-two(hands))
