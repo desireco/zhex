@@ -1,0 +1,16 @@
+use day17-core
+use test
+
+# The page's public part-one example.
+let sample = "Register A: 729\nRegister B: 0\nRegister C: 0\n\nProgram: 0,1,5,4,3,0"
+let machine = day17-core.parse(sample)
+
+# The part-two example: the same shape of screen, with a program that can
+# output a copy of itself for the right A.
+let self-copy = "Register A: 2024\nRegister B: 0\nRegister C: 0\n\nProgram: 0,3,5,4,3,0"
+let copier = day17-core.parse(self-copy)
+
+test.check(day17-core.part-one(machine) == "4,6,3,5,6,3,5,2,1,0", "day 17 part 1")
+test.check(day17-core.part-one(copier) == "5,7,3,0", "day 17 part 1 on the part-two example")
+test.check(day17-core.part-two(copier) == 117440, "day 17 part 2")
+print "day 17 tests passed"

@@ -1,0 +1,21 @@
+# Advent of Code 2024, day 17 — Chronospatial Computer.
+# Reads the debugger screen from stdin until end of input, prints both
+# answers. The sample is the page's part-two example, whose program can
+# output a copy of itself; the part-one example cannot, so part two on it
+# would fail loudly instead of looping.
+use day17-core
+
+# shortcut: a debugger line is "Register X: n" or "Program: digits", so
+# this sentinel cannot collide; it stands in for the end-of-input failure
+# because error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let machine = day17-core.parse(buffer.to-text(input))
+print(day17-core.part-one(machine))
+print(day17-core.part-two(machine))
