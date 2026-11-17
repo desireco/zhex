@@ -990,9 +990,12 @@ const watM3Readline = `
       (global.set $zhex_stdin_buf (local.get $fresh))
       (br $again)))
   (local.set $m (local.get $k))
-  (if (i32.and (i32.gt_u (local.get $m) (i32.const 0))
-               (i32.eq (array.get $zhex_arr_i32 (ref.as_non_null (local.get $buf)) (i32.sub (local.get $m) (i32.const 1))) (i32.const 13)))
-    (then (local.set $m (i32.sub (local.get $m) (i32.const 1)))))
+  ;; nested ifs, not i32.and: and evaluates both arms, so a zero-length
+  ;; line would read the byte at index -1 and trap
+  (if (i32.gt_u (local.get $m) (i32.const 0))
+    (then
+      (if (i32.eq (array.get $zhex_arr_i32 (ref.as_non_null (local.get $buf)) (i32.sub (local.get $m) (i32.const 1))) (i32.const 13))
+        (then (local.set $m (i32.sub (local.get $m) (i32.const 1)))))))
   (call $m3_stage_buf (local.get $buf) (i32.const 0) (local.get $m))
   (local.set $fresh (array.new_default $zhex_arr_i32 (i32.sub (local.get $n) (i32.add (local.get $k) (i32.const 1)))))
   (local.set $i (i32.const 0))
@@ -3205,10 +3208,14 @@ const watM3JsonDecode = `
 (func $zjson_exact_int (param $t (ref $zhex_string)) (result (ref null eq))
   (local $n i32) (local $i i32) (local $neg i32) (local $c i32) (local $v i64)
   (local.set $n (array.len (local.get $t)))
-  (if (i32.and (i32.gt_u (local.get $n) (i32.const 0)) (i32.eq (array.get $zhex_string (local.get $t) (i32.const 0)) (i32.const 45)))
+  ;; nested ifs, not i32.and: and evaluates both arms, so an empty text
+  ;; would read index 0 of a zero-length string and trap
+  (if (i32.gt_u (local.get $n) (i32.const 0))
     (then
-      (local.set $neg (i32.const 1))
-      (local.set $i (i32.const 1))))
+      (if (i32.eq (array.get $zhex_string (local.get $t) (i32.const 0)) (i32.const 45))
+        (then
+          (local.set $neg (i32.const 1))
+          (local.set $i (i32.const 1))))))
   (block $digits
     (loop $dl
       (br_if $digits (i32.ge_u (local.get $i) (local.get $n)))

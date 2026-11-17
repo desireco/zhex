@@ -634,6 +634,7 @@ func m3DifferentialCases() []m3Case {
 		{name: "files"},
 		{name: "stream"},
 		{name: "readline", stdin: "Ada\nGrace\n"},
+		{name: "readline-blank", stdin: "Ada\n\nGrace\n"},
 		{name: "buffers"},
 		{name: "duration"},
 		{name: "json"},

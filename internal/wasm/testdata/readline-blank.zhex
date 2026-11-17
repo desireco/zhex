@@ -1,0 +1,9 @@
+# A blank line reads as an empty string: the \r chomp must not look at
+# the byte before a zero-length line.
+
+let first = read-line("Name: ") try
+print("hello " + first)
+let middle = read-line("Blank: ") try
+print("blank [" + middle + "]")
+let last = read-line("More: ") try
+print("last: " + last)
