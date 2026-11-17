@@ -1,0 +1,19 @@
+# Advent of Code 2023, day 25 — Snowverload.
+# Reads the wiring diagram from stdin until end of input, prints the answer.
+use day25-core
+
+# shortcut: a wiring line holds names, a colon, and spaces, so this
+# sentinel cannot collide; it stands in for the end-of-file failure
+# because error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let wiring = day25-core.parse(buffer.to-text(input))
+print(day25-core.part-one(wiring))
+# the finale has one part; the second star comes with the first
+print("*")
