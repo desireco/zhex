@@ -1,0 +1,9 @@
+use day06-core
+use test
+
+let sample = "Time:      7  15   30\nDistance:  9  40  200"
+let sheet = day06-core.parse(sample) try
+
+test.check(day06-core.part-one(sheet) == 288, "day 6 part 1")
+test.check(day06-core.part-two(sheet) == 71503, "day 6 part 2")
+print "day 6 tests passed"

@@ -1,0 +1,18 @@
+# Advent of Code 2023, day 6 — Wait For It.
+# Reads the race sheet from stdin until end of input, prints both answers.
+use day06-core
+
+# shortcut: the sheet holds digits, spaces, and two colons, so this
+# sentinel cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let sheet = day06-core.parse(buffer.to-text(input)) try
+print(day06-core.part-one(sheet))
+print(day06-core.part-two(sheet))
