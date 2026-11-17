@@ -1,0 +1,9 @@
+use day07-core
+use test
+
+let sample = ".......S.......\n...............\n.......^.......\n...............\n......^.^......\n...............\n.....^.^.^.....\n...............\n....^.^...^....\n...............\n...^.^...^.^...\n...............\n..^...^.....^..\n...............\n.^.^.^.^.^...^.\n..............."
+let grid = day07-core.parse(sample)
+
+test.check(day07-core.part-one(grid) == 21, "day 7 part 1")
+test.check(day07-core.part-two(grid) == 40, "day 7 part 2")
+print "day 7 tests passed"

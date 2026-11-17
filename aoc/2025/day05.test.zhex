@@ -1,0 +1,9 @@
+use day05-core
+use test
+
+let sample = "3-5\n10-14\n16-20\n12-18\n\n1\n5\n8\n11\n17\n32"
+let database = day05-core.parse(sample) try
+
+test.check(day05-core.part-one(database) == 3, "day 5 part 1")
+test.check(day05-core.part-two(database) == 14, "day 5 part 2")
+print "day 5 tests passed"

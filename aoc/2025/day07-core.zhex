@@ -1,0 +1,82 @@
+# Advent of Code 2025, day 7 — Laboratories (solution words).
+# The diagram has open space (.), splitters (^), and one entry (S) where a
+# tachyon beam enters moving down. A beam reaching a splitter stops, and
+# two beams continue from the splitter's left and right cells; beams that
+# land together merge. One row-by-row pass answers both parts: part 1
+# counts the splitters a beam reaches, part 2 counts the beam timelines
+# that leave the bottom of the diagram.
+
+## Parse the diagram into its rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            list.append(grid, line)
+    grid
+
+# The row holding the entry marker.
+word _entry-row(grid: List<String>) -> Int
+    var entry = 0
+    var index = 0
+    var found = false
+    while not found and index < list.length(grid)
+        if text.index-of(grid[index], "S") >= 0
+            found = true
+            entry = index
+        index = index + 1
+    entry
+
+# The column holding the entry marker.
+word _entry-column(grid: List<String>) -> Int
+    text.index-of(grid[_entry-row(grid)], "S")
+
+# The starting beams: one timeline at the entry's column.
+word _starting-beams(grid: List<String>) -> List<Int>
+    let beams: List<Int> = []
+    for index in range(0, text.length(grid[0]))
+        if index == _entry-column(grid)
+            list.append(beams, 1)
+        else
+            list.append(beams, 0)
+    beams
+
+# Beams entering one row leave it as the beams entering the next: on open
+# space a beam continues down, on a splitter it splits to the splitter's
+# left and right neighbors.
+word _advance(row: String, beams: List<Int>) -> List<Int>
+    let next: List<Int> = []
+    for index in range(0, list.length(beams))
+        list.append(next, 0)
+    for index in range(0, list.length(beams))
+        let count = beams[index]
+        if count > 0
+            if index < text.length(row) and text.slice(row, index, index + 1) == "^"
+                if index > 0
+                    next[index - 1] = next[index - 1] + count
+                if index < list.length(beams) - 1
+                    next[index + 1] = next[index + 1] + count
+            else
+                next[index] = next[index] + count
+    next
+
+## Count the splitters a beam reaches.
+word part-one(grid: List<String>) -> Int
+    var beams = _starting-beams(grid)
+    var splits = 0
+    for row-index in range(_entry-row(grid) + 1, list.length(grid))
+        let row = grid[row-index]
+        for index in range(0, list.length(beams))
+            if beams[index] > 0 and index < text.length(row) and text.slice(row, index, index + 1) == "^"
+                splits = splits + 1
+        beams = _advance(row, beams)
+    splits
+
+## Count the beam timelines that leave the bottom of the diagram.
+word part-two(grid: List<String>) -> Int
+    var beams = _starting-beams(grid)
+    for row-index in range(_entry-row(grid) + 1, list.length(grid))
+        beams = _advance(grid[row-index], beams)
+    var exits = 0
+    for count in beams
+        exits = exits + count
+    exits
