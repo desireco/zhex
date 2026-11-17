@@ -1,0 +1,539 @@
+---
+import Base from "../layouts/Base.astro";
+import data from "../../data.json";
+
+// The playground's example index (#88): the slim slice of the example data
+// the page needs to assemble an "Open in playground" payload — entry source,
+// module siblings for the resolve hook, and the #107 input-box declaration.
+// The page never imports the full example data with its highlighted sources.
+const index = data.Examples.map(e => ({
+  id: e.ID,
+  source: e.Source,
+  stdin: e.Stdin,
+  kind: e.InputKind,
+  lines: e.InputLines,
+  hint: e.InputHint,
+  modules: (e.Modules || []).map(m => ({ name: m.File.replace(/\.zhex$/, ""), source: m.Source })),
+}));
+---
+<Base title="Playground — Zhex" description="Write Zhex in your browser and run it — nothing to install." current="playground">
+  <main id="main" class="wrap">
+    <section class="page-intro playground-intro">
+      <p class="eyebrow">Try Zhex, right here</p>
+      <h1 id="playground-title">Playground.</h1>
+      <p class="lede">Write Zhex in your browser and run it — nothing to install.</p>
+      <p class="aside">Programs read the input box as their text; a read past the end reports end-of-file. The browser has no filesystem, no program arguments, and no environment file — words that need them say so when a program runs. <a class="text-link" href="examples.html">The examples page →</a> links every card here for editing.</p>
+    </section>
+
+    <section class="playground" aria-labelledby="playground-title">
+      <div class="pg-cover">
+        <p>The interpreter loads in your browser when you open the playground — nothing runs on a server, and nothing you write leaves the page.</p>
+        <button class="button pg-open" type="button">Open playground <span aria-hidden="true">→</span></button>
+        <p class="pg-loading" role="status" hidden>Loading Zhex…</p>
+        <p class="pg-unsupported" role="alert" hidden>This browser can't run the playground — it lacks WebAssembly support. Zhex needs roughly Chrome 119+, Firefox 120+, or Safari 18.2+.</p>
+        <p class="pg-load-failed" role="alert" hidden>The playground could not load. Check your connection and reload the page to try again.</p>
+      </div>
+
+      <div class="pg-active" hidden>
+        <div class="pg-input-card" hidden>
+          <label class="run-label" for="pg-stdin">Program input</label>
+          <p class="run-input-hint" id="pg-stdin-hint"></p>
+          <textarea id="pg-stdin" rows={4} spellcheck="false" aria-describedby="pg-stdin-hint"></textarea>
+          <p class="run-input-error" role="alert" hidden></p>
+        </div>
+
+        <div class="pg-modes" role="tablist" aria-label="Playground modes">
+          <button class="pg-mode" id="pg-tab-run" type="button" role="tab" aria-selected="true" aria-controls="pg-panel-run">Run</button>
+          <button class="pg-mode" id="pg-tab-repl" type="button" role="tab" aria-selected="false" aria-controls="pg-panel-repl" tabindex="-1">REPL</button>
+        </div>
+
+        <section class="pg-panel" id="pg-panel-run" role="tabpanel" aria-labelledby="pg-tab-run">
+          <label class="run-label" for="pg-editor">Program</label>
+          <textarea class="pg-editor" id="pg-editor" rows={16} spellcheck="false" autoCapitalize="off" autoComplete="off"></textarea>
+          <div class="pg-run-actions">
+            <button class="button pg-run" type="button">Run <span aria-hidden="true">→</span></button>
+            <button class="button pg-copy" type="button">Copy link</button>
+          </div>
+          <p class="pg-copy-note" role="status" hidden></p>
+          <div class="pg-result">
+            <h4>Output</h4>
+            <pre aria-live="polite"><samp data-pg-output></samp></pre>
+            <h4>Diagnostics</h4>
+            <div class="pg-diagnostics" data-pg-diagnostics aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="pg-panel" id="pg-panel-repl" role="tabpanel" aria-labelledby="pg-tab-repl" hidden>
+          <p class="pg-repl-help">Type an entry and press Enter — a finished entry runs at once, an unfinished one waits for a blank line. Tab indents. Entries read the Program input box; a read past its end reports end-of-file.</p>
+          <div class="pg-transcript" data-pg-transcript aria-live="polite"></div>
+          <label class="run-label" for="pg-entry">Entry</label>
+          <textarea class="pg-editor pg-entry" id="pg-entry" rows={4} spellcheck="false" autoCapitalize="off" autoComplete="off"></textarea>
+          <div class="pg-run-actions">
+            <button class="button pg-tour" type="button">Run the tour</button>
+            <button class="button pg-copy pg-copy-repl" type="button">Copy link</button>
+          </div>
+          <p class="pg-copy-note pg-copy-note-repl" role="status" hidden></p>
+        </section>
+      </div>
+    </section>
+
+    <a class="to-top" href="#top">Back to top ↑</a>
+    <script is:inline>
+      const link = document.querySelector('.to-top');
+      new IntersectionObserver(([entry]) =>
+        link.classList.toggle('shown', !entry.isIntersecting)
+      ).observe(document.querySelector('.playground-intro'));
+    </script>
+    <script is:inline define:vars={{ indexJson: JSON.stringify(index) }}>
+      window.pgIndex = JSON.parse(indexJson);
+    </script>
+
+    <script>
+      // The browser playground (#88) over the shared #91 engine: one lazy
+      // load behind the open click, then two modes over the same module —
+      // Run (runSource) and REPL (newSession, with the continuation probes
+      // mirroring the terminal REPL's law entry for entry). The engine's
+      // loader is shared with the read-line spike; this page only consumes
+      // it. Share links carry source, input, mode, and module siblings in
+      // the URL fragment; example cards arrive through ?example=<id>.
+      import { inputProblem } from "../scripts/input-check.mjs";
+
+      // BASE_URL arrives without its trailing slash in this build format;
+      // every engine asset joins against the slash-terminated base.
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "") + "/";
+      const index = window.pgIndex || [];
+      const cover = document.querySelector(".pg-cover");
+      const openButton = document.querySelector(".pg-open");
+      const loading = document.querySelector(".pg-loading");
+      const unsupported = document.querySelector(".pg-unsupported");
+      const loadFailed = document.querySelector(".pg-load-failed");
+      const active = document.querySelector(".pg-active");
+      const inputCard = document.querySelector(".pg-input-card");
+      const stdinBox = document.querySelector("#pg-stdin");
+      const stdinHint = document.querySelector("#pg-stdin-hint");
+      const stdinError = document.querySelector(".pg-input-card .run-input-error");
+      const tabs = [...document.querySelectorAll(".pg-mode")];
+      const panels = tabs.map(tab => document.getElementById(tab.getAttribute("aria-controls")));
+      const runPanel = document.querySelector("#pg-panel-run");
+      const editor = document.querySelector("#pg-editor");
+      const runButton = document.querySelector(".pg-run");
+      const output = document.querySelector("[data-pg-output]");
+      const diagnostics = document.querySelector("[data-pg-diagnostics]");
+      const replPanel = document.querySelector("#pg-panel-repl");
+      const transcript = document.querySelector("[data-pg-transcript]");
+      const entry = document.querySelector("#pg-entry");
+
+      const tourProgram = `# A first look: one word, two printed lines.
+word greet(name: String) -> String
+    "Hello, " + name + "!"
+
+print(greet("Zhex"))
+print(greet("you"))
+`;
+      const tourEntries = [
+        'print "Hello, Zhex!"',
+        "2 + 3",
+        'word greet(name: String) -> String\n    "Hello, " + name + "!"',
+        'greet("Zhex")',
+        "greet(42)", // the deliberate failure: a String word handed a number
+      ];
+
+      let engine = null;
+      let session = null;
+      let sessionEnded = false;
+      let moduleMap = {};
+
+      // --- payloads ------------------------------------------------------
+
+      // Share links carry everything in the fragment; example cards name the
+      // id and the page rebuilds the payload from the build-time index.
+      function decodePayload(hash) {
+        if (!hash.startsWith("#p=")) return null;
+        try {
+          const payload = JSON.parse(decodeURIComponent(hash.slice(3)));
+          return typeof payload.s === "string" ? payload : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function examplePayload(id) {
+        const found = index.find(e => e.id === id);
+        if (!found) return null;
+        return {
+          s: found.source,
+          m: Object.fromEntries(found.modules.map(m => [m.name, m.source])),
+          i: { stdin: found.stdin, kind: found.kind, lines: found.lines, hint: found.hint },
+          r: "run",
+        };
+      }
+
+      // --- the engine load, behind the one click ------------------------
+
+      openButton.addEventListener("click", async () => {
+        if (typeof WebAssembly === "undefined") {
+          unsupported.hidden = false;
+          return;
+        }
+        openButton.disabled = true;
+        loading.hidden = false;
+        try {
+          const module = await import(/* @vite-ignore */ `${base}zhex-engine.js`);
+          engine = await module.loadEngine(base);
+        } catch {
+          loading.hidden = true;
+          loadFailed.hidden = false;
+          return;
+        }
+        engine.setResolve(name => moduleMap[name] ? { path: `${name}.zhex`, source: moduleMap[name] } : null);
+        activate();
+      });
+
+      function activate() {
+        const payload = decodePayload(location.hash)
+          || examplePayload(new URLSearchParams(location.search).get("example"));
+        const mode = payload?.r === "repl" ? "repl" : "run";
+        moduleMap = payload?.m || {};
+
+        editor.value = payload ? payload.s : tourProgram;
+        setUpInput(payload?.i);
+        if (mode === "repl") {
+          entry.value = payload ? payload.s : "";
+          selectMode(1, false);
+        } else {
+          selectMode(0, false);
+        }
+        cover.hidden = true;
+        active.hidden = false;
+        // A shipped Run link runs as it loads; a REPL link waits for the
+        // visitor's Enter, like the terminal. The fragment-less empty state
+        // is the tour: the program runs, and the REPL fires its entries.
+        if (mode === "run") run();
+      }
+
+      function setUpInput(input) {
+        const declared = input || { kind: "text", hint: "The program reads this box as its input." };
+        if (declared.kind === "none") return; // a program that reads nothing offers no box
+        stdinBox.value = declared.stdin || "";
+        stdinHint.textContent = declared.hint || "The program reads this box as its input.";
+        stdinBox.dataset.kind = declared.kind;
+        stdinBox.dataset.lines = String(declared.lines || 0);
+        inputCard.hidden = false;
+      }
+
+      function stdinValue() {
+        return inputCard.hidden ? "" : stdinBox.value;
+      }
+
+      // --- mode switch (the #126 tab pattern) ---------------------------
+
+      function selectMode(indexToSelect, focus) {
+        tabs.forEach((tab, at) => {
+          const isActive = at === indexToSelect;
+          tab.setAttribute("aria-selected", String(isActive));
+          tab.tabIndex = isActive ? 0 : -1;
+          panels[at].hidden = !isActive;
+        });
+        // The REPL's empty state is the tour: a first arrival with nothing
+        // typed fires it, exactly as shipped.
+        if (indexToSelect === 1 && transcript.childElementCount === 0 && engine && !sessionEnded) runTour();
+        if (focus) tabs[indexToSelect].focus();
+      }
+
+      tabs.forEach((tab, indexToSelect) => {
+        tab.addEventListener("click", () => selectMode(indexToSelect, false));
+        tab.addEventListener("keydown", event => {
+          const move = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
+            : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+          if (!move) return;
+          event.preventDefault();
+          selectMode((indexToSelect + move + tabs.length) % tabs.length, true);
+        });
+      });
+
+      // --- Run mode ------------------------------------------------------
+
+      runButton.addEventListener("click", run);
+
+      function run() {
+        const problem = inputCard.hidden ? "" : inputProblem(stdinBox.dataset.kind || "text", Number(stdinBox.dataset.lines || 0), stdinBox.value);
+        if (problem) {
+          stdinError.textContent = problem;
+          stdinError.hidden = false;
+          return;
+        }
+        if (stdinError) stdinError.hidden = true;
+        runButton.disabled = true;
+        const source = editor.value;
+        let result;
+        try {
+          result = engine.runSource(source, stdinValue());
+        } finally {
+          runButton.disabled = false;
+        }
+        output.textContent = result.output;
+        renderDiagnostics(source, result);
+      }
+
+      function renderDiagnostics(source, result) {
+        diagnostics.textContent = "";
+        if (result.report) {
+          try {
+            diagnosticBlock(diagnostics, source, JSON.parse(result.report));
+            return;
+          } catch {
+            diagnostics.textContent = result.report; // the plain envelope, if the shape ever surprises us
+          }
+        } else if (result.diagnostics) {
+          const pre = document.createElement("pre");
+          pre.textContent = result.diagnostics;
+          diagnostics.append(pre);
+        } else if (result.exit !== 0) {
+          diagnostics.textContent = `Exit status ${result.exit}.`;
+        } else {
+          diagnostics.textContent = "No problems.";
+        }
+      }
+
+      // The --report=json envelope, rendered with the terminal's caret law:
+      // file:line:column: message, the source excerpt, a caret spanning the
+      // reported columns, then the hint.
+      function diagnosticBlock(container, source, report) {
+        const pre = document.createElement("pre");
+        const lines = source.split("\n");
+        const excerpt = report.line >= 1 && report.line <= lines.length ? lines[report.line - 1].replace(/\r$/, "") : "";
+        let indent = report.column - 1;
+        let width = 1;
+        if (report.span_start_column > 0 && report.span_end_column - report.span_start_column > 1) {
+          indent = report.span_start_column - 1;
+          width = report.span_end_column - report.span_start_column;
+        }
+        if (indent < 0) indent = 0;
+        if (width < 1) width = 1;
+        pre.append(`${report.file}:${report.line}:${report.column}: ${report.message}\n`);
+        if (excerpt) {
+          pre.append(`    ${excerpt}\n`);
+          const caret = document.createElement("span");
+          caret.className = "pg-caret";
+          caret.textContent = `    ${" ".repeat(indent)}${"^".repeat(width)}`;
+          pre.append(caret);
+        }
+        if (report.hint) pre.append(`\nhint: ${report.hint}`);
+        container.append(pre);
+      }
+
+      // --- share links ----------------------------------------------------
+
+      for (const button of document.querySelectorAll(".pg-copy")) {
+        button.addEventListener("click", () => {
+          const replMode = button.classList.contains("pg-copy-repl");
+          const payload = {
+            s: replMode ? entry.value : editor.value,
+            r: replMode ? "repl" : "run",
+          };
+          if (Object.keys(moduleMap).length > 0) payload.m = moduleMap;
+          if (!inputCard.hidden) payload.i = { stdin: stdinBox.value, kind: stdinBox.dataset.kind || "text", lines: Number(stdinBox.dataset.lines || 0), hint: stdinHint.textContent };
+          const url = `${location.origin}${location.pathname}#p=${encodeURIComponent(JSON.stringify(payload))}`;
+          // The address bar carries the link too, so the URL stays shareable
+          // even where the clipboard is blocked.
+          history.replaceState(null, "", url.slice(location.origin.length));
+          const note = replMode ? document.querySelector(".pg-copy-note-repl") : document.querySelector(".pg-copy-note:not(.pg-copy-note-repl)");
+          const write = navigator.clipboard?.writeText(url);
+          if (!write) {
+            note.textContent = "Copying needs a browser with clipboard support — select the address bar instead.";
+            note.hidden = false;
+            return;
+          }
+          write.then(() => {
+            note.textContent = "Link copied.";
+            note.hidden = false;
+          }).catch(() => {
+            note.textContent = "Copying was blocked — select the address bar instead.";
+            note.hidden = false;
+          }).finally(() => setTimeout(() => { note.hidden = true; }, 2500));
+        });
+      }
+
+      // --- REPL mode: the terminal law, entry for entry ------------------
+
+      let pending = false;
+      let blockPending = false;
+      let openDelimiter = false;
+
+      function ensureSession() {
+        if (!session) session = engine.newSession(stdinValue());
+        return session;
+      }
+
+      function transcriptBlock(text, className) {
+        const block = document.createElement("div");
+        block.className = className;
+        block.textContent = text;
+        transcript.append(block);
+      }
+
+      function fireEntry(source) {
+        ensureSession();
+        transcriptBlock(source, "pg-in");
+        const result = session.enter(source);
+        const out = session.takeOutput();
+        const fail = session.takeDiagnostics();
+        if (out) transcriptBlock(out, "pg-out");
+        if (result.echo) transcriptBlock(result.echo, "pg-out");
+        if (fail) transcriptBlock(fail, "pg-fail");
+        if (result.report) {
+          try {
+            diagnosticBlock(transcript, source, JSON.parse(result.report));
+          } catch {
+            transcriptBlock(result.report, "pg-fail");
+          }
+        } else if (result.error) {
+          transcriptBlock(result.error, "pg-fail");
+        }
+        if (result.exit !== null && result.exit !== undefined) {
+          transcriptBlock(`Exit status ${result.exit}. Reload the page for a fresh session.`, "pg-fail");
+          sessionEnded = true;
+          entry.disabled = true;
+        }
+      }
+
+      // commentOnly mirrors the terminal driver: a source of only comment
+      // lines cannot stand alone, so the entry stays pending.
+      function commentOnly(source) {
+        let comments = false;
+        for (const line of source.split("\n")) {
+          if (line === "") continue;
+          if (!/^ *#/.test(line)) return false;
+          comments = true;
+        }
+        return comments;
+      }
+
+      // continuationIndent mirrors the terminal editor: the open delimiter's
+      // depth, else the last statement's indent, one level deeper while a
+      // block body is still missing.
+      function continuationIndent(source) {
+        const delimiter = engine.delimiterIndent(source);
+        if (delimiter !== null && delimiter !== undefined) return delimiter;
+        const last = source.split("\n").pop();
+        let indent = last.match(/^ */)[0].length;
+        const logical = engine.lastStatementIndent(source);
+        if (logical !== null && logical !== undefined) indent = logical;
+        if (engine.isIncomplete(source)) indent += 4;
+        return indent;
+      }
+
+      function insertAtCursor(text) {
+        const at = entry.selectionStart ?? entry.value.length;
+        const end = entry.selectionEnd ?? at;
+        entry.value = entry.value.slice(0, at) + text + entry.value.slice(end);
+        entry.setSelectionRange(at + text.length, at + text.length);
+      }
+
+      function submitLine() {
+        const at = entry.selectionStart ?? entry.value.length;
+        const before = entry.value.slice(0, at);
+        const startOfLine = before.lastIndexOf("\n") + 1;
+        const line = before.slice(startOfLine).replace(/\r$/, "");
+        const value = entry.value;
+
+        if (!pending) {
+          if (line.trim() === "") return;
+          if (line === "words" && !commentOnly(before.slice(0, startOfLine))) {
+            entry.value = "";
+            runWords();
+            return;
+          }
+          if (commentOnly(value)) {
+            pending = true;
+            openDelimiter = false;
+            blockPending = false;
+            insertAtCursor("\n");
+            return;
+          }
+          if (engine.isIncomplete(value)) {
+            pending = true;
+            openDelimiter = engine.delimiterIndent(value) !== null && engine.delimiterIndent(value) !== undefined;
+            blockPending = !openDelimiter;
+            insertAtCursor("\n" + " ".repeat(continuationIndent(value)));
+            return;
+          }
+          entry.value = "";
+          fireEntry(value);
+          return;
+        }
+
+        const blank = line.trim() === "";
+        if (!blank && line === "words" && commentOnly(before.slice(0, startOfLine))) {
+          pending = false;
+          entry.value = "";
+          runWords();
+          return;
+        }
+        if (!blank || openDelimiter) {
+          if (commentOnly(value)) {
+            insertAtCursor("\n");
+            return;
+          }
+          const delimiter = engine.delimiterIndent(value);
+          openDelimiter = delimiter !== null && delimiter !== undefined;
+          if (openDelimiter || blockPending || engine.isIncomplete(value)) {
+            if (!openDelimiter && !blockPending) blockPending = true;
+            insertAtCursor("\n" + " ".repeat(continuationIndent(value)));
+            return;
+          }
+          pending = false;
+          blockPending = false;
+          entry.value = "";
+          fireEntry(value);
+          return;
+        }
+        // A blank line with no open delimiter submits, without the blank.
+        pending = false;
+        blockPending = false;
+        entry.value = "";
+        fireEntry(before);
+      }
+
+      function runWords() {
+        ensureSession();
+        transcriptBlock("words", "pg-in");
+        const list = session.words();
+        transcriptBlock(list.join("\n"), "pg-out");
+      }
+
+      entry.addEventListener("keydown", event => {
+        if (sessionEnded) return;
+        if (event.key === "Tab" && !event.shiftKey) {
+          event.preventDefault();
+          insertAtCursor("    ");
+          return;
+        }
+        if (event.key !== "Enter" || event.shiftKey) return;
+        event.preventDefault();
+        if (!engine) return;
+        submitLine();
+      });
+
+      // The empty state's tour: an entry, a word definition, and a
+      // deliberate failure showing its caret diagnostic — running exactly
+      // as shipped.
+      function runTour() {
+        if (sessionEnded) return;
+        for (const source of tourEntries) fireEntry(source);
+      }
+
+      document.querySelector(".pg-tour").addEventListener("click", runTour);
+
+      // Editor nicety: Tab inserts the four-space indent everywhere.
+      editor.addEventListener("keydown", event => {
+        if (event.key !== "Tab" || event.shiftKey) return;
+        event.preventDefault();
+        const at = editor.selectionStart ?? 0;
+        const end = editor.selectionEnd ?? at;
+        editor.value = editor.value.slice(0, at) + "    " + editor.value.slice(end);
+        editor.setSelectionRange(at + 4, at + 4);
+      });
+    </script>
+  </main>
+</Base>

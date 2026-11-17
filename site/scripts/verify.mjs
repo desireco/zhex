@@ -40,8 +40,8 @@ const gettingStarted = await read('docs/getting-started.html');
 assert(gettingStarted.includes('docs-nav-mobile') && gettingStarted.includes('<details'), 'mobile documentation disclosure');
 assert(gettingStarted.includes('aria-current="page"'), 'current documentation topic');
 for (const id of ['build-and-run', 'read-the-program', 'try-the-repl', 'where-to-go-next']) assert(gettingStarted.includes(`id="${id}"`), `${id} legacy tutorial anchor`);
-for (const filename of ['index.html', 'roadmap.html', 'changelog.html', 'manifesto.html', 'demos.html', 'advent-of-code.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
-for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'examples.html', 'demos.html', 'advent-of-code.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
+for (const filename of ['index.html', 'roadmap.html', 'changelog.html', 'manifesto.html', 'demos.html', 'advent-of-code.html', 'playground.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
+for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'examples.html', 'demos.html', 'advent-of-code.html', 'playground.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
 // #115: the demos page carries the demo players, and the examples page
 // points to it from the top instead of holding the section itself.
 const demos = await read('demos.html');
@@ -81,5 +81,19 @@ for (const day of data.Aoc) assert(aoc.includes(`id="aoc-day-${day.Day}"`) && ao
 // neither, so the counts must track the data.
 assert.equal((aoc.match(/class="run-panel aoc-run-panel"/g) || []).length, data.Aoc.filter(d => d.Wasm).length, 'a run panel per wasm-backed door');
 assert.equal((aoc.match(/Not compiled to WebAssembly yet/g) || []).length, data.Aoc.filter(d => d.WasmNote).length, 'a fence note per fenced door');
+// #88: every example card links into the playground by id, and the
+// playground page carries the cover, the two modes, and the tour.
+const playground = await read('playground.html');
+for (const example of data.Examples) {
+  assert(examples.includes(`playground.html?example=${example.ID}`), `${example.ID} links to the playground`);
+  // The index rides in as escaped JSON inside the define:vars script, so the
+  // bare id is the stable marker.
+  assert(playground.includes(example.ID), `${example.ID} is in the playground's example index`);
+}
+for (const marker of ['pg-cover', 'Open playground', 'Loading Zhex…', 'role="tablist"', 'Run the tour', 'Program input', 'Copy link']) {
+  assert(playground.includes(marker), `playground carries ${marker}`);
+}
+assert(playground.includes('reports end-of-file'), 'playground documents the stdin boundary honestly');
 const nav = home.split('</header>')[0];
 assert(nav.includes('advent-of-code.html'), 'main navigation links to the AoC page');
+assert(nav.includes('playground.html'), 'main navigation links to the playground');

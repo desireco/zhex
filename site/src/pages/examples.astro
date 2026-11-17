@@ -40,7 +40,7 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
           <header class="program-heading"><h3 id={`${e.ID}-title`}>{e.Title}</h3><p>{e.Description}</p></header>
           <div class="program-body">
             <div class="program-code">
-              <div class="code-label"><span>{e.File}</span><a href={e.SourceURL} download>Download source ↓</a></div>
+              <div class="code-label"><span>{e.File}</span><span class="code-label-links"><a href={`playground.html?example=${e.ID}`}>Open in playground →</a><a href={e.SourceURL} download>Download source ↓</a></span></div>
               <pre><code><Fragment set:html={e.Highlighted} /></code></pre>
               {(e.Modules || []).map(m => (<div class="code-label"><span>{m.File}</span><a href={m.URL} download>Download source ↓</a></div>
               <pre><code><Fragment set:html={m.Highlighted} /></code></pre>))}
@@ -101,48 +101,17 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
     <script>
       // One module script for every run panel: the artifact is fetched lazily
       // on first Run through the shared fetchArtifact (the shim compiles a
-      // fresh instance per call, so each click is a clean run).
+      // fresh instance per call, so each click is a clean run). The input
+      // box check is the shared #107 module — the playground uses it too.
       import { runZhex } from "../scripts/zhex-run.mjs";
       import { fetchArtifact, loadFailedMessage } from "../scripts/artifact.mjs";
+      import { inputProblem } from "../scripts/input-check.mjs";
 
       const decoder = new TextDecoder();
 
       function withErrorLine(stdout, error) {
         if (!error) return stdout;
         return stdout && !stdout.endsWith("\n") ? `${stdout}\n${error}` : stdout + error;
-      }
-
-      // The page validates the box against its declared kind before any run,
-      // so a wrong entry is named here instead of surfacing as the program's
-      // own trap; the trap path stays as the backstop for what this cannot
-      // predict. Integer lines mirror text.to-int: trimmed, then a signed
-      // 64-bit decimal integer.
-      const INT64_MIN = -(2n ** 63n);
-      const INT64_MAX = 2n ** 63n - 1n;
-
-      function isInt64(text) {
-        if (!/^[+-]?[0-9]+$/.test(text)) return false;
-        const value = BigInt(text);
-        return value >= INT64_MIN && value <= INT64_MAX;
-      }
-
-      function inputProblem(panel, value) {
-        if (panel.dataset.inputKind !== "int") return "";
-        const count = Number(panel.dataset.inputLines);
-        const phrases = { 1: "one number", 2: "two numbers, one per line" };
-        const expected = phrases[count] ?? `${count} numbers, one per line`;
-        const raw = value.replace(/\n$/, "");
-        const lines = raw === "" ? [] : raw.split("\n");
-        if (lines.length !== Number(panel.dataset.inputLines)) {
-          return lines.length === 0
-            ? `Expected ${expected} — the box is empty.`
-            : `Expected ${expected} — ${lines.length} ${lines.length === 1 ? "line" : "lines"} found.`;
-        }
-        const bad = lines.find(line => !isInt64(line.trim()));
-        if (bad === undefined) return "";
-        return bad.trim() === ""
-          ? `Expected ${expected} — a blank line is not an integer.`
-          : `Expected ${expected} — "${bad.trim()}" is not an integer.`;
       }
 
       for (const panel of document.querySelectorAll(".run-panel")) {
@@ -157,7 +126,7 @@ const groups = ["Language basics", "Algorithms"].map(name => ({
           output.textContent = text;
         };
         button.addEventListener("click", async () => {
-          const problem = inputProblem(panel, input ? input.value : "");
+          const problem = inputProblem(panel.dataset.inputKind, Number(panel.dataset.inputLines), input ? input.value : "");
           if (problem) {
             validation.textContent = problem;
             validation.hidden = false;

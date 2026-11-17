@@ -864,6 +864,152 @@ pre {
   border: 1px solid var(--line);
 }
 
+/* Playground (#88): a cover keeps the engine off the wire until the open
+   click; then editor, input box, and the two modes over the shared engine.
+   The mode tabs share the year-tab element from the AoC page. */
+.playground-intro { padding-block: 3rem 0; }
+.playground-intro h1 { font-size: clamp(2.75rem, 6vw, 5rem); }
+
+.playground { padding-block: 2rem clamp(2rem, 5vw, 3.5rem); }
+
+.pg-cover { max-width: 720px; }
+.pg-cover p:first-child { margin: 0 0 1.5rem; font-size: clamp(1.15rem, 2vw, 1.45rem); }
+.pg-cover .button { min-width: 14rem; justify-content: center; gap: .5rem; }
+
+.pg-loading,
+.pg-unsupported,
+.pg-load-failed { margin: 1.25rem 0 0; font: 650 14px/1.6 var(--mono); }
+.pg-loading { color: var(--muted); }
+.pg-unsupported,
+.pg-load-failed { color: var(--accent-strong); }
+
+.pg-modes {
+  display: flex;
+  margin-top: 2rem;
+  border: 1px solid var(--line);
+}
+
+.pg-mode {
+  min-height: 52px;
+  padding: .75rem 1.75rem;
+  border: 0;
+  background: var(--paper);
+  color: var(--muted);
+  font-weight: 750;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.pg-mode + .pg-mode { border-left: 1px solid var(--line); }
+.pg-mode:hover:not([aria-selected="true"]) { background: var(--surface); color: var(--ink); }
+.pg-mode[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+
+.pg-panel { padding-top: 1.5rem; }
+
+.pg-editor {
+  display: block;
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: 1rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: 14px/1.8 var(--mono);
+  resize: vertical;
+}
+
+.pg-input-card { margin-bottom: 2rem; }
+.pg-input-card textarea {
+  display: block;
+  width: 100%;
+  margin-bottom: .5rem;
+  padding: 1rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: 14px/1.8 var(--mono);
+  resize: vertical;
+}
+
+.pg-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: .75rem;
+}
+
+.pg-run-actions .button {
+  min-width: 10rem;
+  justify-content: center;
+  gap: .5rem;
+}
+
+.pg-copy-note {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  font: 650 14px/1.6 var(--mono);
+}
+
+.pg-result h4,
+.pg-transcript h4 {
+  margin: 1.5rem 0 .55rem;
+  color: var(--accent-strong);
+  font: 750 12px/1.5 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.pg-result > pre,
+.pg-diagnostics pre,
+.pg-transcript pre {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font: 14px/1.8 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pg-caret { color: var(--accent-strong); font-weight: 700; }
+
+.pg-repl-help {
+  max-width: var(--reading);
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.pg-transcript {
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font: 14px/1.8 var(--mono);
+  min-height: 8rem;
+}
+
+.pg-transcript:empty::before {
+  content: "The transcript fills as entries run — try the tour.";
+  color: var(--muted);
+}
+
+.pg-in {
+  font-weight: 650;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pg-out { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.pg-fail {
+  color: var(--accent-strong);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.code-label-links { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
+
 /* Roadmap */
 .roadmap-stage {
   display: grid;
