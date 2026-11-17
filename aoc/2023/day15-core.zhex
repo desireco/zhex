@@ -1,0 +1,91 @@
+# Advent of Code 2023, day 15 — Lens Library (solution words).
+# The HASH algorithm needs character codes and the language has no char
+# type, so _code maps a one-character slice through index-of lookups on
+# alphabet strings — the epic's known trap, paid once per character. Part
+# 2 runs the steps as box operations on labeled lenses: '-' takes the
+# label out of its box, '=' replaces the label's focal length or appends
+# the lens at its box's end, and the answer sums each lens's box, slot,
+# and focal factors.
+
+type Lens = record
+    label: String
+    focal: Int
+
+# shortcut: the step grammar is lowercase letters, digits, =, and - only;
+# widen _code if an input ever uses other characters
+word _code(ch: String) -> Int
+    let letter = text.index-of("abcdefghijklmnopqrstuvwxyz", ch)
+    if letter >= 0
+        letter + 97
+    else
+        let digit = text.index-of("0123456789", ch)
+        if digit >= 0
+            digit + 48
+        elif ch == "="
+            61
+        else
+            45
+
+# The HASH of a step: each character's code added, times 17, remainder 256.
+word _hash(step: String) -> Int
+    var value = 0
+    for index in range(0, text.length(step))
+        value = (value + _code(text.slice(step, index, index + 1))) * 17 % 256
+    value
+
+## Parse the comma-separated initialization sequence into its steps.
+word parse(text: String) -> List<String>
+    text.split(text.replace(text, "\n", ""), ",")
+
+# The box without one label, unchanged when the label is absent.
+word _without(box: List<Lens>, label: String) -> List<Lens>
+    let keep: List<Lens> = []
+    for lens in box
+        if lens.label != label
+            list.append(keep, lens)
+    keep
+
+# The box after one = step: the label's focal length replaced in place,
+# or the lens appended when the box does not hold it yet.
+word _upsert(box: List<Lens>, label: String, focal: Int) -> List<Lens>
+    var done = false
+    for index in range(0, list.length(box))
+        let lens = box[index]
+        if not done and lens.label == label
+            box[index] = Lens(label, focal)
+            done = true
+    if not done
+        list.append(box, Lens(label, focal))
+    box
+
+## Sum the HASH of every step.
+word part-one(steps: List<String>) -> Int
+    var total = 0
+    for step in steps
+        total = total + _hash(step)
+    total
+
+## Run the box operations over 256 boxes and sum the focusing power.
+word part-two(steps: List<String>) -> Int
+    let boxes: List<List<Lens>> = []
+    for index in range(0, 256)
+        let fresh: List<Lens> = []
+        list.append(boxes, fresh)
+    for step in steps
+        if text.ends-with(step, "-")
+            let label = text.slice(step, 0, text.length(step) - 1)
+            let box-number = _hash(label)
+            boxes[box-number] = _without(boxes[box-number], label)
+        else
+            let halves = text.split(step, "=")
+            let label = halves[0]
+            let focal = text.to-int(halves[1]) try
+            let box-number = _hash(label)
+            boxes[box-number] = _upsert(boxes[box-number], label, focal)
+    var total = 0
+    for box-number in range(0, 256)
+        let box = boxes[box-number]
+        for slot in range(0, list.length(box))
+            let lens = box[slot]
+            total = total + (box-number + 1) * (slot + 1) * lens.focal
+    total

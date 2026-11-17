@@ -1,0 +1,20 @@
+# Advent of Code 2023, day 15 — Lens Library.
+# Reads the initialization sequence from stdin until end of input, prints
+# both answers.
+use day15-core
+
+# shortcut: the sequence holds lowercase letters, digits, equals, dashes,
+# commas, and newlines only, so this sentinel cannot collide; it stands in
+# for the end-of-file failure because error.detail is not compiled to wasm
+# yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let steps = day15-core.parse(buffer.to-text(input))
+print(day15-core.part-one(steps))
+print(day15-core.part-two(steps) try)
