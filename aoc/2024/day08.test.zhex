@@ -1,0 +1,9 @@
+use day08-core
+use test
+
+let sample = "............\n........0...\n.....0......\n.......0....\n....0.......\n......A.....\n............\n............\n........A...\n.........A..\n............\n............"
+let grid = day08-core.parse(sample)
+
+test.check(day08-core.part-one(grid) == 14, "day 8 part 1")
+test.check(day08-core.part-two(grid) == 34, "day 8 part 2")
+print "day 8 tests passed"
