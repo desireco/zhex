@@ -76,5 +76,10 @@ assert(aoc.includes('aria-selected="true"') && aoc.includes('aria-selected="fals
 assert(aoc.includes('Not solved yet'), 'honest empty status label');
 assert(aoc.includes('Show solution'), 'solution reveal per day');
 for (const day of data.Aoc) assert(aoc.includes(`id="aoc-day-${day.Day}"`) && aoc.includes(day.OfficialURL), `day ${day.Day} view`);
+// #128: the page mounts a run panel exactly on wasm-backed doors and the
+// fence note exactly on fenced ones — empty and working doors render
+// neither, so the counts must track the data.
+assert.equal((aoc.match(/class="run-panel aoc-run-panel"/g) || []).length, data.Aoc.filter(d => d.Wasm).length, 'a run panel per wasm-backed door');
+assert.equal((aoc.match(/Not compiled to WebAssembly yet/g) || []).length, data.Aoc.filter(d => d.WasmNote).length, 'a fence note per fenced door');
 const nav = home.split('</header>')[0];
 assert(nav.includes('advent-of-code.html'), 'main navigation links to the AoC page');

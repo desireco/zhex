@@ -310,3 +310,91 @@ func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadAocRunsSolutionsBehindTheStatus pins the run-panel rule (#128): a
+// non-empty status needs the day's sample file under aoc/2025/samples, a
+// part1 or solved day also needs its solution — which supplies Stdin's
+// prefill and the Output oracle — and an empty or working day carries
+// neither, so its door keeps the honest status line.
+func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
+	root := t.TempDir()
+	write := func(name, contents string) {
+		path := filepath.Join(root, "aoc", "2025", name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("samples/day01.txt", "5\n")
+	write("day01.zhex", "let n = text.to-int(read-line(\"\") try) try\nprint(n * 2)\n")
+	write("samples/day02.txt", "7\n")
+	write("day02.zhex", "print(1)\n")
+
+	original := aocSpecs
+	defer func() { aocSpecs = original }()
+
+	// All-empty statuses stay byte-empty over a fully stocked tree.
+	days, err := loadAoc(root)
+	if err != nil {
+		t.Fatalf("empty manifest: %v", err)
+	}
+	if len(days) != len(aocSpecs) {
+		t.Fatalf("got %d days, want %d", len(days), len(aocSpecs))
+	}
+	for _, day := range days {
+		if day.Stdin != "" || day.Output != "" || day.Wasm != "" || day.WasmNote != "" {
+			t.Fatalf("day %d carries run-panel state behind an empty status: %+v", day.Day, day)
+		}
+	}
+
+	// part1 and solved run the solution for the oracle; the sample becomes
+	// the prefill and the stdin.
+	specs := append([]aocSpec(nil), aocSpecs...)
+	specs[0].status = "part1"
+	specs[1].status = "solved"
+	aocSpecs = specs
+	days, err = loadAoc(root)
+	if err != nil {
+		t.Fatalf("stocked manifest: %v", err)
+	}
+	if days[0].Stdin != "5\n" || days[0].Output != "10\n" {
+		t.Fatalf("day 1 stdin %q output %q; want sample prefill and oracle stdout", days[0].Stdin, days[0].Output)
+	}
+	if days[1].Output != "1\n" {
+		t.Fatalf("day 2 output %q; want the solution's stdout", days[1].Output)
+	}
+
+	// A solved day without its sample fails, naming the day.
+	specs[2].status = "solved"
+	aocSpecs = specs
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 3") || !strings.Contains(err.Error(), "sample") {
+		t.Fatalf("missing sample error = %v", err)
+	}
+
+	// A part1 day without its solution fails, naming the day.
+	write("samples/day03.txt", "1\n")
+	specs[2].status = "part1"
+	aocSpecs = specs
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 3") || !strings.Contains(err.Error(), "solution") {
+		t.Fatalf("missing solution error = %v", err)
+	}
+
+	// A broken solution fails the run, naming the day.
+	write("day03.zhex", "print(unknown)\n")
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "run aoc day 3") {
+		t.Fatalf("broken solution error = %v", err)
+	}
+
+	// A working day needs the sample but not the solution.
+	specs[2].status = "working"
+	aocSpecs = specs
+	days, err = loadAoc(root)
+	if err != nil {
+		t.Fatalf("working day without solution: %v", err)
+	}
+	if days[2].Stdin != "1\n" || days[2].Output != "" {
+		t.Fatalf("working day stdin %q output %q; want sample only", days[2].Stdin, days[2].Output)
+	}
+}

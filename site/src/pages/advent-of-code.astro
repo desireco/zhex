@@ -17,7 +17,7 @@ const days = data.Aoc;
     <section class="page-intro aoc-intro">
       <p class="eyebrow">December 2025 archive</p>
       <h1 id="aoc-title">Advent of Code.</h1>
-      <p class="lede">Advent of Code puzzles solved in Zhex — last year's archive, with this year following in December.</p>
+      <p class="lede">During December 2025 we worked through all twelve days of Advent of Code 2025 in Zhex, one small program per day. Each door links to that day's puzzle on adventofcode.com, with our own summary of what the puzzle asks. A day's second part appears on adventofcode.com only after its first part is solved, so our summaries cover the half every visitor can read.</p>
     </section>
 
     <div class="aoc-tabs" role="tablist" aria-label="Advent of Code years">
@@ -47,7 +47,20 @@ const days = data.Aoc;
           <details class="aoc-solution">
             <summary>Show solution</summary>
             <div class="aoc-solution-body">
-              <p class="aoc-solution-status" data-status={day.Status}>{statusLabel[day.Status]}</p>
+              {day.Wasm ? (
+                <div class="run-panel aoc-run-panel" data-wasm={day.Wasm}>
+                  <label class="run-label" for={`aoc-day-${day.Day}-stdin`}>Paste your puzzle input here</label>
+                  <textarea id={`aoc-day-${day.Day}-stdin`} rows={6} spellcheck="false">{day.Stdin}</textarea>
+                  <p class="run-input-error" role="alert" hidden></p>
+                  <button class="button run-button" type="button">Run <span aria-hidden="true">→</span></button>
+                  <h4>Output</h4>
+                  <pre aria-live="polite"><samp data-run-output>{day.Output}</samp></pre>
+                </div>
+              ) : day.WasmNote ? (
+                <p class="wasm-note">Not compiled to WebAssembly yet — {day.WasmNote}.</p>
+              ) : (
+                <p class="aoc-solution-status" data-status={day.Status}>{statusLabel[day.Status]}</p>
+              )}
             </div>
           </details>
         </section>
@@ -102,6 +115,54 @@ const days = data.Aoc;
       // A #tab-id hash opens that year directly, so year links are shareable.
       const initial = tabs.findIndex(tab => tab.id === location.hash.slice(1));
       if (initial > 0) select(initial, false);
+    </script>
+
+    <script>
+      // Run panels (#128), the examples-page wiring over the shared shim:
+      // the artifact is fetched lazily on first Run through fetchArtifact
+      // (runZhex compiles a fresh instance per call, so each click is a
+      // clean run), and the box takes the sample prefill or any pasted
+      // puzzle input — "text" needs no shape check, the interpreter's own
+      // traps are the backstop.
+      import { runZhex } from "../scripts/zhex-run.mjs";
+      import { fetchArtifact, loadFailedMessage } from "../scripts/artifact.mjs";
+
+      const decoder = new TextDecoder();
+
+      function withErrorLine(stdout, error) {
+        if (!error) return stdout;
+        return stdout && !stdout.endsWith("\n") ? `${stdout}\n${error}` : stdout + error;
+      }
+
+      for (const panel of document.querySelectorAll(".aoc-run-panel")) {
+        const button = panel.querySelector("button");
+        const input = panel.querySelector("textarea");
+        const validation = panel.querySelector(".run-input-error");
+        const output = panel.querySelector("[data-run-output]");
+        const pane = output.closest("pre");
+        const showMessage = (text) => {
+          pane.classList.add("run-error");
+          output.textContent = text;
+        };
+        button.addEventListener("click", async () => {
+          if (validation) validation.hidden = true;
+          button.disabled = true;
+          try {
+            const bytes = await fetchArtifact(panel.dataset.wasm);
+            const { stdout, error } = runZhex(bytes, { stdin: input ? input.value : "" });
+            const text = decoder.decode(stdout);
+            if (error) showMessage(withErrorLine(text, error));
+            else {
+              pane.classList.remove("run-error"); // a clean re-run unwraps the pane again
+              output.textContent = text;
+            }
+          } catch (error) {
+            showMessage(error?.message ?? loadFailedMessage); // curated artifact messages and runZhex's raw errors alike
+          } finally {
+            button.disabled = false;
+          }
+        });
+      }
     </script>
   </main>
 </Base>

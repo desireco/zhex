@@ -65,9 +65,10 @@ type Demo struct {
 	Output string
 }
 
-// AocDay is one Advent of Code 2025 day on the future AoC page (#123): the
-// manifest ships before the page does, so every row starts `empty` and no
-// page consumes the data yet (the page shell is #126).
+// AocDay is one Advent of Code 2025 day on the AoC page (#126): a run panel
+// mounts only on a part1 or solved day, backed by Wasm with the Go oracle's
+// sample stdout in Output (#128) — or, for an out-of-subset solution, by the
+// WasmNote fence diagnostic naming the construct.
 type AocDay struct {
 	Day             int
 	Title           string
@@ -76,6 +77,12 @@ type AocDay struct {
 	Status          string // empty | working | part1 | solved
 	Sample          string // sample input path, relative to aoc/2025/
 	ExpectedAnswers []string
+	// Stdin is the sample's raw contents — the run panel's prefill and the
+	// oracle run's stdin — empty until the day has a sample.
+	Stdin string
+	// Output is the Go oracle's sample stdout for a part1 or solved day; the
+	// build gate compares the browser run's bytes against it.
+	Output string
 	// Wasm is the compiled artifact's relative URL and WasmNote the fence
 	// diagnostic message, matching Example's fields; both stay empty until
 	// a day compiles.
@@ -419,31 +426,37 @@ var demoSpecs = []demoSpec{
 
 // aocSpec is one Advent of Code 2025 day: the manifest row the loader turns
 // into an AocDay. Statuses stay `empty` until the verification sweep (#132)
-// flips them; day and title come from the epic's day table (#123).
+// flips them; day and title come from the epic's day table (#123), and the
+// sample and solution paths follow the aoc/2025 convention, not the rows.
 type aocSpec struct {
 	day     int
 	title   string
 	outline string
 	status  string
-	sample  string // relative to aoc/2025/; empty until the day has one
 }
+
+// aocSamplePath names the day's sample input file under aoc/2025.
+func aocSamplePath(day int) string { return fmt.Sprintf("samples/day%02d.txt", day) }
+
+// aocSolutionPath names the day's solution under aoc/2025.
+func aocSolutionPath(day int) string { return fmt.Sprintf("day%02d.zhex", day) }
 
 // aocSpecs is the AoC 2025 manifest — twelve pre-created empty rows, one
 // per day of the 12-day event; the build emits the data beside the demo
 // data even though no page consumes it yet (#126).
 var aocSpecs = []aocSpec{
-	{1, "Secret Entrance", "The password for the North Pole base sits in a safe, and the input lists turns of the safe's dial: each turn is a direction, left or right, plus a number of clicks. The dial shows 0 to 99, starts at 50, and wraps around at both ends. Part one asks how many times the dial points at 0 right after a turn.", "empty", ""},
-	{2, "Gift Shop", "The gift shop's price list is riddled with made-up product IDs, and the input is a list of ranges, each written as a first and last ID separated by a dash, all separated by commas. An ID is invalid when its digits are one block repeated exactly twice, like 55 or 123123, with no leading zero. Part one asks for the sum of every invalid ID found inside the ranges.", "empty", ""},
-	{3, "Lobby", "The input gives one line of digits per bank of batteries, where each digit is a battery's power rating from 1 to 9. From a bank you switch on exactly two batteries, and their digits, kept in line order, form a two-digit number. Part one asks for the sum of the largest number each bank can produce.", "empty", ""},
-	{4, "Printing Department", "The input is a diagram of the printing department floor, with rolls of paper shown as @ marks on a grid. A roll counts as accessible when fewer than four of its eight neighboring positions hold rolls. Part one asks how many rolls on the grid are accessible.", "empty", ""},
-	{5, "Cafeteria", "The input has two sections: a list of fresh-ingredient ID ranges, then a blank line and a list of the ingredient IDs on hand, and the ranges overlap one another. An ID counts as fresh when it falls inside any of the ranges. Part one asks how many of the IDs on hand are fresh.", "empty", ""},
-	{6, "Trash Compactor", "Stuck under a trash compactor, you work through the cephalopods' math homework. The worksheet sets numbers in vertical columns, puts a + or * at the bottom of each problem, and separates problems with a column of spaces; spacing inside a problem can be ignored. Part one asks for the total of all the problems' answers.", "empty", ""},
-	{7, "Laboratories", "A broken teleporter reports a fault in its tachyon manifold, and the input draws that manifold: open space, splitter tiles marked ^, and one entry marked S. Beams enter at S and always travel down; a beam that reaches a splitter stops, and two new beams continue from the splitter's left and right sides. Part one asks for the total number of times the beams split.", "empty", ""},
-	{8, "Playground", "The input lists the 3D coordinates of junction boxes hung in an underground playground, joined into circuits by strings. Each string connects the closest pair of boxes not already in the same circuit; a string between boxes of one circuit does nothing. Part one asks for the product of the sizes of the three largest circuits once the 1000 shortest connections have been made.", "empty", ""},
-	{9, "Movie Theater", "Elves are re-tiling a movie theater floor, and the input lists the coordinates of the red tiles. Any two red tiles can serve as opposite corners of a rectangle of new tiles. Part one asks for the largest area such a rectangle can cover.", "empty", ""},
-	{10, "Factory", "Each input line describes one broken machine: a light diagram in brackets, button schematics in parentheses naming which lights each press toggles, and joltage requirements in braces. Every machine's lights start off, and each press flips its listed lights on or off. Part one ignores the joltage requirements and asks for the fewest total button presses that set every machine's lights to its target pattern.", "empty", ""},
-	{11, "Reactor", "The input maps the wiring of a reactor under a factory floor: each line names a device and lists the devices its output feeds, and data never flows backward. Part one asks for the number of distinct routes from the device named you to the device named out.", "empty", ""},
-	{12, "Christmas Tree Farm", "The input lists six present shapes as small grids, then a set of regions, each sized width by length and followed by how many of each shape should fit inside. Presents can be rotated or flipped, must sit on the grid, may not overlap, and cannot stack. Part one asks how many regions can hold all the presents listed for them.", "empty", ""},
+	{1, "Secret Entrance", "The password for the North Pole base sits in a safe, and the input lists turns of the safe's dial: each turn is a direction, left or right, plus a number of clicks. The dial shows 0 to 99, starts at 50, and wraps around at both ends. Part one asks how many times the dial points at 0 right after a turn.", "empty"},
+	{2, "Gift Shop", "The gift shop's price list is riddled with made-up product IDs, and the input is a list of ranges, each written as a first and last ID separated by a dash, all separated by commas. An ID is invalid when its digits are one block repeated exactly twice, like 55 or 123123, with no leading zero. Part one asks for the sum of every invalid ID found inside the ranges.", "empty"},
+	{3, "Lobby", "The input gives one line of digits per bank of batteries, where each digit is a battery's power rating from 1 to 9. From a bank you switch on exactly two batteries, and their digits, kept in line order, form a two-digit number. Part one asks for the sum of the largest number each bank can produce.", "empty"},
+	{4, "Printing Department", "The input is a diagram of the printing department floor, with rolls of paper shown as @ marks on a grid. A roll counts as accessible when fewer than four of its eight neighboring positions hold rolls. Part one asks how many rolls on the grid are accessible.", "empty"},
+	{5, "Cafeteria", "The input has two sections: a list of fresh-ingredient ID ranges, then a blank line and a list of the ingredient IDs on hand, and the ranges overlap one another. An ID counts as fresh when it falls inside any of the ranges. Part one asks how many of the IDs on hand are fresh.", "empty"},
+	{6, "Trash Compactor", "Stuck under a trash compactor, you work through the cephalopods' math homework. The worksheet sets numbers in vertical columns, puts a + or * at the bottom of each problem, and separates problems with a column of spaces; spacing inside a problem can be ignored. Part one asks for the total of all the problems' answers.", "empty"},
+	{7, "Laboratories", "A broken teleporter reports a fault in its tachyon manifold, and the input draws that manifold: open space, splitter tiles marked ^, and one entry marked S. Beams enter at S and always travel down; a beam that reaches a splitter stops, and two new beams continue from the splitter's left and right sides. Part one asks for the total number of times the beams split.", "empty"},
+	{8, "Playground", "The input lists the 3D coordinates of junction boxes hung in an underground playground, joined into circuits by strings. Each string connects the closest pair of boxes not already in the same circuit; a string between boxes of one circuit does nothing. Part one asks for the product of the sizes of the three largest circuits once the 1000 shortest connections have been made.", "empty"},
+	{9, "Movie Theater", "Elves are re-tiling a movie theater floor, and the input lists the coordinates of the red tiles. Any two red tiles can serve as opposite corners of a rectangle of new tiles. Part one asks for the largest area such a rectangle can cover.", "empty"},
+	{10, "Factory", "Each input line describes one broken machine: a light diagram in brackets, button schematics in parentheses naming which lights each press toggles, and joltage requirements in braces. Every machine's lights start off, and each press flips its listed lights on or off. Part one ignores the joltage requirements and asks for the fewest total button presses that set every machine's lights to its target pattern.", "empty"},
+	{11, "Reactor", "The input maps the wiring of a reactor under a factory floor: each line names a device and lists the devices its output feeds, and data never flows backward. Part one asks for the number of distinct routes from the device named you to the device named out.", "empty"},
+	{12, "Christmas Tree Farm", "The input lists six present shapes as small grids, then a set of regions, each sized width by length and followed by how many of each shape should fit inside. Presents can be rotated or flipped, must sit on the grid, may not overlap, and cannot stack. Part one asks how many regions can hold all the presents listed for them.", "empty"},
 }
 
 func main() {
@@ -592,9 +605,11 @@ func loadDemos(root string) ([]Demo, error) {
 	return demos, nil
 }
 
-// loadAoc turns the manifest into AocDay rows: statuses and sample paths
-// are validated now so a later status flip cannot drift silently — a
-// non-empty status must name an existing sample file under aoc/2025.
+// loadAoc turns the manifest into AocDay rows: statuses are validated now
+// so a later flip cannot drift silently — a non-empty status must find the
+// day's sample under aoc/2025/samples, and a part1 or solved day must also
+// find its solution, which runs once here for the Go oracle stdout the
+// page's build gate compares the browser run against (#128).
 func loadAoc(root string) ([]AocDay, error) {
 	var days []AocDay
 	for _, spec := range aocSpecs {
@@ -603,21 +618,35 @@ func loadAoc(root string) ([]AocDay, error) {
 		default:
 			return nil, fmt.Errorf("aoc day %d: status must be empty, working, part1, or solved", spec.day)
 		}
-		if spec.status != "empty" {
-			path := filepath.Join(root, "aoc", "2025", spec.sample)
-			if _, err := os.ReadFile(path); err != nil {
-				return nil, fmt.Errorf("read aoc day %d sample %s: %w", spec.day, spec.sample, err)
-			}
-		}
-		days = append(days, AocDay{
+		day := AocDay{
 			Day:         spec.day,
 			Title:       spec.title,
 			Outline:     spec.outline,
 			OfficialURL: fmt.Sprintf("https://adventofcode.com/2025/day/%d", spec.day),
 			Status:      spec.status,
-			Sample:      spec.sample,
+			Sample:      aocSamplePath(spec.day),
 			InputKind:   "text",
-		})
+		}
+		if spec.status != "empty" {
+			sample, err := os.ReadFile(filepath.Join(root, "aoc", "2025", day.Sample))
+			if err != nil {
+				return nil, fmt.Errorf("read aoc day %d sample: %w", spec.day, err)
+			}
+			day.Stdin = string(sample)
+		}
+		if spec.status == "part1" || spec.status == "solved" {
+			runPath := filepath.Join("aoc", "2025", aocSolutionPath(spec.day))
+			source, err := os.ReadFile(filepath.Join(root, runPath))
+			if err != nil {
+				return nil, fmt.Errorf("read aoc day %d solution: %w", spec.day, err)
+			}
+			var output bytes.Buffer
+			if err := lang.RunWithModules(runPath, string(source), strings.NewReader(day.Stdin), &output, nil, nil, resolveSibling(runPath)); err != nil {
+				return nil, fmt.Errorf("run aoc day %d solution: %w", spec.day, err)
+			}
+			day.Output = output.String()
+		}
+		days = append(days, day)
 	}
 	return days, nil
 }
@@ -675,6 +704,32 @@ func compileExamples(data *pageData, dir string) error {
 			return fmt.Errorf("compile demo %s: %w", spec.file, err)
 		}
 		data.Demos[i].Wasm = "wasm/" + name
+	}
+	// A solved door's run panel needs its artifact; a solution outside the
+	// compiled subset takes the fence note naming the construct instead —
+	// exactly like a fenced example, never a fake run. Empty and working
+	// days compile nothing: their doors keep the honest status line (#128).
+	for i, day := range data.Aoc {
+		if day.Status != "part1" && day.Status != "solved" {
+			continue
+		}
+		path := filepath.Join("aoc", "2025", aocSolutionPath(day.Day))
+		source, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read aoc day %d solution: %w", day.Day, err)
+		}
+		name := fmt.Sprintf("aoc-day%02d.wasm", day.Day)
+		err = wasm.Compile(path, string(source), filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser)
+		if err == nil {
+			data.Aoc[i].Wasm = "wasm/" + name
+			continue
+		}
+		reportJSON, ok := lang.Report(err)
+		var report struct{ Code, Message string }
+		if !ok || json.Unmarshal([]byte(reportJSON), &report) != nil || report.Code != string(lang.CodeNotAvailableInBuild) {
+			return fmt.Errorf("compile aoc day %d: %w", day.Day, err)
+		}
+		data.Aoc[i].WasmNote = report.Message
 	}
 	return nil
 }

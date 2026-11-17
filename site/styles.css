@@ -832,6 +832,28 @@ pre {
   font: 650 14px/1.6 var(--mono);
 }
 
+/* The run panel (#128) reuses the examples-page primitives inside the
+   reveal; the panes lift to paper so they hold their own ground on the
+   surface body. */
+.aoc-solution-body .run-panel textarea { background: var(--paper); }
+
+.aoc-solution-body h4 {
+  margin: 1.25rem 0 .55rem;
+  color: var(--accent-strong);
+  font: 750 12px/1.5 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.aoc-solution-body pre {
+  margin: 0;
+  padding: 1rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .aoc-teaser { margin-top: 2rem; }
 .aoc-teaser h2 { font-size: clamp(1.8rem, 3vw, 2.6rem); }
 .aoc-teaser p { max-width: var(--reading); margin: .5rem 0 0; color: var(--muted); }

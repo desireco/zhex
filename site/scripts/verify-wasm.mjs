@@ -20,8 +20,8 @@ for (const example of data.Examples) {
 // removed or newly fenced example must fail the build instead of shipping
 // dead bytes.
 const onDisk = await readdir('../_site/wasm');
-const expected = [...runnable.map(e => e.Wasm.replace('wasm/', '')), ...data.Demos.map(d => d.Wasm.replace('wasm/', ''))];
-assert.deepEqual([...onDisk].sort(), [...expected].sort(), '_site/wasm holds exactly the runnable and demo artifacts');
+const expected = [...runnable.map(e => e.Wasm.replace('wasm/', '')), ...data.Demos.map(d => d.Wasm.replace('wasm/', '')), ...data.Aoc.filter(d => d.Wasm).map(d => d.Wasm.replace('wasm/', ''))];
+assert.deepEqual([...onDisk].sort(), [...expected].sort(), '_site/wasm holds exactly the runnable, demo, and solved-door artifacts');
 for (const example of runnable) {
   const bytes = await readFile(`../_site/${example.Wasm}`);
   assert(WebAssembly.validate(bytes), `${example.ID} artifact validates`);
@@ -45,6 +45,24 @@ assert.deepEqual(greeted.stdout, encoder.encode('Your name: Hello, Grace!\n'), '
 const rerun = runZhex(factorialBytes, { stdin: byId.factorial.Stdin });
 assert.equal(rerun.error, null, 'factorial default re-run');
 assert.deepEqual(rerun.stdout, encoder.encode(byId.factorial.Output), 'factorial default re-run matches the oracle after the edit (fresh-instance proof)');
+// #128: a part1 or solved door must be backed by a compiled artifact or
+// carry the fence note, never neither and never both; an empty or working
+// door carries neither, so its reveal keeps the status line. Every
+// wasm-backed door's browser run over its sample stdin must reproduce the
+// Go oracle's stdout byte for byte — the build-time differential gate.
+for (const day of data.Aoc) {
+  const solved = day.Status === 'part1' || day.Status === 'solved';
+  assert.ok(!day.Wasm || !day.WasmNote, `aoc day ${day.Day} cannot be runnable and fenced at once`);
+  if (solved) assert.ok(day.Wasm || day.WasmNote, `aoc day ${day.Day} panel backing`);
+  else assert.ok(!day.Wasm && !day.WasmNote, `aoc day ${day.Day} keeps the status line`);
+}
+for (const day of data.Aoc.filter(d => d.Wasm)) {
+  const bytes = await readFile(`../_site/${day.Wasm}`);
+  assert(WebAssembly.validate(bytes), `aoc day ${day.Day} artifact validates`);
+  const result = runZhex(bytes, { stdin: day.Stdin });
+  assert.equal(result.error, null, `aoc day ${day.Day} run`);
+  assert.deepEqual(result.stdout, encoder.encode(day.Output), `aoc day ${day.Day} stdout bytes equal the Go oracle`);
+}
 // #115's demos page replays exactly what parseLifeFrames extracts from each
 // demo artifact's oracle stdout — the page runs the same parser over the
 // bytes it captures in the browser, so these pins and the demos cannot drift
