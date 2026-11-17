@@ -700,6 +700,148 @@ pre {
   overflow-wrap: anywhere;
 }
 
+/* Advent of Code (#126): two year tabs, a door per data row, and one day
+   view per day — statuses are honest labels, color only supports them. */
+.aoc-intro { padding-block: 3rem 0; }
+.aoc-intro h1 { font-size: clamp(2.75rem, 6vw, 5rem); }
+
+.aoc-tabs {
+  display: flex;
+  margin-top: 2rem;
+  border: 1px solid var(--line);
+}
+
+.aoc-tab {
+  min-height: 52px;
+  padding: .75rem 1.75rem;
+  border: 0;
+  background: var(--paper);
+  color: var(--muted);
+  font-weight: 750;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.aoc-tab + .aoc-tab { border-left: 1px solid var(--line); }
+.aoc-tab:hover:not([aria-selected="true"]) { background: var(--surface); color: var(--ink); }
+.aoc-tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+
+.aoc-panel { padding-block: 0 clamp(2rem, 5vw, 3.5rem); }
+
+.aoc-doors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.aoc-door {
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.aoc-door-link {
+  min-height: 150px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: 1.1rem;
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--transition);
+}
+
+.aoc-door-link:hover { background: var(--surface); }
+
+.aoc-door-day {
+  font-family: var(--display);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.aoc-door-title { flex: 1; font-weight: 750; }
+
+.aoc-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: .25rem .65rem;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font: 650 var(--text-xs)/1.5 var(--mono);
+}
+
+.aoc-badge[data-status="working"] { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent-strong); }
+.aoc-badge[data-status="part1"] { background: var(--surface-strong); border-color: var(--surface-strong); color: var(--ink); }
+.aoc-badge[data-status="solved"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+.aoc-day {
+  padding: 2rem .25rem;
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 2rem;
+}
+
+.aoc-day h2 {
+  margin: 0 0 .4rem;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+}
+
+.aoc-day-number {
+  display: block;
+  margin-bottom: .2rem;
+  color: var(--accent-strong);
+  font: 750 12px/1.5 var(--mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.aoc-day-outline {
+  max-width: var(--reading);
+  margin: 0 0 1rem;
+  color: var(--muted);
+}
+
+.aoc-solution { margin-top: 1.25rem; }
+
+.aoc-solution summary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  text-decoration-thickness: 2px;
+  cursor: pointer;
+}
+
+.aoc-solution[open] summary { color: var(--accent-strong); }
+
+.aoc-solution-body {
+  margin-top: .75rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.aoc-solution-status {
+  margin: 0;
+  color: var(--muted);
+  font: 650 14px/1.6 var(--mono);
+}
+
+.aoc-teaser { margin-top: 2rem; }
+.aoc-teaser h2 { font-size: clamp(1.8rem, 3vw, 2.6rem); }
+.aoc-teaser p { max-width: var(--reading); margin: .5rem 0 0; color: var(--muted); }
+
+.aoc-doors-empty {
+  min-height: var(--space-9);
+  margin-top: 2rem;
+  border: 1px solid var(--line);
+}
+
 /* Roadmap */
 .roadmap-stage {
   display: grid;

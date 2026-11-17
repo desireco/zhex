@@ -71,6 +71,21 @@
     .demo-search-results strong { display: block; font-size: 15px; }
     .demo-search-results span { display: block; color: var(--muted); font: 650 var(--text-xs)/1.5 var(--mono); }
     .demo-link { min-height: 44px; display: inline-flex; align-items: center; font-weight: 800; }
+    .demo-tabs { display: inline-flex; border: 1px solid var(--line); }
+    .demo-tab { min-height: 44px; padding: .5rem 1.4rem; border: 0; background: var(--paper); color: var(--muted); font-weight: 750; cursor: pointer; }
+    .demo-tab + .demo-tab { border-left: 1px solid var(--line); }
+    .demo-tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+    .demo-tab:hover:not([aria-selected="true"]) { background: var(--surface); color: var(--ink); }
+    .demo-doors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+    .demo-door { display: flex; flex-direction: column; gap: var(--space-2); min-height: 130px; padding: var(--space-4); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-decoration: none; }
+    .demo-door:hover { background: var(--surface); }
+    .demo-door-day { font: 900 2.2rem/1 var(--display); letter-spacing: -.04em; }
+    .demo-door-name { flex: 1; font-weight: 750; }
+    .demo-badge { display: inline-flex; align-self: flex-start; padding: .25rem .65rem; border: 1px solid var(--line); color: var(--muted); font: 650 var(--text-xs)/1.5 var(--mono); }
+    .demo-badge[data-status="working"] { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent-strong); }
+    .demo-badge[data-status="part1"] { background: var(--surface-strong); border-color: var(--surface-strong); color: var(--ink); }
+    .demo-badge[data-status="solved"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+    .demo-badges { display: flex; flex-wrap: wrap; gap: var(--space-2); }
     .demo-status { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--muted); font: 650 var(--text-sm)/1.5 var(--mono); }
     .demo-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-strong); box-shadow: 0 0 0 5px var(--accent-soft); }
     .code-demo { overflow-x: auto; padding: var(--space-5); background: var(--code); color: var(--code-text); border-left: 8px solid var(--accent); font: 14px/1.8 var(--mono); }
@@ -244,6 +259,9 @@
           <div class="tile"><h3>Run message</h3><div class="demo-message">runtime error: "abc" is not a signed 64-bit decimal integer</div><p>Runtime and load failures wrap inside the output pane instead of clipping.</p></div>
           <div class="tile"><h3>Demo grid</h3><svg class="demo-grid-demo" viewBox="0 0 84 84" width="126" height="126" role="img" aria-label="A 7 by 7 demo grid with live ink cells"><rect width="84" height="84" fill="var(--paper)"></rect><path d="M12 0V84M24 0V84M36 0V84M48 0V84M60 0V84M72 0V84M0 12H84M0 24H84M0 36H84M0 48H84M0 60H84M0 72H84" stroke="var(--line)" fill="none"></path><g fill="var(--ink)"><rect x="37" y="25" width="10" height="10"></rect><rect x="49" y="37" width="10" height="10"></rect><rect x="25" y="49" width="10" height="10"></rect><rect x="37" y="49" width="10" height="10"></rect><rect x="49" y="49" width="10" height="10"></rect></g></svg><p>Draws a captured run's frames cell by cell on paper, with a line grid and ink cells — tokens only.</p></div>
           <div class="tile"><h3>Playback controls</h3><p class="demo-playback"><button class="demo-button" type="button">Pause</button><button class="demo-button" type="button">Step →</button></p><p>Play, pause, and single-step a captured run at a fixed pace; the label carries the state, and playback loops from the first frame.</p></div>
+          <div class="tile"><h3>Year tabs</h3><div class="demo-tabs" role="tablist" aria-label="Year tabs specimen"><button class="demo-tab" type="button" role="tab" aria-selected="true">2025</button><button class="demo-tab" type="button" role="tab" aria-selected="false" tabindex="-1">2026</button></div><p>Switch between the archive year and the upcoming one; the selected tab fills ink, and arrow keys move between tabs.</p></div>
+          <div class="tile"><h3>Calendar doors</h3><nav class="demo-doors" aria-label="Calendar doors specimen"><a class="demo-door" href="#components"><span class="demo-door-day">1</span><span class="demo-door-name">Secret Entrance</span><span class="demo-badge" data-status="solved">Solved</span></a><a class="demo-door" href="#components"><span class="demo-door-day">2</span><span class="demo-door-name">Gift Shop</span><span class="demo-badge" data-status="empty">Not solved yet</span></a></nav><p>One door per event day, counted from the day data; a door shows the day number, its title, and one honest status badge, and opens that day's view.</p></div>
+          <div class="tile"><h3>Door status</h3><p class="demo-badges"><span class="demo-badge" data-status="empty">Not solved yet</span><span class="demo-badge" data-status="working">Working on this problem</span><span class="demo-badge" data-status="part1">Part 1 solved, part 2 in progress</span><span class="demo-badge" data-status="solved">Solved</span></p><p>Four honest states, nothing between them; the label carries the meaning and color only supports it.</p></div>
           <div class="tile"><h3>Docs search</h3><p><label class="demo-run-label" for="demo-search-input">Search the docs</label><input class="demo-search-input" id="demo-search-input" type="search" placeholder="flow, try, files…" autocomplete="off" spellcheck="false"></p><p>Lives at the top of the documentation sidebar; labeled in text, never placeholder-only.</p></div>
           <div class="tile"><h3>Search results</h3><ol class="demo-search-results"><li><a href="#components"><strong>Words and flows</strong><span>Language · Words and flows</span></a></li><li><a href="#components"><strong>Handle a failure</strong><span>Language · Results</span></a></li></ol><p>A handful of ranked page and heading links; the count is announced and arrows plus Enter open a match.</p></div>
         </div>
@@ -262,6 +280,9 @@
               <tr><td>Run message</td><td>Explain runtime and load failures inside the output pane</td><td>Long lines clipped behind horizontal scroll</td></tr>
               <tr><td>Demo grid</td><td>Draw a captured run's output cell by cell, tokens only, honest to the artifact's frames</td><td>Invented colors or cell sizes outside the tokens</td></tr>
               <tr><td>Playback controls</td><td>Play, pause, or single-step a captured run; the label carries the state, and the run loops from the top</td><td>Controls that look active but do nothing</td></tr>
+              <tr><td>Year tabs</td><td>Switch between the archive year and the upcoming one; the selected tab fills ink, arrow keys move between tabs</td><td>A second page for what one panel switch shows</td></tr>
+              <tr><td>Calendar doors</td><td>One door per event day, counted from the day data, each opening that day's view</td><td>A hardcoded door count, or a door that promises a solution it cannot show</td></tr>
+              <tr><td>Door status</td><td>One of four honest labels per day, with color only supporting the text</td><td>A status that hints at answers before they exist</td></tr>
               <tr><td>Docs search</td><td>Find documentation pages and headings from the sidebar, against the build's generated index</td><td>A hand-maintained word list, or a field named only by its placeholder</td></tr>
               <tr><td>Search results</td><td>A handful of ranked page and heading links, opened by keyboard or click</td><td>A wall of matches, or results that look clickable but do nothing</td></tr>
             </tbody>

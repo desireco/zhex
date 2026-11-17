@@ -40,8 +40,8 @@ const gettingStarted = await read('docs/getting-started.html');
 assert(gettingStarted.includes('docs-nav-mobile') && gettingStarted.includes('<details'), 'mobile documentation disclosure');
 assert(gettingStarted.includes('aria-current="page"'), 'current documentation topic');
 for (const id of ['build-and-run', 'read-the-program', 'try-the-repl', 'where-to-go-next']) assert(gettingStarted.includes(`id="${id}"`), `${id} legacy tutorial anchor`);
-for (const filename of ['index.html', 'roadmap.html', 'changelog.html', 'manifesto.html', 'demos.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
-for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'examples.html', 'demos.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
+for (const filename of ['index.html', 'roadmap.html', 'changelog.html', 'manifesto.html', 'demos.html', 'advent-of-code.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
+for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'examples.html', 'demos.html', 'advent-of-code.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
 // #115: the demos page carries the demo players, and the examples page
 // points to it from the top instead of holding the section itself.
 const demos = await read('demos.html');
@@ -67,3 +67,14 @@ for (const entry of search) {
 }
 const roadmap = await read('roadmap.html');
 for (const cssClass of ['roadmap-section done', 'roadmap-section next']) assert(roadmap.includes(cssClass), `${cssClass} styling`);
+// #126: the AoC page renders one door per Aoc row, both year tabs, and the
+// exact honest status labels; no door count is hardcoded.
+const aoc = await read('advent-of-code.html');
+assert.equal((aoc.match(/class="aoc-door"/g) || []).length, data.Aoc.length, 'one door per AoC day');
+assert(aoc.includes('Starts December 1'), '2026 tab teaser');
+assert(aoc.includes('aria-selected="true"') && aoc.includes('aria-selected="false"'), 'both year tabs render');
+assert(aoc.includes('Not solved yet'), 'honest empty status label');
+assert(aoc.includes('Show solution'), 'solution reveal per day');
+for (const day of data.Aoc) assert(aoc.includes(`id="aoc-day-${day.Day}"`) && aoc.includes(day.OfficialURL), `day ${day.Day} view`);
+const nav = home.split('</header>')[0];
+assert(nav.includes('advent-of-code.html'), 'main navigation links to the AoC page');
