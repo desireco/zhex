@@ -1,0 +1,11 @@
+use day25-core
+use test
+
+let diagram = "jqt: rhn xhk nvd\nrsh: frs pzl lsr\nxhk: hfx\ncmg: qnr nvd lhk bvb\nrhn: xhk bvb hfx\nbvb: xhk hfx\npzl: lsr hfx nvd\nqnr: nvd\nntq: jqt hfx bvb xhk\nnvd: lhk\nlsr: lhk\nrzs: qnr cmg lsr rsh\nfrs: qnr lhk lsr"
+test.check(day25-core.part-one(day25-core.parse(diagram)) == 54, "day 25, product of the split groups")
+
+# two fully connected groups of five joined by three wires: the first
+# component's flow stops at three only across the bridges
+let twin-cliques = "a: b c d e f\nb: a c d e g\nc: a b d e h\nd: a b c e\ne: a b c d\nf: g h i j\ng: f h i j\nh: f g i j\ni: f g h j\nj: f g h i"
+test.check(day25-core.part-one(day25-core.parse(twin-cliques)) == 25, "day 25, twin cliques on three bridges")
+print "day 25 tests passed"

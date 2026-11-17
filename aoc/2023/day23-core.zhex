@@ -1,0 +1,190 @@
+# Advent of Code 2023, day 23 — A Long Walk (solution words). Both parts
+# walk longest paths over a junction-compressed trail map: the nodes are
+# the two endpoints plus every open cell with three or more open
+# neighbors, each edge is the corridor walk between them (following a
+# slope's forced direction in part 1, ignoring it in part 2), and a
+# depth-first search over the small node graph tries every simple path
+# and keeps the longest.
+
+## Parse the trail map into its rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            list.append(grid, line)
+    grid
+
+word _dx(direction: Int) -> Int
+    if direction == 1
+        1
+    elif direction == 3
+        -1
+    else
+        0
+
+word _dy(direction: Int) -> Int
+    if direction == 2
+        1
+    elif direction == 0
+        -1
+    else
+        0
+
+# The walk's positions, packed one per cell.
+word _key(x: Int, y: Int) -> Int
+    y * 1000 + x
+
+# Whether a cell is on the map and not forest.
+word _open(grid: List<String>, x: Int, y: Int) -> Bool
+    y >= 0 and y < list.length(grid) and x >= 0 and x < text.length(grid[y]) and text.slice(grid[y], x, x + 1) != "#"
+
+# The direction a slope tile forces, or -1 for plain path.
+word _slope-dir(tile: String) -> Int
+    if tile == "^"
+        0
+    elif tile == ">"
+        1
+    elif tile == "v"
+        2
+    elif tile == "<"
+        3
+    else
+        -1
+
+# The nodes: the top and bottom endpoints plus every junction, scanned
+# top left to bottom right so the walk runs node 0 to node last.
+word _nodes(grid: List<String>) -> List<Int>
+    let nodes: List<Int> = []
+    for y in range(0, list.length(grid))
+        for x in range(0, text.length(grid[y]))
+            if _open(grid, x, y)
+                var open-neighbors = 0
+                for direction in range(0, 4)
+                    if _open(grid, x + _dx(direction), y + _dy(direction))
+                        open-neighbors = open-neighbors + 1
+                if y == 0 or y == list.length(grid) - 1 or open-neighbors >= 3
+                    list.append(nodes, _key(x, y))
+    nodes
+
+# A node key's position in the node list.
+word _index-of(nodes: List<Int>, key: Int) -> Int
+    var found = -1
+    var i = 0
+    while found < 0 and i < list.length(nodes)
+        if nodes[i] == key
+            found = i
+        i = i + 1
+    found
+
+## One corridor walk: the node a step in some direction from a node
+## reaches, and how many steps it took; the node is -1 when a wall blocks
+## the first step.
+type Walk = record
+    node: Int
+    len: Int
+
+# The direction a corridor cell's walk continues: its one open neighbor
+# besides the cell the walk came from.
+word _corridor-dir(grid: List<String>, x: Int, y: Int, px: Int, py: Int) -> Int
+    var chosen = -1
+    for direction in range(0, 4)
+        let nx = x + _dx(direction)
+        let ny = y + _dy(direction)
+        if _open(grid, nx, ny) and not (nx == px and ny == py)
+            chosen = direction
+    chosen
+
+# Walk one edge from a node in a direction, stopping at the first node
+# reached; slopes force the way when honored.
+word _walk(grid: List<String>, node-at: Map<Int, Bool>, x0: Int, y0: Int, direction: Int, slopes: Bool) -> Walk
+    let x = x0 + _dx(direction)
+    let y = y0 + _dy(direction)
+    if not _open(grid, x, y)
+        Walk(-1, 0)
+    else
+        var cx = x
+        var cy = y
+        var px = x0
+        var py = y0
+        var steps = 1
+        var done = false
+        while not done
+            if map.contains(node-at, _key(cx, cy))
+                done = true
+            else
+                var nd = -1
+                if slopes
+                    let forced = _slope-dir(text.slice(grid[cy], cx, cx + 1))
+                    if forced >= 0
+                        nd = forced
+                if nd < 0
+                    nd = _corridor-dir(grid, cx, cy, px, py)
+                px = cx
+                py = cy
+                cx = cx + _dx(nd)
+                cy = cy + _dy(nd)
+                steps = steps + 1
+        Walk(_key(cx, cy), steps)
+
+## The junction graph: nodes and, per node, the flat pairs of reachable
+## neighbor node and corridor length.
+type Graph = record
+    nodes: List<Int>
+    adj: List<List<Int>>
+
+# The junction graph over the map, slopes honored or climbed.
+word _graph(grid: List<String>, slopes: Bool) -> Graph
+    let nodes = _nodes(grid)
+    let node-at: Map<Int, Bool> = {}
+    for key in nodes
+        let stored = map.put(node-at, key, true)
+    let adj: List<List<Int>> = []
+    for key in nodes
+        list.append(adj, [])
+    for i in range(0, list.length(nodes))
+        let x = nodes[i] % 1000
+        let y = nodes[i] / 1000
+        for direction in range(0, 4)
+            let w = _walk(grid, node-at, x, y, direction, slopes)
+            if w.node >= 0
+                list.append(adj[i], _index-of(nodes, w.node))
+                list.append(adj[i], w.len)
+    Graph(nodes, adj)
+
+# The longest walk left from a node, never revisiting a node.
+word _best(adj: List<List<Int>>, flags: List<Int>, node: Int, end: Int, dist: Int) -> Int
+    if node == end
+        dist
+    else
+        var best = 0
+        var e = 0
+        while e < list.length(adj[node])
+            let row = adj[node]
+            let to = row[e]
+            let len = row[e + 1]
+            if flags[to] == 0
+                flags[to] = 1
+                let reached = _best(adj, flags, to, end, dist + len)
+                flags[to] = 0
+                if reached > best
+                    best = reached
+            e = e + 2
+        best
+
+# The longest hike over the junction graph, endpoint to endpoint.
+word _longest(graph: Graph) -> Int
+    let flags: List<Int> = []
+    for key in graph.nodes
+        list.append(flags, 0)
+    flags[0] = 1
+    _best(graph.adj, flags, 0, list.length(graph.nodes) - 1, 0)
+
+## The step count of the longest hike that never disobeys a slope.
+word part-one(grid: List<String>) -> Int
+    let graph = _graph(grid, true)
+    _longest(graph)
+
+## The step count of the longest hike when slopes count as plain path.
+word part-two(grid: List<String>) -> Int
+    let graph = _graph(grid, false)
+    _longest(graph)

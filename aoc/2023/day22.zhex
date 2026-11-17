@@ -1,0 +1,18 @@
+# Advent of Code 2023, day 22 — Sand Slabs.
+# Reads the brick snapshot from stdin until end of input, prints both answers.
+use day22-core
+
+# shortcut: a snapshot line holds digits, commas, and tildes, so this
+# sentinel cannot collide; it stands in for the end-of-file failure
+# because error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let bricks = day22-core.parse(buffer.to-text(input)) try
+print(day22-core.part-one(bricks))
+print(day22-core.part-two(bricks))

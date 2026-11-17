@@ -1,0 +1,135 @@
+# Advent of Code 2023, day 22 — Sand Slabs (solution words). The snapshot
+# settles brick by brick in height order: each falls onto the tallest
+# settled top under its footprint, or the ground. A settled brick's
+# supporters are the bricks its bottom rests on — part 1 counts bricks
+# that are never a sole supporter, and part 2 chains each removal in
+# settled height order: a brick falls exactly when it has supporters and
+# every one of them has fallen.
+
+## One brick as its normalized lower and upper corners.
+type Brick = record
+    x1: Int
+    y1: Int
+    z1: Int
+    x2: Int
+    y2: Int
+    z2: Int
+
+# The smaller of two numbers.
+word _min(a: Int, b: Int) -> Int
+    if a < b
+        a
+    else
+        b
+
+# The larger of two numbers.
+word _max(a: Int, b: Int) -> Int
+    if a > b
+        a
+    else
+        b
+
+# One corner's three coordinates.
+word _coords(text: String) -> List<Int>
+    let numbers: List<Int> = []
+    for token in text.split(text, ",")
+        list.append(numbers, text.to-int(token) try)
+    numbers
+
+## Parse the snapshot into bricks, each pair of ends normalized so the
+## first corner is the lower one.
+word parse(text: String) -> List<Brick>
+    let bricks: List<Brick> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let ends = text.split(line, "~")
+            let a = _coords(ends[0]) try
+            let b = _coords(ends[1]) try
+            list.append(bricks, Brick(_min(a[0], b[0]), _min(a[1], b[1]), _min(a[2], b[2]), _max(a[0], b[0]), _max(a[1], b[1]), _max(a[2], b[2])))
+    bricks
+
+# The brick's lowest z, the sort key of the settling order.
+word _lowest(brick: Brick) -> Int
+    brick.z1
+
+# Whether two bricks' footprints share an x, y cell.
+word _overlaps(a: Brick, b: Brick) -> Bool
+    not (a.x2 < b.x1 or b.x2 < a.x1 or a.y2 < b.y1 or b.y2 < a.y1)
+
+# The z the brick's bottom lands on: one above the tallest settled top in
+# its footprint, or the ground.
+word _rest-z(settled: List<Brick>, brick: Brick) -> Int
+    var top = 0
+    for other in settled
+        if _overlaps(other, brick) and other.z2 > top
+            top = other.z2
+    top + 1
+
+# Every brick let down onto the ground or the bricks below it, in settled
+# height order.
+word _settled(bricks: List<Brick>) -> List<Brick>
+    let falling = list.sort-by(bricks, _lowest(_))
+    let dropped: List<Brick> = []
+    for brick in falling
+        let rest = _rest-z(dropped, brick)
+        let fall = brick.z1 - rest
+        list.append(dropped, Brick(brick.x1, brick.y1, brick.z1 - fall, brick.x2, brick.y2, brick.z2 - fall))
+    list.sort-by(dropped, _lowest(_))
+
+# Each settled brick's supporting bricks, by settled position.
+word _supporters(settled: List<Brick>) -> List<List<Int>>
+    let supporters: List<List<Int>> = []
+    for i in range(0, list.length(settled))
+        list.append(supporters, [])
+    for j in range(0, list.length(settled))
+        let upon = settled[j]
+        for i in range(0, list.length(settled))
+            let below = settled[i]
+            if i != j and below.z2 + 1 == upon.z1 and _overlaps(below, upon)
+                list.append(supporters[j], i)
+    supporters
+
+## How many bricks could disintegrate with nothing else falling: every
+## brick except a sole supporter of another.
+word part-one(bricks: List<Brick>) -> Int
+    let settled = _settled(bricks)
+    let supporters = _supporters(settled)
+    let sole-supported: List<Int> = []
+    for i in range(0, list.length(settled))
+        list.append(sole-supported, 0)
+    for j in range(0, list.length(settled))
+        if list.length(supporters[j]) == 1
+            sole-supported[supporters[j][0]] = 1
+    var safe = 0
+    for i in range(0, list.length(settled))
+        if sole-supported[i] == 0
+            safe = safe + 1
+    safe
+
+# Whether every supporter has fallen.
+word _all-fallen(supporters: List<Int>, fallen: List<Int>) -> Bool
+    var all = true
+    for s in supporters
+        if fallen[s] == 0
+            all = false
+    all
+
+## The sum over every brick of how many others fall when it
+## disintegrates.
+word part-two(bricks: List<Brick>) -> Int
+    let settled = _settled(bricks)
+    let supporters = _supporters(settled)
+    let n = list.length(settled)
+    var total = 0
+    for i in range(0, n)
+        let fallen: List<Int> = []
+        for j in range(0, n)
+            list.append(fallen, 0)
+        fallen[i] = 1
+        var count = 0
+        for j in range(0, n)
+            if j != i and fallen[j] == 0 and list.length(supporters[j]) > 0 and _all-fallen(supporters[j], fallen)
+                fallen[j] = 1
+                count = count + 1
+        total = total + count
+    total

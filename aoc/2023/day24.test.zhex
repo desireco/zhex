@@ -1,0 +1,8 @@
+use day24-core
+use test
+
+let list = "19, 13, 30 @ -2,  1, -2\n18, 19, 22 @ -1, -1, -2\n20, 25, 34 @ -2, -2, -4\n12, 31, 28 @ -1, -2, -1\n20, 19, 15 @  1, -5, -3"
+let stones = day24-core.parse(list) try
+test.check(day24-core.part-one(stones, 7, 27) == 2, "day 24 part 1, crossings inside the example area")
+test.check(day24-core.part-two(stones, 10) == 47, "day 24 part 2, the rock's coordinate sum")
+print "day 24 tests passed"
