@@ -1,0 +1,24 @@
+# Advent of Code 2023, day 13 — Point of Incidence.
+# Reads the patterns from stdin until end of input, prints both answers.
+use day13-core
+
+# The patterns separate with blank lines, so the runner branches on the
+# end-of-file detail (error.detail). That word is fenced in the browser
+# build (#135), and the sentinel workaround days 11-12 use cannot cover
+# this day either: the browser read-line traps on an empty line before
+# any catch could run (#155). The door carries the fence note until the
+# engine lane fixes either gap.
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch problem
+        if error.detail(problem, "reason") == "end-of-file"
+            done = true
+            ""
+        else
+            error.message(problem)
+    if not done
+        buffer.add-line(input, line)
+let patterns = day13-core.parse(buffer.to-text(input))
+print(day13-core.part-one(patterns))
+print(day13-core.part-two(patterns))
