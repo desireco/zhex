@@ -1,0 +1,18 @@
+# Advent of Code 2024, day 3 — Mull It Over.
+# Reads the corrupted memory from stdin until end of input, prints both answers.
+use day03-core
+
+# shortcut: this day's sample alphabet never spells the sentinel, so it
+# stands in for the end-of-file failure because error.detail is not
+# compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let memory = day03-core.parse(buffer.to-text(input))
+print(day03-core.part-one(memory))
+print(day03-core.part-two(memory))
