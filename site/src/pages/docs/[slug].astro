@@ -12,7 +12,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 <Base title={`${entry.data.title} — Zhex`} description={entry.data.description} current="docs">
   <main id="main" class="wrap docs-page">
-    <section class="page-intro docs-intro"><p class="eyebrow"><a href={`${base}/docs.html`}>Docs</a> / {entry.data.section}</p><h1>{entry.data.title}</h1><p class="lede">{entry.data.description}</p></section>
+    <section class="page-intro docs-intro"><p class="eyebrow"><a href={`${base}/docs/tldr.html`}>Docs</a> / {entry.data.section}</p><h1>{entry.data.title}</h1><p class="lede">{entry.data.description}</p></section>
     <div class="docs-layout">
       <div class="docs-nav-desktop"><DocsNav entries={entries} current={entry.id} base={base} /></div>
       <details class="docs-nav-mobile"><summary>Browse documentation</summary><DocsNav entries={entries} current={entry.id} base={base} /></details>

@@ -27,21 +27,21 @@ for (const example of data.Examples) {
 }
 const errors = await read('errors.html');
 for (const entry of data.Catalog) assert(errors.includes(`id="${entry.Code}"`), `${entry.Code} anchor`);
+// #120: the docs landing retired — docs.html is a redirect to TL;DR.
 const docs = await read('docs.html');
-assert(docs.includes('<h1>Docs</h1>'), 'documentation landing heading');
-assert(docs.includes('docs/getting-started.html'), 'getting started reachable from docs');
+assert(docs.includes('http-equiv="refresh"') && docs.includes('docs/tldr.html'), 'docs.html redirects to TL;DR');
+assert(!docs.includes('<h1>Docs</h1>'), 'no landing content on docs.html');
 const home = await read('index.html');
 const header = home.split('</header>')[0];
-assert(header.includes('/zhex/docs.html'), 'main navigation links to Docs');
+assert(header.includes('/zhex/docs/tldr.html'), 'main navigation links to Docs');
 assert(!header.includes('Get started'), 'main navigation has one documentation entry');
 assert(home.includes('id="start"'), 'legacy home quickstart anchor');
 const gettingStarted = await read('docs/getting-started.html');
 assert(gettingStarted.includes('docs-nav-mobile') && gettingStarted.includes('<details'), 'mobile documentation disclosure');
 assert(gettingStarted.includes('aria-current="page"'), 'current documentation topic');
 for (const id of ['build-and-run', 'read-the-program', 'try-the-repl', 'where-to-go-next']) assert(gettingStarted.includes(`id="${id}"`), `${id} legacy tutorial anchor`);
-for (const id of ['features-title', 'modules-title', 'errors-title', 'setup-title', 'editors-title']) assert(docs.includes(`id="${id}"`), `${id} legacy anchor`);
 for (const filename of ['index.html', 'roadmap.html', 'changelog.html', 'manifesto.html', 'demos.html', 'llms.txt', 'design/design-system.html']) assert(await read(filename));
-for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'docs.html', 'examples.html', 'demos.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
+for (const file of ['index.html', 'roadmap.html', 'manifesto.html', 'examples.html', 'demos.html', 'errors.html']) assert((await read(file)).includes('class="accent-rule"'), `${file} header accent rule`);
 // #115: the demos page carries the demo players, and the examples page
 // points to it from the top instead of holding the section itself.
 const demos = await read('demos.html');
