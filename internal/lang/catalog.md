@@ -337,4 +337,4 @@ A `.test.zhex` file run by `zhex test` exited nonzero without a diagnostic of it
 
 ## not-available-in-build
 
-This construct is not compiled by zhex compile yet. Run the program with `zhex run`, or rewrite it with constructs the build supports.
+The build that ran the program does not provide this construct. `zhex compile` fences constructs its emitter does not support yet; the browser engine build has no filesystem or console arguments (`file.*` filesystem words, `file.stream`, `console.arg`, `env.load`). Run the program with `zhex run`, or rewrite it with constructs the build supports.

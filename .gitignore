@@ -10,3 +10,4 @@
 /site/.astro/
 /site/data.json
 /site/public/wasm/
+/site/public/zhex-engine*
