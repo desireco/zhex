@@ -1,0 +1,18 @@
+# Advent of Code 2024, day 11 — Plutonian Pebbles.
+# Reads the stone engravings from stdin until end of input, prints both answers.
+use day11-core
+
+# shortcut: a stone line is space-separated integers, so this sentinel
+# cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let stones = day11-core.parse(buffer.to-text(input)) try
+print(day11-core.part-one(stones))
+print(day11-core.part-two(stones))
