@@ -1,0 +1,9 @@
+use day01-core
+use test
+
+let sample = "3 4\n4 3\n2 5\n1 3\n3 9\n3 3"
+let lists = day01-core.parse(sample) try
+
+test.check(day01-core.part-one(lists) == 11, "day 1 part 1")
+test.check(day01-core.part-two(lists) == 31, "day 1 part 2")
+print "day 1 tests passed"

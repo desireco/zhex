@@ -1,0 +1,18 @@
+# Advent of Code 2024, day 1 — Historian Hysteria.
+# Reads the location IDs from stdin until end of input, prints both answers.
+use day01-core
+
+# shortcut: an ID line is always two integers around one space, so this
+# sentinel cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let lists = day01-core.parse(buffer.to-text(input)) try
+print(day01-core.part-one(lists))
+print(day01-core.part-two(lists))
