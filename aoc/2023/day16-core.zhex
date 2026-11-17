@@ -1,0 +1,111 @@
+# Advent of Code 2023, day 16 — The Floor Will Be Lava (solution words).
+# A beam walks the grid of mirrors and splitters; a tile is energized when
+# any beam passes through it. The walk is an iterative worklist of
+# (x, y, direction) states — directions are ints 0-3 (N, E, S, W) — with a
+# Map of already-seen states: a beam that re-enters a tile the same way
+# repeats forever, so seen states are skipped and the worklist drains.
+# Part 2 restarts the walk from every edge tile heading inward and keeps
+# the largest energized count.
+
+## Parse the layout into its rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            list.append(grid, line)
+    grid
+
+word _dx(direction: Int) -> Int
+    if direction == 1
+        1
+    elif direction == 3
+        -1
+    else
+        0
+
+word _dy(direction: Int) -> Int
+    if direction == 2
+        1
+    elif direction == 0
+        -1
+    else
+        0
+
+# The tile at a position; empty space beyond every edge.
+word _tile(grid: List<String>, x: Int, y: Int) -> String
+    if y < 0 or y >= list.length(grid) or x < 0 or x >= text.length(grid[y])
+        "."
+    else
+        text.slice(grid[y], x, x + 1)
+
+# The direction(s) a beam leaves a tile it entered moving in some
+# direction: mirrors turn 90 degrees, splitters split a beam that hits
+# their flat side, and everything else passes through.
+word _leaving(tile: String, moving: Int) -> List<Int>
+    let dirs: List<Int> = []
+    if tile == "/"
+        list.append(dirs, [1, 0, 3, 2][moving])
+    elif tile == "\\"
+        list.append(dirs, [3, 2, 1, 0][moving])
+    elif tile == "|" and (moving == 1 or moving == 3)
+        list.append(dirs, 0)
+        list.append(dirs, 2)
+    elif tile == "-" and (moving == 0 or moving == 2)
+        list.append(dirs, 1)
+        list.append(dirs, 3)
+    else
+        list.append(dirs, moving)
+    dirs
+
+# How many tiles one beam starting at (sx, sy) heading sd energizes: the
+# worklist holds x, y, direction triples consumed by a head index, the
+# seen map stops repeated states, and the lit map counts tiles.
+word _energized(grid: List<String>, sx: Int, sy: Int, sd: Int) -> Int
+    let seen: Map<String, Bool> = {}
+    let lit: Map<String, Bool> = {}
+    let work: List<Int> = []
+    list.append(work, sx)
+    list.append(work, sy)
+    list.append(work, sd)
+    var head = 0
+    while head < list.length(work)
+        let x = work[head]
+        let y = work[head + 1]
+        let d = work[head + 2]
+        head = head + 3
+        let state = x + "," + y + "," + d
+        if x >= 0 and y >= 0 and y < list.length(grid) and x < text.length(grid[y]) and not map.contains(seen, state)
+            seen[state] = true
+            lit[x + "," + y] = true
+            for next in _leaving(_tile(grid, x, y), d)
+                list.append(work, x + _dx(next))
+                list.append(work, y + _dy(next))
+                list.append(work, next)
+    map.length(lit)
+
+## Tiles energized by the beam entering the top left heading right.
+word part-one(grid: List<String>) -> Int
+    _energized(grid, 0, 0, 1)
+
+## The largest energized count over every edge entry heading inward:
+# left column heading east, right column heading west, top row heading
+# south, bottom row heading north.
+word part-two(grid: List<String>) -> Int
+    let width = text.length(grid[0])
+    let height = list.length(grid)
+    var best = 0
+    for y in range(0, height)
+        let west = _energized(grid, 0, y, 1)
+        let east = _energized(grid, width - 1, y, 3)
+        if west > best
+            best = west
+        if east > best
+            best = east
+    for x in range(0, width)
+        let north = _energized(grid, x, 0, 2)
+        let south = _energized(grid, x, height - 1, 0)
+        if north > best
+            best = north
+        if south > best
+            best = south
+    best
