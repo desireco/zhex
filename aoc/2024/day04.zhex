@@ -1,0 +1,18 @@
+# Advent of Code 2024, day 4 — Ceres Search.
+# Reads the letter grid from stdin until end of input, prints both answers.
+use day04-core
+
+# shortcut: a grid line is always letters, so this sentinel cannot
+# collide; it stands in for the end-of-file failure because error.detail
+# is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let grid = day04-core.parse(buffer.to-text(input))
+print(day04-core.part-one(grid))
+print(day04-core.part-two(grid))
