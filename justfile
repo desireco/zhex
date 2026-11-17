@@ -5,7 +5,7 @@ default:
 # Run interpreter and website tests.
 test: doctests
     go test ./...
-    npm --prefix site run build
+    just site
 
 # Check every example's ## > doctests and run its .test.zhex files with one built binary.
 doctests: build
@@ -19,9 +19,17 @@ corpus:
 test-race:
     go test -race ./...
 
-# Check Go source with vet.
+# Build the browser engine (#91): the interpreter as a wasm module under site/public/, named apart from the examples pass in site/public/wasm/.
+engine:
+    mkdir -p site/public
+    GOOS=js GOARCH=wasm go build -o site/public/zhex-engine.wasm ./cmd/zhex/engine
+    cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" site/public/zhex-engine-exec.js
+    cp cmd/zhex/engine/loader.js site/public/zhex-engine.js
+
+# Check Go source with vet, both builds.
 check:
     go vet ./...
+    GOOS=js GOARCH=wasm go vet ./cmd/zhex/engine ./internal/lang
 
 # Benchmark the interpreter with allocation counts.
 bench:
@@ -40,8 +48,8 @@ install $dir='$HOME/.local/bin': build
 run $example='hello':
     go run ./cmd/zhex run "examples/$example.zhex"
 
-# Build the website from the working examples and roadmap.
-site:
+# Build the website from the working examples, the roadmap, and the browser engine.
+site: engine
     npm --prefix site run build
 
 # Prepare the local Zed language extension.
