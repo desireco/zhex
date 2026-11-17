@@ -1,0 +1,198 @@
+# Advent of Code 2025, day 9 — Movie Theater (solution words).
+# The input lists the red tiles, one x,y pair per line, and in input order
+# they walk a closed orthogonal loop (consecutive tiles share a row or a
+# column; the last connects back to the first). Part 1 takes the largest
+# inclusive rectangle over all pairs of red tiles. Part 2 may not lay new
+# tiles outside the loop: coordinates compress to the tiles' distinct xs
+# and ys, the loop is drawn as a border with a margin ring, the outside is
+# flood-filled from the ring's corner by an explicit stack, and a pair's
+# rectangle is valid when its compressed footprint holds no outside cell.
+
+type Spot = record
+    x: Int
+    y: Int
+
+word _abs(value: Int) -> Int
+    if value < 0
+        0 - value
+    else
+        value
+
+## Parse newline-separated x,y pairs into the red tiles in input order.
+word parse(text: String) -> List<Spot>
+    let tiles: List<Spot> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let halves = text.split(line, ",")
+            let x = text.to-int(halves[0]) try
+            let y = text.to-int(halves[1]) try
+            list.append(tiles, Spot(x, y))
+    tiles
+
+## Largest inclusive rectangle with two red tiles as opposite corners.
+word part-one(tiles: List<Spot>) -> Int
+    var best = 0
+    for i in range(0, list.length(tiles))
+        for j in range(i + 1, list.length(tiles))
+            let a = tiles[i]
+            let b = tiles[j]
+            let area = (_abs(b.x - a.x) + 1) * (_abs(b.y - a.y) + 1)
+            if area > best
+                best = area
+    best
+
+# Sorted duplicates-removed copy: one axis's compressed coordinates.
+word _distinct-sorted(values: List<Int>) -> List<Int>
+    let out: List<Int> = []
+    for value in list.sort(values)
+        if list.length(out) == 0 or value != out[list.length(out) - 1]
+            list.append(out, value)
+    out
+
+# Position of a value in a compressed axis; the caller passes a value the
+# axis was built from, so the scan always finds it.
+word _compressed(values: List<Int>, value: Int) -> Int
+    var index = 0
+    var found = -1
+    while found < 0
+        if values[index] == value
+            found = index
+        index = index + 1
+    found
+
+# Draw the closed loop's border into the compressed grid (+1 margin).
+# shortcut: segments are horizontal or vertical by the input contract —
+# a diagonal segment (no valid input contains one) draws nothing.
+word _draw-border(cells: List<Int>, cols: Int, tiles: List<Spot>, xs: List<Int>, ys: List<Int>)
+    let n = list.length(tiles)
+    for i in range(0, n)
+        var j = i + 1
+        if j == n
+            j = 0
+        let a = tiles[i]
+        let b = tiles[j]
+        let a-col = _compressed(xs, a.x) + 1
+        let b-col = _compressed(xs, b.x) + 1
+        let a-row = _compressed(ys, a.y) + 1
+        let b-row = _compressed(ys, b.y) + 1
+        if a-row == b-row
+            var lo-col = a-col
+            var hi-col = b-col
+            if lo-col > hi-col
+                lo-col = b-col
+                hi-col = a-col
+            for c in range(lo-col, hi-col + 1)
+                cells[a-row * cols + c] = 1
+        else
+            if a-col == b-col
+                var lo-row = a-row
+                var hi-row = b-row
+                if lo-row > hi-row
+                    lo-row = b-row
+                    hi-row = a-row
+                for r in range(lo-row, hi-row + 1)
+                    cells[r * cols + a-col] = 1
+
+# Flood-fill the outside from the margin corner. The stack is a plain
+# list plus a live-size counter: no list word pops, so a popped slot is
+# simply overwritten by the next push at the same depth.
+word _flood-outside(cells: List<Int>, rows: Int, cols: Int)
+    let stack: List<Int> = []
+    var top = 0
+    cells[0] = 2
+    list.append(stack, 0)
+    top = 1
+    while top > 0
+        top = top - 1
+        let at = stack[top]
+        let r = at / cols
+        let c = at % cols
+        if c + 1 < cols and cells[at + 1] == 0
+            cells[at + 1] = 2
+            if top < list.length(stack)
+                stack[top] = at + 1
+            else
+                list.append(stack, at + 1)
+            top = top + 1
+        if c > 0 and cells[at - 1] == 0
+            cells[at - 1] = 2
+            if top < list.length(stack)
+                stack[top] = at - 1
+            else
+                list.append(stack, at - 1)
+            top = top + 1
+        if r + 1 < rows and cells[at + cols] == 0
+            cells[at + cols] = 2
+            if top < list.length(stack)
+                stack[top] = at + cols
+            else
+                list.append(stack, at + cols)
+            top = top + 1
+        if r > 0 and cells[at - cols] == 0
+            cells[at - cols] = 2
+            if top < list.length(stack)
+                stack[top] = at - cols
+            else
+                list.append(stack, at - cols)
+            top = top + 1
+
+# Whether any cell of the inclusive compressed rectangle is outside; the
+# two corners may come in either order, so scan low..high per axis.
+word _touches-outside(cells: List<Int>, cols: Int, row-a: Int, col-a: Int, row-b: Int, col-b: Int) -> Bool
+    var lo-row = row-a
+    var hi-row = row-b
+    if lo-row > hi-row
+        lo-row = row-b
+        hi-row = row-a
+    var lo-col = col-a
+    var hi-col = col-b
+    if lo-col > hi-col
+        lo-col = col-b
+        hi-col = col-a
+    var touches = false
+    var r = lo-row
+    while not touches and r <= hi-row
+        var c = lo-col
+        while not touches and c <= hi-col
+            if cells[r * cols + c] == 2
+                touches = true
+            c = c + 1
+        r = r + 1
+    touches
+
+## Largest rectangle whose new tiles all stay inside the loop: compress,
+## border, flood the outside, then rescan the pairs — a rectangle of
+## original width or height 1 is valid outright because the tiles between
+## two red tiles on one line are the loop's own green tiles.
+word part-two(tiles: List<Spot>) -> Int
+    let xs: List<Int> = []
+    let ys: List<Int> = []
+    for tile in tiles
+        list.append(xs, tile.x)
+        list.append(ys, tile.y)
+    let distinct-xs = _distinct-sorted(xs)
+    let distinct-ys = _distinct-sorted(ys)
+    let rows = list.length(distinct-ys) + 2
+    let cols = list.length(distinct-xs) + 2
+    let cells: List<Int> = []
+    for index in range(0, rows * cols)
+        list.append(cells, 0)
+    _draw-border(cells, cols, tiles, distinct-xs, distinct-ys)
+    _flood-outside(cells, rows, cols)
+    var best = 0
+    for i in range(0, list.length(tiles))
+        for j in range(i + 1, list.length(tiles))
+            let a = tiles[i]
+            let b = tiles[j]
+            let area = (_abs(b.x - a.x) + 1) * (_abs(b.y - a.y) + 1)
+            if area > best
+                if a.x == b.x or a.y == b.y
+                    best = area
+                else
+                    let col-a = _compressed(distinct-xs, a.x) + 1
+                    let col-b = _compressed(distinct-xs, b.x) + 1
+                    let row-a = _compressed(distinct-ys, a.y) + 1
+                    let row-b = _compressed(distinct-ys, b.y) + 1
+                    if not _touches-outside(cells, cols, row-a, col-a, row-b, col-b)
+                        best = area
+    best
