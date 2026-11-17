@@ -1,0 +1,19 @@
+# Advent of Code 2024, day 19 — Linen Layout.
+# Reads the towel patterns and designs from stdin until end of input,
+# prints both answers.
+use day19-core
+
+# shortcut: pattern and design lines hold stripe letters and commas only,
+# so this sentinel cannot collide; it stands in for the end-of-input
+# failure because error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let layout = day19-core.parse(buffer.to-text(input))
+print(day19-core.part-one(layout))
+print(day19-core.part-two(layout))

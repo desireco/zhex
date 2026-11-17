@@ -1,0 +1,60 @@
+# Advent of Code 2024, day 19 — Linen Layout (solution words).
+# The first input line lists the available towel patterns; after a blank
+# line, each remaining line is one design. Both parts count what towels
+# can spell: ways to cover position i are the sum, over every towel the
+# design's remainder starts with, of the ways at that towel's far end,
+# filled from the design's end backward in one array. Part 1 counts the
+# designs with at least one way; part 2 totals all the ways.
+
+## The available patterns and the desired designs.
+type Layout = record
+    towels: List<String>
+    designs: List<String>
+
+## Parse the towel line, skip the blank line, collect the designs.
+word parse(text: String) -> Layout
+    let towels: List<String> = []
+    let designs: List<String> = []
+    var section = 0
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            if section == 0
+                for towel in text.split(line, ", ")
+                    list.append(towels, towel)
+                section = 1
+            else
+                list.append(designs, line)
+    Layout(towels, designs)
+
+## The number of ways towels can spell one design exactly. The ways live
+## in a one-column array: arrays start at rank two, so the column index is
+## always 0.
+word _ways(design: String, towels: List<String>) -> Int
+    let n = text.length(design)
+    let counts: Array<Int> = array.new([n + 1, 1], 0)
+    counts[n, 0] = 1
+    var i = n - 1
+    while i >= 0
+        var total = 0
+        for towel in towels
+            let end = i + text.length(towel)
+            if end <= n and text.starts-with(text.slice(design, i, n), towel)
+                total = total + counts[end, 0]
+        counts[i, 0] = total
+        i = i - 1
+    counts[0, 0]
+
+## How many designs the available towels can spell.
+word part-one(layout: Layout) -> Int
+    var possible = 0
+    for design in layout.designs
+        if _ways(design, layout.towels) > 0
+            possible = possible + 1
+    possible
+
+## The total number of distinct towel arrangements over all designs.
+word part-two(layout: Layout) -> Int
+    var total = 0
+    for design in layout.designs
+        total = total + _ways(design, layout.towels)
+    total
