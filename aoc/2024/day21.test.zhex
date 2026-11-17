@@ -1,0 +1,9 @@
+use day21-core
+use test
+
+let sample = "029A\n980A\n179A\n456A\n379A"
+let codes = day21-core.parse(sample)
+
+test.check(day21-core.part-one(codes) == 126384, "day 21 part 1")
+test.check(day21-core.part-two(codes) == 154115708116294, "day 21 part 2")
+print "day 21 tests passed"
