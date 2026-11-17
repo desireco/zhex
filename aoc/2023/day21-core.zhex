@@ -1,0 +1,137 @@
+# Advent of Code 2023, day 21 — Step Counter (solution words). The walk
+# is breadth-first from S, and a plot counts for a step total when its
+# first distance matches that total's parity — spare steps wiggle in
+# place. Part 1 keeps the walk inside the mapped garden; part 2 tiles the
+# garden infinitely, where the real question's 26501365 steps ride a
+# quadratic: with S centered, 26501365 = 65 + 202300*131, and the counts
+# at 65, 65+131, and 65+2*131 steps pin the parabola the far tiles keep
+# filling in lockstep, so the answer is Lagrange's k=202300 value.
+
+## The start tile's position.
+type Start = record
+    x: Int
+    y: Int
+
+## Parse the garden map into its rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            list.append(grid, line)
+    grid
+
+# The grid's width.
+word _width(grid: List<String>) -> Int
+    text.length(grid[0])
+
+# The start tile's position.
+word _start(grid: List<String>) -> Start
+    var found-x = 0
+    var found-y = 0
+    var found = false
+    var y = 0
+    while not found and y < list.length(grid)
+        let x = text.index-of(grid[y], "S")
+        if x >= 0
+            found = true
+            found-x = x
+            found-y = y
+        y = y + 1
+    Start(found-x, found-y)
+
+word _dx(direction: Int) -> Int
+    if direction == 1
+        1
+    elif direction == 3
+        -1
+    else
+        0
+
+word _dy(direction: Int) -> Int
+    if direction == 2
+        1
+    elif direction == 0
+        -1
+    else
+        0
+
+# The tile at a position on the infinite tiling: floor-modulo into the
+# grid, where only rocks block.
+word _plot(grid: List<String>, x: Int, y: Int) -> String
+    let width = _width(grid)
+    let height = list.length(grid)
+    let mx = ((x % width) + width) % width
+    let my = ((y % height) + height) % height
+    text.slice(grid[my], mx, mx + 1)
+
+# The plots first reached at each parity, walked breadth-first from S;
+# wrap tiles the garden infinitely, otherwise the walk stays inside the
+# map. A plot answers a step total when its first distance's parity
+# matches the total's.
+# shortcut: keys span 500 around S either way, so steps must stay under 500
+word _count(grid: List<String>, steps: Int, wrap: Bool) -> Int
+    let width = _width(grid)
+    let height = list.length(grid)
+    let start = _start(grid)
+    var even = 1
+    var odd = 0
+    let seen: Map<Int, Bool> = {}
+    let init = map.put(seen, (start.y + 500) * 1001 + start.x + 500, true)
+    var current: List<Int> = [(start.y + 500) * 1001 + start.x + 500]
+    var distance = 0
+    while distance < steps and list.length(current) > 0
+        let next: List<Int> = []
+        for key in current
+            let x = key % 1001 - 500
+            let y = key / 1001 - 500
+            for direction in range(0, 4)
+                let nx = x + _dx(direction)
+                let ny = y + _dy(direction)
+                let blocked = if wrap
+                    _plot(grid, nx, ny) == "#"
+                else
+                    nx < 0 or nx >= width or ny < 0 or ny >= height or text.slice(grid[ny], nx, nx + 1) == "#"
+                if not blocked
+                    let nkey = (ny + 500) * 1001 + nx + 500
+                    if not map.contains(seen, nkey)
+                        let stored = map.put(seen, nkey, true)
+                        list.append(next, nkey)
+                        if (distance + 1) % 2 == 0
+                            even = even + 1
+                        else
+                            odd = odd + 1
+        distance = distance + 1
+        current = next
+    if steps % 2 == 0
+        even
+    else
+        odd
+
+## The plots reachable in exactly 64 steps inside the mapped garden.
+word part-one(grid: List<String>, steps: Int = 64) -> Int
+    _count(grid, steps, false)
+
+## The plots reachable in exactly `steps` steps when the garden repeats
+## infinitely in every direction.
+word count-at(grid: List<String>, steps: Int) -> Int
+    _count(grid, steps, true)
+
+## Plots reachable in exactly `steps` steps on the infinite tiling. With S
+## centered, a total that is the half width plus a whole number of widths
+## fits the tile diamond's quadratic: the counts at half, half + width,
+## and half + 2 widths pin it, and Lagrange's form evaluates the far
+## repeat exactly.
+word part-two(grid: List<String>, steps: Int = 26501365) -> Int
+    let width = _width(grid)
+    let half = width / 2
+    # shortcut: the fit branch wants the real input's shape (S centered,
+    # steps = half + k*width); other totals walk directly and the walk's
+    # keys bound those steps to 500
+    if steps > width * 3 and (steps - half) % width == 0
+        let f0 = count-at(grid, half)
+        let f1 = count-at(grid, half + width)
+        let f2 = count-at(grid, half + 2 * width)
+        let k = (steps - half) / width
+        f0 * ((k - 1) * (k - 2) / 2) - f1 * (k * (k - 2)) + f2 * (k * (k - 1) / 2)
+    else
+        count-at(grid, steps)
