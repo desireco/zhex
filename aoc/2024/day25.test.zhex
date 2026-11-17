@@ -1,0 +1,9 @@
+use day25-core
+use test
+
+let sample = "#####\n.####\n.####\n.####\n.#.#.\n.#...\n.....\n\n#####\n##.##\n.#.##\n...##\n...#.\n...#.\n.....\n\n.....\n#....\n#....\n#...#\n#.#.#\n#.###\n#####\n\n.....\n.....\n#.#..\n###..\n###.#\n###.#\n#####\n\n.....\n.....\n.....\n#....\n#.#..\n#.#.#\n#####"
+let schematics = day25-core.parse(sample)
+
+test.check(day25-core.part-one(schematics) == 3, "day 25 part 1")
+test.check(day25-core.part-two(schematics) == "*", "day 25 part 2")
+print "day 25 tests passed"
