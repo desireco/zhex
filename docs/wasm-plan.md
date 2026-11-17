@@ -2,7 +2,7 @@
 
 There are two different WASM stories and they are frequently conflated. This document separates them, records the findings verified on 2026-11-14, and lays out the detailed plan for [#7](https://github.com/desireco/zhex/issues/7) — compiling Zhex programs to WASM. All decisions in Part 5 were ratified in the owner review on 2026-11-14.
 
-- **Track A — interpreter in WASM.** Compile the existing Go interpreter to a wasm module; Zhex source goes in, output comes out. Ships the browser playground. Days to weeks.
+- **Track A — interpreter in WASM — shipped.** Compile the existing Go interpreter to a wasm module; Zhex source goes in, output comes out. The engine (#91), the browser playground (#88), and the interactive read-line seam (#122) are live; see Part 4.
 - **Track B — Zhex to WASM.** Compile Zhex *programs* to standalone `.wasm` artifacts (the ROADMAP Future item, #7). Months.
 
 The tracks stack: A's browser shell and site UX survive unchanged when B's engine replaces A's interpreter.
@@ -44,6 +44,8 @@ The properties that make language backends hard are, mostly by design, absent:
 | A3 | WASI build as a sandboxed runner (preopen one directory; `file.*` words work against it). Compiles today; runtime untested — no wasm runtime installed locally | a few days, after installing wasmtime |
 
 Track A is ticketed: the engine itself is [#91](https://github.com/desireco/zhex/issues/91) (A1), and the site demos that consume it are the browser playground [#88](https://github.com/desireco/zhex/issues/88), live docs snippets [#89](https://github.com/desireco/zhex/issues/89), and the Game of Life demo [#90](https://github.com/desireco/zhex/issues/90). The playground is the top of the funnel per `docs/language-presentation-research.md` (Rust and Gleam both treat the browser trial that way) and it demos the diagnostics thesis directly.
+
+**Status: A1 and A2 shipped.** A1 landed as `cmd/zhex/engine` (#91, merge d487e89) — the interpreter as a browser wasm module with one-shot `runSource`, REPL sessions with continuation probes, coded `not-available-in-build` fencing of filesystem and argument words, and the Node differential gate inside `just test`. A2 landed as the playground page (#88, commit 1d87eeb) — run and REPL modes, caret diagnostics from the report envelope, lazy load behind the cover click, example preloading with module resolution, and share links. [#122](https://github.com/desireco/zhex/issues/122) (merge 08a9316) added the interactive read-line seam that wakes the paused engine on browser input. A3 (a WASI build run under a standalone runtime) remains open.
 
 ## Part 5 — Decisions (ratified 2026-11-14)
 
