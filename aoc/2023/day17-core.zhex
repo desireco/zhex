@@ -1,0 +1,111 @@
+# Advent of Code 2023, day 17 — Clumsy Crucible (solution words). The
+# least-heat route is Dijkstra over (x, y, direction, run) states — the
+# run counts consecutive straight blocks, so the crucible's straight-line
+# limits live in the state, not the cost. There is no priority-queue
+# word, so the frontier is a Map<Int, Int> from packed state to cost and
+# each step min-scans it; samples are small, so the repeated linear scan
+# is the honest price. States pack into one Int (x*H+y, *4+direction,
+# *11+run) so pops decode by division, not string parsing. Part 1 turns
+# or continues freely up to three straight blocks; part 2's ultra
+# crucible must run four to ten blocks straight and needs four behind it
+# before it may stop at the factory.
+
+## Parse the city into its rows of heat digits.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            list.append(grid, line)
+    grid
+
+word _dx(direction: Int) -> Int
+    if direction == 1
+        1
+    elif direction == 3
+        -1
+    else
+        0
+
+word _dy(direction: Int) -> Int
+    if direction == 2
+        1
+    elif direction == 0
+        -1
+    else
+        0
+
+# The heat loss of entering a block: its digit's place in 0..9.
+word _heat(grid: List<String>, x: Int, y: Int) -> Int
+    text.index-of("0123456789", text.slice(grid[y], x, x + 1))
+
+# Pack a Dijkstra state into one Int.
+word _encode(x: Int, y: Int, direction: Int, run: Int, height: Int) -> Int
+    ((x * height + y) * 4 + direction) * 11 + run
+
+# The least heat loss under one pair of straight-run limits.
+word _dijkstra(grid: List<String>, min-run: Int, max-run: Int) -> Int
+    let height = list.length(grid)
+    let width = text.length(grid[0])
+    let dist: Map<Int, Int> = {}
+    let frontier: Map<Int, Int> = {}
+    frontier[_encode(0, 0, 1, 0, height)] = 0
+    frontier[_encode(0, 0, 2, 0, height)] = 0
+    var answer = -1
+    var searching = true
+    while searching
+        if map.length(frontier) == 0
+            searching = false
+        else
+            # the cheapest frontier state by repeated min-scan
+            var best-key = 0
+            var best-cost = 0
+            var first = true
+            for key, cost in frontier
+                if first or cost < best-cost
+                    best-key = key
+                    best-cost = cost
+                    first = false
+            map.remove(frontier, best-key)
+            let run = best-key % 11
+            let rest = best-key / 11
+            let direction = rest % 4
+            let y = rest / 4 % height
+            let x = rest / 4 / height
+            if x == width - 1 and y == height - 1 and run >= min-run
+                answer = best-cost
+                searching = false
+            else
+                for next in range(0, 4)
+                    # never reverse, and below the minimum run only
+                    # straight ahead (run 0 is the start, any way out)
+                    if next != (direction + 2) % 4
+                        var blocked = next != direction and run > 0 and run < min-run
+                        var next-run = 1
+                        if next == direction
+                            next-run = run + 1
+                        if next-run > max-run
+                            blocked = true
+                        if not blocked
+                            let nx = x + _dx(next)
+                            let ny = y + _dy(next)
+                            if nx >= 0 and ny >= 0 and ny < height and nx < width
+                                let next-cost = best-cost + _heat(grid, nx, ny)
+                                let nkey = _encode(nx, ny, next, next-run, height)
+                                let better = match dist[nkey]
+                                    case Option.Some(old)
+                                        next-cost < old
+                                    case Option.None
+                                        true
+                                if better
+                                    dist[nkey] = next-cost
+                                    frontier[nkey] = next-cost
+    answer
+
+## Least heat loss with at most three straight blocks in a row.
+word part-one(grid: List<String>) -> Int
+    _dijkstra(grid, 1, 3)
+
+## Least heat loss for the ultra crucible: four to ten straight blocks,
+# and four behind it before it may stop.
+word part-two(grid: List<String>) -> Int
+    _dijkstra(grid, 4, 10)
