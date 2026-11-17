@@ -65,6 +65,26 @@ type Demo struct {
 	Output string
 }
 
+// AocDay is one Advent of Code 2025 day on the future AoC page (#123): the
+// manifest ships before the page does, so every row starts `empty` and no
+// page consumes the data yet (the page shell is #126).
+type AocDay struct {
+	Day             int
+	Title           string
+	Outline         string
+	OfficialURL     string
+	Status          string // empty | working | part1 | solved
+	Sample          string // sample input path, relative to aoc/2025/
+	ExpectedAnswers []string
+	// Wasm is the compiled artifact's relative URL and WasmNote the fence
+	// diagnostic message, matching Example's fields; both stay empty until
+	// a day compiles.
+	Wasm, WasmNote string
+	// InputKind names what the day's run panel input box expects, matching
+	// Example's kind vocabulary.
+	InputKind string
+}
+
 type pageData struct {
 	Manifesto  Manifesto
 	HeroSource string
@@ -72,6 +92,7 @@ type pageData struct {
 	HeroOutput string
 	Examples   []Example
 	Demos      []Demo
+	Aoc        []AocDay
 	Roadmap    Roadmap
 	Catalog    []CatalogEntry
 	Nav        template.HTML
@@ -396,12 +417,44 @@ var demoSpecs = []demoSpec{
 		"Seven cells churn for exactly 130 generations and then vanish completely — the run ends on an empty board."},
 }
 
+// aocSpec is one Advent of Code 2025 day: the manifest row the loader turns
+// into an AocDay. Statuses stay `empty` until the verification sweep (#132)
+// flips them; day and title come from the epic's day table (#123).
+type aocSpec struct {
+	day     int
+	title   string
+	outline string
+	status  string
+	sample  string // relative to aoc/2025/; empty until the day has one
+}
+
+// aocSpecs is the AoC 2025 manifest — twelve pre-created empty rows, one
+// per day of the 12-day event; the build emits the data beside the demo
+// data even though no page consumes it yet (#126).
+var aocSpecs = []aocSpec{
+	{1, "Secret Entrance", "Dial rotations; part one simulates, part two closes form.", "empty", ""},
+	{2, "Gift Shop", "Sum IDs of expanded ranges with repeated substrings.", "empty", ""},
+	{3, "Lobby", "Greedy largest digit in a shrinking window.", "empty", ""},
+	{4, "Printing Department", "Remove grid cells with fewer than four neighbors; part two runs to a fixpoint.", "empty", ""},
+	{5, "Cafeteria", "Range membership via sort-and-merge disjoint union.", "empty", ""},
+	{6, "Trash Compactor", "Row-wise then column-wise digit reads through one-character slices.", "empty", ""},
+	{7, "Laboratories", "Tachyon paths through splitters, row-by-row dynamic programming.", "empty", ""},
+	{8, "Playground", "Three-dimensional junction boxes, shortest pairs, union-find merging.", "empty", ""},
+	{9, "Movie Theater", "Largest rectangle over drawn edges, coordinate compression, flood fill.", "empty", ""},
+	{10, "Factory", "Fewest button presses by breadth-first search over machine states; part two needs hand linear algebra.", "empty", ""},
+	{11, "Reactor", "Count directed acyclic graph paths by reverse-topological accumulation.", "empty", ""},
+	{12, "Christmas Tree Farm", "Fit presents under trees with a packing search over rotations.", "empty", ""},
+}
+
 func main() {
 	wasmDir := flag.String("wasm", "", "compile each example's browser WebAssembly artifact into this directory")
 	flag.Parse()
 	data, err := loadExamples(".")
 	if err == nil {
 		data.Demos, err = loadDemos(".")
+	}
+	if err == nil {
+		data.Aoc, err = loadAoc(".")
 	}
 	if err == nil {
 		data.Roadmap, err = readRoadmap("ROADMAP.md")
@@ -537,6 +590,36 @@ func loadDemos(root string) ([]Demo, error) {
 		demos = append(demos, Demo{ID: spec.id, Group: spec.group, Title: spec.title, Blurb: spec.blurb, Stdin: "", Output: output.String()})
 	}
 	return demos, nil
+}
+
+// loadAoc turns the manifest into AocDay rows: statuses and sample paths
+// are validated now so a later status flip cannot drift silently — a
+// non-empty status must name an existing sample file under aoc/2025.
+func loadAoc(root string) ([]AocDay, error) {
+	var days []AocDay
+	for _, spec := range aocSpecs {
+		switch spec.status {
+		case "empty", "working", "part1", "solved":
+		default:
+			return nil, fmt.Errorf("aoc day %d: status must be empty, working, part1, or solved", spec.day)
+		}
+		if spec.status != "empty" {
+			path := filepath.Join(root, "aoc", "2025", spec.sample)
+			if _, err := os.ReadFile(path); err != nil {
+				return nil, fmt.Errorf("read aoc day %d sample %s: %w", spec.day, spec.sample, err)
+			}
+		}
+		days = append(days, AocDay{
+			Day:         spec.day,
+			Title:       spec.title,
+			Outline:     spec.outline,
+			OfficialURL: fmt.Sprintf("https://adventofcode.com/2025/day/%d", spec.day),
+			Status:      spec.status,
+			Sample:      spec.sample,
+			InputKind:   "text",
+		})
+	}
+	return days, nil
 }
 
 // resolveSibling builds the module resolver the interpreter applies: `use
