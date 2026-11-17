@@ -1,0 +1,9 @@
+use day11-core
+use test
+
+let sample = "...#......\n.......#..\n#.........\n..........\n......#...\n.#........\n.........#\n..........\n.......#..\n#...#....."
+let universe = day11-core.parse(sample)
+
+test.check(day11-core.part-one(universe) == 374, "day 11 part 1")
+test.check(day11-core.part-two(universe) == 82000210, "day 11 part 2")
+print "day 11 tests passed"
