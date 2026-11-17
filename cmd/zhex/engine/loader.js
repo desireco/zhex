@@ -11,8 +11,10 @@
 //   run.output; // "hello\n"
 //
 // The full API is documented in cmd/zhex/engine/doc.go: runSource (one-shot,
-// optional third argument turns on the JSONL trace), newSession (the REPL
-// seam), the continuation probes, and setResolve for `use` module sources.
+// optional third argument turns on the JSONL trace), runInteractive (the
+// async stdin seam — deliver/close lines while the program parks on
+// read-line), newSession (the REPL seam), the continuation probes, and
+// setResolve for `use` module sources.
 // Load the engine lazily behind a click — the module is megabytes.
 export async function loadEngine(base = "/") {
   if (!globalThis.Go) {

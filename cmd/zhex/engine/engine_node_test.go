@@ -445,6 +445,121 @@ func TestEngineSessionLaws(t *testing.T) {
 	}
 }
 
+// interactiveResult is one interactive harness answer.
+type interactiveResult struct {
+	Chunks        []string `json:"chunks"`
+	ChunksAtSettle []string `json:"chunksAtSettle"`
+	LoopLagMs     int      `json:"loopLagMs"`
+	Result        struct {
+		Output      string `json:"output"`
+		Diagnostics string `json:"diagnostics"`
+		Report      string `json:"report"`
+		Trace       string `json:"trace"`
+		Exit        int    `json:"exit"`
+	} `json:"result"`
+}
+
+// runInteractiveJob drives the module's interactive mode and decodes it.
+func runInteractiveJob(t *testing.T, job map[string]any) interactiveResult {
+	t.Helper()
+	dir := t.TempDir()
+	jobPath := filepath.Join(dir, "job.json")
+	encoded, err := json.Marshal(job)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(jobPath, encoded, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var result interactiveResult
+	if err := json.Unmarshal(runEngineRaw(t, "interactive", jobPath), &result); err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+// TestEngineInteractiveRun is the #122 acceptance: a program that reads
+// mid-run parks on delivered input — the prompt is written while no line has
+// been delivered (the park is observable), the JS loop stays free during the
+// wait (no busy-wait), and the joined output and exit status are
+// byte-identical to the same program piped through the interpreter.
+func TestEngineInteractiveRun(t *testing.T) {
+	source := "let a = read-line(\"> \") try\nprint(a)\nlet b = read-line(\"> \") try\nprint(text.length(b))\n"
+	var interpreted bytes.Buffer
+	runErr := lang.Run("interactive.zhex", source, strings.NewReader("Ada\nfour\n"), &interpreted)
+	if runErr != nil {
+		t.Fatalf("interpreter run failed: %v", runErr)
+	}
+	assert := func(t *testing.T, got interactiveResult) {
+		t.Helper()
+		if joined := strings.Join(got.Chunks, ""); joined != interpreted.String() {
+			t.Fatalf("engine output %q, want interpreter output %q", joined, interpreted.String())
+		}
+		if got.Result.Output != interpreted.String() {
+			t.Fatalf("engine result output %q, want %q", got.Result.Output, interpreted.String())
+		}
+		if got.Result.Exit != 0 {
+			t.Fatalf("engine exit %d, want 0", got.Result.Exit)
+		}
+		if len(got.Chunks) < 4 {
+			t.Fatalf("output arrived as %d chunk(s) (%v) — writes must stream as they happen", len(got.Chunks), got.Chunks)
+		}
+	}
+	t.Run("delivered after the park", func(t *testing.T) {
+		got := runInteractiveJob(t, map[string]any{"source": source, "lines": []string{"Ada", "four"}, "settleMs": 50})
+		if joined := strings.Join(got.ChunksAtSettle, ""); joined != "> " {
+			t.Fatalf("output before the first delivery = %q, want the parked prompt \"> \"", joined)
+		}
+		if got.LoopLagMs > 2000 {
+			t.Fatalf("event loop lagged %dms while the program waited — the park spins", got.LoopLagMs)
+		}
+		assert(t, got)
+	})
+	t.Run("delivered eagerly before the park", func(t *testing.T) {
+		assert(t, runInteractiveJob(t, map[string]any{"source": source, "lines": []string{"Ada", "four"}, "eager": true}))
+	})
+}
+
+// TestEngineInteractiveRunEOF pins the close contract: ending the delivered
+// stream drives the same end-of-file law as piped stdin running out — the
+// reason detail surfaces byte-identically, and an unhandled read past close
+// fails with the coded console-input report and exit 1.
+func TestEngineInteractiveRunEOF(t *testing.T) {
+	t.Run("close yields the end-of-file reason", func(t *testing.T) {
+		source := "let first = read-line(\"\") try\nprint(first)\nlet second = read-line(\"\") catch e\n    error.detail(e, \"reason\")\nprint(second)\n"
+		var interpreted bytes.Buffer
+		if err := lang.Run("eof.zhex", source, strings.NewReader("a\n"), &interpreted); err != nil {
+			t.Fatal(err)
+		}
+		got := runInteractiveJob(t, map[string]any{"source": source, "lines": []string{"a"}})
+		if joined := strings.Join(got.Chunks, ""); joined != interpreted.String() || joined != "a\nend-of-file\n" {
+			t.Fatalf("engine output %q, want interpreter output %q", joined, interpreted.String())
+		}
+		if got.Result.Exit != 0 {
+			t.Fatalf("engine exit %d, want 0", got.Result.Exit)
+		}
+	})
+	t.Run("unhandled read past close fails coded", func(t *testing.T) {
+		source := "let first = read-line(\"\") try\nprint(first)\nlet second = read-line(\"\") try\nprint(second)\n"
+		var interpreted bytes.Buffer
+		runErr := lang.Run("eof.zhex", source, strings.NewReader("a\n"), &interpreted)
+		got := runInteractiveJob(t, map[string]any{"source": source, "lines": []string{"a"}})
+		if joined := strings.Join(got.Chunks, ""); joined != interpreted.String() {
+			t.Fatalf("engine output %q, want interpreter output %q", joined, interpreted.String())
+		}
+		if got.Result.Exit != exitStatus(runErr) || got.Result.Exit != 1 {
+			t.Fatalf("engine exit %d, want %d", got.Result.Exit, exitStatus(runErr))
+		}
+		var parsed struct{ Code string }
+		if err := json.Unmarshal([]byte(got.Result.Report), &parsed); err != nil {
+			t.Fatalf("report %q is not JSON: %v", got.Result.Report, err)
+		}
+		if parsed.Code != "console-input" {
+			t.Fatalf("report code %q, want console-input", parsed.Code)
+		}
+	})
+}
+
 // TestEngineProbes compares the module's continuation probes against the
 // interpreter's own IsIncomplete/DelimiterIndent/LastStatementIndent on the
 // same sources — the CLI REPL's editable-indentation law.

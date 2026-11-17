@@ -4,6 +4,7 @@
 //   node engine.cjs <wasm_exec.js> <module.wasm> run <source.zhex> <stdin.txt>
 //   node engine.cjs <wasm_exec.js> <module.wasm> probes <sources.json>
 //   node engine.cjs <wasm_exec.js> <module.wasm> session <job.json>
+//   node engine.cjs <wasm_exec.js> <module.wasm> interactive <job.json>
 // `use` modules resolve through the engine's host resolve hook: run mode
 // reads siblings of the entry file (like zhex run), session jobs name module
 // files explicitly — the host supplies module sources exactly as the
@@ -55,6 +56,37 @@ async function main() {
       results.push(r);
     }
     console.log(JSON.stringify(results));
+  } else if (mode === "interactive") {
+    // The async stdin seam (#122): runInteractive starts the program on its own
+    // goroutine; lines are delivered (after a settle window by default, or
+    // eagerly before the program parks) and close ends the stream. The answer
+    // reports every output chunk, the chunks visible while the program was
+    // parked waiting for input, and the JS event-loop lag across the settle
+    // window — a parked program leaves the loop free.
+    const job = JSON.parse(fs.readFileSync(path.resolve(args[0]), "utf8"));
+    const chunks = [];
+    let chunksAtSettle = null;
+    let result = null;
+    const handle = zhex.runInteractive(job.source, (text) => chunks.push(text), (r) => { result = r; });
+    const deliverAll = () => {
+      for (const line of job.lines || []) handle.deliver(line);
+      if (job.close !== false) handle.close();
+    };
+    if (job.eager) {
+      deliverAll();
+      chunksAtSettle = chunks.slice();
+    }
+    const t0 = Date.now();
+    await new Promise((resolve) => setTimeout(resolve, job.settleMs ?? 50));
+    const loopLagMs = Date.now() - t0;
+    if (!job.eager) {
+      chunksAtSettle = chunks.slice();
+      deliverAll();
+    }
+    const deadline = Date.now() + 10000;
+    while (!result && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
+    if (!result) throw new Error("interactive run never finished");
+    console.log(JSON.stringify({ chunks, chunksAtSettle, loopLagMs, result }));
   } else {
     throw new Error("unknown mode " + mode);
   }
