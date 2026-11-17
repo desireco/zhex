@@ -1,0 +1,19 @@
+# Advent of Code 2024, day 24 — Crossed Wires.
+# Reads the wiring from stdin until end of input, prints part one's answer;
+# part two (the four swapped output pairs of the ripple-carry adder) is
+# honestly pending — see docs/aoc-2024.md day 24 and its gap ticket.
+use day24-core
+
+# shortcut: wire lines never match this sentinel; it stands in for the
+# end-of-file failure because error.detail is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let circuit = day24-core.parse(buffer.to-text(input))
+print(day24-core.part-one(circuit))
+print "pending"

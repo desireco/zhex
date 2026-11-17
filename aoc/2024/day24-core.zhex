@@ -1,0 +1,81 @@
+# Advent of Code 2024, day 24 — Crossed Wires (solution words).
+# Wires hold Bool values; AND, OR, and XOR gates wait for both inputs. Part 1
+# evaluates the wiring to a fixpoint — gates fire once both inputs are known,
+# passes repeat until nothing changes — and reads the z wires as a binary
+# number, z00 least significant. Part 2 (finding the four swapped output
+# pairs of the ripple-carry adder) resisted three structural solver designs
+# in the Go oracle and stays pending: see docs/aoc-2024.md and the gap
+# ticket.
+
+type Circuit = record
+    values: Map<String, Bool>
+    ops: List<String>
+    lefts: List<String>
+    rights: List<String>
+    outs: List<String>
+
+## Parse the wire values and the gate list.
+word parse(text: String) -> Circuit
+    let values: Map<String, Bool> = {}
+    let ops: List<String> = []
+    let lefts: List<String> = []
+    let rights: List<String> = []
+    let outs: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            if text.contains(line, ":")
+                let colon = text.index-of(line, ":")
+                values[text.slice(line, 0, colon)] = text.slice(line, colon + 2, colon + 3) == "1"
+            else
+                let tokens = text.split(line, " ")
+                let added-left = list.append(lefts, tokens[0])
+                let added-op = list.append(ops, tokens[1])
+                let added-right = list.append(rights, tokens[2])
+                let added-out = list.append(outs, tokens[4])
+    Circuit(values, ops, lefts, rights, outs)
+
+word _apply(op: String, a: Bool, b: Bool) -> Bool
+    if op == "AND"
+        a and b
+    elif op == "OR"
+        a or b
+    else
+        a != b
+
+word _bool-at(known: Map<String, Bool>, key: String) -> Bool
+    match known[key]
+        case Option.Some(value)
+            value
+        case Option.None
+            false
+
+# Every wire's value: known inputs first, then gates fire to a fixpoint.
+word _evaluate(circuit: Circuit) -> Map<String, Bool>
+    let known: Map<String, Bool> = {}
+    for name, value in circuit.values
+        known[name] = value
+    var changed = true
+    while changed
+        changed = false
+        for index in range(0, list.length(circuit.ops))
+            if not map.contains(known, circuit.outs[index])
+                if map.contains(known, circuit.lefts[index]) and map.contains(known, circuit.rights[index])
+                    known[circuit.outs[index]] = _apply(circuit.ops[index], _bool-at(known, circuit.lefts[index]), _bool-at(known, circuit.rights[index]))
+                    changed = true
+    known
+
+## The decimal number on the z wires, z00 least significant.
+word part-one(circuit: Circuit) -> Int
+    let known = _evaluate(circuit)
+    let zs: List<String> = []
+    for name, value in known
+        if text.starts-with(name, "z")
+            let added = list.append(zs, name)
+    let ordered = list.sort(zs)
+    var total = 0
+    var place = 1
+    for name in ordered
+        if _bool-at(known, name)
+            total = total + place
+        place = place * 2
+    total
