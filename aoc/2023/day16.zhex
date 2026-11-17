@@ -1,0 +1,18 @@
+# Advent of Code 2023, day 16 — The Floor Will Be Lava.
+# Reads the layout from stdin until end of input, prints both answers.
+use day16-core
+
+# shortcut: a layout row holds only ./\|- characters, so this sentinel
+# cannot collide; it stands in for the end-of-file failure because
+# error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let grid = day16-core.parse(buffer.to-text(input))
+print(day16-core.part-one(grid))
+print(day16-core.part-two(grid))

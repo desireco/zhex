@@ -1,0 +1,202 @@
+# Advent of Code 2023, day 20 — Pulse Propagation (solution words).
+# The network simulates with FIFO queues of pulses and no recursion:
+# one press enqueues the button's low pulse, then drains the queue in
+# send order — broadcaster repeats, flip-flops toggle on low and send
+# their new state, conjunctions remember each input's latest pulse and
+# answer low only when every remembered pulse is high. Part 1 counts
+# pulses over 1000 presses. Part 2 needs the first press at which rx
+# receives a low pulse: the input's shape feeds rx from one conjunction
+# whose inputs each pulse high on their own cycle, so the answer is the
+# least common multiple of the first press each input sends that parent
+# a high pulse (Euclid's gcd, hand-rolled — the language ships no gcd).
+
+## The network as parallel lists: names, kinds (0 broadcaster, 1
+## flip-flop, 2 conjunction, 3 untyped output), target lists, and
+## conjunction input lists, plus the mutable state — flip-flop on/off
+## and each conjunction's memory of its inputs.
+type Network = record
+    names: List<String>
+    kinds: List<Int>
+    targets: List<List<String>>
+    inputs: List<List<String>>
+    ff-on: Map<String, Bool>
+    mem: Map<String, Bool>
+
+word _is(a: String, b: String) -> Bool
+    a == b
+
+# A name's module index, -1 when absent.
+word _index-of(names: List<String>, name: String) -> Int
+    var found = -1
+    var at = 0
+    while found == -1 and at < list.length(names)
+        if _is(names[at], name)
+            found = at
+        at = at + 1
+    found
+
+# A bool map's value, false when unset.
+word _flag(flags: Map<String, Bool>, key: String) -> Bool
+    match flags[key]
+        case Option.Some(value)
+            value
+        case Option.None
+            false
+
+## Parse the module lines; undeclared targets become untyped outputs,
+## and every conjunction's inputs and memory start remembered-low.
+word parse(text: String) -> Network
+    let names: List<String> = []
+    let kinds: List<Int> = []
+    let targets: List<List<String>> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let sides = text.split(line, " -> ")
+            if text.starts-with(line, "%")
+                list.append(names, text.slice(line, 1, text.index-of(line, " ")))
+                list.append(kinds, 1)
+            elif text.starts-with(line, "&")
+                list.append(names, text.slice(line, 1, text.index-of(line, " ")))
+                list.append(kinds, 2)
+            else
+                list.append(names, sides[0])
+                list.append(kinds, 0)
+            let outs: List<String> = []
+            for target in text.split(sides[1], ", ")
+                list.append(outs, target)
+            list.append(targets, outs)
+    # targets named by nobody: untyped output modules
+    var settled = false
+    while not settled
+        settled = true
+        var at = 0
+        while at < list.length(names)
+            var t = 0
+            while t < list.length(targets[at])
+                if _index-of(names, targets[at][t]) == -1
+                    list.append(names, targets[at][t])
+                    list.append(kinds, 3)
+                    list.append(targets, [])
+                    settled = false
+                t = t + 1
+            at = at + 1
+    # conjunction inputs: everyone targeting them
+    let inputs: List<List<String>> = []
+    let ff-on: Map<String, Bool> = {}
+    let mem: Map<String, Bool> = {}
+    for at in range(0, list.length(names))
+        let ins: List<String> = []
+        if kinds[at] == 2
+            for other in range(0, list.length(names))
+                if list.any(targets[other], _is(_, names[at]))
+                    list.append(ins, names[other])
+            for input in ins
+                mem[names[at] + "|" + input] = false
+        if kinds[at] == 1
+            ff-on[names[at]] = false
+        list.append(inputs, ins)
+    Network(names, kinds, targets, inputs, ff-on, mem)
+
+# Queue one pulse onto the parallel queue lists.
+word _send(q-from: List<String>, q-to: List<String>, q-high: List<Bool>, from: String, to: String, high: Bool)
+    list.append(q-from, from)
+    list.append(q-to, to)
+    list.append(q-high, high)
+
+# Simulate one button press to completion: low and high pulse counts,
+# with every high pulse into the watched parent recorded at its press
+# number (the parent is "" when nobody is watched).
+word _press(net: Network, parent: String, first-high: Map<String, Int>, press-no: Int) -> List<Int>
+    let q-from: List<String> = []
+    let q-to: List<String> = []
+    let q-high: List<Bool> = []
+    _send(q-from, q-to, q-high, "button", "broadcaster", false)
+    var low = 1
+    var high = 0
+    var head = 0
+    while head < list.length(q-to)
+        let from = q-from[head]
+        let to = q-to[head]
+        let pulse = q-high[head]
+        head = head + 1
+        if to == parent and pulse
+            if not map.contains(first-high, from)
+                first-high[from] = press-no
+        let at = _index-of(net.names, to)
+        var send = -1
+        if net.kinds[at] == 0
+            if pulse
+                send = 1
+            else
+                send = 0
+        elif net.kinds[at] == 1
+            if not pulse
+                net.ff-on[to] = not _flag(net.ff-on, to)
+                if _flag(net.ff-on, to)
+                    send = 1
+                else
+                    send = 0
+        elif net.kinds[at] == 2
+            net.mem[to + "|" + from] = pulse
+            var all-high = true
+            for input in net.inputs[at]
+                if not _flag(net.mem, to + "|" + input)
+                    all-high = false
+            if all-high
+                send = 0
+            else
+                send = 1
+        if send >= 0
+            for target in net.targets[at]
+                _send(q-from, q-to, q-high, to, target, send == 1)
+                if send == 1
+                    high = high + 1
+                else
+                    low = low + 1
+    [low, high]
+
+## The product of low and high pulse counts over 1000 presses.
+word part-one(net: Network) -> Int
+    let blank: Map<String, Int> = {}
+    var low = 0
+    var high = 0
+    for press in range(1, 1001)
+        let counts = _press(net, "", blank, press)
+        low = low + counts[0]
+        high = high + counts[1]
+    low * high
+
+word _gcd(a: Int, b: Int) -> Int
+    var x = a
+    var y = b
+    while y > 0
+        let older = y
+        y = x % y
+        x = older
+    x
+
+word _lcm(a: Int, b: Int) -> Int
+    a / _gcd(a, b) * b
+
+## The first press at which rx receives a low pulse: the least common
+## multiple of the first press each input of rx's conjunction parent
+## sends it a high pulse. Inputs without an rx return 0.
+word part-two(net: Network) -> Int
+    var parent-at = -1
+    for at in range(0, list.length(net.names))
+        if list.any(net.targets[at], _is(_, "rx"))
+            parent-at = at
+    if parent-at == -1 or net.kinds[parent-at] != 2
+        0
+    else
+        let parent = net.names[parent-at]
+        let wanted = list.length(net.inputs[parent-at])
+        let first-high: Map<String, Int> = {}
+        var press = 0
+        while map.length(first-high) < wanted
+            press = press + 1
+            let counts = _press(net, parent, first-high, press)
+        var answer = 1
+        for input, press-no in first-high
+            answer = _lcm(answer, press-no)
+        answer

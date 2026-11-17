@@ -1,0 +1,19 @@
+# Advent of Code 2023, day 20 — Pulse Propagation.
+# Reads the module list from stdin until end of input, prints both
+# answers.
+use day20-core
+
+# shortcut: a module line holds names, %/&/-> and commas, so this
+# sentinel cannot collide; it stands in for the end-of-file failure
+# because error.detail is not compiled to wasm yet
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let net = day20-core.parse(buffer.to-text(input))
+print(day20-core.part-one(net))
+print(day20-core.part-two(net))

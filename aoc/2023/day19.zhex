@@ -1,0 +1,25 @@
+# Advent of Code 2023, day 19 — Aplenty.
+# Reads workflows and parts from stdin until end of input, prints both
+# answers.
+use day19-core
+
+# The input separates workflows from parts with a blank line, so the
+# runner branches on the end-of-file detail (error.detail). That word is
+# fenced in the browser build (#135), and the sentinel workaround cannot
+# cover this day either: the browser read-line traps on an empty line
+# before any catch could run (#155). The door carries the fence note
+# until the engine lane fixes either gap.
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch problem
+        if error.detail(problem, "reason") == "end-of-file"
+            done = true
+            ""
+        else
+            error.message(problem)
+    if not done
+        buffer.add-line(input, line)
+let sorter = day19-core.parse(buffer.to-text(input)) try
+print(day19-core.part-one(sorter))
+print(day19-core.part-two(sorter))
