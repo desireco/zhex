@@ -108,7 +108,7 @@ for (const day of aocDays) {
   assert.deepEqual(day.ExpectedAnswers.length, 2, `aoc day ${day.Day} pins two answers`);
   const bytes = await readFile(`../_site/${day.Wasm}`);
   assert(WebAssembly.validate(bytes), `aoc day ${day.Day} artifact validates`);
-  const sample = await readFile(`../aoc/2025/${day.Sample}`);
+  const sample = await readFile(`../aoc/${day.Year}/${day.Sample}`);
   const result = runZhex(bytes, { stdin: sample });
   assert.equal(result.error, null, `aoc day ${day.Day} artifact run`);
   const answers = new TextDecoder().decode(result.stdout).trim().split('\n');

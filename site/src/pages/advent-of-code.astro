@@ -2,8 +2,8 @@
 import Base from "../layouts/Base.astro";
 import data from "../../data.json";
 
-// One honest label per door status, verbatim (#126); the door count comes
-// from the data rows, never from the page.
+// One honest label per door status, verbatim (#126); the years, their order,
+// and every door count come from the data rows, never from the page (#137).
 const statusLabel = {
   empty: "Not solved yet",
   working: "Working on this problem",
@@ -11,6 +11,12 @@ const statusLabel = {
   solved: "Solved",
 };
 const days = data.Aoc;
+const years = [...new Set(days.map(day => day.Year))];
+// The live year follows the newest archive year; it holds no rows yet, so
+// its tab renders the teaser. When that year's rows arrive, the teaser
+// moves forward on its own.
+const teaserYear = years[years.length - 1] + 1;
+const latestYear = years[years.length - 1];
 ---
 <Base title="Advent of Code — Zhex" description="Advent of Code puzzles solved in Zhex — last year's archive, with this year following in December." current="advent-of-code">
   <main id="main" class="wrap">
@@ -21,59 +27,63 @@ const days = data.Aoc;
     </section>
 
     <div class="aoc-tabs" role="tablist" aria-label="Advent of Code years">
-      <button class="aoc-tab" id="aoc-tab-2025" type="button" role="tab" aria-selected="true" aria-controls="aoc-panel-2025">2025</button>
-      <button class="aoc-tab" id="aoc-tab-2026" type="button" role="tab" aria-selected="false" aria-controls="aoc-panel-2026" tabindex="-1">2026</button>
+      {years.map(year => (
+        <button class="aoc-tab" id={`aoc-tab-${year}`} type="button" role="tab" aria-selected={year === latestYear} aria-controls={`aoc-panel-${year}`} tabindex={year === latestYear ? 0 : -1}>{year}</button>
+      ))}
+      <button class="aoc-tab" id={`aoc-tab-${teaserYear}`} type="button" role="tab" aria-selected="false" aria-controls={`aoc-panel-${teaserYear}`} tabindex="-1">{teaserYear}</button>
     </div>
 
-    <section class="aoc-panel" id="aoc-panel-2025" role="tabpanel" aria-labelledby="aoc-tab-2025">
-      <nav class="aoc-calendar" aria-label="2025 doors">
-        <ul class="aoc-doors">
-          {days.map(day => (
-            <li class="aoc-door">
-              <a class="aoc-door-link" href={`#aoc-day-${day.Day}`}>
-                <span class="aoc-door-day">{day.Day}</span>
-                <span class="aoc-door-title">{day.Title}</span>
-                <span class="aoc-badge" data-status={day.Status}>{statusLabel[day.Status]}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      {days.map(day => (
-        <section class="aoc-day" id={`aoc-day-${day.Day}`} aria-labelledby={`aoc-day-${day.Day}-heading`}>
-          <h2 id={`aoc-day-${day.Day}-heading`}><span class="aoc-day-number">Day {day.Day}</span>{day.Title}</h2>
-          <p class="aoc-day-outline">{day.Outline}</p>
-          <p><a class="text-link" href={day.OfficialURL} target="_blank" rel="noopener">View on adventofcode.com ↗</a></p>
-          <details class="aoc-solution">
-            <summary>Show solution</summary>
-            <div class="aoc-solution-body">
-              {day.Wasm ? (
-                <div class="run-panel aoc-run-panel" data-wasm={day.Wasm}>
-                  <label class="run-label" for={`aoc-day-${day.Day}-stdin`}>Paste your puzzle input here</label>
-                  <textarea id={`aoc-day-${day.Day}-stdin`} rows={6} spellcheck="false">{day.Stdin}</textarea>
-                  <p class="run-input-error" role="alert" hidden></p>
-                  <button class="button run-button" type="button">Run <span aria-hidden="true">→</span></button>
-                  <h4>Output</h4>
-                  <pre aria-live="polite"><samp data-run-output>{day.Output}</samp></pre>
-                </div>
-              ) : day.WasmNote ? (
-                <p class="wasm-note">Not compiled to WebAssembly yet — {day.WasmNote}.</p>
-              ) : (
-                <p class="aoc-solution-status" data-status={day.Status}>{statusLabel[day.Status]}</p>
-              )}
-            </div>
-          </details>
-        </section>
-      ))}
-    </section>
+    {years.map(year => (
+      <section class="aoc-panel" id={`aoc-panel-${year}`} role="tabpanel" aria-labelledby={`aoc-tab-${year}`} hidden={year !== latestYear}>
+        <nav class="aoc-calendar" aria-label={`${year} doors`}>
+          <ul class="aoc-doors">
+            {days.filter(day => day.Year === year).map(day => (
+              <li class="aoc-door">
+                <a class="aoc-door-link" href={`#aoc-day-${day.Year}-${day.Day}`}>
+                  <span class="aoc-door-day">{day.Day}</span>
+                  {day.Title && <span class="aoc-door-title">{day.Title}</span>}
+                  <span class="aoc-badge" data-status={day.Status}>{statusLabel[day.Status]}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {days.filter(day => day.Year === year).map(day => (
+          <section class="aoc-day" id={`aoc-day-${day.Year}-${day.Day}`} aria-labelledby={`aoc-day-${day.Year}-${day.Day}-heading`}>
+            <h2 id={`aoc-day-${day.Year}-${day.Day}-heading`}><span class="aoc-day-number">Day {day.Day}</span>{day.Title}</h2>
+            {day.Outline && <p class="aoc-day-outline">{day.Outline}</p>}
+            <p><a class="text-link" href={day.OfficialURL} target="_blank" rel="noopener">View on adventofcode.com ↗</a></p>
+            <details class="aoc-solution">
+              <summary>Show solution</summary>
+              <div class="aoc-solution-body">
+                {day.Wasm ? (
+                  <div class="run-panel aoc-run-panel" data-wasm={day.Wasm}>
+                    <label class="run-label" for={`aoc-day-${day.Year}-${day.Day}-stdin`}>Paste your puzzle input here</label>
+                    <textarea id={`aoc-day-${day.Year}-${day.Day}-stdin`} rows={6} spellcheck="false">{day.Stdin}</textarea>
+                    <p class="run-input-error" role="alert" hidden></p>
+                    <button class="button run-button" type="button">Run <span aria-hidden="true">→</span></button>
+                    <h4>Output</h4>
+                    <pre aria-live="polite"><samp data-run-output>{day.Output}</samp></pre>
+                  </div>
+                ) : day.WasmNote ? (
+                  <p class="wasm-note">Not compiled to WebAssembly yet — {day.WasmNote}.</p>
+                ) : (
+                  <p class="aoc-solution-status" data-status={day.Status}>{statusLabel[day.Status]}</p>
+                )}
+              </div>
+            </details>
+          </section>
+        ))}
+      </section>
+    ))}
 
-    <section class="aoc-panel" id="aoc-panel-2026" role="tabpanel" aria-labelledby="aoc-tab-2026" hidden>
+    <section class="aoc-panel" id={`aoc-panel-${teaserYear}`} role="tabpanel" aria-labelledby={`aoc-tab-${teaserYear}`} hidden>
       <div class="aoc-teaser">
         <h2>Starts December 1</h2>
         <p>Each day's door appears here when the event starts.</p>
       </div>
-      {/* The empty calendar frame: it fills from 2026 day data once that data
-          exists — no invented doors before then (#126). */}
+      {/* The empty calendar frame: it fills from the year's day data once
+          that data exists — no invented doors before then (#126, #137). */}
       <div class="aoc-doors-empty" aria-hidden="true"></div>
     </section>
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -311,15 +312,17 @@ func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
 	}
 }
 
-// TestLoadAocRunsSolutionsBehindTheStatus pins the run-panel rule (#128): a
-// non-empty status needs the day's sample file under aoc/2025/samples, a
-// part1 or solved day also needs its solution — which supplies Stdin's
-// prefill and the Output oracle — and an empty or working day carries
-// neither, so its door keeps the honest status line.
+// TestLoadAocRunsSolutionsBehindTheStatus pins the run-panel rule (#128)
+// over the year-keyed manifest (#137): a non-empty status needs the day's
+// sample file under aoc/<year>/samples, a part1 or solved day also needs its
+// solution — which supplies Stdin's prefill and the Output oracle — and an
+// empty or working day carries neither, so its door keeps the honest status
+// line. The rows name 2023, and every path the loader derives lands under
+// aoc/2023, proving the year generalization.
 func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, contents string) {
-		path := filepath.Join(root, "aoc", "2025", name)
+		path := filepath.Join(root, "aoc", "2023", name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -331,37 +334,34 @@ func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	write("day01.zhex", "let n = text.to-int(read-line(\"\") try) try\nprint(n * 2)\n")
 	write("samples/day02.txt", "7\n")
 	write("day02.zhex", "print(1)\n")
-	write("samples/day03.txt", "8\n")
+	write("samples/day03.txt", "1\n")
 	write("day03.zhex", "print(3)\n")
-	write("samples/day04.txt", "9\n")
-	write("day04.zhex", "print(4)\n")
 
 	original := aocSpecs
 	defer func() { aocSpecs = original }()
 
-	// All-empty statuses stay byte-empty over a fully stocked tree; the
-	// real manifest ships solved days, so reset every status first.
-	allEmpty := append([]aocSpec(nil), aocSpecs...)
-	for i := range allEmpty {
-		allEmpty[i].status = "empty"
-	}
+	// All-empty statuses stay byte-empty over a fully stocked tree.
+	allEmpty := emptyYear(2023, 25)
 	aocSpecs = allEmpty
 	days, err := loadAoc(root)
 	if err != nil {
 		t.Fatalf("empty manifest: %v", err)
 	}
-	if len(days) != len(aocSpecs) {
-		t.Fatalf("got %d days, want %d", len(days), len(aocSpecs))
+	if len(days) != 25 {
+		t.Fatalf("got %d days, want 25", len(days))
 	}
 	for _, day := range days {
-		if day.Stdin != "" || day.Output != "" || day.Wasm != "" || day.WasmNote != "" {
+		if day.Year != 2023 || day.Stdin != "" || day.Output != "" || day.Wasm != "" || day.WasmNote != "" {
 			t.Fatalf("day %d carries run-panel state behind an empty status: %+v", day.Day, day)
+		}
+		if day.OfficialURL != fmt.Sprintf("https://adventofcode.com/2023/day/%d", day.Day) {
+			t.Fatalf("day %d official URL %q", day.Day, day.OfficialURL)
 		}
 	}
 
 	// part1 and solved run the solution for the oracle; the sample becomes
 	// the prefill and the stdin.
-	specs := append([]aocSpec(nil), aocSpecs...)
+	specs := emptyYear(2023, 3)
 	specs[0].status = "part1"
 	specs[1].status = "solved"
 	aocSpecs = specs
@@ -376,36 +376,50 @@ func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 		t.Fatalf("day 2 output %q; want the solution's stdout", days[1].Output)
 	}
 
-	// A solved day without its sample fails, naming the day.
-	write("samples/day03.txt", "1\n")
-	specs[4].status = "solved"
+	// A solved day without its sample fails, naming year and day.
+	specs = emptyYear(2023, 3)
+	specs[0].status = "part1"
+	specs[1].status = "solved"
+	specs[2].status = "solved"
 	aocSpecs = specs
-	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 5") || !strings.Contains(err.Error(), "sample") {
+	deleteDay := filepath.Join(root, "aoc", "2023", "samples", "day03.txt")
+	if err := os.Remove(deleteDay); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "2023") || !strings.Contains(err.Error(), "day 3") || !strings.Contains(err.Error(), "sample") {
 		t.Fatalf("missing sample error = %v", err)
 	}
 
-	// A part1 day without its solution fails, naming the day.
-	write("samples/day05.txt", "1\n")
-	specs[4].status = "part1"
+	// A part1 day without its solution fails, naming year and day.
+	if err := os.WriteFile(deleteDay, []byte("1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	specs[2].status = "part1"
 	aocSpecs = specs
-	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "day 5") || !strings.Contains(err.Error(), "solution") {
+	removeDay := filepath.Join(root, "aoc", "2023", "day03.zhex")
+	if err := os.Remove(removeDay); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "2023") || !strings.Contains(err.Error(), "day 3") || !strings.Contains(err.Error(), "solution") {
 		t.Fatalf("missing solution error = %v", err)
 	}
 
-	// A broken solution fails the run, naming the day.
-	write("day05.zhex", "print(unknown)\n")
-	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "run aoc day 5") {
+	// A broken solution fails the run, naming year and day.
+	if err := os.WriteFile(removeDay, []byte("print(unknown)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "run aoc 2023 day 3") {
 		t.Fatalf("broken solution error = %v", err)
 	}
 
 	// A working day needs the sample but not the solution.
-	specs[4].status = "working"
+	specs[2].status = "working"
 	aocSpecs = specs
 	days, err = loadAoc(root)
 	if err != nil {
 		t.Fatalf("working day without solution: %v", err)
 	}
-	if days[4].Stdin != "1\n" || days[4].Output != "" {
-		t.Fatalf("working day stdin %q output %q; want sample only", days[4].Stdin, days[4].Output)
+	if days[2].Stdin != "1\n" || days[2].Output != "" {
+		t.Fatalf("working day stdin %q output %q; want sample only", days[2].Stdin, days[2].Output)
 	}
 }

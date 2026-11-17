@@ -1148,6 +1148,7 @@ pre {
   .examples-intro h1 { font-size: clamp(2.5rem, 10vw, 3.5rem); }
   .demos-intro { padding-block: 2rem 0; }
   .demos-intro h1 { font-size: clamp(2.5rem, 10vw, 3.5rem); }
+  .aoc-tab { flex: 1; min-width: 0; padding: .75rem .5rem; text-align: center; }
   .example-index ul { flex-wrap: nowrap; overflow-x: auto; }
   .example-index a { white-space: nowrap; }
   .program-heading { padding: 1.5rem .25rem 1rem; }

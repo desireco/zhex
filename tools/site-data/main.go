@@ -65,17 +65,18 @@ type Demo struct {
 	Output string
 }
 
-// AocDay is one Advent of Code 2025 day on the AoC page (#126): a run panel
+// AocDay is one Advent of Code day on the AoC page (#126): a run panel
 // mounts only on a part1 or solved day, backed by Wasm with the Go oracle's
 // sample stdout in Output (#128) — or, for an out-of-subset solution, by the
 // WasmNote fence diagnostic naming the construct.
 type AocDay struct {
+	Year            int
 	Day             int
 	Title           string
 	Outline         string
 	OfficialURL     string
 	Status          string // empty | working | part1 | solved
-	Sample          string // sample input path, relative to aoc/2025/
+	Sample          string // sample input path, relative to aoc/<year>/
 	ExpectedAnswers []string
 	// Stdin is the sample's raw contents — the run panel's prefill and the
 	// oracle run's stdin — empty until the day has a sample.
@@ -424,13 +425,14 @@ var demoSpecs = []demoSpec{
 		"Seven cells churn for exactly 130 generations and then vanish completely — the run ends on an empty board."},
 }
 
-// aocSpec is one Advent of Code 2025 day: the manifest row the loader turns
-// into an AocDay. Statuses stay `empty` until the verification sweep (#132)
-// flips them; day and title come from the epic's day table (#123), and the
-// sample and solution paths follow the aoc/2025 convention, not the rows.
+// aocSpec is one Advent of Code day: the manifest row the loader turns
+// into an AocDay. Statuses stay `empty` until a year's verification sweep
+// flips them; day and title come from the epic's day tables, and the sample
+// and solution paths follow the aoc/<year> convention, not the rows.
 // Answers are the sample input's part 1 and part 2 results — the run panel
 // compares against them; kind is the input-box vocabulary the examples use.
 type aocSpec struct {
+	year    int
 	day     int
 	title   string
 	outline string
@@ -440,31 +442,42 @@ type aocSpec struct {
 	kind    string   // input box kind: text for every solved day so far
 }
 
-// aocSamplePath names the day's sample input file under aoc/2025; specs
-// leave sample empty until the day ships one, and aocSamplePath is the
-// convention the loader falls back to.
+// aocSamplePath names the day's sample input file under aoc/<year>.
 func aocSamplePath(day int) string { return fmt.Sprintf("samples/day%02d.txt", day) }
 
-// aocSolutionPath names the day's solution under aoc/2025.
+// aocSolutionPath names the day's solution under aoc/<year>.
 func aocSolutionPath(day int) string { return fmt.Sprintf("day%02d.zhex", day) }
 
-// aocSpecs is the AoC 2025 manifest — twelve pre-created empty rows, one
-// per day of the 12-day event; the build emits the data beside the demo
-// data even though no page consumes it yet (#126).
-var aocSpecs = []aocSpec{
-	{1, "Secret Entrance", "The password for the North Pole base sits in a safe, and the input lists turns of the safe's dial: each turn is a direction, left or right, plus a number of clicks. The dial shows 0 to 99, starts at 50, and wraps around at both ends. Part one asks how many times the dial points at 0 right after a turn. Part two makes the turns enormous and asks how many times the dial passes over 0 anywhere inside a single turn, not only where it stops.", "solved", "samples/day01.txt", []string{"3", "6"}, "text"},
-	{2, "Gift Shop", "The gift shop's price list is riddled with made-up product IDs, and the input is a list of ranges, each written as a first and last ID separated by a dash, all separated by commas. An ID is invalid when its digits are one block repeated exactly twice, like 55 or 123123, with no leading zero. Part one asks for the sum of every invalid ID found inside the ranges. Part two widens the rule: an ID now counts when its digits are one block repeated any number of times, so 555 and 123123123 join the list.", "solved", "samples/day02.txt", []string{"1227775554", "4174379265"}, "text"},
-	{3, "Lobby", "The input gives one line of digits per bank of batteries, where each digit is a battery's power rating from 1 to 9. From a bank you switch on exactly two batteries, and their digits, kept in line order, form a two-digit number. Part one asks for the sum of the largest number each bank can produce. Part two switches on twelve batteries per bank instead of two, so each bank's output becomes the largest twelve-digit number its line order allows.", "solved", "samples/day03.txt", []string{"357", "3121910778619"}, "text"},
-	{4, "Printing Department", "The input is a diagram of the printing department floor, with rolls of paper shown as @ marks on a grid. A roll counts as accessible when fewer than four of its eight neighboring positions hold rolls. Part one asks how many rolls on the grid are accessible. Part two keeps removing the accessible rolls round after round — each removal freeing its neighbors — and asks how many rolls come off the floor before the rest are stuck for good.", "solved", "samples/day04.txt", []string{"13", "43"}, "text"},
-	{5, "Cafeteria", "The input has two sections: a list of fresh-ingredient ID ranges, then a blank line and a list of the ingredient IDs on hand, and the ranges overlap one another. An ID counts as fresh when it falls inside any of the ranges. Part one asks how many of the IDs on hand are fresh.", "empty", "", nil, ""},
-	{6, "Trash Compactor", "Stuck under a trash compactor, you work through the cephalopods' math homework. The worksheet sets numbers in vertical columns, puts a + or * at the bottom of each problem, and separates problems with a column of spaces; spacing inside a problem can be ignored. Part one asks for the total of all the problems' answers.", "empty", "", nil, ""},
-	{7, "Laboratories", "A broken teleporter reports a fault in its tachyon manifold, and the input draws that manifold: open space, splitter tiles marked ^, and one entry marked S. Beams enter at S and always travel down; a beam that reaches a splitter stops, and two new beams continue from the splitter's left and right sides. Part one asks for the total number of times the beams split.", "empty", "", nil, ""},
-	{8, "Playground", "The input lists the 3D coordinates of junction boxes hung in an underground playground, joined into circuits by strings. Each string connects the closest pair of boxes not already in the same circuit; a string between boxes of one circuit does nothing. Part one asks for the product of the sizes of the three largest circuits once the 1000 shortest connections have been made.", "empty", "", nil, ""},
-	{9, "Movie Theater", "Elves are re-tiling a movie theater floor, and the input lists the coordinates of the red tiles. Any two red tiles can serve as opposite corners of a rectangle of new tiles. Part one asks for the largest area such a rectangle can cover.", "empty", "", nil, ""},
-	{10, "Factory", "Each input line describes one broken machine: a light diagram in brackets, button schematics in parentheses naming which lights each press toggles, and joltage requirements in braces. Every machine's lights start off, and each press flips its listed lights on or off. Part one ignores the joltage requirements and asks for the fewest total button presses that set every machine's lights to its target pattern.", "empty", "", nil, ""},
-	{11, "Reactor", "The input maps the wiring of a reactor under a factory floor: each line names a device and lists the devices its output feeds, and data never flows backward. Part one asks for the number of distinct routes from the device named you to the device named out.", "empty", "", nil, ""},
-	{12, "Christmas Tree Farm", "The input lists six present shapes as small grids, then a set of regions, each sized width by length and followed by how many of each shape should fit inside. Presents can be rotated or flipped, must sit on the grid, may not overlap, and cannot stack. Part one asks how many regions can hold all the presents listed for them.", "empty", "", nil, ""},
+// emptyYear pre-creates one manifest row per day of a not-yet-solved year:
+// no titles, outlines, samples, or statuses beyond empty — the copy and
+// solving lanes fill them in (#137).
+func emptyYear(year, days int) []aocSpec {
+	specs := make([]aocSpec, days)
+	for at := range specs {
+		specs[at] = aocSpec{year: year, day: at + 1, status: "empty"}
+	}
+	return specs
 }
+
+// aocSpecs is the AoC manifest — one block per archive year, oldest first:
+// 2023 and 2024 hold 25 empty rows each (their 25-day calendars), 2025 the
+// twelve rows of the 12-day event; the page derives its tabs and the
+// upcoming year's teaser from this order (#137).
+var aocSpecs = append(append(emptyYear(2023, 25), emptyYear(2024, 25)...),
+	[]aocSpec{
+		{2025, 1, "Secret Entrance", "The password for the North Pole base sits in a safe, and the input lists turns of the safe's dial: each turn is a direction, left or right, plus a number of clicks. The dial shows 0 to 99, starts at 50, and wraps around at both ends. Part one asks how many times the dial points at 0 right after a turn. Part two makes the turns enormous and asks how many times the dial passes over 0 anywhere inside a single turn, not only where it stops.", "solved", "samples/day01.txt", []string{"3", "6"}, "text"},
+		{2025, 2, "Gift Shop", "The gift shop's price list is riddled with made-up product IDs, and the input is a list of ranges, each written as a first and last ID separated by a dash, all separated by commas. An ID is invalid when its digits are one block repeated exactly twice, like 55 or 123123, with no leading zero. Part one asks for the sum of every invalid ID found inside the ranges. Part two widens the rule: an ID now counts when its digits are one block repeated any number of times, so 555 and 123123123 join the list.", "solved", "samples/day02.txt", []string{"1227775554", "4174379265"}, "text"},
+		{2025, 3, "Lobby", "The input gives one line of digits per bank of batteries, where each digit is a battery's power rating from 1 to 9. From a bank you switch on exactly two batteries, and their digits, kept in line order, form a two-digit number. Part one asks for the sum of the largest number each bank can produce. Part two switches on twelve batteries per bank instead of two, so each bank's output becomes the largest twelve-digit number its line order allows.", "solved", "samples/day03.txt", []string{"357", "3121910778619"}, "text"},
+		{2025, 4, "Printing Department", "The input is a diagram of the printing department floor, with rolls of paper shown as @ marks on a grid. A roll counts as accessible when fewer than four of its eight neighboring positions hold rolls. Part one asks how many rolls on the grid are accessible. Part two keeps removing the accessible rolls round after round — each removal freeing its neighbors — and asks how many rolls come off the floor before the rest are stuck for good.", "solved", "samples/day04.txt", []string{"13", "43"}, "text"},
+		{2025, 5, "Cafeteria", "The input has two sections: a list of fresh-ingredient ID ranges, then a blank line and a list of the ingredient IDs on hand, and the ranges overlap one another. An ID counts as fresh when it falls inside any of the ranges. Part one asks how many of the IDs on hand are fresh.", "empty", "", nil, ""},
+		{2025, 6, "Trash Compactor", "Stuck under a trash compactor, you work through the cephalopods' math homework. The worksheet sets numbers in vertical columns, puts a + or * at the bottom of each problem, and separates problems with a column of spaces; spacing inside a problem can be ignored. Part one asks for the total of all the problems' answers.", "empty", "", nil, ""},
+		{2025, 7, "Laboratories", "A broken teleporter reports a fault in its tachyon manifold, and the input draws that manifold: open space, splitter tiles marked ^, and one entry marked S. Beams enter at S and always travel down; a beam that reaches a splitter stops, and two new beams continue from the splitter's left and right sides. Part one asks for the total number of times the beams split.", "empty", "", nil, ""},
+		{2025, 8, "Playground", "The input lists the 3D coordinates of junction boxes hung in an underground playground, joined into circuits by strings. Each string connects the closest pair of boxes not already in the same circuit; a string between boxes of one circuit does nothing. Part one asks for the product of the sizes of the three largest circuits once the 1000 shortest connections have been made.", "empty", "", nil, ""},
+		{2025, 9, "Movie Theater", "Elves are re-tiling a movie theater floor, and the input lists the coordinates of the red tiles. Any two red tiles can serve as opposite corners of a rectangle of new tiles. Part one asks for the largest area such a rectangle can cover.", "empty", "", nil, ""},
+		{2025, 10, "Factory", "Each input line describes one broken machine: a light diagram in brackets, button schematics in parentheses naming which lights each press toggles, and joltage requirements in braces. Every machine's lights start off, and each press flips its listed lights on or off. Part one ignores the joltage requirements and asks for the fewest total button presses that set every machine's lights to its target pattern.", "empty", "", nil, ""},
+		{2025, 11, "Reactor", "The input maps the wiring of a reactor under a factory floor: each line names a device and lists the devices its output feeds, and data never flows backward. Part one asks for the number of distinct routes from the device named you to the device named out.", "empty", "", nil, ""},
+		{2025, 12, "Christmas Tree Farm", "The input lists six present shapes as small grids, then a set of regions, each sized width by length and followed by how many of each shape should fit inside. Presents can be rotated or flipped, must sit on the grid, may not overlap, and cannot stack. Part one asks how many regions can hold all the presents listed for them.", "empty", "", nil, ""},
+	}...)
 
 func main() {
 	wasmDir := flag.String("wasm", "", "compile each example's browser WebAssembly artifact into this directory")
@@ -623,13 +636,14 @@ func loadAoc(root string) ([]AocDay, error) {
 		switch spec.status {
 		case "empty", "working", "part1", "solved":
 		default:
-			return nil, fmt.Errorf("aoc day %d: status must be empty, working, part1, or solved", spec.day)
+			return nil, fmt.Errorf("aoc %d day %d: status must be empty, working, part1, or solved", spec.year, spec.day)
 		}
 		day := AocDay{
+			Year:            spec.year,
 			Day:             spec.day,
 			Title:           spec.title,
 			Outline:         spec.outline,
-			OfficialURL:     fmt.Sprintf("https://adventofcode.com/2025/day/%d", spec.day),
+			OfficialURL:     fmt.Sprintf("https://adventofcode.com/%d/day/%d", spec.year, spec.day),
 			Status:          spec.status,
 			Sample:          spec.sample,
 			ExpectedAnswers: spec.answers,
@@ -639,21 +653,21 @@ func loadAoc(root string) ([]AocDay, error) {
 			if day.Sample == "" {
 				day.Sample = aocSamplePath(spec.day)
 			}
-			sample, err := os.ReadFile(filepath.Join(root, "aoc", "2025", day.Sample))
+			sample, err := os.ReadFile(filepath.Join(root, "aoc", fmt.Sprintf("%d", spec.year), day.Sample))
 			if err != nil {
-				return nil, fmt.Errorf("read aoc day %d sample: %w", spec.day, err)
+				return nil, fmt.Errorf("read aoc %d day %d sample: %w", spec.year, spec.day, err)
 			}
 			day.Stdin = string(sample)
 		}
 		if spec.status == "part1" || spec.status == "solved" {
-			runPath := filepath.Join("aoc", "2025", aocSolutionPath(spec.day))
+			runPath := filepath.Join("aoc", fmt.Sprintf("%d", spec.year), aocSolutionPath(spec.day))
 			source, err := os.ReadFile(filepath.Join(root, runPath))
 			if err != nil {
-				return nil, fmt.Errorf("read aoc day %d solution: %w", spec.day, err)
+				return nil, fmt.Errorf("read aoc %d day %d solution: %w", spec.year, spec.day, err)
 			}
 			var output bytes.Buffer
 			if err := lang.RunWithModules(runPath, string(source), strings.NewReader(day.Stdin), &output, nil, nil, resolveSibling(runPath)); err != nil {
-				return nil, fmt.Errorf("run aoc day %d solution: %w", spec.day, err)
+				return nil, fmt.Errorf("run aoc %d day %d solution: %w", spec.year, spec.day, err)
 			}
 			day.Output = output.String()
 		}
@@ -724,12 +738,12 @@ func compileExamples(data *pageData, dir string) error {
 		if day.Status != "part1" && day.Status != "solved" {
 			continue
 		}
-		path := filepath.Join("aoc", "2025", aocSolutionPath(day.Day))
+		path := filepath.Join("aoc", fmt.Sprintf("%d", day.Year), aocSolutionPath(day.Day))
 		source, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("read aoc day %d solution: %w", day.Day, err)
+			return fmt.Errorf("read aoc %d day %d solution: %w", day.Year, day.Day, err)
 		}
-		name := fmt.Sprintf("aoc-day%02d.wasm", day.Day)
+		name := fmt.Sprintf("aoc-%d-day%02d.wasm", day.Year, day.Day)
 		err = wasm.Compile(path, string(source), filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser)
 		if err == nil {
 			data.Aoc[i].Wasm = "wasm/" + name
@@ -738,7 +752,7 @@ func compileExamples(data *pageData, dir string) error {
 		reportJSON, ok := lang.Report(err)
 		var report struct{ Code, Message string }
 		if !ok || json.Unmarshal([]byte(reportJSON), &report) != nil || report.Code != string(lang.CodeNotAvailableInBuild) {
-			return fmt.Errorf("compile aoc day %d: %w", day.Day, err)
+			return fmt.Errorf("compile aoc %d day %d: %w", day.Year, day.Day, err)
 		}
 		data.Aoc[i].WasmNote = report.Message
 	}

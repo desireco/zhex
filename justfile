@@ -11,9 +11,9 @@ test: doctests aoc
 doctests: build
     bin/zhex test examples
 
-# Run the AoC 2025 suite: every aoc/2025 *.test.zhex file with one built binary.
+# Run every AoC year's suite: all aoc/<year> *.test.zhex files with one built binary.
 aoc: build
-    bin/zhex test aoc/2025
+    bin/zhex test aoc
 
 # Run the WASM corpus gate: every examples/ file classified, in-subset byte-identical, out-of-subset fenced.
 corpus:

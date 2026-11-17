@@ -1,0 +1,4 @@
+## Fails the run with its label when the condition is false.
+word check(condition: Bool, label: String)
+    if not condition
+        console.fail label

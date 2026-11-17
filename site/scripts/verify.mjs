@@ -75,7 +75,16 @@ assert(aoc.includes('Starts December 1'), '2026 tab teaser');
 assert(aoc.includes('aria-selected="true"') && aoc.includes('aria-selected="false"'), 'both year tabs render');
 assert(aoc.includes('Not solved yet'), 'honest empty status label');
 assert(aoc.includes('Show solution'), 'solution reveal per day');
-for (const day of data.Aoc) assert(aoc.includes(`id="aoc-day-${day.Day}"`) && aoc.includes(day.OfficialURL), `day ${day.Day} view`);
+for (const day of data.Aoc) assert(aoc.includes(`id="aoc-day-${day.Year}-${day.Day}"`) && aoc.includes(day.OfficialURL), `day ${day.Year}-${day.Day} view`);
+// #137: the years render from the data — one tab and panel per archive
+// year, plus the teaser year after the newest.
+const years = [...new Set(data.Aoc.map(day => day.Year))];
+for (const year of years) {
+  assert(aoc.includes(`id="aoc-tab-${year}"`) && aoc.includes(`id="aoc-panel-${year}"`), `year ${year} tab and panel render`);
+  assert.equal((aoc.match(new RegExp(`aria-label="${year} doors"`, "g")) || []).length, 1, `year ${year} calendar renders`);
+}
+const teaserYear = years[years.length - 1] + 1;
+assert(aoc.includes(`id="aoc-tab-${teaserYear}"`), `teaser year ${teaserYear} tab renders`);
 // #128: the page mounts a run panel exactly on wasm-backed doors and the
 // fence note exactly on fenced ones — empty and working doors render
 // neither, so the counts must track the data.
