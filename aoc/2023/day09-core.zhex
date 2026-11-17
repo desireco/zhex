@@ -1,0 +1,59 @@
+# Advent of Code 2023, day 9 — Mirage Maintenance (solution words). Each
+# history becomes its sequence of neighboring differences, then that
+# sequence's differences, down to all zeroes; the extrapolations work back
+# up that ladder. The next value (part 1) adds each level's last number on
+# the way down; the previous value (part 2) subtracts each level's first
+# number instead. Both are one while per history — no recursion, so the
+# call-depth limit never matters.
+
+## Parse every history into its numbers.
+word parse(text: String) -> List<List<Int>>
+    let histories: List<List<Int>> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let history: List<Int> = []
+            for token in text.split(line, " ")
+                if text.length(token) > 0
+                    list.append(history, text.to-int(token) try)
+            list.append(histories, history)
+    histories
+
+word _nonzero(value: Int) -> Bool
+    value != 0
+
+# One rung down the ladder: the differences of neighboring values.
+word _differences(values: List<Int>) -> List<Int>
+    let next: List<Int> = []
+    for index in range(0, list.length(values) - 1)
+        list.append(next, values[index + 1] - values[index])
+    next
+
+## The sum over all histories of the next value: every level's last number
+## on the way down adds in.
+word part-one(histories: List<List<Int>>) -> Int
+    var total = 0
+    for history in histories
+        var level = history
+        var next = 0
+        while list.any(level, _nonzero(_))
+            next = next + level[list.length(level) - 1]
+            level = _differences(level)
+        total = total + next
+    total
+
+## The sum over all histories of the previous value: each level's first
+## number, collected on the way down and folded from the bottom up as
+## first minus the value below it.
+word part-two(histories: List<List<Int>>) -> Int
+    var total = 0
+    for history in histories
+        let firsts: List<Int> = []
+        var level = history
+        while list.any(level, _nonzero(_))
+            list.append(firsts, level[0])
+            level = _differences(level)
+        var previous = 0
+        for index in range(0, list.length(firsts))
+            previous = firsts[list.length(firsts) - 1 - index] - previous
+        total = total + previous
+    total
