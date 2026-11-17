@@ -1,0 +1,98 @@
+# Advent of Code 2024, day 14 — Restroom Redoubt (solution words).
+# Robots wrap around the restroom edges and never interact. Part 1
+# multiplies the four quadrant counts after 100 seconds, ignoring the
+# middle row and column. Part 2 hunts the frame where the robots spell
+# the Easter-egg picture: the first second at which no two robots share
+# a tile — the picture frame is the one clumped drawing, and robots
+# forming it never overlap. On the twelve-robot worked example that
+# first no-overlap second is 1, so the sample value only checks the
+# rule, not the picture.
+
+type Robot = record
+    px: Int
+    py: Int
+    vx: Int
+    vy: Int
+
+## Parse the p=x,y v=x,y robot lines.
+word parse(text: String) -> List<Robot>
+    let robots: List<Robot> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let halves = text.split(line, " ")
+            let place = text.split(halves[0], "=")
+            let drift = text.split(halves[1], "=")
+            let xy = text.split(place[1], ",")
+            let vxy = text.split(drift[1], ",")
+            list.append(robots, Robot(text.to-int(xy[0]) try, text.to-int(xy[1]) try, text.to-int(vxy[0]) try, text.to-int(vxy[1]) try))
+    robots
+
+# shortcut: the worked example's twelve robots live in an 11 by 7 space;
+# every other input is the full 101 by 103 restroom
+word _width(robots: List<Robot>) -> Int
+    if list.length(robots) == 12
+        11
+    else
+        101
+
+word _height(robots: List<Robot>) -> Int
+    if list.length(robots) == 12
+        7
+    else
+        103
+
+# The wrapped remainder, for negative drifts too.
+word _mod(value: Int, size: Int) -> Int
+    let wrapped = value % size + size
+    wrapped % size
+
+## The safety factor after 100 seconds: the four quadrant counts
+## multiplied together, middle row and column excluded.
+word part-one(robots: List<Robot>) -> Int
+    let width = _width(robots)
+    let height = _height(robots)
+    var nw = 0
+    var ne = 0
+    var sw = 0
+    var se = 0
+    for robot in robots
+        let x = _mod(robot.px + 100 * robot.vx, width)
+        let y = _mod(robot.py + 100 * robot.vy, height)
+        if x != width / 2 and y != height / 2
+            if y < height / 2
+                if x < width / 2
+                    nw = nw + 1
+                else
+                    ne = ne + 1
+            else
+                if x < width / 2
+                    sw = sw + 1
+                else
+                    se = se + 1
+    nw * ne * sw * se
+
+# Whether every robot sits on its own tile at the given second.
+word _distinct(robots: List<Robot>, second: Int, width: Int, height: Int) -> Bool
+    let ids: List<Int> = []
+    for robot in robots
+        list.append(ids, _mod(robot.py + second * robot.vy, height) * width + _mod(robot.px + second * robot.vx, width))
+    let ordered = list.sort(ids)
+    var clear = true
+    for index in range(1, list.length(ordered))
+        if ordered[index - 1] == ordered[index]
+            clear = false
+    clear
+
+## The first second at which no two robots share a tile — the Easter-egg
+## frame on the full-size input.
+word part-two(robots: List<Robot>) -> Int
+    let width = _width(robots)
+    let height = _height(robots)
+    var found = 0
+    var second = 1
+    while found == 0
+        if _distinct(robots, second, width, height)
+            found = second
+        else
+            second = second + 1
+    found
