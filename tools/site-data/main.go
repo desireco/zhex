@@ -381,11 +381,9 @@ type demoSpec struct {
 // demoSpecs is the demos manifest; corpusTable in internal/wasm/corpus_test.go
 // pins each file's corpus membership, and verify-wasm re-parses each demo's
 // Output with the page's frame parser — keep all three in sync. The order is
-// the page order (#116): the gentle patterns intro first, then the evolving
-// runs — the glider gun, the acorn, and diehard.
+// the page order (#116, trimmed by #118): the glider gun, the acorn, and
+// diehard.
 var demoSpecs = []demoSpec{
-	{"life", "demos/life.zhex", "Patterns",
-		"A glider crosses the board while a toad, a blinker, and a beacon pulse in the corners — the classic small patterns, generation by generation."},
 	{"gun", "demos/gun.zhex", "Gosper glider gun",
 		"The classic gun fires a new glider every thirty generations; the stream keeps crossing the board, so the run never settles."},
 	{"acorn", "demos/acorn.zhex", "Acorn",

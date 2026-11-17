@@ -5,9 +5,9 @@ import { parseLifeFrames } from '../src/scripts/life-frames.mjs';
 const encoder = new TextEncoder();
 const data = JSON.parse(await readFile('data.json', 'utf8'));
 const runnable = data.Examples.filter(e => e.Wasm);
-// 22 = the corpus's 28 in-subset files minus the two library files (math.zhex,
+// 22 = the corpus's 27 in-subset files minus the two library files (math.zhex,
 // md.zhex) that appear only as Modules of their entry example, never as
-// runnable entries, minus the four demos-page programs under examples/demos/
+// runnable entries, minus the three demos-page programs under examples/demos/
 // that are not examples-page cards; twin pin of corpusTable in
 // internal/wasm/corpus_test.go.
 assert.equal(runnable.length, 22, 'runnable example count');
@@ -53,13 +53,11 @@ assert.deepEqual(rerun.stdout, encoder.encode(byId.factorial.Output), 'factorial
 // fails, and the artifact run must match the oracle stdout bytes too. The
 // pins derive from the parse — contiguous generations from 0, one square
 // board, per-demo board/frame bounds, and a stdout size sanity cap (#116;
-// the evolving set's boards and run lengths are pinned individually — a
-// wrong board or count for any demo fails the build — while the intro keeps
-// the looser ranges it has carried since #115). The examples page's 7×7 life
+// the boards and run lengths are pinned individually — a wrong board or
+// count for any demo fails the build). The examples page's 7×7 life
 // card keeps its own pins through the general loop above.
-assert.deepEqual(data.Demos.map(d => d.ID), ['life', 'gun', 'acorn', 'diehard'], 'demo order: patterns intro, glider gun, acorn, diehard');
+assert.deepEqual(data.Demos.map(d => d.ID), ['gun', 'acorn', 'diehard'], 'demo order: glider gun, acorn, diehard');
 const demoPins = {
-  life: { board: [21, 30], frames: [49, 61] },
   gun: { board: [54, 54], frames: [121, 121] },
   acorn: { board: [60, 60], frames: [151, 151] },
   diehard: { board: [24, 24], frames: [131, 131] },

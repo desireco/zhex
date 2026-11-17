@@ -76,7 +76,7 @@ import data from "../../data.json";
           // The parser pins every frame to one square board, so the geometry
           // is its contract, not a constant of the page; the stage adapts per
           // board (#116) with cells never below 12px — boards up to 28 still
-          // take the 336px scale the intro demo set, larger boards render at
+          // take the 336px scale the smaller boards set, larger boards render at
           // the 12px floor, and the CSS width scales the stage down on mobile
           // while the backing cells stay legible.
           const board = frames[0].rows.length;
