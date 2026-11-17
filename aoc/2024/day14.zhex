@@ -1,0 +1,18 @@
+# Advent of Code 2024, day 14 — Restroom Redoubt.
+# Reads the robot list from stdin until end of input, prints both answers.
+use day14-core
+
+# shortcut: a robot line starts with p=, so this sentinel cannot
+# collide; it stands in for the end-of-file failure because error.detail
+# is not compiled to wasm yet (#135)
+let input = buffer.new()
+var done = false
+while not done
+    let line = read-line("") catch "~end-of-input~"
+    if line == "~end-of-input~"
+        done = true
+    else
+        buffer.add-line(input, line)
+let robots = day14-core.parse(buffer.to-text(input)) try
+print(day14-core.part-one(robots))
+print(day14-core.part-two(robots))
