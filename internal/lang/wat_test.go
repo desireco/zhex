@@ -529,6 +529,7 @@ print(1)
 		{"file-free-space", `print(file.free-space(".") try)`, "file.free-space is not available in this build"},
 		{"temporal", `print(date.to-string(date.new(2020, 1, 1)))`, "date.to-string is not available in this build"},
 		{"console-arg", `let a = console.arg(0) try`, "console.arg is not available in this build"},
+		{"wide-int-literal", `print(170141183460469231731687303715884105727)`, "integers beyond the signed 64-bit range is not available in this build"},
 		{"error-new", `let e = error.new("x", "boom")`, "error.new is not available in this build"},
 		{"checked-file-exists", `let yes = file.exists("x") try`, "checked file.exists is not available in this build"},
 		{"array-shape", `

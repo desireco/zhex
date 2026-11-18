@@ -1,3 +1,5 @@
-# Deliberate overflow: stdout before the failure still prints.
+# Deliberate overflow beyond the interpreter's 128-bit width: stdout
+# before the failure still prints, and the compiled build traps on the
+# same statement (its 64-bit width overflows even earlier).
 print(1)
-print(9223372036854775807 + 1)
+print(9223372036854775807 * 9223372036854775807 * 9223372036854775807)

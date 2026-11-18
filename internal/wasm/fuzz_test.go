@@ -150,18 +150,18 @@ func (g *fuzzGen) pickList(elem string, wantNonempty bool) string {
 
 func (g *fuzzGen) maybe(p int) bool { return g.rng.Intn(100) < p }
 
-// intLit mostly stays inside |v| < 2^62 with occasional Min/MaxInt64 probes
-// (arithmetic on them may trap — the differential covers the trap path).
+// intLit stays well inside the compiled build's 64-bit Int width (#167
+// fence): the interpreter computes 128-bit products that compiled wasm
+// still traps, so the differential corridor keeps every chained product,
+// fold, and doubling below 2^63.
 func (g *fuzzGen) intLit() string {
 	switch g.rng.Intn(20) {
 	case 0:
-		return "9223372036854775807"
+		return fmt.Sprint(-(g.rng.Intn(1 << 14)))
 	case 1:
-		return "-9223372036854775808"
-	case 2:
-		return fmt.Sprint(-(g.rng.Intn(1 << 61)))
+		return fmt.Sprint(g.rng.Intn(1 << 15))
 	default:
-		return fmt.Sprint(g.rng.Intn(1 << 40))
+		return fmt.Sprint(g.rng.Intn(1 << 15))
 	}
 }
 
@@ -170,9 +170,9 @@ func (g *fuzzGen) smallLit() string { return fmt.Sprint(g.rng.Intn(30)) }
 // posLit is a non-negative literal: short-form call arguments cannot start
 // with "-" (the parser reads name-minus-expression), so captured arguments
 // in `word lit, _` partials draw from this.
-func (g *fuzzGen) posLit() string { return fmt.Sprint(g.rng.Intn(1 << 40)) }
+func (g *fuzzGen) posLit() string { return fmt.Sprint(g.rng.Intn(1 << 15)) }
 
-func (g *fuzzGen) digitsLit() string { return fmt.Sprint(g.rng.Intn(100000)) }
+func (g *fuzzGen) digitsLit() string { return fmt.Sprint(g.rng.Intn(1 << 15)) }
 
 func (g *fuzzGen) strLit() string {
 	parts := make([]string, 1+g.rng.Intn(3))

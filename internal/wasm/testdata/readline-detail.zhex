@@ -1,6 +1,7 @@
 # The read-to-EOF idiom (#135): the loop branches on the end-of-file
-# reason detail, and a caught parse failure's message and absent detail
-# read the same as the interpreter.
+# reason detail. A caught parse failure's message names each build's Int
+# width (the interpreter parses 128-bit, compiled wasm 64-bit), so this
+# fixture echoes only the build-agnostic absent reason detail.
 
 let input = buffer.new()
 var done = false
@@ -15,7 +16,6 @@ while not done
         let added = buffer.add-line(input, line)
 print(buffer.to-text(input))
 let n = text.to-int("12x") catch bad
-    print(error.message(bad))
     print("[" + error.detail(bad, "reason") + "]")
     0
 print(int.to-string(n))

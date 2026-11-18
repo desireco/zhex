@@ -843,6 +843,28 @@ func TestM3Fences(t *testing.T) {
 // positions; stdout produced before the failure still matches the
 // interpreter byte for byte. The milestone-2 rows add the staged-message
 // codes 12 and 15 (DESIGN-M2 §2c, §7).
+// TestCompiledIntWidthFence pins the #167 fence: compiled wasm carries
+// Ints at the signed 64-bit width while the interpreter computes 128-bit,
+// so a product the interpreter prints traps as integer overflow in the
+// compiled build. Wide literals refuse at emission (TestWatFences in
+// internal/lang); this is the runtime half of the same fence.
+func TestCompiledIntWidthFence(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	source := "print(3037000500 * 3037000500)\n"
+	var interpreted bytes.Buffer
+	if err := lang.Run("fence.zhex", source, strings.NewReader(""), &interpreted); err != nil || interpreted.String() != "9223372037000250000\n" {
+		t.Fatalf("interpreter run: %q %v; want the 128-bit product", interpreted.String(), err)
+	}
+	outPath := filepath.Join(t.TempDir(), "fence.wasm")
+	if err := Compile("fence.zhex", source, outPath, nil, lang.WatSkinBrowser); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	out, stderr, code := runNode(t, outPath)
+	if code != 1 || out != "" || stderr != "runtime error: integer overflow\n" {
+		t.Fatalf("compiled run: code=%d stdout=%q stderr=%q; want the build's 64-bit overflow fence", code, out, stderr)
+	}
+}
+
 func TestCompiledDiagnostics(t *testing.T) {
 	requireTool(t, "wasm-tools")
 	for _, tc := range []struct{ name, stderr string }{
