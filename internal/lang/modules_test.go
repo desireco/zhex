@@ -195,6 +195,9 @@ func TestModuleBodyRejectsTopLevelStatements(t *testing.T) {
 	if !strings.Contains(got, "\n    print(1)\n") {
 		t.Fatalf("excerpt must come from the module file: %q", got)
 	}
+	if !strings.Contains(got, "hint: move the run logic into a zero-argument word main in the file you run — zhex run and zhex compile invoke it as the entry point") {
+		t.Fatalf("missing hint: %q", got)
+	}
 }
 
 // privateMathModule pins underscore privacy: gcd calls _wrap bare in its own

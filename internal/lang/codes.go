@@ -79,6 +79,7 @@ const (
 	CodeUnknownWord     Code = "unknown-word"
 	CodePrintType       Code = "print-type"
 	CodeRangeContext    Code = "range-context"
+	CodeMainParameters  Code = "main-parameters"
 
 	CodeUseMissing  Code = "use-missing"
 	CodeUseCycle    Code = "use-cycle"
@@ -130,7 +131,7 @@ var diagnosticCodes = []Code{
 	CodeUnknownName, CodeDuplicateName, CodeDuplicateWord, CodeWordResult, CodeImmutableName, CodeAssignmentType,
 	CodeConditionType, CodeBranchType, CodeRangeType, CodeTryInput, CodeUnhandledResult, CodeUnaryType, CodeOperandTypes, CodeBoolOperand,
 	CodeCompareType, CodeOrderingType, CodeAdditionType, CodeArithmeticType, CodeArgumentCount, CodeArgumentType,
-	CodeUnknownWord, CodePrintType, CodeRangeContext,
+	CodeUnknownWord, CodePrintType, CodeRangeContext, CodeMainParameters,
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeTextCodePoint, CodeBufferRange,

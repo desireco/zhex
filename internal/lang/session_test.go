@@ -61,6 +61,25 @@ func TestSessionEnterEchoes(t *testing.T) {
 	}
 }
 
+// The REPL never auto-invokes a defined main word (#134): the reserved entry
+// point belongs to zhex run and zhex compile, not to session entries.
+func TestSessionNeverRunsMainWord(t *testing.T) {
+	var out bytes.Buffer
+	session := NewSession(strings.NewReader(""), &out, nil, nil)
+	if echo, err := session.Enter("word main() -> Unit\n    print(\"hi\")\n"); err != nil || echo != "" {
+		t.Fatalf("define: echo %q, error %v", echo, err)
+	}
+	if out.String() != "" {
+		t.Fatalf("defining main printed %q", out.String())
+	}
+	if echo, err := session.Enter("print(\"bye\")"); err != nil || echo != "" {
+		t.Fatalf("later entry: echo %q, error %v", echo, err)
+	}
+	if out.String() != "bye\n" {
+		t.Fatalf("output %q, want the entry's own output only", out.String())
+	}
+}
+
 func TestSessionKeepsDefinitionsAcrossEntries(t *testing.T) {
 	var out bytes.Buffer
 	session := NewSession(strings.NewReader(""), &out, nil, nil)

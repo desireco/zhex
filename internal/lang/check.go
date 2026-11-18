@@ -232,6 +232,11 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 	if err = c.register(p.words); err != nil {
 		return nil, annotateSource(err, sources)
 	}
+	if len(p.body) == 0 {
+		if err = checkEntryMain(p.words); err != nil {
+			return nil, annotateSource(err, sources)
+		}
+	}
 	if err = c.checkAdopted(useNames(p)); err != nil {
 		return nil, annotateSource(err, sources)
 	}
@@ -248,6 +253,25 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 	p.sources = sources
 	p.modules = modules
 	return p, nil
+}
+
+// checkEntryMain enforces the reserved entry word (#134): when the entry
+// file's top level has no statements, word main is the entry point zhex run
+// and zhex compile invoke with no arguments. Beside top-level statements, and
+// in the REPL (whose entries never auto-invoke), main stays an ordinary word.
+func checkEntryMain(words []*word) error {
+	for _, w := range words {
+		if w.name != "main" || len(w.params) == 0 {
+			continue
+		}
+		end := w.pos
+		end.column += len("main")
+		return withSpanRange(withHint(
+			errorAt(w.pos, CodeMainParameters, "main takes no parameters"),
+			"remove the parameter list from word main, or rename the word — zhex run and zhex compile call main with no arguments"),
+			w.pos, end)
+	}
+	return nil
 }
 
 func useNames(p *Program) []string {
@@ -314,8 +338,9 @@ func loadModules(uses []use, known map[string]*module, importingPath string, res
 				return err
 			}
 			if len(mp.body) > 0 {
-				return withSpanRange(errorAt(mp.body[0].pos, CodeModuleBody,
-					"imported files declare words only; move the statements into the file you run"), mp.body[0].pos, mp.body[0].expr.end)
+				return withSpanRange(withHint(errorAt(mp.body[0].pos, CodeModuleBody,
+					"imported files declare words only; move the statements into the file you run"),
+					"move the run logic into a zero-argument word main in the file you run — zhex run and zhex compile invoke it as the entry point"), mp.body[0].pos, mp.body[0].expr.end)
 			}
 			m := &module{name: u.name, path: src.Path, words: make(map[string]*word)}
 			for _, record := range mp.records {

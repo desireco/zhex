@@ -1,0 +1,6 @@
+# A failing try inside the reserved entry word (#134) reports at the wasm
+# entry exactly like a top-level try — fail 16 with the error's message.
+
+word main() -> Unit
+    let n = text.to-int("x") try
+    print(n)

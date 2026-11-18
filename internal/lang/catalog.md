@@ -146,6 +146,9 @@ When the checker can trace the value to the word that produced it, the message s
 ## range-context
 `range` and `file.stream` exist only inside a `for` loop header — `for n in range(start, end)` and `for line in file.stream(path)`. They cannot be called elsewhere.
 
+## main-parameters
+A file whose top level has no statements names `word main` as its entry point, and `zhex run` and `zhex compile` call it with no arguments. Remove the parameter list from `word main`, or rename the word. Beside top-level statements, in an imported file, and in the REPL, `main` is an ordinary word name.
+
 ## use-missing
 A `use` names a module that could not be loaded. The message names the module and the searched path — the sibling `<name>.zhex` next to the importing file. Create that file or fix the module name in the `use`.
 
@@ -159,7 +162,7 @@ A module is named `text`, `int`, `buffer`, `file`, or `console`. Those prefixes 
 A `use` appears inside a word body or another block. `use` is a top-level statement; move it to the top level of the file.
 
 ## module-body
-An imported file contains top-level statements. Imported files declare words only; move the statements into the file you run.
+An imported file contains top-level statements. Imported files declare words only; move the statements into the file you run — a zero-argument `word main` there is invoked as the entry point.
 
 ## private-use
 A word or record type beginning with an underscore is private to its module. Public declarations cannot expose a private record type. Make the declaration private or use a public type.

@@ -123,6 +123,37 @@ announce()
 	}
 }
 
+// TestWatEntryInvokesMainWord pins #134: an empty entry body compiles to a
+// call of the reserved zero-argument main word, a Result return unwrapping
+// like a top-level try; beside statements the word is never auto-called.
+func TestWatEntryInvokesMainWord(t *testing.T) {
+	entryFunc := func(wat string) string {
+		at := strings.Index(wat, "(func $zhex_main")
+		if at < 0 {
+			t.Fatalf("no $zhex_main in %s", wat)
+		}
+		return wat[at:]
+	}
+	mainFn := entryFunc(watOf(t, "word main() -> Unit\n    print(1)\n"))
+	if !strings.Contains(mainFn, "call $zw_main") {
+		t.Errorf("empty body: main must be called, entry was %s", mainFn)
+	}
+	if strings.Index(mainFn, "call $zhex_env_init") > strings.Index(mainFn, "call $zw_main") {
+		t.Errorf("env init must precede the main call: %s", mainFn)
+	}
+	fallible := entryFunc(watOf(t, "word main() -> Int\n    let n = text.to-int(\"3\") try\n    n\n"))
+	if !strings.Contains(fallible, "call $zw_main") {
+		t.Fatalf("fallible main missing: %s", fallible)
+	}
+	if !strings.Contains(fallible, "struct.get $zhex_result $tag") {
+		t.Errorf("a Result main must unwrap at the entry: %s", fallible)
+	}
+	ordinaryFn := entryFunc(watOf(t, "word main() -> Unit\n    print(1)\nprint(2)\n"))
+	if strings.Contains(ordinaryFn, "call $zw_main") {
+		t.Errorf("statements present: main must stay ordinary, entry was %s", ordinaryFn)
+	}
+}
+
 // ------------------------------------------------------- bindings, branches
 
 func TestWatBindingsBranchesAndShortCircuit(t *testing.T) {

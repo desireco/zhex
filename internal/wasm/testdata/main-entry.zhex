@@ -1,0 +1,8 @@
+# The reserved entry word (#134): an empty top level runs word main —
+# words and main in one file, the wasm entry calling main like zhex run.
+
+word double(n: Int) -> Int
+    n + n
+
+word main() -> Unit
+    print(double(21))

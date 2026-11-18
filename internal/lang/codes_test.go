@@ -125,6 +125,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{"argument-count", "print(1, 2)\n", "", nil, nil},
 		{"argument-type", "print(int.to-string(\"x\"))\n", "", nil, nil},
 		{"unknown-word", "prnt(\"x\")\n", "", nil, nil},
+		{"main-parameters", "word main(n: Int) -> Unit\n    print(n)\n", "", nil, nil},
 		{"print-type", "print(print(1))\n", "", nil, nil},
 		{"range-context", "let r = range(1, 2)\n", "", nil, nil},
 		{"range-context", "let x = file.stream(\"a\")\n", "", nil, nil},

@@ -322,6 +322,22 @@ func (e *watEmitter) mainFunction() string {
 	for _, s := range e.p.body {
 		e.statementNeutral(s)
 	}
+	// The reserved entry word (#134): an empty entry body calls main, and a
+	// Result return unwraps like a top-level try (fail below; resultLocal "").
+	if w := entryMainWord(e.p); w != nil {
+		e.pos = w.pos
+		e.line("call " + watWordName(w))
+		if inner, fallible := resultInner(w.result); fallible {
+			res := e.temp("res", "(ref null "+watTypeResult+")")
+			e.line("local.set " + res)
+			e.emitResultUnwrap(res, inner)
+			if !isUnitValue(inner) {
+				e.line("drop")
+			}
+		} else if w.result != unitType {
+			e.line("drop")
+		}
+	}
 	e.depth--
 	e.line("end")
 	return e.funcText("$zhex_main", nil, "")

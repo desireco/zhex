@@ -185,7 +185,12 @@ func (p *Program) RunWithOptions(input io.Reader, output io.Writer, options RunO
 		diagnostics = io.Discard
 	}
 	r := runtime{input: reader, output: output, diagnostics: diagnostics, trace: options.Trace, args: options.Args, hostReporter: options.Reporter, includeSensitive: options.IncludeSensitive, correlation: options.Correlation}
-	_, err := r.block(p.body, make(frame))
+	var err error
+	if len(p.body) == 0 {
+		err = r.runEntryMain(p)
+	} else {
+		_, err = r.block(p.body, make(frame))
+	}
 	boundary := position{}
 	if propagated, ok := err.(*propagation); ok {
 		boundary = propagated.boundary
@@ -195,6 +200,38 @@ func (p *Program) RunWithOptions(input io.Reader, output io.Writer, options RunO
 		r.report(err, "unhandled", boundary)
 	}
 	return annotateSource(err, p.sources)
+}
+
+// entryMainWord returns the entry file's reserved zero-argument main word
+// (#134) when the top level has no statements; module words and a main beside
+// top-level statements never qualify. The checker rejects parameters on it.
+func entryMainWord(p *Program) *word {
+	if len(p.body) != 0 {
+		return nil
+	}
+	for _, w := range p.words {
+		if w.name == "main" && len(w.params) == 0 && w.module == "" {
+			return w
+		}
+	}
+	return nil
+}
+
+// runEntryMain invokes main as the program's body. A failing Result reports
+// exactly like a top-level try, so it propagates to the boundary below.
+func (r *runtime) runEntryMain(p *Program) error {
+	w := entryMainWord(p)
+	if w == nil {
+		return nil
+	}
+	v, err := r.call(&expression{kind: "call", text: w.name, word: w, pos: w.pos}, nil)
+	if err != nil {
+		return err
+	}
+	if v.result != nil && v.result.err != nil {
+		return &propagation{cause: v.result.err, boundary: w.pos}
+	}
+	return nil
 }
 
 func (r *runtime) block(body []*statement, env frame) (value, error) {

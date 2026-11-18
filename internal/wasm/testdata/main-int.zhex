@@ -1,0 +1,6 @@
+# A fallible Int main (#134): the entry unwraps the Result and discards the
+# success value — the drop after the unwrap keeps the entry stack balanced.
+
+word main() -> Int
+    let n = text.to-int("3") try
+    n
