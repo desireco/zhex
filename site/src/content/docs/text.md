@@ -33,6 +33,8 @@ There is no implicit conversion between `Int` and `String`. One exception exists
 | `text.replace(String, String, String) -> String` | Replace every literal occurrence of the second string with the third. An empty search string is a runtime `replace-empty` error. |
 | `text.split(String, String) -> List<String>` | Split on every literal occurrence of the second string, preserving leading, repeated, and trailing empty fields with no trimming. An empty separator splits into single code points; empty text with an empty separator yields an empty list, and empty text with a nonempty separator yields one empty field. A result beyond 1,000,000 elements fails `collection-limit` before the list is materialized. |
 | `text.join(List<String>, String) -> String` | Join the elements with the separator between each pair. An empty list joins to empty text, and an empty list literal is accepted as `List<String>`. |
+| `text.to-code-points(String) -> List<Int>` | Return the code points as a fresh `List<Int>` in order. A result beyond 1,000,000 elements fails `collection-limit` before the list is materialized. |
+| `text.from-code-points(List<Int>) -> String` | Rebuild text from a list of code points. A code point that is not valid Unicode — negative, above U+10FFFF, or a surrogate half — is a runtime `text-code-point` error. |
 | `text.starts-with(String, String) -> Bool` | Return whether the first string starts with the second, compared literally; an empty prefix matches. |
 | `text.ends-with(String, String) -> Bool` | Return whether the first string ends with the second, compared literally; an empty suffix matches. |
 

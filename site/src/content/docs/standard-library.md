@@ -5,7 +5,7 @@ section: Standard library
 order: 69
 ---
 
-Zhex ships a small host library for text, typed collections, JSON, files, buffers, console input/output, errors, and temporal values. The <a href="https://github.com/desireco/zhex/blob/main/docs/standard-library-plan.md" target="_blank" rel="noopener">complete current inventory and research</a> lists all 114 registered host names and their test/reference evidence. Constructors, operators, bracket access, and REPL commands are separate facilities.
+Zhex ships a small host library for text, typed collections, JSON, files, buffers, console input/output, errors, and temporal values. The <a href="https://github.com/desireco/zhex/blob/main/docs/standard-library-plan.md" target="_blank" rel="noopener">complete current inventory and research</a> lists all 119 registered host names and their test/reference evidence. Constructors, operators, bracket access, and REPL commands are separate facilities.
 
 A dot identifies an operation's owner or domain: `text.trim`, `list.length`, `file.read`. Compound names use hyphens. Flows pass their value as the first argument. Conversions are explicit, as in `int.to-string`.
 

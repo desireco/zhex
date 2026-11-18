@@ -15,7 +15,7 @@ The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61)
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
 | Bare | `print`, `range`, `read-line`, `ok`, `err` | [Console](../site/src/content/docs/console.md), [Results](../site/src/content/docs/results.md); `io_test.go`, `result_words_test.go`, `features_test.go` |
-| `int` | `to-string`, `mod-floor` | [Text](../site/src/content/docs/text.md); `text_test.go`, `int_test.go`, `examples_test.go` |
+| `int` | `to-string`, `mod-floor` | [Text](../site/src/content/docs/text.md), [Values](../site/src/content/docs/values.md); `text_test.go`, `int_test.go`, `examples_test.go` |
 | `text` | `reverse`, `to-int`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace`, `split`, `join`, `to-code-points`, `from-code-points`, `starts-with`, `ends-with` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
 | `list` | `new`, `length`, `append`, `map`, `filter`, `fold`, `find`, `any`, `all`, `sort`, `sort-by` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go`, `list_words_test.go`, `sort_test.go` |
 | `array` | `new`, `resize`, `shape`, `rank`, `length` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |

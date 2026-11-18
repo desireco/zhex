@@ -58,7 +58,7 @@ The full precedence table is on the [syntax page](syntax.html#expression-shape).
 
 ## Checked arithmetic
 
-Integers are signed 64-bit values. Overflow, division by zero, and remainder by zero are runtime errors with source locations. Division truncates toward zero. Remainder has the dividend's sign. The minimum integer divided by `-1` overflows; its remainder modulo `-1` is zero.
+Integers are signed 64-bit values. Overflow, division by zero, and remainder by zero are runtime errors with source locations. Division truncates toward zero. Remainder has the dividend's sign. The minimum integer divided by `-1` overflows; its remainder modulo `-1` is zero. `int.mod-floor(value, modulus)` is the floored modulo for wrap-around positions: a nonzero result has the modulus's sign (`int.mod-floor(-7, 3)` is `2`, `int.mod-floor(7, -3)` is `-2`), and a zero modulus is the same runtime error as `%`.
 
 Use `int.to-string` to format an integer for a string. There is no automatic conversion between numbers and text.
 

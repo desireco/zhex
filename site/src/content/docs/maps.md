@@ -35,6 +35,8 @@ Bracket assignment sets a value and returns `Unit`; it does not produce a `Resul
 
 `map.put(map, key, value)` inserts or replaces an entry and returns the same map. `map.into(source, target)` copies entries from one map into another and returns the target. Both preserve insertion order: replacing an existing key keeps its position, and new keys append in source order. Removing a key and inserting it again puts it at the end. `map.into` applies its changes atomically; using the same map as source and target is a no-op unless that map is being traversed.
 
+`map.keys(map)` and `map.values(map)` extract a fresh list of the keys or the values in insertion order — the same order iteration visits — so a map's data flows into the `list` composition words. Past the 1,000,000-element limit they fail `collection-limit` before the list is materialized.
+
 | Operation | Result | Behavior |
 | --- | --- | --- |
 | `map.length(map)` | `Int` | Number of entries. |
@@ -44,6 +46,8 @@ Bracket assignment sets a value and returns `Unit`; it does not produce a `Resul
 | `map.remove(map, key)` | `Unit` | Remove the key; absent keys are a no-op. |
 | `map.put(map, key, value)` | `Map<K, V>` | Insert or replace and return the same map. |
 | `map.into(source, target)` | `Map<K, V>` | Merge entries atomically and return the target. |
+| `map.keys(map)` | `List<K>` | Fresh list of the keys in insertion order. |
+| `map.values(map)` | `List<V>` | Fresh list of the values in insertion order. |
 
 Maps cannot be printed or compared directly. Their values cannot contain `Result`; a caught concrete-family error also cannot be stored as an `Error` value without first converting it with `error.wrap`. See [results and error handling](results.html) for the error-family rule.
 
