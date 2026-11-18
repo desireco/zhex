@@ -1024,6 +1024,13 @@ pre {
   gap: clamp(2rem, 7vw, 7rem);
 }
 
+/* The stage's intro column follows the list instead of leaving a dead rail. */
+.roadmap-stage > div:first-child {
+  position: sticky;
+  top: var(--space-7);
+  align-self: start;
+}
+
 .roadmap-stage .aside {
   max-width: 520px;
   color: var(--muted);
@@ -1052,6 +1059,44 @@ pre {
   font-weight: 900;
 }
 
+/* Each row's lead, split at its first colon by the generator, titles the row. */
+.roadmap-stage li strong {
+  font-weight: 750;
+}
+
+/* Done collapses to one counted chip per shipped group (roadmap only; the
+   changelog keeps its row list). */
+.roadmap-done-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--space-3);
+}
+
+.roadmap-done-grid li {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.roadmap-done-grid li::before { content: none; }
+
+.roadmap-done-grid a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-strong);
+  border-radius: var(--radius-round);
+  text-decoration: none;
+}
+
+.roadmap-done-grid a:hover { background: var(--accent-soft); }
+
+.roadmap-done-grid .chip-count {
+  color: var(--accent-strong);
+  font: 650 var(--text-sm)/1 var(--mono);
+}
+
 .roadmap-section.done { background: var(--surface); }
 .roadmap-section.next { border-top: 18px solid var(--accent); }
 .roadmap-source {
@@ -1065,6 +1110,8 @@ pre {
   .roadmap-stage {
     grid-template-columns: 1fr;
   }
+
+  .roadmap-stage > div:first-child { position: static; }
 
   .principles { grid-template-columns: 1fr; }
   .principle { border-right: 0; border-bottom: 1px solid #57514b; }

@@ -142,9 +142,17 @@ type Roadmap struct {
 	DoneGroups []RoadmapGroup
 }
 
+// RoadmapItem is one bullet split for scanning: Lead is the leading "Name"
+// before the bullet's first ": " (the rule groupDone groups by) and Text is
+// the remainder, or the whole bullet when no usable colon exists. Lead and
+// Text always recompose to the original words.
+type RoadmapItem struct {
+	Lead, Text string
+}
+
 type RoadmapSection struct {
 	Title, Summary string
-	Items          []string
+	Items          []RoadmapItem
 }
 
 // RoadmapGroup is one changelog group: every Done bullet whose leading
@@ -153,7 +161,24 @@ type RoadmapSection struct {
 type RoadmapGroup struct {
 	Name, Anchor string
 	Count        int
-	Items        []string
+	Items        []RoadmapItem
+}
+
+// leadPrefix applies the shared lead rule: the prefix before a bullet's first
+// ": " titles the row or group only when non-empty and at most 40 bytes, so a
+// long sentence never becomes a heading.
+func leadPrefix(item string) (string, bool) {
+	prefix, _, found := strings.Cut(item, ": ")
+	return prefix, found && prefix != "" && len(prefix) <= 40
+}
+
+// splitLead cuts a bullet at its first ": " into a scannable lead plus the
+// remainder; bullets without a usable colon keep their full text.
+func splitLead(item string) RoadmapItem {
+	if lead, ok := leadPrefix(item); ok {
+		return RoadmapItem{Lead: lead, Text: strings.TrimPrefix(item, lead+": ")}
+	}
+	return RoadmapItem{Text: item}
 }
 
 // The roadmap uses plain paragraphs, level-two headings, and single-line bullets.
@@ -185,7 +210,7 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 		}
 		section := &roadmap.Sections[len(roadmap.Sections)-1]
 		if strings.HasPrefix(line, "- ") {
-			section.Items = append(section.Items, strings.TrimPrefix(line, "- "))
+			section.Items = append(section.Items, splitLead(strings.TrimPrefix(line, "- ")))
 		} else if len(section.Items) == 0 {
 			section.Summary = strings.TrimSpace(section.Summary + " " + line)
 		} else {
@@ -202,16 +227,15 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 }
 
 // groupDone derives the changelog grouping from data, not curation: a
-// bullet's leading "Name:" prefix (colon plus space) names its group, groups
-// keep first-appearance order, and prefix-less bullets or prefixes over 40
-// bytes fall under "More" so a long sentence never becomes a heading.
-func groupDone(items []string) []RoadmapGroup {
+// bullet's lead names its group, groups keep first-appearance order, and
+// lead-less bullets fall under "More".
+func groupDone(items []RoadmapItem) []RoadmapGroup {
 	index := map[string]int{}
 	var groups []RoadmapGroup
 	for _, item := range items {
 		name := "More"
-		if prefix, _, found := strings.Cut(item, ": "); found && prefix != "" && len(prefix) <= 40 {
-			name = prefix
+		if item.Lead != "" {
+			name = item.Lead
 		}
 		i, ok := index[name]
 		if !ok {

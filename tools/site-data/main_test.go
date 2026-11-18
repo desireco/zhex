@@ -78,6 +78,15 @@ func TestRoadmapToleratesCRLFAndRejectsIntroBullets(t *testing.T) {
 	}
 }
 
+// itemText recomposes a split bullet back into its original words: the
+// presentation split must never change what a bullet says.
+func itemText(item RoadmapItem) string {
+	if item.Lead == "" {
+		return item.Text
+	}
+	return item.Lead + ": " + item.Text
+}
+
 func TestRoadmapGroupsDoneBulletsByLeadingPrefix(t *testing.T) {
 	source := "# Zhex roadmap\n\nIntro.\n\n## Done\n\nBase.\n\n- Vocabulary: first ships.\n- Language: second ships.\n- Vocabulary: third ships.\n- No prefix here.\n- A leading prefix well past the forty-byte heading limit: demoted.\n## Next\n- REPL.\n## Future\n- Compilation.\n"
 	roadmap, err := loadRoadmap([]byte(source))
@@ -90,6 +99,7 @@ func TestRoadmapGroupsDoneBulletsByLeadingPrefix(t *testing.T) {
 		"Language: second ships.",
 		"No prefix here.\nA leading prefix well past the forty-byte heading limit: demoted.",
 	}
+	wantLeads := []string{"Vocabulary", "Language", "Vocabulary", "", ""}
 	if len(roadmap.DoneGroups) != len(wantNames) {
 		t.Fatalf("got %d groups, want %d: %+v", len(roadmap.DoneGroups), len(wantNames), roadmap.DoneGroups)
 	}
@@ -97,14 +107,33 @@ func TestRoadmapGroupsDoneBulletsByLeadingPrefix(t *testing.T) {
 		if group.Name != wantNames[i] {
 			t.Fatalf("group %d is %q; want %q", i, group.Name, wantNames[i])
 		}
-		if strings.Join(group.Items, "\n") != wantItems[i] {
-			t.Fatalf("group %q holds %q; want %q", group.Name, strings.Join(group.Items, "\n"), wantItems[i])
+		var got []string
+		for _, item := range group.Items {
+			got = append(got, itemText(item))
+		}
+		if strings.Join(got, "\n") != wantItems[i] {
+			t.Fatalf("group %q holds %q; want %q", group.Name, strings.Join(got, "\n"), wantItems[i])
 		}
 		if group.Count != len(group.Items) {
 			t.Fatalf("group %q count %d disagrees with %d items", group.Name, group.Count, len(group.Items))
 		}
 		if group.Anchor != "done-"+strings.ToLower(strings.ReplaceAll(group.Name, " ", "-")) {
 			t.Fatalf("group %q anchor %q", group.Name, group.Anchor)
+		}
+	}
+	wantFull := []string{
+		"Vocabulary: first ships.",
+		"Language: second ships.",
+		"Vocabulary: third ships.",
+		"No prefix here.",
+		"A leading prefix well past the forty-byte heading limit: demoted.",
+	}
+	for i, item := range roadmap.Sections[0].Items {
+		if item.Lead != wantLeads[i] {
+			t.Fatalf("item %d lead is %q; want %q", i, item.Lead, wantLeads[i])
+		}
+		if itemText(item) != wantFull[i] {
+			t.Fatalf("item %d does not recompose to %q: %+v", i, wantFull[i], item)
 		}
 	}
 	if roadmap.Sections[0].Title != "Done" || len(roadmap.Sections[0].Items) != 5 {

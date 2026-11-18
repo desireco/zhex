@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { inline } from "../inline.mjs";
 import data from "../../data.json";
 // The changelog renders the roadmap's Done section, grouped by the
 // generator; the title-case label doubles as the section heading.
@@ -18,7 +19,7 @@ const heading = (group) => group.Name === "More" ? "More milestones" : group.Nam
     <section class="section roadmap-section" aria-labelledby={group.Anchor}>
       <div class="wrap roadmap-stage">
         <div><p class="eyebrow">Shipped</p><h2 id={group.Anchor}>{heading(group)}</h2><p class="aside">{group.Count} shipped.</p></div>
-        <ul>{group.Items.map(item => <li>{item.split("`").map((part, i) => i % 2 ? <code>{part}</code> : part)}</li>)}</ul>
+        <ul>{group.Items.map(item => <li>{item.Lead ? <Fragment><strong>{item.Lead}</strong>: </Fragment> : null}<Fragment set:html={inline(item.Text)} /></li>)}</ul>
       </div>
     </section>
     ))}
