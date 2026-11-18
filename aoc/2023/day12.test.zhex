@@ -1,9 +1,9 @@
-use day12-core
+use day12
 use test
 
 let sample = "???.### 1,1,3\n.??..??...?##. 1,1,3\n?#?#?#?#?#?#?#? 1,3,1,6\n????.#...#... 4,1,1\n????.######..#####. 1,6,5\n?###???????? 3,2,1"
-let records = day12-core.parse(sample) try
+let records = day12.parse(sample) try
 
-test.check(day12-core.part-one(records) == 21, "day 12 part 1")
-test.check(day12-core.part-two(records) == 525152, "day 12 part 2")
+test.check(day12.part-one(records) == 21, "day 12 part 1")
+test.check(day12.part-two(records) == 525152, "day 12 part 2")
 print "day 12 tests passed"

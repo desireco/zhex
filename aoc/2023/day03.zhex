@@ -1,19 +1,117 @@
+# Advent of Code 2023, day 3 — Gear Ratios (solution words).
+# The schematic is rows of characters; parse collects every maximal run of
+# digits as one Part (its row, its first and last column, its value).
+# Part 1 sums the parts with a symbol anywhere in their bordering window;
+# part 2 sums the products of number pairs around each asterisk that has
+# exactly two neighbors. Neighbor scans only — no recursion.
+
+# The digit a one-character string holds, -1 when it holds none.
+word _digit(ch: String) -> Int
+    text.to-int(ch) catch -1
+
+## One found number: its row, its first and last column, its value.
+type Part = record
+    row: Int
+    first: Int
+    last: Int
+    value: Int
+
+## The schematic: its rows and every number found in them.
+type Schematic = record
+    rows: List<String>
+    parts: List<Part>
+
+word _parse-row(row: String, row-index: Int) -> List<Part>
+    let parts: List<Part> = []
+    var index = 0
+    while index < text.length(row)
+        if _digit(text.slice(row, index, index + 1)) >= 0
+            var last = index
+            var value = 0
+            while last < text.length(row) and _digit(text.slice(row, last, last + 1)) >= 0
+                value = value * 10 + _digit(text.slice(row, last, last + 1))
+                last = last + 1
+            list.append(parts, Part(row-index, index, last - 1, value))
+            index = last
+        else
+            index = index + 1
+    parts
+
+## Parse the schematic rows and collect every number in them.
+word parse(text: String) -> Schematic
+    let rows: List<String> = []
+    let parts: List<Part> = []
+    for row in text.split(text, "\n")
+        if text.length(row) > 0
+            let added = list.append(rows, row)
+    for row-index in range(0, list.length(rows))
+        for part in _parse-row(rows[row-index], row-index)
+            list.append(parts, part)
+    Schematic(rows, parts)
+
+# Whether the cell holds a symbol: any character that is neither a digit
+# nor a period. Out-of-bounds cells never do.
+word _symbol-at(rows: List<String>, row: Int, column: Int) -> Bool
+    if row < 0 or row >= list.length(rows)
+        false
+    else
+        let line = rows[row]
+        if column < 0 or column >= text.length(line)
+            false
+        else
+            let ch = text.slice(line, column, column + 1)
+            ch != "." and _digit(ch) < 0
+
+## Sum the numbers with a symbol in their bordering window.
+word part-one(schematic: Schematic) -> Int
+    var total = 0
+    for part in schematic.parts
+        var adjacent = false
+        for row in range(part.row - 1, part.row + 2)
+            for column in range(part.first - 1, part.last + 2)
+                if _symbol-at(schematic.rows, row, column)
+                    adjacent = true
+        if adjacent
+            total = total + part.value
+    total
+
+# Whether the part touches the cell: rows within one of it, columns
+# overlapping its three-wide window.
+word _touches(part: Part, row: Int, column: Int) -> Bool
+    part.row >= row - 1 and part.row <= row + 1 and part.last >= column - 1 and part.first <= column + 1
+
+## Sum the gear ratios: the products of the two numbers around each
+## asterisk with exactly two neighbors.
+word part-two(schematic: Schematic) -> Int
+    var total = 0
+    for row-index in range(0, list.length(schematic.rows))
+        let line = schematic.rows[row-index]
+        for column in range(0, text.length(line))
+            if text.slice(line, column, column + 1) == "*"
+                let neighbors: List<Int> = []
+                for part in schematic.parts
+                    if _touches(part, row-index, column)
+                        let added = list.append(neighbors, part.value)
+                if list.length(neighbors) == 2
+                    total = total + neighbors[0] * neighbors[1]
+    total
+
 # Advent of Code 2023, day 3 — Gear Ratios.
 # Reads the engine schematic from stdin until end of input, prints both
 # answers.
-use day03-core
 
-# shortcut: a schematic row holds digits, periods, and symbols, so this
-# sentinel cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let schematic = day03-core.parse(buffer.to-text(input))
-print(day03-core.part-one(schematic))
-print(day03-core.part-two(schematic))
+word main()
+    # shortcut: a schematic row holds digits, periods, and symbols, so this
+    # sentinel cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let schematic = parse(buffer.to-text(input))
+    print(part-one(schematic))
+    print(part-two(schematic))

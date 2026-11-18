@@ -1,9 +1,9 @@
-use day13-core
+use day13
 use test
 
 let sample = "#.##..##.\n..#.##.#.\n##......#\n##......#\n..#.##.#.\n..##..##.\n#.#.##.#.\n\n#...##..#\n#....#..#\n..##..###\n#####.##.\n#####.##.\n..##..###\n#....#..#"
-let patterns = day13-core.parse(sample)
+let patterns = day13.parse(sample)
 
-test.check(day13-core.part-one(patterns) == 405, "day 13 part 1")
-test.check(day13-core.part-two(patterns) == 400, "day 13 part 2")
+test.check(day13.part-one(patterns) == 405, "day 13 part 1")
+test.check(day13.part-two(patterns) == 400, "day 13 part 2")
 print "day 13 tests passed"

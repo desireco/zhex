@@ -1,18 +1,218 @@
+# Advent of Code 2023, day 10 — Pipe Maze (solution words). The grid's
+# pipes hold one continuous loop through the start tile S; part 1 is half
+# the loop's length once S's two connections name its true shape. Part 2
+# counts the tiles the loop encloses with a horizontal even-odd ray cast
+# per row: a loop tile crosses the ray when it is a vertical pipe or a
+# corner opening north (|, L, J), so an F..7 or L..J pair along the row
+# nets zero crossings while F..J and L..7 net one — the tile is inside
+# when the tiles left of it cross an odd number of times.
+
+## The start tile's position.
+type Start = record
+    x: Int
+    y: Int
+
+## Parse the sketch into its rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(grid, line)
+    grid
+
+# The grid's width: its widest row.
+word _width(grid: List<String>) -> Int
+    var widest = 0
+    for row in grid
+        if text.length(row) > widest
+            widest = text.length(row)
+    widest
+
+# The tile at a position; ground beyond every edge.
+word _tile(grid: List<String>, x: Int, y: Int) -> String
+    if y < 0 or y >= list.length(grid) or x < 0 or x >= text.length(grid[y])
+        "."
+    else
+        text.slice(grid[y], x, x + 1)
+
+word _dx(direction: Int) -> Int
+    if direction == 1
+        1
+    elif direction == 3
+        -1
+    else
+        0
+
+word _dy(direction: Int) -> Int
+    if direction == 2
+        1
+    elif direction == 0
+        -1
+    else
+        0
+
+# Whether the tile a step in some direction connects back the way it came:
+# a north step needs a south-opening neighbor (| 7 F), a south step a
+# north-opening one (| L J), and an east or west step an east-west-opening one.
+word _connects-back(tile: String, direction: Int) -> Bool
+    if direction == 1
+        text.contains("-7J", tile)
+    elif direction == 3
+        text.contains("-LF", tile)
+    elif direction == 0
+        text.contains("|7F", tile)
+    else
+        text.contains("|LJ", tile)
+
+# Where the loop leaves a tile it was entered moving in some direction:
+# the opening the shape did not use.
+word _step-dir(tile: String, moving: Int) -> Int
+    let entered = (moving + 2) % 4
+    if tile == "|"
+        if entered == 0
+            2
+        else
+            0
+    elif tile == "-"
+        if entered == 1
+            3
+        else
+            1
+    elif tile == "L"
+        if entered == 0
+            1
+        else
+            0
+    elif tile == "J"
+        if entered == 0
+            3
+        else
+            0
+    elif tile == "7"
+        if entered == 2
+            3
+        else
+            2
+    else
+        if entered == 1
+            2
+        else
+            1
+
+# The start tile's position.
+word _start(grid: List<String>) -> Start
+    var found-x = 0
+    var found-y = 0
+    var found = false
+    var y = 0
+    while not found and y < list.length(grid)
+        let x = text.index-of(grid[y], "S")
+        if x >= 0
+            found = true
+            found-x = x
+            found-y = y
+        y = y + 1
+    Start(found-x, found-y)
+
+# The two directions S connects over, in direction order 0..3 (N, E, S, W).
+word _s-dirs(grid: List<String>) -> List<Int>
+    let dirs: List<Int> = []
+    let start = _start(grid)
+    for direction in range(0, 4)
+        if _connects-back(_tile(grid, start.x + _dx(direction), start.y + _dy(direction)), direction)
+            let added = list.append(dirs, direction)
+    dirs
+
+# The pipe shape S stands in for, from its two connections.
+word _s-shape(grid: List<String>) -> String
+    let dirs = _s-dirs(grid)
+    let a = dirs[0]
+    let b = dirs[1]
+    if a == 0
+        if b == 1
+            "L"
+        elif b == 2
+            "|"
+        else
+            "J"
+    elif a == 1
+        if b == 2
+            "F"
+        else
+            "-"
+    else
+        "7"
+
+# A flat marker grid: one per loop tile, zero elsewhere.
+word _marks(grid: List<String>) -> List<Int>
+    let width = _width(grid)
+    let marks: List<Int> = []
+    for _ in range(0, width * list.length(grid))
+        list.append(marks, 0)
+    let start = _start(grid)
+    marks[start.y * width + start.x] = 1
+    var direction = _s-dirs(grid)[0]
+    var x = start.x
+    var y = start.y
+    var done = false
+    while not done
+        x = x + _dx(direction)
+        y = y + _dy(direction)
+        if x == start.x and y == start.y
+            done = true
+        else
+            marks[y * width + x] = 1
+            direction = _step-dir(_tile(grid, x, y), direction)
+    marks
+
+## Half the loop's length: the distance to the farthest tile either way.
+word part-one(grid: List<String>) -> Int
+    var loop-tiles = 0
+    for mark in _marks(grid)
+        loop-tiles = loop-tiles + mark
+    loop-tiles / 2
+
+# One row with S drawn as its true shape, for the ray cast.
+word _row-text(grid: List<String>, y: Int) -> String
+    let start = _start(grid)
+    if y == start.y
+        let row = grid[y]
+        text.slice(row, 0, start.x) + _s-shape(grid) + text.slice(row, start.x + 1, text.length(row))
+    else
+        grid[y]
+
+## How many tiles the loop encloses: odd crossings left of a ground tile.
+word part-two(grid: List<String>) -> Int
+    let width = _width(grid)
+    let marks = _marks(grid)
+    var inside = 0
+    for y in range(0, list.length(grid))
+        let row = _row-text(grid, y)
+        for x in range(0, text.length(row))
+            if marks[y * width + x] == 0
+                var crossings = 0
+                for scan in range(0, x)
+                    if marks[y * width + scan] == 1 and text.contains("|LJ", text.slice(row, scan, scan + 1))
+                        crossings = crossings + 1
+                if crossings % 2 == 1
+                    inside = inside + 1
+    inside
+
 # Advent of Code 2023, day 10 — Pipe Maze.
 # Reads the pipe sketch from stdin until end of input, prints both answers.
-use day10-core
 
-# shortcut: a sketch row holds pipe shapes, dots, and the S marker, so
-# this sentinel cannot collide; it stands in for the end-of-file failure
-# because error.detail is not compiled to wasm yet
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let grid = day10-core.parse(buffer.to-text(input))
-print(day10-core.part-one(grid))
-print(day10-core.part-two(grid))
+word main()
+    # shortcut: a sketch row holds pipe shapes, dots, and the S marker, so
+    # this sentinel cannot collide; it stands in for the end-of-file failure
+    # because error.detail is not compiled to wasm yet
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let grid = parse(buffer.to-text(input))
+    print(part-one(grid))
+    print(part-two(grid))

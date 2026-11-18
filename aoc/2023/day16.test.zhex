@@ -1,7 +1,7 @@
-use day16-core
+use day16
 use test
 
 let layout = ".|...\\....\n|.-.\\.....\n.....|-...\n........|.\n..........\n.........\\\n..../.\\\\..\n.-.-/..|..\n.|....-|.\\\n..//.|...."
-test.check(day16-core.part-one(day16-core.parse(layout)) == 46, "day 16 part 1, energized tiles from the top left")
-test.check(day16-core.part-two(day16-core.parse(layout)) == 51, "day 16 part 2, best edge entry")
+test.check(day16.part-one(day16.parse(layout)) == 46, "day 16 part 1, energized tiles from the top left")
+test.check(day16.part-two(day16.parse(layout)) == 51, "day 16 part 2, best edge entry")
 print "day 16 tests passed"

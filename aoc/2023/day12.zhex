@@ -1,19 +1,105 @@
+# Advent of Code 2023, day 12 — Hot Springs (solution words).
+# Each line is a row of springs plus the sizes of its damaged groups. The
+# arrangement count is a flat dynamic program over (prefix length, groups
+# placed): a cell holds how many ways explain the prefix so far; a '.' or
+# '?' steps one position as a dot, and a '#' or '?' may place the next
+# group where the row fits it plus its trailing separator. Part 2 unfolds
+# the row and its groups fivefold, joining copies with '?', and the same
+# table answers it — no recursion, so the 256-deep call limit never dips.
+
+type Row = record
+    springs: String
+    groups: List<Int>
+
+## Parse the condition records into spring rows and their group sizes.
+word parse(text: String) -> List<Row>
+    let rows: List<Row> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let halves = text.split(line, " ")
+            let groups: List<Int> = []
+            for token in text.split(halves[1], ",")
+                list.append(groups, text.to-int(token) try)
+            let added = list.append(rows, Row(halves[0], groups))
+    rows
+
+# The number of ways one spring row matches its group sizes.
+word _count(springs: String, groups: List<Int>) -> Int
+    let n = text.length(springs)
+    let g = list.length(groups)
+    let stride = g + 1
+    let cells = (n + 1) * stride
+    let table: List<Int> = []
+    for index in range(0, cells)
+        list.append(table, 0)
+    table[0] = 1
+    for i in range(0, n)
+        let ch = text.slice(springs, i, i + 1)
+        let here = i * stride
+        for j in range(0, stride)
+            let ways = table[here + j]
+            if ways > 0
+                if ch == "." or ch == "?"
+                    table[here + stride + j] = table[here + stride + j] + ways
+                if ch == "#" or ch == "?"
+                    if j < g
+                        let size = groups[j]
+                        if i + size <= n
+                            var fits = true
+                            for k in range(i, i + size)
+                                if text.slice(springs, k, k + 1) == "."
+                                    fits = false
+                            if fits
+                                if i + size == n
+                                    table[cells - stride + j + 1] = table[cells - stride + j + 1] + ways
+                                else
+                                    let after = text.slice(springs, i + size, i + size + 1)
+                                    if after == "." or after == "?"
+                                        let next = (i + size + 1) * stride + j + 1
+                                        table[next] = table[next] + ways
+    table[cells - 1]
+
+# The row unfolded fivefold, its groups repeated to match.
+word _unfold(row: Row) -> Row
+    let parts: List<String> = []
+    let groups: List<Int> = []
+    for copy in range(0, 5)
+        list.append(parts, row.springs)
+        for size in row.groups
+            list.append(groups, size)
+    Row(text.join(parts, "?"), groups)
+
+## Sum the arrangement counts of every row as given.
+word part-one(rows: List<Row>) -> Int
+    var total = 0
+    for row in rows
+        total = total + _count(row.springs, row.groups)
+    total
+
+## Sum the arrangement counts of every row unfolded fivefold.
+word part-two(rows: List<Row>) -> Int
+    var total = 0
+    for row in rows
+        let big = _unfold(row)
+        total = total + _count(big.springs, big.groups)
+    total
+
 # Advent of Code 2023, day 12 — Hot Springs.
 # Reads the condition records from stdin until end of input, prints both
 # answers.
-use day12-core
 
-# shortcut: the records hold dots, hashes, question marks, digits, spaces,
-# and commas only, so this sentinel cannot collide; it stands in for the
-# end-of-file failure because error.detail is not compiled to wasm yet
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let records = day12-core.parse(buffer.to-text(input)) try
-print(day12-core.part-one(records))
-print(day12-core.part-two(records))
+word main()
+    # shortcut: the records hold dots, hashes, question marks, digits, spaces,
+    # and commas only, so this sentinel cannot collide; it stands in for the
+    # end-of-file failure because error.detail is not compiled to wasm yet
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let records = parse(buffer.to-text(input)) try
+    print(part-one(records))
+    print(part-two(records))

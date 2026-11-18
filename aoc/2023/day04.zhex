@@ -1,18 +1,87 @@
+# Advent of Code 2023, day 4 — Scratchcards (solution words).
+# Each card line holds winning numbers and the card's own numbers around a
+# bar. parse reduces a card to its match count — how many of the card's
+# numbers are winning. Part 1 scores 2^(matches-1) per card with at least
+# one match; part 2 cascades copies: a card's matches each win one copy of
+# the following cards, copies win the same way, and the answer is the total
+# pile. The cascade runs forward with a per-card count list, an iterative
+# List-as-queue — no recursion, so the 256-deep call limit never bites.
+
+# The numbers a space-separated section holds.
+word _numbers(section: String) -> List<Int>
+    let numbers: List<Int> = []
+    for token in text.split(section, " ")
+        if text.length(token) > 0
+            let added = list.append(numbers, text.to-int(token) try)
+    numbers
+
+word _is(a: Int, b: Int) -> Bool
+    a == b
+
+# How many of the card's numbers are winning numbers.
+word _matches(line: String) -> Int
+    let halves = text.split(text.split(line, ":")[1], " | ")
+    let winning = _numbers(halves[0]) try
+    var matches = 0
+    let have = _numbers(halves[1]) try
+    for number in have
+        if list.any(winning, _is(_, number))
+            matches = matches + 1
+    matches
+
+## Parse the pile into each card's match count, in card order.
+word parse(text: String) -> List<Int>
+    let matches: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(matches, _matches(line) try)
+    matches
+
+# Two to the power, by repeated doubling; the exponent is at least one.
+word _double(exponent: Int) -> Int
+    var value = 1
+    for _ in range(0, exponent - 1)
+        value = value * 2
+    value
+
+## Sum the cards' points: one for the first match, doubling per further
+## match.
+word part-one(matches: List<Int>) -> Int
+    var total = 0
+    for card-matches in matches
+        if card-matches > 0
+            total = total + _double(card-matches)
+    total
+
+## Count the whole pile after the copy cascade settles.
+word part-two(matches: List<Int>) -> Int
+    let counts: List<Int> = []
+    for _ in matches
+        list.append(counts, 1)
+    for index in range(0, list.length(matches))
+        for won in range(index + 1, index + matches[index] + 1)
+            if won < list.length(counts)
+                counts[won] = counts[won] + counts[index]
+    var total = 0
+    for count in counts
+        total = total + count
+    total
+
 # Advent of Code 2023, day 4 — Scratchcards.
 # Reads the card pile from stdin until end of input, prints both answers.
-use day04-core
 
-# shortcut: a card line holds "Card N", numbers, and the bar, so this
-# sentinel cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let matches = day04-core.parse(buffer.to-text(input)) try
-print(day04-core.part-one(matches))
-print(day04-core.part-two(matches))
+word main()
+    # shortcut: a card line holds "Card N", numbers, and the bar, so this
+    # sentinel cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let matches = parse(buffer.to-text(input)) try
+    print(part-one(matches))
+    print(part-two(matches))

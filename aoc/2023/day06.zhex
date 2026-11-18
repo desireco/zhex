@@ -1,18 +1,89 @@
+# Advent of Code 2023, day 6 — Wait For It (solution words). The sheet
+# lists each race's time limit and record distance. Holding the button t
+# milliseconds leaves T - t milliseconds to travel at t millimeters per
+# millisecond, so the distance is t * (T - t); a hold wins when that beats
+# the record. Part 2 rereads the two lines as one huge race with the spaces
+# ignored, so the same count runs over one long range.
+
+## The sheet: each race's time and record, plus the huge race part 2 reads
+## by ignoring the spaces.
+type Sheet = record
+    times: List<Int>
+    distances: List<Int>
+    big-time: Int
+    big-record: Int
+
+# The number tokens a line after its colon holds.
+word _tokens(line: String) -> List<String>
+    let tokens: List<String> = []
+    for token in text.split(text.slice(line, text.index-of(line, ":") + 1, text.length(line)), " ")
+        if text.length(token) > 0
+            let added = list.append(tokens, token)
+    tokens
+
+# One line's race values.
+word _numbers(line: String) -> List<Int>
+    let numbers: List<Int> = []
+    for token in _tokens(line)
+        list.append(numbers, text.to-int(token) try)
+    numbers
+
+## Parse the Time and Distance lines into paired race values and the
+## single huge race.
+word parse(text: String) -> Sheet
+    let times: List<Int> = []
+    let distances: List<Int> = []
+    var big-time = 0
+    var big-record = 0
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            if text.starts-with(line, "Time:")
+                let parsed = _numbers(line) try
+                for number in parsed
+                    list.append(times, number)
+                big-time = text.to-int(text.join(_tokens(line), "")) try
+            elif text.starts-with(line, "Distance:")
+                let parsed = _numbers(line) try
+                for number in parsed
+                    list.append(distances, number)
+                big-record = text.to-int(text.join(_tokens(line), "")) try
+    Sheet(times, distances, big-time, big-record)
+
+# How many hold times beat one race's record; the parabola t * (T - t)
+# rises then falls, so the winning holds are one contiguous run.
+word _wins(time: Int, best: Int) -> Int
+    var count = 0
+    for hold in range(1, time)
+        if hold * (time - hold) > best
+            count = count + 1
+    count
+
+## The product over all races of their winning hold counts.
+word part-one(sheet: Sheet) -> Int
+    var product = 1
+    for index in range(0, list.length(sheet.times))
+        product = product * _wins(sheet.times[index], sheet.distances[index])
+    product
+
+## The winning hold count of the single huge race.
+word part-two(sheet: Sheet) -> Int
+    _wins(sheet.big-time, sheet.big-record)
+
 # Advent of Code 2023, day 6 — Wait For It.
 # Reads the race sheet from stdin until end of input, prints both answers.
-use day06-core
 
-# shortcut: the sheet holds digits, spaces, and two colons, so this
-# sentinel cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let sheet = day06-core.parse(buffer.to-text(input)) try
-print(day06-core.part-one(sheet))
-print(day06-core.part-two(sheet))
+word main()
+    # shortcut: the sheet holds digits, spaces, and two colons, so this
+    # sentinel cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let sheet = parse(buffer.to-text(input)) try
+    print(part-one(sheet))
+    print(part-two(sheet))

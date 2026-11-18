@@ -1,18 +1,101 @@
+# Advent of Code 2023, day 11 — Cosmic Expansion (solution words).
+# The image holds galaxies on a grid whose empty rows and columns expand
+# before any distance is measured. Materializing the expanded grid is
+# hopeless at part 2's million-fold expansion, so each empty row and column
+# is a flag instead: a pair's distance is its Manhattan walk plus the extra
+# per empty line crossed, and the extra is 1 in part 1 and 999999 in part 2.
+
+type Galaxy = record
+    row: Int
+    col: Int
+
+type Universe = record
+    galaxies: List<Galaxy>
+    row-empty: List<Bool>
+    col-empty: List<Bool>
+
+# The absolute value of an integer.
+word _abs(value: Int) -> Int
+    if value < 0
+        0 - value
+    else
+        value
+
+# The count of empty lines strictly between two coordinates.
+word _gaps(empty: List<Bool>, a: Int, b: Int) -> Int
+    var low = a
+    var high = b
+    if low > high
+        low = b
+        high = a
+    var count = 0
+    for index in range(low, high)
+        if empty[index]
+            count = count + 1
+    count
+
+## Parse the image into galaxies plus its empty-row and empty-column flags.
+word parse(text: String) -> Universe
+    let rows: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(rows, line)
+    let width = text.length(rows[0])
+    let galaxies: List<Galaxy> = []
+    let row-empty: List<Bool> = []
+    for r in range(0, list.length(rows))
+        let row = rows[r]
+        var empty = true
+        for c in range(0, width)
+            if text.slice(row, c, c + 1) == "#"
+                list.append(galaxies, Galaxy(r, c))
+                empty = false
+        list.append(row-empty, empty)
+    let col-empty: List<Bool> = []
+    for c in range(0, width)
+        var empty = true
+        for r in range(0, list.length(rows))
+            if text.slice(rows[r], c, c + 1) == "#"
+                empty = false
+        list.append(col-empty, empty)
+    Universe(galaxies, row-empty, col-empty)
+
+# The sum of pairwise distances, each empty line crossed adding extra.
+word _expand-total(universe: Universe, extra: Int) -> Int
+    var total = 0
+    let n = list.length(universe.galaxies)
+    for i in range(0, n)
+        let a = universe.galaxies[i]
+        for j in range(i + 1, n)
+            let b = universe.galaxies[j]
+            let walk = _abs(a.row - b.row) + _abs(a.col - b.col)
+            let gaps = _gaps(universe.row-empty, a.row, b.row) + _gaps(universe.col-empty, a.col, b.col)
+            total = total + walk + extra * gaps
+    total
+
+## Sum the pairwise distances with empty lines doubled.
+word part-one(universe: Universe) -> Int
+    _expand-total(universe, 1)
+
+## Sum the pairwise distances with empty lines a million times as wide.
+word part-two(universe: Universe) -> Int
+    _expand-total(universe, 999999)
+
 # Advent of Code 2023, day 11 — Cosmic Expansion.
 # Reads the image from stdin until end of input, prints both answers.
-use day11-core
 
-# shortcut: the image holds dots and hashes only, so this sentinel cannot
-# collide; it stands in for the end-of-file failure because error.detail
-# is not compiled to wasm yet
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let universe = day11-core.parse(buffer.to-text(input))
-print(day11-core.part-one(universe))
-print(day11-core.part-two(universe))
+word main()
+    # shortcut: the image holds dots and hashes only, so this sentinel cannot
+    # collide; it stands in for the end-of-file failure because error.detail
+    # is not compiled to wasm yet
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let universe = parse(buffer.to-text(input))
+    print(part-one(universe))
+    print(part-two(universe))

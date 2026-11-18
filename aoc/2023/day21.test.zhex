@@ -1,17 +1,17 @@
-use day21-core
+use day21
 use test
 
 let sample = "...........\n.....###.#.\n.###.##..#.\n..#.#...#..\n....#.#....\n.##..S####.\n.##..#...#.\n.......##..\n.##.#.####.\n.##..##.##.\n..........."
-let garden = day21-core.parse(sample)
-test.check(day21-core.part-one(garden, 6) == 16, "day 21 part 1, six steps")
-test.check(day21-core.count-at(garden, 10) == 50, "day 21 part 2, ten steps")
-test.check(day21-core.count-at(garden, 50) == 1594, "day 21 part 2, fifty steps")
-test.check(day21-core.count-at(garden, 100) == 6536, "day 21 part 2, one hundred steps")
+let garden = day21.parse(sample)
+test.check(day21.part-one(garden, 6) == 16, "day 21 part 1, six steps")
+test.check(day21.count-at(garden, 10) == 50, "day 21 part 2, ten steps")
+test.check(day21.count-at(garden, 50) == 1594, "day 21 part 2, fifty steps")
+test.check(day21.count-at(garden, 100) == 6536, "day 21 part 2, one hundred steps")
 
 # a garden whose crossings through S stay clear, so whole repeats of the
 # map fill the diamond exactly and the quadratic fit is exact
 let cleared = "...........\n......##.#.\n.###..#..#.\n..#.#...#..\n....#.#....\n.....S.....\n.##......#.\n.......##..\n.##.#.####.\n.##...#.##.\n..........."
-let tiles = day21-core.parse(cleared)
-test.check(day21-core.part-two(tiles, 49) == 1878, "day 21 part 2, four exact repeats")
-test.check(day21-core.part-two(tiles, 38) == day21-core.count-at(tiles, 38), "day 21 part 2 fit equals the direct walk")
+let tiles = day21.parse(cleared)
+test.check(day21.part-two(tiles, 49) == 1878, "day 21 part 2, four exact repeats")
+test.check(day21.part-two(tiles, 38) == day21.count-at(tiles, 38), "day 21 part 2 fit equals the direct walk")
 print "day 21 tests passed"

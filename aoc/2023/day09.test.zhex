@@ -1,9 +1,9 @@
-use day09-core
+use day09
 use test
 
 let sample = "0 3 6 9 12 15\n1 3 6 10 15 21\n10 13 16 21 30 45"
-let histories = day09-core.parse(sample) try
+let histories = day09.parse(sample) try
 
-test.check(day09-core.part-one(histories) == 114, "day 9 part 1")
-test.check(day09-core.part-two(histories) == 2, "day 9 part 2")
+test.check(day09.part-one(histories) == 114, "day 9 part 1")
+test.check(day09.part-two(histories) == 2, "day 9 part 2")
 print "day 9 tests passed"

@@ -1,14 +1,14 @@
-use day14-core
+use day14
 use test
 
 let sample = "O....#....\nO.OO#....#\n.....##...\nOO.#O....O\n.O.....O#.\nO.#..O.#.#\n..O..#O..O\n.......O..\n#....###..\n#OO..#...."
-let dish = day14-core.parse(sample)
+let dish = day14.parse(sample)
 
-test.check(day14-core.part-one(dish) == 136, "day 14 part 1")
-test.check(day14-core.part-two(dish) == 64, "day 14 part 2")
+test.check(day14.part-one(dish) == 136, "day 14 part 1")
+test.check(day14.part-two(dish) == 64, "day 14 part 2")
 print "day 14 tests passed"
 
 # A dish whose cycle jump lands exactly on the billionth spin: the old
 # unconditional spin answered the load one spin late (oracle 15, was 17).
 let exact-jump = "O.O.\n.O..\nOO.#\nOOO."
-test.check(day14-core.part-two(day14-core.parse(exact-jump)) == 15, "day 14 part 2, exact-division cycle jump")
+test.check(day14.part-two(day14.parse(exact-jump)) == 15, "day 14 part 2, exact-division cycle jump")

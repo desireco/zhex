@@ -1,8 +1,8 @@
-use day23-core
+use day23
 use test
 
 let trail = "#.#####################\n#.......#########...###\n#######.#########.#.###\n###.....#.>.>.###.#.###\n###v#####.#v#.###.#.###\n###.>...#.#.#.....#...#\n###v###.#.#.#########.#\n###...#.#.#.......#...#\n#####.#.#.#######.#.###\n#.....#.#.#.......#...#\n#.#####.#.#.#########v#\n#.#...#...#...###...>.#\n#.#.#v#######v###.###v#\n#...#.>.#...>.>.#.###.#\n#####v#.#.###v#.#.###.#\n#.....#...#...#.#.#...#\n#.#########.###.#.#.###\n#...###...#...#...#.###\n###.###.#.###v#####v###\n#...#...#.#.>.>.#.>.###\n#.###.###.#.###.#.#v###\n#.....###...###...#...#\n#####################.#"
-let grid = day23-core.parse(trail)
-test.check(day23-core.part-one(grid) == 94, "day 23 part 1, longest hike obeying slopes")
-test.check(day23-core.part-two(grid) == 154, "day 23 part 2, longest hike climbing slopes")
+let grid = day23.parse(trail)
+test.check(day23.part-one(grid) == 94, "day 23 part 1, longest hike obeying slopes")
+test.check(day23.part-two(grid) == 154, "day 23 part 2, longest hike climbing slopes")
 print "day 23 tests passed"

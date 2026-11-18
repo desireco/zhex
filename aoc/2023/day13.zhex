@@ -1,23 +1,95 @@
+# Advent of Code 2023, day 13 — Point of Incidence (solution words).
+# Each pattern is a block of ash-and-rock rows. A mirror between rows i-1
+# and i holds when every facing pair across the fold matches, and the
+# summary counts the rows above it. Both parts scan the same candidates
+# and count mismatched cells across the fold: part 1 accepts the perfect
+# fold, part 2 the fold with exactly one mismatched cell pair — the one
+# smudge flipped. Vertical mirrors are the same scan over the transposed
+# pattern, so one helper answers every direction.
+
+type Pattern = record
+    rows: List<String>
+
+## Parse the ash-and-rock patterns, one block per blank-separated group.
+word parse(text: String) -> List<Pattern>
+    let patterns: List<Pattern> = []
+    var rows: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(rows, line)
+        elif list.length(rows) > 0
+            list.append(patterns, Pattern(rows))
+            rows = []
+    if list.length(rows) > 0
+        let added = list.append(patterns, Pattern(rows))
+    patterns
+
+# The pattern turned a quarter turn, so column mirrors become row mirrors.
+word _transpose(rows: List<String>) -> List<String>
+    let turned: List<String> = []
+    for c in range(0, text.length(rows[0]))
+        var column = ""
+        for r in range(0, list.length(rows))
+            column = column + text.slice(rows[r], c, c + 1)
+        list.append(turned, column)
+    turned
+
+# The first mirror position with exactly the wanted mismatched-cell count
+# across its fold, zero when no fold qualifies.
+word _mirror(rows: List<String>, want: Int) -> Int
+    var result = 0
+    for i in range(1, list.length(rows))
+        var bad = 0
+        var a = i - 1
+        var b = i
+        while a >= 0 and b < list.length(rows) and bad <= want
+            let top = rows[a]
+            let bottom = rows[b]
+            for c in range(0, text.length(top))
+                if text.slice(top, c, c + 1) != text.slice(bottom, c, c + 1)
+                    bad = bad + 1
+            a = a - 1
+            b = b + 1
+        if bad == want and result == 0
+            result = i
+    result
+
+## Sum the summaries of every pattern's perfect mirror.
+word part-one(patterns: List<Pattern>) -> Int
+    var total = 0
+    for pattern in patterns
+        let turned = _transpose(pattern.rows)
+        total = total + 100 * _mirror(pattern.rows, 0) + _mirror(turned, 0)
+    total
+
+## Sum the summaries of every pattern's one-smudge mirror.
+word part-two(patterns: List<Pattern>) -> Int
+    var total = 0
+    for pattern in patterns
+        let turned = _transpose(pattern.rows)
+        total = total + 100 * _mirror(pattern.rows, 1) + _mirror(turned, 1)
+    total
+
 # Advent of Code 2023, day 13 — Point of Incidence.
 # Reads the patterns from stdin until end of input, prints both answers.
-use day13-core
 
-# The patterns separate with blank lines, so the runner branches on the
-# end-of-file detail (error.detail). That word is fenced in the browser
-# build (#135), and the sentinel workaround days 11-12 use cannot cover
-# detect end-of-file either. The door carries the fence note until the
-# engine lane fixes #135.
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch problem
-        if error.detail(problem, "reason") == "end-of-file"
-            done = true
-            ""
-        else
-            error.message(problem)
-    if not done
-        let added = buffer.add-line(input, line)
-let patterns = day13-core.parse(buffer.to-text(input))
-print(day13-core.part-one(patterns))
-print(day13-core.part-two(patterns))
+word main()
+    # The patterns separate with blank lines, so the runner branches on the
+    # end-of-file detail (error.detail). That word is fenced in the browser
+    # build (#135), and the sentinel workaround days 11-12 use cannot cover
+    # detect end-of-file either. The door carries the fence note until the
+    # engine lane fixes #135.
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch problem
+            if error.detail(problem, "reason") == "end-of-file"
+                done = true
+                ""
+            else
+                error.message(problem)
+        if not done
+            let added = buffer.add-line(input, line)
+    let patterns = parse(buffer.to-text(input))
+    print(part-one(patterns))
+    print(part-two(patterns))

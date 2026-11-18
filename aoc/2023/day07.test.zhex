@@ -1,9 +1,9 @@
-use day07-core
+use day07
 use test
 
 let sample = "32T3K 765\nT55J5 684\nKK677 28\nKTJJT 220\nQQQJA 483"
-let hands = day07-core.parse(sample) try
+let hands = day07.parse(sample) try
 
-test.check(day07-core.part-one(hands) == 6440, "day 7 part 1")
-test.check(day07-core.part-two(hands) == 5905, "day 7 part 2")
+test.check(day07.part-one(hands) == 6440, "day 7 part 1")
+test.check(day07.part-two(hands) == 5905, "day 7 part 2")
 print "day 7 tests passed"

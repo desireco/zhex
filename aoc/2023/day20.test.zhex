@@ -1,25 +1,25 @@
-use day20-core
+use day20
 use test
 
 # The page's two part-1 examples pin the documented press behavior:
 # flip-flops toggle only on low, conjunctions answer low only when every
 # remembered input pulse is high, and pulses drain in send order.
 let flip-cycle = "broadcaster -> a, b, c\n%a -> b\n%b -> c\n%c -> inv\n&inv -> a"
-test.check(day20-core.part-one(day20-core.parse(flip-cycle)) == 32000000, "day 20 part 1, flip-flop cycle example")
+test.check(day20.part-one(day20.parse(flip-cycle)) == 32000000, "day 20 part 1, flip-flop cycle example")
 
 let inverted = "broadcaster -> a\n%a -> inv, con\n&inv -> b\n%b -> con\n&con -> output"
-test.check(day20-core.part-one(day20-core.parse(inverted)) == 11687500, "day 20 part 1, conjunction example")
+test.check(day20.part-one(day20.parse(inverted)) == 11687500, "day 20 part 1, conjunction example")
 
 # Part 2 has no sample on the page (unlocking it keeps the same
 # examples), so the tests pin the cycle logic on two synthetic networks
 # whose true first low pulse into rx equals the LCM of the first-high
 # presses — verified press by press.
 let single-cycle = "broadcaster -> a\n%a -> inv\n&inv -> con2\n&con2 -> rx"
-test.check(day20-core.part-two(day20-core.parse(single-cycle)) == 2, "day 20 part 2, single 2-press cycle into rx")
+test.check(day20.part-two(day20.parse(single-cycle)) == 2, "day 20 part 2, single 2-press cycle into rx")
 
 let double-cycle = "broadcaster -> a, c\n%a -> inv_a\n&inv_a -> con\n%c -> d\n%d -> inv_c\n&inv_c -> con\n&con -> rx"
-test.check(day20-core.part-two(day20-core.parse(double-cycle)) == 4, "day 20 part 2, 2-and-4 press cycles into rx")
+test.check(day20.part-two(day20.parse(double-cycle)) == 4, "day 20 part 2, 2-and-4 press cycles into rx")
 
 # Inputs without rx have no cycle to find; part 2 reports 0.
-test.check(day20-core.part-two(day20-core.parse(flip-cycle)) == 0, "day 20 part 2, no rx reports 0")
+test.check(day20.part-two(day20.parse(flip-cycle)) == 0, "day 20 part 2, no rx reports 0")
 print "day 20 tests passed"

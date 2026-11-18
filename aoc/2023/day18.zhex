@@ -1,18 +1,101 @@
+# Advent of Code 2023, day 18 — Lavaduct Lagoon (solution words). The
+# trench loop's volume is its interior plus the trench itself, both one
+# meter deep, so the answer is the count of lattice points inside or on
+# the loop: the shoelace formula gives the area, Pick's theorem trades
+# it for interior-plus-boundary, and everything stays in integers — the
+# doubled total (2*area + perimeter + 2) is always even, so one halving
+# at the end is exact. Directions encode 0-3 as R, D, L, U, which is
+# also what a hex color's last digit names; part 2 reads the first five
+# hex digits as the distance.
+
+## Both dig plans in one record: the listed steps, and the steps the
+## hex colors encode.
+type DigPlan = record
+    dirs: List<Int>
+    dists: List<Int>
+    hex-dirs: List<Int>
+    hex-dists: List<Int>
+
+# One hex digit's value: its place in 0..f.
+word _digit(ch: String) -> Int
+    text.index-of("0123456789abcdef", ch)
+
+# The five hex digits naming a distance.
+word _hex-length(color: String) -> Int
+    var value = 0
+    for at in range(2, 7)
+        value = value * 16 + _digit(text.slice(color, at, at + 1))
+    value
+
+## Parse every "L N (#RRGGBB)" line into both plans; the sixth color
+## digit names the direction (0 R, 1 D, 2 L, 3 U) and the first five
+## the distance.
+word parse(text: String) -> DigPlan
+    let dirs: List<Int> = []
+    let dists: List<Int> = []
+    let hex-dirs: List<Int> = []
+    let hex-dists: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let parts = text.split(line, " ")
+            list.append(dirs, text.index-of("RDLU", parts[0]))
+            list.append(dists, text.to-int(parts[1]) try)
+            list.append(hex-dirs, _digit(text.slice(parts[2], 7, 8)))
+            let added = list.append(hex-dists, _hex-length(parts[2]))
+    DigPlan(dirs, dists, hex-dirs, hex-dists)
+
+word _step-x(direction: Int) -> Int
+    [1, 0, -1, 0][direction]
+
+word _step-y(direction: Int) -> Int
+    [0, 1, 0, -1][direction]
+
+word _abs(n: Int) -> Int
+    if n < 0
+        -n
+    else
+        n
+
+# Interior plus boundary lattice points: shoelace for the area, Pick
+# for the count, combined as (2*area + perimeter + 2) / 2.
+word _area(dirs: List<Int>, dists: List<Int>) -> Int
+    var x = 0
+    var y = 0
+    var cross = 0
+    var perimeter = 0
+    for at in range(0, list.length(dirs))
+        let length = dists[at]
+        let next-x = x + _step-x(dirs[at]) * length
+        let next-y = y + _step-y(dirs[at]) * length
+        cross = cross + (x + next-x) * (y - next-y)
+        perimeter = perimeter + length
+        x = next-x
+        y = next-y
+    (_abs(cross) + perimeter + 2) / 2
+
+## Lava volume following the listed steps.
+word part-one(plan: DigPlan) -> Int
+    _area(plan.dirs, plan.dists)
+
+## Lava volume following the steps the hex colors encode.
+word part-two(plan: DigPlan) -> Int
+    _area(plan.hex-dirs, plan.hex-dists)
+
 # Advent of Code 2023, day 18 — Lavaduct Lagoon.
 # Reads the dig plan from stdin until end of input, prints both answers.
-use day18-core
 
-# shortcut: a plan line holds a letter, a number, and a parenthesized
-# hex color, so this sentinel cannot collide; it stands in for the
-# end-of-file failure because error.detail is not compiled to wasm yet
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let plan = day18-core.parse(buffer.to-text(input)) try
-print(day18-core.part-one(plan))
-print(day18-core.part-two(plan))
+word main()
+    # shortcut: a plan line holds a letter, a number, and a parenthesized
+    # hex color, so this sentinel cannot collide; it stands in for the
+    # end-of-file failure because error.detail is not compiled to wasm yet
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let plan = parse(buffer.to-text(input)) try
+    print(part-one(plan))
+    print(part-two(plan))
