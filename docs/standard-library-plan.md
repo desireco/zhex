@@ -38,7 +38,7 @@ The [test catalog](tests.md) maps the broader behavior contract to tests. An inv
 Important current constraints:
 
 - `String` operations are specified in Unicode code points. Source literals, file reads and `read-line` validate UTF-8, but the current `console.arg` path returns host argument bytes without validation; arbitrary Unix argv therefore exposes an existing boundary gap. This research does not change runtime behavior. Length, slice and index positions count code points, not bytes or graphemes; `index-of` uses `-1` for absence. Preserve these contracts while deciding the argv validation policy separately. There is no normalization, locale-aware casing, or byte type.
-- `Int` is checked signed 64-bit. There is no Float, Decimal, BigInt, generic user word, or generic record.
+- `Int` is checked signed 128-bit (#167 widened it from 64). There is no Float, Decimal, BigInt, generic user word, or generic record.
 - Lists, arrays, maps, buffers, and files have shared identity. List/array iteration rejects mutations of the active container. A new outer list does not imply a deep copy of nested values.
 - Routine collection operations are plain with selected opt-in checked forms. Parsing and external input use Results. A Result cannot be deferred, stored inside a collection, or passed as a user-word parameter.
 - Explicit partial function values exist and serve as callbacks to the shipped `list.` transformation and search words; fallible traversal (S7, #63) was declined and removed by the owner on 2026-11-14, and a select-shaped word is drafted separately as [#70](https://github.com/desireco/zhex/issues/70). Omitted parameter annotations infer one concrete type; they are not polymorphism.

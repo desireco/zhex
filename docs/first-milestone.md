@@ -50,7 +50,7 @@ The [example corpus](syntax-examples.md) extends this smallest target with runna
 - Resolve names and check the whole file before evaluation. Unknown names, incorrect argument counts, and incompatible types prevent program execution.
 - Report malformed source and arithmetic failures with the filename, line, and column, and return a nonzero exit status. Arithmetic failures remain runtime errors unless established during checking.
 
-Named expressions and flows use the same numeric rules: signed 64-bit integers, checked overflow, and errors for division by zero. The initial language contract defines the supported operators, precedence, literal bounds, and failure behavior.
+Named expressions and flows use the same numeric rules: signed 128-bit integers, checked overflow, and errors for division by zero. The initial language contract defines the supported operators, precedence, literal bounds, and failure behavior.
 
 ## Foundation for later work
 

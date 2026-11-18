@@ -26,7 +26,7 @@ The first result is noon the next day; the second is 1 p.m. because the daylight
 | `time.new(hour, minute, second)` | `Time` | Construct a local time; leap seconds are not supported. |
 | `time.parse(text)` | `Result<Time, Error>` | Parse `HH:MM:SS` with optional fractional seconds up to nine digits. |
 | `time.to-string(time)` | `String` | Format local time. |
-| `duration.new(nanoseconds)` | `Duration` | Construct from signed 64-bit nanoseconds. |
+| `duration.new(nanoseconds)` | `Duration` | Construct from nanoseconds; the Duration range is the signed 64-bit nanosecond span, and wider Ints fail `temporal-range`. |
 | `duration.parse(text)` | `Result<Duration, Error>` | Parse elapsed units such as `ns`, `us`, `µs`, `ms`, `s`, `m`, and `h`. |
 | `duration.to-string(duration)` | `String` | Format elapsed duration. |
 | `instant.now()` | `Instant` | Read the current instant. |

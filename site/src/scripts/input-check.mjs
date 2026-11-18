@@ -1,16 +1,16 @@
 // The #107 input-box validation, shared by the examples page and the
 // playground (#88): the box is checked against its declared kind before any
 // run, so a wrong entry is named here instead of surfacing as the program's
-// own trap. Integer lines mirror text.to-int: trimmed, then a signed 64-bit
+// own trap. Integer lines mirror text.to-int: trimmed, then a signed 128-bit
 // decimal integer; "text" and "none" accept anything.
 
-const INT64_MIN = -(2n ** 63n);
-const INT64_MAX = 2n ** 63n - 1n;
+const INT128_MIN = -(2n ** 127n);
+const INT128_MAX = 2n ** 127n - 1n;
 
-function isInt64(text) {
+function isInt128(text) {
   if (!/^[+-]?[0-9]+$/.test(text)) return false;
   const value = BigInt(text);
-  return value >= INT64_MIN && value <= INT64_MAX;
+  return value >= INT128_MIN && value <= INT128_MAX;
 }
 
 export function inputProblem(kind, lines, value) {
@@ -24,7 +24,7 @@ export function inputProblem(kind, lines, value) {
       ? `Expected ${expected} — the box is empty.`
       : `Expected ${expected} — ${entered.length} ${entered.length === 1 ? "line" : "lines"} found.`;
   }
-  const bad = entered.find(line => !isInt64(line.trim()));
+  const bad = entered.find(line => !isInt128(line.trim()));
   if (bad === undefined) return "";
   return bad.trim() === ""
     ? `Expected ${expected} — a blank line is not an integer.`

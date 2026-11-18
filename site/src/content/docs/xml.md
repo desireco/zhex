@@ -45,7 +45,7 @@ ingest
 - **Attributes are fields.** Each `attr="value"` on an element feeds the same-named record field. An attribute name colliding with a child element name in the same element fails the decode — strict, mirroring `json.decode`'s duplicate-key rule.
 - **Repeated elements are lists.** Sibling elements sharing a name feed a `List<T>` field in document order; two or more elements for a non-list field fail as duplicates.
 - **Absent means default.** An absent element or attribute uses the field's default from the defaults value. An `Option<T>` field with an `Option.None` default decodes as `Option.None` when absent and `Option.Some(...)` when present — XML has no null marker.
-- **Text-only elements are scalars.** An element with only text decodes as `String` (exact text), `Int` (integer-form signed 64-bit, surrounding whitespace trimmed), or `Bool` (exactly `true` or `false`).
+- **Text-only elements are scalars.** An element with only text decodes as `String` (exact text), `Int` (integer-form signed 128-bit, surrounding whitespace trimmed), or `Bool` (exactly `true` or `false`).
 - **Lists and maps nest by children.** For a `List<T>` target the element's children are the items; for a `Map<String, T>` each child element's name is the key and its content the value, in document order.
 - **Whitespace between elements is ignored**; non-whitespace text next to child elements is mixed content and fails.
 

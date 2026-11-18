@@ -129,7 +129,7 @@ These built-in operations return a `Result` directly:
 | Operation | Result type | Example failure |
 | --- | --- | --- |
 | `read-line(prompt)` | `Result<String, InputError>` | End of input (reason detail `end-of-file`), invalid UTF-8, or input error (`read-failed`). |
-| `text.to-int(text)` | `Result<Int, ParseError>` | Input is not a signed 64-bit decimal integer. |
+| `text.to-int(text)` | `Result<Int, ParseError>` | Input is not a signed 128-bit decimal integer. |
 | `console.arg(i)` | `Result<String, InputError>` | Argument index is outside the supplied arguments. |
 | `file.read(path)` | `Result<String, FileError>` | File cannot be opened or is invalid UTF-8. |
 | `file.open(path)` | `Result<File, FileError>` | File cannot be opened. |

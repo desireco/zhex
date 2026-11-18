@@ -8,6 +8,7 @@ The first language milestone runs real programs with checked types and console i
 
 - WebAssembly compiler: `zhex compile` ships with browser and WASI targets, byte-identical to the interpreter across the examples corpus (#7).
 
+- Numbers: `Int` widened to signed 128-bit — literals, arithmetic, comparisons, parsing, printing, JSON and XML integers, and map keys all carry the new width, with overflow a language error at the 128-bit bounds; `zhex compile` builds keep 64-bit Ints and fence wider values (#167).
 - Interpreter: typed words, inferred locals, conditions, bounded loops, and checked flows. Mutation words return their receiver — `list.append`, `array.resize`, `map.remove`, `buffer.add-line`, and `buffer.set-line` return the collection they mutated, making mutation flows chain (#156).
 - Working examples: composition, console input, FizzBuzz, Fibonacci, factorial, palindrome checking, a recursive GCD, and a times table.
 - Executable specification: tests cover syntax, types, scope, arithmetic boundaries, Unicode, and failure paths.

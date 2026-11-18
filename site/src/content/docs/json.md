@@ -43,7 +43,7 @@ The decoder checks every supplied value. It rejects unknown fields, duplicate JS
 
 JSON supports `Int`, `Bool`, `String`, records, `List<T>`, `Map<String, T>`, and `Option<T>`, including nested combinations of those types. Direct `Option<Option<T>>` is rejected because `null` would make the nested representation ambiguous. `json.encode(value)` returns `Result<String, Error>` and writes compact JSON: record fields follow declaration order and map entries follow insertion order. `Option.Some(value)` encodes as its contained value; `Option.None` encodes as `null`.
 
-Integers must use an integer-form JSON number within the signed 64-bit range. Fractions and exponent notation are rejected, even when their mathematical value is an integer; there is no rounding or floating-point conversion.
+Integers must use an integer-form JSON number within the signed 128-bit range. Fractions and exponent notation are rejected, even when their mathematical value is an integer; there is no rounding or floating-point conversion.
 
 The current codec does not support `Unit`, Results, buffers, files, arrays, choices other than `Option`, or maps with non-string keys. These unsupported types are rejected by the checker before execution. JSON nesting is limited to 256 levels and a decoded list is limited to 1,000,000 elements.
 

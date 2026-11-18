@@ -198,7 +198,7 @@ print(number * number)
 
 `read-line` returns a Result; `try` unwraps a successful line or propagates an input error. Here, invalid numeric text or an out-of-range integer is caught, its stable code is inspected, and the program substitutes `0`. The handler runs only when parsing fails.
 
-`read-line` preserves spaces and accepts an empty line. `text.to-int` trims surrounding whitespace and requires a signed 64-bit decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
+`read-line` preserves spaces and accepts an empty line. `text.to-int` trims surrounding whitespace and requires a signed 128-bit decimal integer. Prompts are written and flushed before reading. `print` accepts an integer, boolean, or string and appends a newline.
 
 Word parameter annotations can be omitted when the body or calls in the same program determine one concrete type; unresolved parameters need annotations. A return annotation can also be omitted when the body determines one concrete success type. When an unhandled `try` can fail, the checker infers an effective `Result` signature, and each caller uses `try` or `catch`. The [Words and flows guide](../site/src/content/docs/words-and-flows.md) explains inference and composition; the [Results and error handling guide](../site/src/content/docs/results.md) explains propagation and recovery.
 
