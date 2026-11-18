@@ -150,9 +150,11 @@ type Roadmap struct {
 // RoadmapItem is one bullet split for scanning: Lead is the leading "Name"
 // before the bullet's first ": " (the rule groupDone groups by) and Text is
 // the remainder, or the whole bullet when no usable colon exists. Lead and
-// Text always recompose to the original words.
+// Text always recompose to the original words. Facts hold the item's indented
+// sub-bullets — one fact per line, rendered under the lead.
 type RoadmapItem struct {
 	Lead, Text string
+	Facts      []string `json:"facts,omitempty"`
 }
 
 type RoadmapSection struct {
@@ -186,16 +188,18 @@ func splitLead(item string) RoadmapItem {
 	return RoadmapItem{Text: item}
 }
 
-// The roadmap uses plain paragraphs, level-two headings, and single-line bullets.
-// Keep this small format explicit rather than silently dropping Markdown syntax.
+// The roadmap uses plain paragraphs, level-two headings, single-line bullets,
+// and indented sub-bullets (two or more spaces, then "- ") that attach one
+// fact each to the bullet above them. Keep this small format explicit rather
+// than silently dropping Markdown syntax.
 func loadRoadmap(source []byte) (Roadmap, error) {
 	var roadmap Roadmap
 	lines := strings.Split(strings.TrimSpace(string(source)), "\n")
 	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "# Zhex roadmap" {
 		return roadmap, fmt.Errorf("ROADMAP.md must start with # Zhex roadmap")
 	}
-	for _, line := range lines[1:] {
-		line = strings.TrimSpace(line)
+	for _, raw := range lines[1:] {
+		line := strings.TrimSpace(raw)
 		if line == "" {
 			continue
 		}
@@ -214,6 +218,14 @@ func loadRoadmap(source []byte) (Roadmap, error) {
 			continue
 		}
 		section := &roadmap.Sections[len(roadmap.Sections)-1]
+		if strings.HasPrefix(raw, "  ") && strings.HasPrefix(line, "- ") {
+			if len(section.Items) == 0 {
+				return roadmap, fmt.Errorf("roadmap sub-bullet without a bullet above it: %s", line)
+			}
+			last := &section.Items[len(section.Items)-1]
+			last.Facts = append(last.Facts, strings.TrimPrefix(line, "- "))
+			continue
+		}
 		if strings.HasPrefix(line, "- ") {
 			section.Items = append(section.Items, splitLead(strings.TrimPrefix(line, "- ")))
 		} else if len(section.Items) == 0 {

@@ -59,10 +59,16 @@ The first language milestone runs real programs with checked types and console i
 
 Grow the language's reach: a dedicated domain and funding. This is the proposed order; each step needs working examples and tests.
 
-- Standard library: the researched inventory ships; what remains is ticketed, not shipped — the proposed operations in `docs/standard-library-plan.md` (#30) and the open vocabulary tickets (#163 `list.contains`, #164 comparator sort, #165 `map.put` receiver).
-- WebAssembly: the A3 WASI runner — a compiled module run under a standalone wasm runtime with `file.*` words working against one preopened directory — compiles today but stays runtime-untested; docs/wasm-plan.md tracks it open.
+- Standard library: the researched inventory ships; what remains is ticketed, not shipped.
+  - The proposals and dependency order live in `docs/standard-library-plan.md` (#30).
+  - Open vocabulary tickets: #163 `list.contains`, #164 comparator sort, #165 `map.put` receiver.
+- WebAssembly: the A3 WASI runner runs a compiled module under a standalone wasm runtime.
+  - `file.*` words work against one preopened directory.
+  - It compiles today but stays runtime-untested; `docs/wasm-plan.md` tracks it open.
 - Domain: buy a dedicated domain for the language and point it at the published site.
-- Funding: enable GitHub Sponsors or Open Collective with a sponsor section on the site, and pursue the researched grant and visibility channels (#26).
+- Funding: enable GitHub Sponsors or Open Collective and pursue the researched channels (#26).
+  - A sponsor section on the site.
+  - The grant and visibility channels from the funding research.
 
 ## Future
 

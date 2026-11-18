@@ -1064,6 +1064,27 @@ pre {
   font-weight: 750;
 }
 
+/* A row's facts — the generator's indented sub-bullets — list under the lead
+   without the outer row's border and arrow treatment. */
+.roadmap-stage li ul.facts {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  border-top: none;
+  list-style: none;
+}
+
+.roadmap-stage li ul.facts li {
+  padding: 0.15rem 0 0.15rem 1.25rem;
+  border-bottom: none;
+  font-size: 16px;
+}
+
+.roadmap-stage li ul.facts li::before {
+  content: "–";
+  left: 0;
+  font-weight: 400;
+}
+
 /* Done collapses to one counted chip per shipped group (roadmap only; the
    changelog keeps its row list). */
 .roadmap-done-grid {

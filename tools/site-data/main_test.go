@@ -78,6 +78,30 @@ func TestRoadmapToleratesCRLFAndRejectsIntroBullets(t *testing.T) {
 	}
 }
 
+func TestRoadmapAttachesSubBulletsAsFacts(t *testing.T) {
+	source := "# Zhex roadmap\n\n## Done\n\n- Interpreter.\n## Next\n\n- WebAssembly: the WASI runner.\n  - One preopened directory.\n  - Runtime untested.\n- Domain: buy a domain.\n## Future\n- Compilation.\n"
+	roadmap, err := loadRoadmap([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := roadmap.Sections[1]
+	if next.Title != "Next" || len(next.Items) != 2 {
+		t.Fatalf("Next is %+v; want two items", next)
+	}
+	wasm := next.Items[0]
+	if itemText(wasm) != "WebAssembly: the WASI runner." || len(wasm.Facts) != 2 ||
+		wasm.Facts[0] != "One preopened directory." || wasm.Facts[1] != "Runtime untested." {
+		t.Fatalf("facts did not attach: %+v", wasm)
+	}
+	if len(next.Items[1].Facts) != 0 {
+		t.Fatalf("plain bullet grew facts: %+v", next.Items[1])
+	}
+	orphan := "# Zhex roadmap\n## Next\n  - No bullet above.\n## Future\n- Compilation.\n"
+	if _, err := loadRoadmap([]byte(orphan)); err == nil || !strings.Contains(err.Error(), "without a bullet above") {
+		t.Fatalf("wanted orphan sub-bullet error, got %v", err)
+	}
+}
+
 // itemText recomposes a split bullet back into its original words: the
 // presentation split must never change what a bullet says.
 func itemText(item RoadmapItem) string {

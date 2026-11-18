@@ -19,7 +19,7 @@ const heading = (group) => group.Name === "More" ? "More milestones" : group.Nam
     <section class="section roadmap-section" aria-labelledby={group.Anchor}>
       <div class="wrap roadmap-stage">
         <div><p class="eyebrow">Shipped</p><h2 id={group.Anchor}>{heading(group)}</h2><p class="aside">{group.Count} shipped.</p></div>
-        <ul>{group.Items.map(item => <li>{item.Lead ? <Fragment><strong>{item.Lead}</strong>: </Fragment> : null}<Fragment set:html={inline(item.Text)} /></li>)}</ul>
+        <ul>{group.Items.map(item => <li>{item.Lead ? <Fragment><strong>{item.Lead}</strong>: </Fragment> : null}<Fragment set:html={inline(item.Text)} />{(item.facts ?? []).length > 0 && <ul class="facts">{item.facts.map(fact => <li set:html={inline(fact)} />)}</ul>}</li>)}</ul>
       </div>
     </section>
     ))}
