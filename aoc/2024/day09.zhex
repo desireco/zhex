@@ -1,19 +1,134 @@
+# Advent of Code 2024, day 9 — Disk Fragmenter (solution words).
+# The dense disk map alternates file lengths and free-space lengths, files
+# numbered from 0. Part 1 compacts block by block: the last file block
+# repeatedly fills the leftmost free block, two pointers walking inward.
+# Part 2 moves whole files, highest ID first, each into the leftmost run of
+# free blocks wide enough and strictly left of it, never splitting a file;
+# a file with no fitting hole stays put. The checksum sums each block's
+# position times its file ID over file blocks.
+
+## Parse the dense map into one block list: file IDs, -1 for free space.
+word parse(text: String) -> List<Int>
+    let blocks: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0 and list.length(blocks) == 0
+            var id = 0
+            for index in range(0, text.length(line))
+                let size = text.to-int(text.slice(line, index, index + 1)) try
+                var count = 0
+                while count < size
+                    if index % 2 == 0
+                        list.append(blocks, id)
+                    else
+                        list.append(blocks, -1)
+                    count = count + 1
+                if index % 2 == 0
+                    id = id + 1
+    blocks
+
+# The sum of each file block's position times its file ID.
+word _checksum(blocks: List<Int>) -> Int
+    var total = 0
+    for index in range(0, list.length(blocks))
+        if blocks[index] >= 0
+            total = total + index * blocks[index]
+    total
+
+## The checksum after block-by-block compaction: the last file block fills
+## the leftmost free block until the pointers meet.
+word part-one(disk: List<Int>) -> Int
+    let blocks: List<Int> = []
+    for block in disk
+        list.append(blocks, block)
+    var free = 0
+    var tail = list.length(blocks) - 1
+    var settled = false
+    while not settled
+        if free >= tail
+            settled = true
+        elif blocks[free] >= 0
+            free = free + 1
+        elif blocks[tail] < 0
+            tail = tail - 1
+        else
+            blocks[free] = blocks[tail]
+            blocks[tail] = -1
+    _checksum(blocks)
+
+## One file's position on the disk: its start and its length in blocks.
+type FileSpan = record
+    start: Int
+    size: Int
+
+# Where one file ID's blocks sit; every ID in the disk has a span.
+word _file-span(blocks: List<Int>, id: Int) -> FileSpan
+    var start = -1
+    var index = 0
+    while start < 0 and index < list.length(blocks)
+        if blocks[index] == id
+            start = index
+        index = index + 1
+    var size = 0
+    while start + size < list.length(blocks) and blocks[start + size] == id
+        size = size + 1
+    FileSpan(start, size)
+
+# The start of the first run of free blocks at least size long and entirely
+# left of before, -1 when none fits.
+word _first-hole(blocks: List<Int>, size: Int, before: Int) -> Int
+    var found = -1
+    var run-start = -1
+    var index = 0
+    while found < 0 and index < before
+        if blocks[index] == -1
+            if run-start < 0
+                run-start = index
+            if index + 1 - run-start >= size
+                found = run-start
+        else
+            run-start = -1
+        index = index + 1
+    found
+
+## The checksum after whole-file compaction: files move highest ID first,
+## each left into the first hole that fits, never split.
+word part-two(disk: List<Int>) -> Int
+    let blocks: List<Int> = []
+    for block in disk
+        list.append(blocks, block)
+    var highest = 0
+    for block in blocks
+        if block > highest
+            highest = block
+    var id = highest
+    while id >= 0
+        let span = _file-span(blocks, id)
+        let hole = _first-hole(blocks, span.size, span.start)
+        if hole >= 0
+            var moved = 0
+            while moved < span.size
+                blocks[hole + moved] = id
+                blocks[span.start + moved] = -1
+                moved = moved + 1
+        id = id - 1
+    _checksum(blocks)
+
 # Advent of Code 2024, day 9 — Disk Fragmenter.
 # Reads the dense disk map from stdin until end of input, prints both
 # answers.
-use day09-core
 
-# shortcut: the disk map is one line of digits, so this sentinel cannot
-# collide; it stands in for the end-of-file failure because error.detail is
-# not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let disk = day09-core.parse(buffer.to-text(input)) try
-print(day09-core.part-one(disk))
-print(day09-core.part-two(disk))
+word main()
+    # shortcut: the disk map is one line of digits, so this sentinel cannot
+    # collide; it stands in for the end-of-file failure because error.detail is
+    # not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let disk = parse(buffer.to-text(input)) try
+    print(part-one(disk))
+    print(part-two(disk))

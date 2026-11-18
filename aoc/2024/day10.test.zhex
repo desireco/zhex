@@ -1,9 +1,9 @@
-use day10-core
+use day10
 use test
 
 let sample = "89010123\n78121874\n87430965\n96549874\n45678903\n32019012\n01329801\n10456732"
-let grid = day10-core.parse(sample)
+let grid = day10.parse(sample)
 
-test.check(day10-core.part-one(grid) == 36, "day 10 part 1")
-test.check(day10-core.part-two(grid) == 81, "day 10 part 2")
+test.check(day10.part-one(grid) == 36, "day 10 part 1")
+test.check(day10.part-two(grid) == 81, "day 10 part 2")
 print "day 10 tests passed"

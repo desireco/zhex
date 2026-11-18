@@ -1,4 +1,4 @@
-use day20-core
+use day20
 use test
 
 # The page's example track. Its best time is 84 picoseconds, far under the
@@ -7,8 +7,8 @@ use test
 # page's group list holds exactly 8 there), part 2 cheats of up to 20
 # steps saving at least 76.
 let sample = "###############\n#...#...#.....#\n#.#.#.#.#.###.#\n#S#...#.#.#...#\n#######.#.#.###\n#######.#.#...#\n#######.#.###.#\n###..E#...#...#\n###.#######.###\n#...###...#...#\n#.#####.#.###.#\n#.#...#.#.#...#\n#.#.#.#.#.#.###\n#...#...#...###\n###############"
-let track = day20-core.parse(sample)
+let track = day20.parse(sample)
 
-test.check(day20-core.part-one(track, 12) == 8, "day 20 part 1")
-test.check(day20-core.part-two(track, 76) == 3, "day 20 part 2")
+test.check(day20.part-one(track, 12) == 8, "day 20 part 1")
+test.check(day20.part-two(track, 76) == 3, "day 20 part 2")
 print "day 20 tests passed"

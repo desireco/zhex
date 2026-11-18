@@ -1,23 +1,124 @@
+# Advent of Code 2024, day 5 — Print Queue (solution words).
+# Ordering rules (before|after lines) and comma-separated updates make up
+# one manual. Part 1 sums the middle pages of already-valid updates; part 2
+# sorts each invalid update by the rules and sums its new middle page.
+
+type Rule = record
+    before: Int
+    after: Int
+
+type Manual = record
+    rules: List<Rule>
+    updates: List<List<Int>>
+
+## Parse the bar-separated rules, then the comma-separated updates.
+word parse(text: String) -> Manual
+    let rules: List<Rule> = []
+    let updates: List<List<Int>> = []
+    for line in text.split(text, "\n")
+        if text.contains(line, "|")
+            let bar = text.index-of(line, "|")
+            let before = text.to-int(text.slice(line, 0, bar)) try
+            let after = text.to-int(text.slice(line, bar + 1, text.length(line))) try
+            let added = list.append(rules, Rule(before, after))
+        else
+            if text.length(line) > 0
+                let pages: List<Int> = []
+                for page in text.split(line, ",")
+                    list.append(pages, text.to-int(page) try)
+                let added = list.append(updates, pages)
+    Manual(rules, updates)
+
+# Whether a rule demands second print before first.
+word _violates(rules: List<Rule>, first: Int, second: Int) -> Bool
+    var found = false
+    for rule in rules
+        if rule.after == first and rule.before == second
+            found = true
+    found
+
+# Whether every pair of pages, earlier and later, follows the rules.
+word _valid(rules: List<Rule>, update: List<Int>) -> Bool
+    var ok = true
+    for index, page in update
+        for later in range(index + 1, list.length(update))
+            if _violates(rules, page, update[later])
+                ok = false
+    ok
+
+## Sum the middle pages of the updates already in the correct order.
+word part-one(manual: Manual) -> Int
+    var total = 0
+    for update in manual.updates
+        if _valid(manual.rules, update)
+            total = total + update[list.length(update) / 2]
+    total
+
+# Whether a rule demands first print before second.
+word _prints-before(rules: List<Rule>, first: Int, second: Int) -> Bool
+    var found = false
+    for rule in rules
+        if rule.before == first and rule.after == second
+            found = true
+    found
+
+# A fresh list with value inserted at position at.
+word _insert(values: List<Int>, at: Int, value: Int) -> List<Int>
+    let grown: List<Int> = []
+    var index = 0
+    while index < at
+        list.append(grown, values[index])
+        index = index + 1
+    list.append(grown, value)
+    while index < list.length(values)
+        list.append(grown, values[index])
+        index = index + 1
+    grown
+
+# Insertion sort by the pairwise rules; unrelated pages keep their order,
+# so the sort is stable under the partial rule order.
+word _fixed(rules: List<Rule>, update: List<Int>) -> List<Int>
+    var sorted: List<Int> = []
+    for page in update
+        var at = list.length(sorted)
+        var scanning = true
+        while scanning and at > 0
+            if _prints-before(rules, page, sorted[at - 1])
+                at = at - 1
+            else
+                scanning = false
+        sorted = _insert(sorted, at, page)
+    sorted
+
+## Sum the middle pages of the invalid updates once sorted by the rules.
+word part-two(manual: Manual) -> Int
+    var total = 0
+    for update in manual.updates
+        if not _valid(manual.rules, update)
+            let fixed = _fixed(manual.rules, update)
+            total = total + fixed[list.length(fixed) / 2]
+    total
+
 # Advent of Code 2024, day 5 — Print Queue.
 # Reads the rules and updates from stdin until end of input, prints both answers.
-use day05-core
 
-# The input separates its two sections with a blank line, so the runner
-# branches on the end-of-file detail (error.detail). That word is fenced
-# in the browser build (#135), and the sentinel workaround days 1-4 use
-# cannot detect end-of-file either. The door carries the fence note until
-# the engine lane fixes #135.
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch problem
-        if error.detail(problem, "reason") == "end-of-file"
-            done = true
-            ""
-        else
-            error.message(problem)
-    if not done
-        let added = buffer.add-line(input, line)
-let manual = day05-core.parse(buffer.to-text(input)) try
-print(day05-core.part-one(manual))
-print(day05-core.part-two(manual))
+word main()
+    # The input separates its two sections with a blank line, so the runner
+    # branches on the end-of-file detail (error.detail). That word is fenced
+    # in the browser build (#135), and the sentinel workaround days 1-4 use
+    # cannot detect end-of-file either. The door carries the fence note until
+    # the engine lane fixes #135.
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch problem
+            if error.detail(problem, "reason") == "end-of-file"
+                done = true
+                ""
+            else
+                error.message(problem)
+        if not done
+            let added = buffer.add-line(input, line)
+    let manual = parse(buffer.to-text(input)) try
+    print(part-one(manual))
+    print(part-two(manual))

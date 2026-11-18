@@ -1,19 +1,123 @@
+# Advent of Code 2024, day 23 — LAN Party (solution words).
+# Connections run both ways between two-letter computer names. Adjacency is
+# a Map from name to a Map-as-set of neighbors; the name list is sorted once
+# so ordered iteration replaces a visited set. Part 1 collects the connected
+# triples that contain a t-chief into a set of sorted triple keys. Part 2
+# grows cliques depth-first over the sorted names, extending each candidate
+# only with later names adjacent to it — every clique appears once in sorted
+# order, and the recursion depth is the clique size.
+
+## Parse the connection lines.
+word parse(text: String) -> List<String>
+    let edges: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(edges, line)
+    edges
+
+# One undirected edge into the adjacency map: endpoint sets both ways.
+word _link(adj: Map<String, Map<String, Bool>>, a: String, b: String) -> Unit
+    var set: Map<String, Bool> = {}
+    match adj[a]
+        case Option.Some(neighbors)
+            set = neighbors
+        case Option.None
+            set = {}
+    let placed = map.put(set, b, true)
+    adj[a] = set
+
+word _build-adj(edges: List<String>) -> Map<String, Map<String, Bool>>
+    let adj: Map<String, Map<String, Bool>> = {}
+    for edge in edges
+        let a = text.slice(edge, 0, 2)
+        let b = text.slice(edge, 3, 5)
+        _link(adj, a, b)
+        _link(adj, b, a)
+    adj
+
+word _names(adj: Map<String, Map<String, Bool>>) -> List<String>
+    let names: List<String> = []
+    for name, connected in adj
+        let added = list.append(names, name)
+    list.sort(names)
+
+word _connected(adj: Map<String, Map<String, Bool>>, a: String, b: String) -> Bool
+    match adj[a]
+        case Option.Some(neighbors)
+            map.contains(neighbors, b)
+        case Option.None
+            false
+
+# A name's neighbor set; the empty set for a name with no links.
+word _neighbors(adj: Map<String, Map<String, Bool>>, name: String) -> Map<String, Bool>
+    match adj[name]
+        case Option.Some(neighbors)
+            neighbors
+        case Option.None
+            {}
+
+## Count the connected triples containing at least one t-chief.
+word part-one(edges: List<String>) -> Int
+    let adj = _build-adj(edges)
+    let triples: Map<String, Bool> = {}
+    for name in _names(adj)
+        if text.starts-with(name, "t")
+            let neighbors = _neighbors(adj, name)
+            for first, mark in neighbors
+                for second, mark in neighbors
+                    if first != second and _connected(adj, first, second)
+                        let trio = list.sort([name, first, second])
+                        let seen = map.put(triples, text.join(trio, ","), true)
+    map.length(triples)
+
+word _copy(values: List<String>) -> List<String>
+    let out: List<String> = []
+    for value in values
+        let added = list.append(out, value)
+    out
+
+# Depth-first clique growth: candidates stay sorted and mutually compatible
+# with the clique, and each extension only takes later names, so every clique
+# is visited once. Returns the larger of the best-so-far and what this branch
+# found.
+word _grow(adj: Map<String, Map<String, Bool>>, clique: List<String>, candidates: List<String>, best: List<String>) -> List<String>
+    var winner = best
+    if list.length(clique) > list.length(winner)
+        winner = clique
+    for index in range(0, list.length(candidates))
+        let name = candidates[index]
+        let next-clique = _copy(clique)
+        let added = list.append(next-clique, name)
+        let next-candidates: List<String> = []
+        for later in range(index + 1, list.length(candidates))
+            if _connected(adj, name, candidates[later])
+                let kept = list.append(next-candidates, candidates[later])
+        winner = _grow(adj, next-clique, next-candidates, winner)
+    winner
+
+## The password: the largest all-connected group, sorted and comma-joined.
+word part-two(edges: List<String>) -> String
+    let adj = _build-adj(edges)
+    let empty: List<String> = []
+    let best = _grow(adj, empty, _names(adj), empty)
+    text.join(best, ",")
+
 # Advent of Code 2024, day 23 — LAN Party.
 # Reads the connection list from stdin until end of input, prints both
 # answers.
-use day23-core
 
-# shortcut: every line is a two-letter pair, so this sentinel cannot
-# collide; it stands in for the end-of-file failure because error.detail is
-# not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let edges = day23-core.parse(buffer.to-text(input))
-print(day23-core.part-one(edges))
-print(day23-core.part-two(edges))
+word main()
+    # shortcut: every line is a two-letter pair, so this sentinel cannot
+    # collide; it stands in for the end-of-file failure because error.detail is
+    # not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let edges = parse(buffer.to-text(input))
+    print(part-one(edges))
+    print(part-two(edges))

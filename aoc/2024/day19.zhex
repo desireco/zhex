@@ -1,19 +1,80 @@
+# Advent of Code 2024, day 19 — Linen Layout (solution words).
+# The first input line lists the available towel patterns; after a blank
+# line, each remaining line is one design. Both parts count what towels
+# can spell: ways to cover position i are the sum, over every towel the
+# design's remainder starts with, of the ways at that towel's far end,
+# filled from the design's end backward in one array. Part 1 counts the
+# designs with at least one way; part 2 totals all the ways.
+
+## The available patterns and the desired designs.
+type Layout = record
+    towels: List<String>
+    designs: List<String>
+
+## Parse the towel line, skip the blank line, collect the designs.
+word parse(text: String) -> Layout
+    let towels: List<String> = []
+    let designs: List<String> = []
+    var section = 0
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            if section == 0
+                for towel in text.split(line, ", ")
+                    list.append(towels, towel)
+                section = 1
+            else
+                let added = list.append(designs, line)
+    Layout(towels, designs)
+
+## The number of ways towels can spell one design exactly. The ways live
+## in a one-column array: arrays start at rank two, so the column index is
+## always 0.
+word _ways(design: String, towels: List<String>) -> Int
+    let n = text.length(design)
+    let counts: Array<Int> = array.new([n + 1, 1], 0)
+    counts[n, 0] = 1
+    var i = n - 1
+    while i >= 0
+        var total = 0
+        for towel in towels
+            let end = i + text.length(towel)
+            if end <= n and text.starts-with(text.slice(design, i, n), towel)
+                total = total + counts[end, 0]
+        counts[i, 0] = total
+        i = i - 1
+    counts[0, 0]
+
+## How many designs the available towels can spell.
+word part-one(layout: Layout) -> Int
+    var possible = 0
+    for design in layout.designs
+        if _ways(design, layout.towels) > 0
+            possible = possible + 1
+    possible
+
+## The total number of distinct towel arrangements over all designs.
+word part-two(layout: Layout) -> Int
+    var total = 0
+    for design in layout.designs
+        total = total + _ways(design, layout.towels)
+    total
+
 # Advent of Code 2024, day 19 — Linen Layout.
 # Reads the towel patterns and designs from stdin until end of input,
 # prints both answers.
-use day19-core
 
-# shortcut: pattern and design lines hold stripe letters and commas only,
-# so this sentinel cannot collide; it stands in for the end-of-input
-# failure because error.detail is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let layout = day19-core.parse(buffer.to-text(input))
-print(day19-core.part-one(layout))
-print(day19-core.part-two(layout))
+word main()
+    # shortcut: pattern and design lines hold stripe letters and commas only,
+    # so this sentinel cannot collide; it stands in for the end-of-input
+    # failure because error.detail is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let layout = parse(buffer.to-text(input))
+    print(part-one(layout))
+    print(part-two(layout))

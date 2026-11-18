@@ -1,14 +1,14 @@
-use day03-core
+use day03
 use test
 
 let sample = "xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))"
-let memory = day03-core.parse(sample)
+let memory = day03.parse(sample)
 
-test.check(day03-core.part-one(memory) == 161, "day 3 part 1")
-test.check(day03-core.part-two(memory) == 161, "day 3 part 2")
+test.check(day03.part-one(memory) == 161, "day 3 part 1")
+test.check(day03.part-two(memory) == 161, "day 3 part 2")
 
 # The sample holds no do()/don't() instructions, so this crafted line
 # exercises the toggles: 2*4 counts, 5*5 is disabled, 3*3 counts again.
-let toggles = day03-core.parse("mul(2,4)don't()mul(5,5)do()mul(3,3)")
-test.check(day03-core.part-two(toggles) == 17, "day 3 part 2 toggles")
+let toggles = day03.parse("mul(2,4)don't()mul(5,5)do()mul(3,3)")
+test.check(day03.part-two(toggles) == 17, "day 3 part 2 toggles")
 print "day 3 tests passed"

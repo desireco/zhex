@@ -1,9 +1,9 @@
-use day05-core
+use day05
 use test
 
 let sample = "47|53\n97|13\n97|61\n97|47\n75|29\n61|13\n75|53\n29|13\n97|29\n53|29\n61|53\n97|53\n61|29\n47|13\n75|47\n97|75\n47|61\n75|61\n47|29\n75|13\n53|13\n\n75,47,61,53,29\n97,61,53,29,13\n75,29,13\n75,97,47,61,53\n61,13,29\n97,13,75,29,47"
-let manual = day05-core.parse(sample) try
+let manual = day05.parse(sample) try
 
-test.check(day05-core.part-one(manual) == 143, "day 5 part 1")
-test.check(day05-core.part-two(manual) == 123, "day 5 part 2")
+test.check(day05.part-one(manual) == 143, "day 5 part 1")
+test.check(day05.part-two(manual) == 123, "day 5 part 2")
 print "day 5 tests passed"

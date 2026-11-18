@@ -1,15 +1,15 @@
-use day15-core
+use day15
 use test
 
 let small = "########\n#..O.O.#\n##@.O..#\n#...O..#\n#.#.O..#\n#...O..#\n#......#\n########\n\n<^^>>>vv<v>>v<<"
-let tiny = day15-core.parse(small)
+let tiny = day15.parse(small)
 
-test.check(day15-core.part-one(tiny) == 2028, "day 15 part 1, small map")
-test.check(day15-core.part-two(tiny) == 1751, "day 15 part 2, small map")
+test.check(day15.part-one(tiny) == 2028, "day 15 part 1, small map")
+test.check(day15.part-two(tiny) == 1751, "day 15 part 2, small map")
 
 let large = "##########\n#..O..O.O#\n#......O.#\n#.OO..O.O#\n#..O@..O.#\n#O#..O...#\n#O..O..O.#\n#.OO.O.OO#\n#....O...#\n##########\n\n<vv>^<v^>v>^vv^v>v<>v^v<v<^vv<<<^><<><>>v<vvv<>^v^>^<<<><<v<<<v^vv^v>^\nvvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v\n><>vv>v^v^<>><>>>><^^>vv>v<^^^>>v^v^<^^>v^^>v^<^v>v<>>v^v^<v>v^^<^^vv<\n<<v<^>>^^^^>>>v^<>vvv^><v<<<>^^^vv^<vvv>^>v<^^^^v<>^>vvvv><>>v^<<^^^^^\n^><^><>>><>^^<<^^v>>><^<v>^<vv>>v>>>^v><>^v><<<<v>>v<v<v>vvv>^<><<>^><\n^>><>^v<><^vvv<^^<><v<<<<<><^v<<<><<<^^<v<^^^><^>>^<v^><<<^>>^v<v^v<v^\n>^>>^v>vv>^<<^v<>><<><<v<<v><>v<^vv<<<>^^v^>^^>>><<^v>>v^v><^^>>^<>vv^\n<><^^>^^^<><vvvvv^v<v<<>^v<v>v<<^><<><<><<<^^<<<^<<>><<><^^^>^^<>^>v<>\n^^>vv<^v^v<vv>^<><v<^v>^^^>>>^^vvv^>vvv<>>>^<^>>>>>^<<^v>^vvv<>^<><<v>\nv^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^"
-let big = day15-core.parse(large)
+let big = day15.parse(large)
 
-test.check(day15-core.part-one(big) == 10092, "day 15 part 1, large map")
-test.check(day15-core.part-two(big) == 9021, "day 15 part 2, large map")
+test.check(day15.part-one(big) == 10092, "day 15 part 1, large map")
+test.check(day15.part-two(big) == 9021, "day 15 part 2, large map")
 print "day 15 tests passed"

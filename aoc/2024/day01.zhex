@@ -1,18 +1,68 @@
+# Advent of Code 2024, day 1 — Historian Hysteria (solution words).
+# The input holds two columns of location IDs. Part 1 pairs the two sorted
+# columns rank by rank and totals the distances; part 2 totals each left
+# ID times how often it appears in the right column.
+
+type Lists = record
+    left: List<Int>
+    right: List<Int>
+
+## Parse the two columns of space-separated location IDs.
+word parse(text: String) -> Lists
+    let left: List<Int> = []
+    let right: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let gap = text.index-of(line, " ")
+            list.append(left, text.to-int(text.slice(line, 0, gap)) try)
+            let added = list.append(right, text.to-int(text.slice(line, gap + 1, text.length(line))) try)
+    Lists(left, right)
+
+## Total the distances between the two sorted columns, rank by rank.
+word part-one(lists: Lists) -> Int
+    let left = list.sort(lists.left)
+    let right = list.sort(lists.right)
+    var total = 0
+    for index, value in left
+        let distance = value - right[index]
+        if distance < 0
+            total = total - distance
+        else
+            total = total + distance
+    total
+
+word _seen(counts: Map<Int, Int>, value: Int) -> Int
+    match counts[value]
+        case Option.Some(count)
+            count
+        case Option.None
+            0
+
+## Total each left ID times its count in the right column.
+word part-two(lists: Lists) -> Int
+    let counts: Map<Int, Int> = {}
+    for value in lists.right
+        counts[value] = _seen(counts, value) + 1
+    var total = 0
+    for value in lists.left
+        total = total + value * _seen(counts, value)
+    total
+
 # Advent of Code 2024, day 1 — Historian Hysteria.
 # Reads the location IDs from stdin until end of input, prints both answers.
-use day01-core
 
-# shortcut: an ID line is always two integers around one space, so this
-# sentinel cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let lists = day01-core.parse(buffer.to-text(input)) try
-print(day01-core.part-one(lists))
-print(day01-core.part-two(lists))
+word main()
+    # shortcut: an ID line is always two integers around one space, so this
+    # sentinel cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let lists = parse(buffer.to-text(input)) try
+    print(part-one(lists))
+    print(part-two(lists))

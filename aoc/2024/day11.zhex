@@ -1,18 +1,87 @@
+# Advent of Code 2024, day 11 — Plutonian Pebbles (solution words).
+# Every blink rewrites all stones at once: 0 becomes 1, a stone with an
+# even number of digits splits into its left and right halves, and any
+# other stone grows by a factor of 2024. The line would explode if held
+# stone by stone, so both parts count stone values into a map instead:
+# each blink maps counts to counts, never materializing the stones.
+
+## Parse the space-separated engraving numbers.
+word parse(text: String) -> List<Int>
+    let stones: List<Int> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            for stone in text.split(line, " ")
+                list.append(stones, text.to-int(stone) try)
+    stones
+
+word _seen(counts: Map<Int, Int>, stone: Int) -> Int
+    match counts[stone]
+        case Option.Some(count)
+            count
+        case Option.None
+            0
+
+# Ten to the power of the exponent, by repeated multiplication.
+word _power(exponent: Int) -> Int
+    var result = 1
+    for digit in range(0, exponent)
+        result = result * 10
+    result
+
+# One blink over the counted stones: rules applied per value, counts added.
+word _blink(counts: Map<Int, Int>) -> Map<Int, Int>
+    let next: Map<Int, Int> = {}
+    for stone, count in counts
+        if stone == 0
+            next[1] = _seen(next, 1) + count
+        else
+            let digits = text.length(int.to-string(stone))
+            if digits % 2 == 0
+                let split = _power(digits / 2)
+                let left = stone / split
+                let right = stone % split
+                next[left] = _seen(next, left) + count
+                next[right] = _seen(next, right) + count
+            else
+                let grown = stone * 2024
+                next[grown] = _seen(next, grown) + count
+    next
+
+# The stone count after the given number of blinks.
+word _after(stones: List<Int>, blinks: Int) -> Int
+    var counts: Map<Int, Int> = {}
+    for stone in stones
+        counts[stone] = _seen(counts, stone) + 1
+    for blink in range(0, blinks)
+        counts = _blink(counts)
+    var total = 0
+    for stone, count in counts
+        total = total + count
+    total
+
+## Count the stones after 25 blinks.
+word part-one(stones: List<Int>) -> Int
+    _after(stones, 25)
+
+## Count the stones after 75 blinks.
+word part-two(stones: List<Int>) -> Int
+    _after(stones, 75)
+
 # Advent of Code 2024, day 11 — Plutonian Pebbles.
 # Reads the stone engravings from stdin until end of input, prints both answers.
-use day11-core
 
-# shortcut: a stone line is space-separated integers, so this sentinel
-# cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let stones = day11-core.parse(buffer.to-text(input)) try
-print(day11-core.part-one(stones))
-print(day11-core.part-two(stones))
+word main()
+    # shortcut: a stone line is space-separated integers, so this sentinel
+    # cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let stones = parse(buffer.to-text(input)) try
+    print(part-one(stones))
+    print(part-two(stones))

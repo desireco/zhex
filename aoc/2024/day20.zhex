@@ -1,3 +1,140 @@
+# Advent of Code 2024, day 20 — Race Condition (solution words).
+# The racetrack holds one simple path from S to E. Both parts walk that
+# path once, index every tile by its step, then count cheats: a cheat
+# starts and ends on the path, moves at most cheat-length steps by
+# Manhattan distance, and saves path steps equal to the index gap minus
+# that distance. Part 1 allows 2 steps, part 2 allows 20; the saving
+# threshold is a parameter because the page asks for 100 on the real
+# racetrack while its examples count 12 and 76.
+
+## One track position.
+type Spot = record
+    r: Int
+    c: Int
+
+## The walked path and every path tile's step index.
+type Track = record
+    path: List<Spot>
+    index: Map<String, Int>
+
+## Parse the racetrack into its rows.
+word _rows(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(grid, line)
+    grid
+
+## The row holding a marker, or -1 when absent.
+word _row(grid: List<String>, marker: String) -> Int
+    var found = -1
+    var index = 0
+    while found == -1 and index < list.length(grid)
+        if text.index-of(grid[index], marker) >= 0
+            found = index
+        index = index + 1
+    found
+
+## The column holding a marker on its row, or -1 when absent.
+word _column(grid: List<String>, marker: String) -> Int
+    let row = _row(grid, marker)
+    if row == -1
+        -1
+    else
+        text.index-of(grid[row], marker)
+
+## The row delta of a direction index: 0 up, 1 right, 2 down, 3 left.
+word _dr(direction: Int) -> Int
+    if direction == 0
+        -1
+    elif direction == 2
+        1
+    else
+        0
+
+## The column delta of a direction index.
+word _dc(direction: Int) -> Int
+    if direction == 1
+        1
+    elif direction == 3
+        -1
+    else
+        0
+
+## A path tile's step index, with -1 standing in for off-path.
+word _step(index: Map<String, Int>, key: String) -> Int
+    match index[key]
+        case Option.Some(step)
+            step
+        case Option.None
+            -1
+
+## Walk the track from S to E: the path is unique, so every step takes the
+## one track neighbor that is not the tile just left.
+word parse(text: String) -> Track
+    let grid = _rows(text)
+    let path: List<Spot> = []
+    let index: Map<String, Int> = {}
+    var r = _row(grid, "S")
+    var c = _column(grid, "S")
+    let er = _row(grid, "E")
+    let ec = _column(grid, "E")
+    var pr = -1
+    var pc = -1
+    var walking = true
+    while walking
+        map.put(index, "" + r + ":" + c, list.length(path))
+        list.append(path, Spot(r, c))
+        if r == er and c == ec
+            walking = false
+        else
+            var moved = false
+            var d = 0
+            while not moved and d < 4
+                let nr = r + _dr(d)
+                let nc = c + _dc(d)
+                if nr >= 0 and nr < list.length(grid) and nc >= 0 and nc < text.length(grid[nr]) and text.slice(grid[nr], nc, nc + 1) != "#" and not (nr == pr and nc == pc)
+                    pr = r
+                    pc = c
+                    r = nr
+                    c = nc
+                    moved = true
+                d = d + 1
+    Track(path, index)
+
+## Count the cheats that save at least threshold picoseconds while moving
+## through at most cheat-length steps: every path tile pairs with the path
+## tiles inside that Manhattan box, and a pair saves the index gap minus
+## the distance walked.
+word _cheats(track: Track, threshold: Int, cheat-length: Int) -> Int
+    var total = 0
+    for i in range(0, list.length(track.path))
+        let here = track.path[i]
+        for dy in range(-cheat-length, cheat-length + 1)
+            for dx in range(-cheat-length, cheat-length + 1)
+                var distance = 0
+                if dy < 0
+                    distance = distance - dy
+                else
+                    distance = distance + dy
+                if dx < 0
+                    distance = distance - dx
+                else
+                    distance = distance + dx
+                if distance > 0 and distance <= cheat-length
+                    let j = _step(track.index, "" + (here.r + dy) + ":" + (here.c + dx))
+                    if j > i and j - i - distance >= threshold
+                        total = total + 1
+    total
+
+## Count 2-step cheats saving at least threshold picoseconds.
+word part-one(track: Track, threshold: Int) -> Int
+    _cheats(track, threshold, 2)
+
+## Count 20-step cheats saving at least threshold picoseconds.
+word part-two(track: Track, threshold: Int) -> Int
+    _cheats(track, threshold, 20)
+
 # Advent of Code 2024, day 20 — Race Condition.
 # Reads the racetrack from stdin until end of input, prints both answers.
 # The real racetrack counts cheats saving at least 100 picoseconds; the
@@ -5,24 +142,24 @@
 # page's own example counts instead (12 for 2-step cheats, 76 for 20-step
 # cheats), the same sample-versus-real adaptation day 18 makes for its
 # grid size.
-use day20-core
 
-# shortcut: a racetrack row is map characters, so this sentinel cannot
-# collide; it stands in for the end-of-input failure because error.detail
-# is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let track = day20-core.parse(buffer.to-text(input))
-var save-one = 100
-var save-two = 100
-if list.length(track.path) < 200
-    save-one = 12
-    save-two = 76
-print(day20-core.part-one(track, save-one))
-print(day20-core.part-two(track, save-two))
+word main()
+    # shortcut: a racetrack row is map characters, so this sentinel cannot
+    # collide; it stands in for the end-of-input failure because error.detail
+    # is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let track = parse(buffer.to-text(input))
+    var save-one = 100
+    var save-two = 100
+    if list.length(track.path) < 200
+        save-one = 12
+        save-two = 76
+    print(part-one(track, save-one))
+    print(part-two(track, save-two))

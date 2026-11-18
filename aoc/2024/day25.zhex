@@ -1,18 +1,84 @@
+# Advent of Code 2024, day 25 — Code Chronicle (solution words).
+# Each schematic is seven rows of five columns: a solid border row, five
+# working rows, and the opposite border. A lock's pins hang from the top, a
+# key's rise from the bottom; either way a column's height is its # count in
+# the five working rows. A lock and key pair fits when every column's two
+# heights sum to at most five. Part 2 is the event's finale: with every other
+# star collected the fiftieth arrives on its own, so the answer is the star.
+
+type Schematics = record
+    locks: List<List<Int>>
+    keys: List<List<Int>>
+
+# One schematic's five column heights.
+word _heights(group: List<String>) -> List<Int>
+    let heights: List<Int> = []
+    for column in range(0, 5)
+        var count = 0
+        for row in range(1, 6)
+            if text.slice(group[row], column, column + 1) == "#"
+                count = count + 1
+        let added = list.append(heights, count)
+    heights
+
+# File one finished schematic: the top border full of # makes a lock.
+word _take(group: List<String>, locks: List<List<Int>>, keys: List<List<Int>>) -> Unit
+    if list.length(group) == 7
+        if text.slice(group[0], 0, 1) == "#"
+            let added = list.append(locks, _heights(group))
+        else
+            let added = list.append(keys, _heights(group))
+
+## Split the schematics apart and read their column heights.
+word parse(text: String) -> Schematics
+    let locks: List<List<Int>> = []
+    let keys: List<List<Int>> = []
+    var group: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) == 0
+            _take(group, locks, keys)
+            group = []
+        else
+            let added = list.append(group, line)
+    _take(group, locks, keys)
+    Schematics(locks, keys)
+
+# Whether one lock and key pair leave every column within the five rows.
+word _fits(lock: List<Int>, key: List<Int>) -> Bool
+    var fits = true
+    for column in range(0, 5)
+        if lock[column] + key[column] > 5
+            fits = false
+    fits
+
+## How many lock and key pairs fit.
+word part-one(schematics: Schematics) -> Int
+    var total = 0
+    for lock in schematics.locks
+        for key in schematics.keys
+            if _fits(lock, key)
+                total = total + 1
+    total
+
+## The finale star: collected, not computed.
+word part-two(schematics: Schematics) -> String
+    "*"
+
 # Advent of Code 2024, day 25 — Code Chronicle.
 # Reads the schematics from stdin until end of input, prints both answers.
-use day25-core
 
-# shortcut: schematic rows are # and ., so this sentinel cannot collide; it
-# stands in for the end-of-file failure because error.detail is not compiled
-# to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let schematics = day25-core.parse(buffer.to-text(input))
-print(day25-core.part-one(schematics))
-print(day25-core.part-two(schematics))
+word main()
+    # shortcut: schematic rows are # and ., so this sentinel cannot collide; it
+    # stands in for the end-of-file failure because error.detail is not compiled
+    # to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let schematics = parse(buffer.to-text(input))
+    print(part-one(schematics))
+    print(part-two(schematics))

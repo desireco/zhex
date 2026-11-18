@@ -1,9 +1,9 @@
-use day09-core
+use day09
 use test
 
 let sample = "2333133121414131402"
-let disk = day09-core.parse(sample) try
+let disk = day09.parse(sample) try
 
-test.check(day09-core.part-one(disk) == 1928, "day 9 part 1")
-test.check(day09-core.part-two(disk) == 2858, "day 9 part 2")
+test.check(day09.part-one(disk) == 1928, "day 9 part 1")
+test.check(day09.part-two(disk) == 2858, "day 9 part 2")
 print "day 9 tests passed"

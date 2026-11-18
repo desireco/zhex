@@ -1,18 +1,119 @@
+# Advent of Code 2024, day 6 — Guard Gallivant (solution words).
+# The lab map holds open cells, # obstructions, and one ^ guard start facing
+# up. The guard steps forward, turning right 90 degrees whenever something
+# stands directly ahead, until she leaves the map. Part 1 counts her distinct
+# visited cells. Part 2 counts the single extra obstructions that trap her in
+# a loop: only cells her original walk reaches (minus the start) can change
+# anything, and a loop is a repeated position-and-direction state.
+
+## Parse the lab map into its rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(grid, line)
+    grid
+
+## One finished walk: the cells visited and whether it ended in a loop.
+type Walk = record
+    cells: Map<String, Bool>
+    looping: Bool
+
+# The row holding the guard's start marker.
+word _guard-row(grid: List<String>) -> Int
+    var found = 0
+    var index = 0
+    while found == 0 and index < list.length(grid)
+        if text.index-of(grid[index], "^") >= 0
+            found = index + 1
+        index = index + 1
+    found - 1
+
+# The column holding the guard's start marker.
+word _guard-column(grid: List<String>) -> Int
+    text.index-of(grid[_guard-row(grid)], "^")
+
+# The row delta of a direction index: 0 up, 1 right, 2 down, 3 left.
+word _dr(direction: Int) -> Int
+    if direction == 0
+        -1
+    elif direction == 2
+        1
+    else
+        0
+
+# The column delta of a direction index.
+word _dc(direction: Int) -> Int
+    if direction == 1
+        1
+    elif direction == 3
+        -1
+    else
+        0
+
+# The guard's whole walk with an optional extra obstruction at (ob-r, ob-c):
+# every visited cell lands in cells as an "r:c" key, every entered state as an
+# "r:c:d" key, and a repeated state ends the walk flagged as a loop.
+word _walk(grid: List<String>, ob-r: Int, ob-c: Int) -> Walk
+    let cells: Map<String, Bool> = {}
+    let states: Map<String, Bool> = {}
+    var r = _guard-row(grid)
+    var c = _guard-column(grid)
+    var direction = 0
+    var looping = false
+    var inside = true
+    while inside and not looping
+        map.put(cells, "" + r + ":" + c, true)
+        let state = "" + r + ":" + c + ":" + direction
+        if map.contains(states, state)
+            looping = true
+        else
+            map.put(states, state, true)
+            let nr = r + _dr(direction)
+            let nc = c + _dc(direction)
+            if nr < 0 or nr >= list.length(grid) or nc < 0 or nc >= text.length(grid[0])
+                inside = false
+            elif text.slice(grid[nr], nc, nc + 1) == "#" or (nr == ob-r and nc == ob-c)
+                direction = (direction + 1) % 4
+            else
+                r = nr
+                c = nc
+    Walk(cells, looping)
+
+## Count the distinct cells the guard visits before leaving the map.
+word part-one(grid: List<String>) -> Int
+    let walk = _walk(grid, -1, -1)
+    map.length(walk.cells)
+
+## Count the extra obstructions that trap the guard in a loop: every cell her
+## original walk visits is a candidate, except her start.
+word part-two(grid: List<String>) -> Int
+    let original = _walk(grid, -1, -1)
+    var placements = 0
+    for r in range(0, list.length(grid))
+        for c in range(0, text.length(grid[0]))
+            if map.contains(original.cells, "" + r + ":" + c)
+                if not (r == _guard-row(grid) and c == _guard-column(grid))
+                    let retry = _walk(grid, r, c)
+                    if retry.looping
+                        placements = placements + 1
+    placements
+
 # Advent of Code 2024, day 6 — Guard Gallivant.
 # Reads the lab map from stdin until end of input, prints both answers.
-use day06-core
 
-# shortcut: a lab row is ., #, and ^ characters, so this sentinel cannot
-# collide; it stands in for the end-of-file failure because error.detail is
-# not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let grid = day06-core.parse(buffer.to-text(input))
-print(day06-core.part-one(grid))
-print(day06-core.part-two(grid))
+word main()
+    # shortcut: a lab row is ., #, and ^ characters, so this sentinel cannot
+    # collide; it stands in for the end-of-file failure because error.detail is
+    # not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let grid = parse(buffer.to-text(input))
+    print(part-one(grid))
+    print(part-two(grid))

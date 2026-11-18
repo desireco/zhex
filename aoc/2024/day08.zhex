@@ -1,18 +1,125 @@
+# Advent of Code 2024, day 8 — Resonant Collinearity (solution words).
+# The map marks antennas with letters and digits; every character names a
+# frequency, case included, and . is empty space. Two same-frequency
+# antennas align antinodes: part 1 places two per pair, each antenna mirrored
+# past the other (one antenna twice as far from the point as the other);
+# part 2 places one at every in-bounds point of the pair's whole line, the
+# antennas included. Antinodes collect in a Map of "r:c" keys — the set
+# idiom, since the language has no set type.
+
+## Parse the map into its rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(grid, line)
+    grid
+
+## One antenna: its frequency and position.
+type Antenna = record
+    frequency: String
+    row: Int
+    column: Int
+
+# Every nonempty cell, reading order.
+word _antennas(grid: List<String>) -> List<Antenna>
+    let antennas: List<Antenna> = []
+    for r in range(0, list.length(grid))
+        for c in range(0, text.length(grid[0]))
+            let cell = text.slice(grid[r], c, c + 1)
+            if cell != "."
+                let added = list.append(antennas, Antenna(cell, r, c))
+    antennas
+
+# A position's set key.
+word _key(r: Int, c: Int) -> String
+    "" + r + ":" + c
+
+# Whether a position lies on the map.
+word _in-bounds(grid: List<String>, r: Int, c: Int) -> Bool
+    r >= 0 and r < list.length(grid) and c >= 0 and c < text.length(grid[0])
+
+# Add an in-bounds position to the antinode set.
+word _mark(grid: List<String>, nodes: Map<String, Bool>, r: Int, c: Int) -> Unit
+    if _in-bounds(grid, r, c)
+        let updated = map.put(nodes, _key(r, c), true)
+
+# The greatest common divisor of two nonnegative numbers.
+word _gcd(a: Int, b: Int) -> Int
+    var x = a
+    var y = b
+    while y > 0
+        let next = y
+        y = x % y
+        x = next
+    x
+
+# The absolute value.
+word _abs(value: Int) -> Int
+    if value < 0
+        -value
+    else
+        value
+
+## Count the unique antinode locations: each same-frequency pair places two,
+## one antenna mirrored past the other.
+word part-one(grid: List<String>) -> Int
+    let nodes: Map<String, Bool> = {}
+    let antennas = _antennas(grid)
+    for i in range(0, list.length(antennas))
+        for j in range(i + 1, list.length(antennas))
+            let a = antennas[i]
+            let b = antennas[j]
+            if a.frequency == b.frequency
+                _mark(grid, nodes, 2 * a.row - b.row, 2 * a.column - b.column)
+                _mark(grid, nodes, 2 * b.row - a.row, 2 * b.column - a.column)
+    map.length(nodes)
+
+## Count the unique antinode locations with resonant harmonics: each
+## same-frequency pair marks its whole in-bounds line, stepping by the pair's
+## primitive direction so points between the antennas count too.
+word part-two(grid: List<String>) -> Int
+    let nodes: Map<String, Bool> = {}
+    let antennas = _antennas(grid)
+    for i in range(0, list.length(antennas))
+        for j in range(i + 1, list.length(antennas))
+            let a = antennas[i]
+            let b = antennas[j]
+            if a.frequency == b.frequency
+                let dr = b.row - a.row
+                let dc = b.column - a.column
+                let g = _gcd(_abs(dr), _abs(dc))
+                let step-r = dr / g
+                let step-c = dc / g
+                var r = a.row
+                var c = a.column
+                while _in-bounds(grid, r, c)
+                    _mark(grid, nodes, r, c)
+                    r = r + step-r
+                    c = c + step-c
+                var back-r = a.row - step-r
+                var back-c = a.column - step-c
+                while _in-bounds(grid, back-r, back-c)
+                    _mark(grid, nodes, back-r, back-c)
+                    back-r = back-r - step-r
+                    back-c = back-c - step-c
+    map.length(nodes)
+
 # Advent of Code 2024, day 8 — Resonant Collinearity.
 # Reads the antenna map from stdin until end of input, prints both answers.
-use day08-core
 
-# shortcut: a map row is letters, digits, and dots, so this sentinel cannot
-# collide; it stands in for the end-of-file failure because error.detail is
-# not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let grid = day08-core.parse(buffer.to-text(input))
-print(day08-core.part-one(grid))
-print(day08-core.part-two(grid))
+word main()
+    # shortcut: a map row is letters, digits, and dots, so this sentinel cannot
+    # collide; it stands in for the end-of-file failure because error.detail is
+    # not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let grid = parse(buffer.to-text(input))
+    print(part-one(grid))
+    print(part-two(grid))

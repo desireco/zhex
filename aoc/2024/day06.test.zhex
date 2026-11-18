@@ -1,9 +1,9 @@
-use day06-core
+use day06
 use test
 
 let sample = "....#.....\n.........#\n..........\n..#.......\n.......#..\n..........\n.#..^.....\n........#.\n#.........\n......#..."
-let grid = day06-core.parse(sample)
+let grid = day06.parse(sample)
 
-test.check(day06-core.part-one(grid) == 41, "day 6 part 1")
-test.check(day06-core.part-two(grid) == 6, "day 6 part 2")
+test.check(day06.part-one(grid) == 41, "day 6 part 1")
+test.check(day06.part-two(grid) == 6, "day 6 part 2")
 print "day 6 tests passed"

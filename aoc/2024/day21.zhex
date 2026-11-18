@@ -1,18 +1,153 @@
+# Advent of Code 2024, day 21 — Keypad Conundrum (solution words).
+# Codes are typed on the numeric keypad through a chain of directional
+# keypads, every arm starting on A and never allowed to aim at the gap. The
+# chain is never materialized: a Map keyed "from>to" holds the cheapest
+# press count for one button-to-button transition per directional level, and
+# each new level is the best per-pair path typed through the level below.
+# The numeric keypad uses the final table the same way. Positions are encoded
+# row * 10 + column; the gaps sit at 0 (directional) and 30 (numeric).
+
+## Parse the door codes: one per nonempty line.
+word parse(text: String) -> List<String>
+    let codes: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(codes, line)
+    codes
+
+word _abs(n: Int) -> Int
+    if n < 0
+        -n
+    else
+        n
+
+# Directional keypad buttons:  ^ A / < v >  with the gap at 0,0.
+word _dir-pad() -> Map<String, Int>
+    let pad: Map<String, Int> = {"^": 1, "A": 2, "<": 10, "v": 11, ">": 12}
+    pad
+
+# Numeric keypad buttons:  789 / 456 / 123 / _0A  with the gap at 3,0.
+word _num-pad() -> Map<String, Int>
+    let pad: Map<String, Int> = {"7": 0, "8": 1, "9": 2, "4": 10, "5": 11, "6": 12, "1": 20, "2": 21, "3": 22, "0": 31, "A": 32}
+    pad
+
+# Encoded position of a button; every queried button exists, so -1 is dead.
+word _key-at(pad: Map<String, Int>, key: String) -> Int
+    match pad[key]
+        case Option.Some(position)
+            position
+        case Option.None
+            -1
+
+word _dist(a: Int, b: Int) -> Int
+    _abs(b / 10 - a / 10) + _abs(b % 10 - a % 10)
+
+# Walk every interleaving of the remaining vertical and horizontal moves,
+# dropping any that steps onto the gap; each ordering appears exactly once.
+word _walk(pos: Int, vleft: Int, hleft: Int, vdelta: Int, hdelta: Int, vchar: String, hchar: String, prefix: String, gap: Int, out: List<String>) -> Unit
+    if vleft == 0 and hleft == 0
+        let added = list.append(out, prefix)
+    else
+        if vleft > 0
+            let next = pos + vdelta
+            if next != gap
+                _walk(next, vleft - 1, hleft, vdelta, hdelta, vchar, hchar, prefix + vchar, gap, out)
+        if hleft > 0
+            let next = pos + hdelta
+            if next != gap
+                _walk(next, vleft, hleft - 1, vdelta, hdelta, vchar, hchar, prefix + hchar, gap, out)
+
+# All minimal gap-avoiding move strings between two buttons of one keypad.
+word _paths(pad: Map<String, Int>, gap: Int, from: String, to: String, out: List<String>) -> Unit
+    let a = _key-at(pad, from)
+    let b = _key-at(pad, to)
+    let dr = b / 10 - a / 10
+    let dc = b % 10 - a % 10
+    var vdelta = -10
+    var vchar = "^"
+    if dr > 0
+        vdelta = 10
+        vchar = "v"
+    var hdelta = -1
+    var hchar = "<"
+    if dc > 0
+        hdelta = 1
+        hchar = ">"
+    _walk(a, _abs(dr), _abs(dc), vdelta, hdelta, vchar, hchar, "", gap, out)
+
+# Cost of typing s on one keypad whose arm starts at A: the per-pair table
+# summed over consecutive characters.
+word _typing-cost(s: String, table: Map<String, Int>) -> Int
+    var total = 0
+    var prev = "A"
+    for index in range(0, text.length(s))
+        let ch = text.slice(s, index, index + 1)
+        match table[prev + ch]
+            case Option.Some(cost)
+                total = total + cost
+            case Option.None
+                total = total
+        prev = ch
+    total
+
+# Best press count for every transition of one keypad through the given
+# per-pair table, keyed "a>b".
+word _best-table(pad: Map<String, Int>, gap: Int, buttons: List<String>, table: Map<String, Int>) -> Map<String, Int>
+    let best: Map<String, Int> = {}
+    for a in buttons
+        for b in buttons
+            let paths: List<String> = []
+            _paths(pad, gap, a, b, paths)
+            var winner = -1
+            for path in paths
+                let cost = _typing-cost(path + "A", table)
+                if winner < 0 or cost < winner
+                    winner = cost
+            best[a + b] = winner
+    best
+
+# Sum of code complexities through a chain of `robots` directional keypads.
+word _solve(codes: List<String>, robots: Int) -> Int
+    let pad = _dir-pad()
+    let buttons: List<String> = ["A", "^", "v", "<", ">"]
+    var table: Map<String, Int> = {}
+    for a in buttons
+        for b in buttons
+            table[a + b] = _dist(_key-at(pad, a), _key-at(pad, b)) + 1
+    var level = 2
+    while level <= robots
+        table = _best-table(pad, 0, buttons, table)
+        level = level + 1
+    let numeric: Map<String, Int> = _best-table(_num-pad(), 30, ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A"], table)
+    var total = 0
+    for code in codes
+        let value = text.to-int(text.slice(code, 0, text.length(code) - 1)) catch 0
+        total = total + value * _typing-cost(code, numeric)
+    total
+
+## Sum of complexities with two robots on directional keypads.
+word part-one(codes: List<String>) -> Int
+    _solve(codes, 2)
+
+## Sum of complexities with twenty-five robots on directional keypads.
+word part-two(codes: List<String>) -> Int
+    _solve(codes, 25)
+
 # Advent of Code 2024, day 21 — Keypad Conundrum.
 # Reads the door codes from stdin until end of input, prints both answers.
-use day21-core
 
-# shortcut: a code is digits plus A, so this sentinel cannot collide; it
-# stands in for the end-of-file failure because error.detail is not compiled
-# to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let codes = day21-core.parse(buffer.to-text(input))
-print(day21-core.part-one(codes))
-print(day21-core.part-two(codes))
+word main()
+    # shortcut: a code is digits plus A, so this sentinel cannot collide; it
+    # stands in for the end-of-file failure because error.detail is not compiled
+    # to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let codes = parse(buffer.to-text(input))
+    print(part-one(codes))
+    print(part-two(codes))

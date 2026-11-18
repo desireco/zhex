@@ -1,9 +1,9 @@
-use day11-core
+use day11
 use test
 
 let sample = "125 17"
-let stones = day11-core.parse(sample) try
+let stones = day11.parse(sample) try
 
-test.check(day11-core.part-one(stones) == 55312, "day 11 part 1")
-test.check(day11-core.part-two(stones) == 65601038650482, "day 11 part 2")
+test.check(day11.part-one(stones) == 55312, "day 11 part 1")
+test.check(day11.part-two(stones) == 65601038650482, "day 11 part 2")
 print "day 11 tests passed"

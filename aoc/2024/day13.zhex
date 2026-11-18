@@ -1,23 +1,108 @@
+# Advent of Code 2024, day 13 — Claw Contraption (solution words).
+# Each machine is a 2x2 integer system: a presses of button A and b of
+# button B must land the claw on the prize along both axes. Both parts
+# solve it exactly with the determinant — no floats — taking the machine
+# only when both press counts come out whole and non-negative. Part 1
+# caps presses at 100; part 2 moves each prize 10000000000000 farther
+# out and drops the cap.
+
+type Machine = record
+    ax: Int
+    ay: Int
+    bx: Int
+    by: Int
+    px: Int
+    py: Int
+
+# The two value fragments after the colon, like X+94 and Y+34.
+word _parts(line: String) -> List<String>
+    let sides = text.split(line, ": ")
+    text.split(sides[1], ", ")
+
+# One fragment's number past its two-character X+, Y+, X=, or Y= prefix.
+word _value(fragment: String) -> Int
+    text.to-int(text.slice(fragment, 2, text.length(fragment))) try
+
+## Parse the Button A, Button B, Prize blocks into machines.
+word parse(text: String) -> List<Machine>
+    let machines: List<Machine> = []
+    for block in text.split(text, "\n\n")
+        let lines = text.split(block, "\n")
+        if list.length(lines) == 3
+            let a = _parts(lines[0])
+            let b = _parts(lines[1])
+            let prize = _parts(lines[2])
+            let added = list.append(machines, Machine(_value(a[0]) try, _value(a[1]) try, _value(b[0]) try, _value(b[1]) try, _value(prize[0]) try, _value(prize[1]) try))
+    machines
+
+# The exact press counts for both axes, or Option.None when the system
+# has no whole-number solution with non-negative counts.
+word _presses(machine: Machine) -> Option<List<Int>>
+    let det = machine.ax * machine.by - machine.ay * machine.bx
+    if det == 0
+        Option.None
+    else
+        let numA = machine.px * machine.by - machine.py * machine.bx
+        let numB = machine.ax * machine.py - machine.ay * machine.px
+        if numA % det != 0 or numB % det != 0
+            Option.None
+        else
+            let a = numA / det
+            let b = numB / det
+            if a < 0 or b < 0
+                Option.None
+            else
+                Option.Some([a, b])
+
+# The machine's token cost, or 0 when its prize cannot be won under the
+# cap; shortcut: a negative cap means no press limit, part 2's rule.
+word _won-cost(machine: Machine, cap: Int) -> Int
+    match _presses(machine)
+        case Option.Some(presses)
+            if cap < 0 or (presses[0] <= cap and presses[1] <= cap)
+                presses[0] * 3 + presses[1]
+            else
+                0
+        case Option.None
+            0
+
+## Total tokens to win every prize winnable with at most 100 presses
+## per button.
+word part-one(machines: List<Machine>) -> Int
+    var total = 0
+    for machine in machines
+        total = total + _won-cost(machine, 100)
+    total
+
+## Total tokens to win every prize once each sits 10000000000000 farther
+## out, with no press cap.
+word part-two(machines: List<Machine>) -> Int
+    var total = 0
+    for machine in machines
+        let far = Machine(machine.ax, machine.ay, machine.bx, machine.by, machine.px + 10000000000000, machine.py + 10000000000000)
+        total = total + _won-cost(far, -1)
+    total
+
 # Advent of Code 2024, day 13 — Claw Contraption.
 # Reads the claw machines from stdin until end of input, prints both answers.
-use day13-core
 
-# The machine blocks are separated by blank lines, so the runner reads to
-# end-of-file the same way day 5 does: branching on the end-of-file detail
-# (error.detail), which is fenced in the browser build (#135), and the
-# sentinel workaround days 1-4 use cannot detect end-of-file either. The
-# door carries the fence note until the engine lane fixes #135.
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch problem
-        if error.detail(problem, "reason") == "end-of-file"
-            done = true
-            ""
-        else
-            error.message(problem)
-    if not done
-        let added = buffer.add-line(input, line)
-let machines = day13-core.parse(buffer.to-text(input)) try
-print(day13-core.part-one(machines))
-print(day13-core.part-two(machines))
+word main()
+    # The machine blocks are separated by blank lines, so the runner reads to
+    # end-of-file the same way day 5 does: branching on the end-of-file detail
+    # (error.detail), which is fenced in the browser build (#135), and the
+    # sentinel workaround days 1-4 use cannot detect end-of-file either. The
+    # door carries the fence note until the engine lane fixes #135.
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch problem
+            if error.detail(problem, "reason") == "end-of-file"
+                done = true
+                ""
+            else
+                error.message(problem)
+        if not done
+            let added = buffer.add-line(input, line)
+    let machines = parse(buffer.to-text(input)) try
+    print(part-one(machines))
+    print(part-two(machines))

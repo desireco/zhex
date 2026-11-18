@@ -1,9 +1,9 @@
-use day23-core
+use day23
 use test
 
 let sample = "kh-tc\nqp-kh\nde-cg\nka-co\nyn-aq\nqp-ub\ncg-tb\nvc-aq\ntb-ka\nwh-tc\nyn-cg\nkh-ub\nta-co\nde-co\ntc-td\ntb-wq\nwh-td\nta-ka\ntd-qp\naq-cg\nwq-ub\nub-vc\nde-ta\nwq-aq\nwq-vc\nwh-yn\nka-de\nkh-ta\nco-tc\nwh-qp\ntb-vc\ntd-yn"
-let edges = day23-core.parse(sample)
+let edges = day23.parse(sample)
 
-test.check(day23-core.part-one(edges) == 7, "day 23 part 1")
-test.check(day23-core.part-two(edges) == "co,de,ka,ta", "day 23 part 2")
+test.check(day23.part-one(edges) == 7, "day 23 part 1")
+test.check(day23.part-two(edges) == "co,de,ka,ta", "day 23 part 2")
 print "day 23 tests passed"

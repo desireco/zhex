@@ -1,9 +1,9 @@
-use day14-core
+use day14
 use test
 
 let sample = "p=0,4 v=3,-3\np=6,3 v=-1,-3\np=10,3 v=-1,2\np=2,0 v=2,-1\np=0,0 v=1,3\np=3,0 v=-2,-2\np=7,6 v=-1,-3\np=3,0 v=-1,-2\np=9,3 v=2,3\np=7,3 v=-1,2\np=2,4 v=2,-3\np=9,5 v=-3,-3"
-let robots = day14-core.parse(sample) try
+let robots = day14.parse(sample) try
 
-test.check(day14-core.part-one(robots) == 12, "day 14 part 1")
-test.check(day14-core.part-two(robots) == 1, "day 14 part 2")
+test.check(day14.part-one(robots) == 12, "day 14 part 1")
+test.check(day14.part-two(robots) == 1, "day 14 part 2")
 print "day 14 tests passed"

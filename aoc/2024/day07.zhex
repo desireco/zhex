@@ -1,19 +1,84 @@
+# Advent of Code 2024, day 7 — Bridge Repair (solution words).
+# Each line is a calibration equation: a test value, then a row of numbers
+# that keep their order. Inserting + or * between the numbers — evaluated
+# left to right, no precedence — makes some equations true; part 2 adds a
+# third operator || that concatenates the digits of its operands. Both parts
+# search the operator placements recursively, one operand per level, so the
+# call depth is the operand count.
+
+## One calibration equation: the test value and its operand row.
+type Equation = record
+    test: Int
+    parts: List<Int>
+
+# The numbers a space-separated section holds.
+word _numbers(section: String) -> List<Int>
+    let numbers: List<Int> = []
+    for token in text.split(section, " ")
+        if text.length(token) > 0
+            let added = list.append(numbers, text.to-int(token) try)
+    numbers
+
+## Parse the calibration document into its equations.
+word parse(text: String) -> List<Equation>
+    let equations: List<Equation> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let halves = text.split(line, ":")
+            let added = list.append(equations, Equation(text.to-int(halves[0]) try, _numbers(halves[1]) try))
+    equations
+
+# The two operands' digits joined into one number; operands are nonnegative,
+# so the parse never fails and the catch only keeps the word pure.
+word _concat(a: Int, b: Int) -> Int
+    text.to-int(int.to-string(a) + b) catch 0
+
+# Whether some operator placement reaches the test value, trying +, *, and
+# (when asked) || at every gap; the current value rides the recursion.
+word _solvable(test: Int, parts: List<Int>, index: Int, current: Int, concat: Bool) -> Bool
+    if index == list.length(parts)
+        current == test
+    else
+        let next = parts[index]
+        var found = _solvable(test, parts, index + 1, current + next, concat)
+        if not found
+            found = _solvable(test, parts, index + 1, current * next, concat)
+        if not found and concat
+            found = _solvable(test, parts, index + 1, _concat(current, next), concat)
+        found
+
+## Sum the test values of the equations + and * can make true.
+word part-one(equations: List<Equation>) -> Int
+    var total = 0
+    for equation in equations
+        if _solvable(equation.test, equation.parts, 1, equation.parts[0], false)
+            total = total + equation.test
+    total
+
+## Sum the test values of the equations +, *, and || can make true.
+word part-two(equations: List<Equation>) -> Int
+    var total = 0
+    for equation in equations
+        if _solvable(equation.test, equation.parts, 1, equation.parts[0], true)
+            total = total + equation.test
+    total
+
 # Advent of Code 2024, day 7 — Bridge Repair.
 # Reads the calibration document from stdin until end of input, prints both
 # answers.
-use day07-core
 
-# shortcut: an equation line holds digits, colons, and spaces only, so this
-# sentinel cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let equations = day07-core.parse(buffer.to-text(input)) try
-print(day07-core.part-one(equations))
-print(day07-core.part-two(equations))
+word main()
+    # shortcut: an equation line holds digits, colons, and spaces only, so this
+    # sentinel cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let equations = parse(buffer.to-text(input)) try
+    print(part-one(equations))
+    print(part-two(equations))
