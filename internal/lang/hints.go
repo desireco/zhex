@@ -118,3 +118,42 @@ func printHint(typ valueType) string {
 	}
 	return tryHint(typ)
 }
+
+// mutationReceivers names the mutation words whose plain result is the
+// receiver itself, keyed by what to call it in a hint.
+var mutationReceivers = map[string]string{
+	"list.append":     "list",
+	"list.insert":     "list",
+	"array.resize":    "array",
+	"map.put":         "map",
+	"map.remove":      "map",
+	"map.into":        "map",
+	"buffer.add-line": "buffer",
+}
+
+// mutationReceiverHint explains a branch-type mismatch caused by a mutation
+// word's returned receiver: #156 made those words give back the collection
+// they changed, so a bare call as an if-arm tail stops being Unit.
+func mutationReceiverHint(left, right valueType, body, otherwise []*statement) string {
+	var arm []*statement
+	switch {
+	case left == unitType && right != unitType:
+		arm = otherwise
+	case right == unitType && left != unitType:
+		arm = body
+	default:
+		return ""
+	}
+	if len(arm) == 0 || arm[len(arm)-1].kind != "expression" {
+		return ""
+	}
+	x := arm[len(arm)-1].expr
+	if x == nil || x.kind != "call" {
+		return ""
+	}
+	kind, ok := mutationReceivers[x.text]
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("%s returns the %s it changed; bind it as `let stored = %s(...)` or give both branches the same type", x.text, kind, x.text)
+}

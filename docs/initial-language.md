@@ -81,7 +81,7 @@ The REPL resolves `use` against the working directory and adopts each named modu
 
 ## Decisions and iteration
 
-`if condition`, optional `elif condition` blocks, and optional `else` select a branch. Conditions must be `Bool`. Branch result types must match; a missing `else` supplies `Unit`. Each branch has its own lexical scope.
+`if condition`, optional `elif condition` blocks, and optional `else` select a branch. Conditions must be `Bool`. Branch result types must match; a missing `else` supplies `Unit`. A non-`Unit` arm that ends in a mutation word explains the mismatch in its hint, since those words return the collection they changed — the hint names the binding fix, as `let stored = map.put(...)`. Each branch has its own lexical scope.
 
 `for name in range(start, end)` iterates upward over integers with an exclusive end, without building a list. Bounds evaluate once. If `start >= end`, the loop is empty. The iteration binding is immutable and each iteration has its own block scope. The loop result is `Unit`.
 

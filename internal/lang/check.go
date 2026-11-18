@@ -806,7 +806,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			return left, nil
 		}
 		if left != right {
-			return "", errorAt(s.pos, CodeBranchType, "branch result types must match: %s and %s", left, right)
+			return "", withHint(errorAt(s.pos, CodeBranchType, "branch result types must match: %s and %s", left, right), mutationReceiverHint(left, right, s.body, s.otherwise))
 		}
 		return left, nil
 	case "for":
