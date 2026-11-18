@@ -1737,6 +1737,13 @@ func (e *watEmitter) builtinCall(x *expression) {
 	case "read-line":
 		e.expr(x.args[0])
 		e.line("call " + watReadLine)
+	case "error.message":
+		e.expr(x.args[0]) // the caught payload is a plain eq reference
+		e.line("call " + watErrorMessage)
+	case "error.detail":
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watErrorDetail)
 	case "file.join":
 		e.expr(x.args[0])
 		e.expr(x.args[1])

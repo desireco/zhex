@@ -20,7 +20,8 @@ import (
 // builders share.
 func TestWatPreludeM2PinnedNames(t *testing.T) {
 	pinned := []string{
-		"(type $zhex_err (struct (field $family i32) (field $message (ref null $zhex_string))))",
+		// $details amended by #135 (alternating key/value pairs, null = none)
+		"(type $zhex_err (struct (field $family i32) (field $message (ref null $zhex_string)) (field $details (ref null $zhex_arr_str))))",
 		"(type $zhex_arr_str (array (mut (ref $zhex_string))))",
 		"(type $zhex_closure (struct (field $fn (ref func)) (field $env (ref null $zhex_arr_ref))))",
 		`(func $zhex_get_msg_len (export "zhex_msg_len") (result i32)`,

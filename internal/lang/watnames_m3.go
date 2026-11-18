@@ -249,6 +249,13 @@ const (
 	watReadLine = "$zhex_read_line" // (prompt) -> Result<String, InputError>
 )
 
+// error.* inspection (#135): readers over the M2 err value, taking the
+// payload the way catch binds it (a plain eq reference).
+const (
+	watErrorMessage = "$zhex_error_message" // (err) -> String
+	watErrorDetail  = "$zhex_error_detail"  // (err, key) -> String
+)
+
 // buffer.* (§4): pure runtime, no imports, no element limit.
 const (
 	watBufferNew       = "$zhex_buffer_new"

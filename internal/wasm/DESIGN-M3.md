@@ -162,10 +162,14 @@ byte-match.
 - **`read-line(prompt)`** (InputError = 2): the prompt is written to stdout *raw* (no newline)
   before reading (Surprises 2). The prelude keeps a pending byte buffer and loops `stdin_read`
   (4096-byte chunks, module-grown) until `"\n"` or EOF. EOF with an empty buffer → `end of
-  input` (reason detail `end-of-file` exists in the interpreter, unread while `error.*` is
-  fenced); read failure (`-1`) → `console input failed: read error` (shortcut: unreachable under
+  input`; read failure (`-1`) → `console input failed: read error` (shortcut: unreachable under
   both harnesses; pinned for completeness); invalid UTF-8 → `console input is not valid UTF-8`;
   else the chomped line. Browser stdin is the runner's supplied string; WASI stdin is fd 0.
+  (2026-11-18 amendment, #135: the two failure Results carry the interpreter's
+  `reason` detail — `end-of-file` / `read-failed` — through `$zhex_errv_reason`,
+  read by the compiled `error.detail`; every other err value keeps null details,
+  and the file family's `path`/`reason` details stay envelope-only per M4 §4's
+  precedent until a fixture needs them.)
 - **`buffer.*`** (pure runtime, no imports): `$zhex_buffer {lines: (mut (ref null
   $zhex_arr_str))}`. `new` empty; `add-line` appends (no limit — Surprises 10); `line-count` =
   length; `line(i)` / `set-line(i, text)` are bounds-checked Results (BufferError = 4) with

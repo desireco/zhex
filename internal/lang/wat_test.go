@@ -388,6 +388,27 @@ print(fallback())
 	}
 }
 
+// TestWatErrorInspectionWords pins #135: error.message and error.detail
+// compile to the prelude's err-value readers instead of fencing.
+func TestWatErrorInspectionWords(t *testing.T) {
+	wat := watOf(t, `
+let line = read-line("") catch problem
+    if error.detail(problem, "reason") == "end-of-file"
+        ""
+    else
+        error.message(problem)
+print(line)
+`)
+	for _, want := range []string{
+		"call " + watErrorDetail,
+		"call " + watErrorMessage,
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
 // -------------------------------------------------------------------- flows
 
 func TestWatFlowSteps(t *testing.T) {

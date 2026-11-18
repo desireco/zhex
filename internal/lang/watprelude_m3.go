@@ -28,6 +28,7 @@ var watPreludeM3 = strings.Join([]string{
 	watM3Path,
 	watM3Buffer,
 	watM3Readline,
+	watM3ErrorInspect,
 	watM3File,
 	watM3Duration,
 	watM3Env,
@@ -67,6 +68,9 @@ func watM3Literals() string {
 		"$m3_end_of_input":  "end of input",
 		"$m3_input_failed":  "console input failed: read error",
 		"$m3_input_utf8":    "console input is not valid UTF-8",
+		"$m3_d_reason":      "reason",
+		"$m3_d_end_of_file": "end-of-file",
+		"$m3_d_read_failed": "read-failed",
 		"$m3_bad_duration":  "invalid duration",
 		"$m3_list_limit":    "file.list exceeds element limit",
 		"$m3_target_folder": ": the target is a folder",
@@ -180,7 +184,13 @@ const watM3Types = `
 (global $zhex_dv (mut i64) (i64.const 0))
 
 (func $zhex_errv (param $family i32) (param $msg (ref $zhex_string)) (result (ref null eq))
-  (struct.new $zhex_err (local.get $family) (local.get $msg)))
+  (struct.new $zhex_err (local.get $family) (local.get $msg) (ref.null $zhex_arr_str)))
+
+;; #135: an err value whose details carry one reason pair (the key literal
+;; rides the value; further keys grow the entry array at the call sites)
+(func $zhex_errv_reason (param $family i32) (param $msg (ref $zhex_string)) (param $reason (ref $zhex_string)) (result (ref null eq))
+  (struct.new $zhex_err (local.get $family) (local.get $msg)
+    (array.new_fixed $zhex_arr_str 2 (call $m3_d_reason) (local.get $reason))))
 `
 
 // watM3Errno renders the WASI-errno text table (§1b): the full 1-76 mapping
@@ -955,13 +965,13 @@ const watM3Readline = `
       (if (i32.eq (local.get $got) (i32.const -1))
         (then
           (return (struct.new $zhex_result (i32.const 1)
-            (call $zhex_errv (i32.const 2) (call $m3_input_failed))))))
+            (call $zhex_errv_reason (i32.const 2) (call $m3_input_failed) (call $m3_d_read_failed))))))
       (if (i32.eqz (local.get $got))
         (then
           (if (i32.eqz (local.get $n))
             (then
               (return (struct.new $zhex_result (i32.const 1)
-                (call $zhex_errv (i32.const 2) (call $m3_end_of_input))))))
+                (call $zhex_errv_reason (i32.const 2) (call $m3_end_of_input) (call $m3_d_end_of_file))))))
           (call $m3_stage_buf (local.get $buf) (i32.const 0) (local.get $n))
           (global.set $zhex_stdin_buf (array.new_default $zhex_arr_i32 (i32.const 0)))
           (if (i32.eqz (call $zhex_bytes_utf8_ok (i32.const 65536) (local.get $n)))
@@ -1014,6 +1024,32 @@ const watM3Readline = `
         (call $zhex_errv (i32.const 2) (call $m3_input_utf8))))))
   (struct.new $zhex_result (i32.const 0)
     (call $zhex_bytes_to_string (i32.const 65536) (local.get $m))))
+`
+
+// watM3ErrorInspect (#135): the error.* inspection readers over the §2 err
+// value — message is its $message field, detail scans the alternating
+// key/value $details array and yields "" when the array is null or the key
+// is absent (the interpreter's empty map read). Both take the payload as a
+// plain eq reference the way catch binds it; in-subset errors are always
+// $zhex_err structs, so the direct cast is total.
+const watM3ErrorInspect = `
+(func $zhex_error_message (param $e (ref null eq)) (result (ref $zhex_string))
+  (ref.as_non_null (struct.get $zhex_err $message (ref.cast (ref $zhex_err) (local.get $e)))))
+
+(func $zhex_error_detail (param $e (ref null eq)) (param $key (ref $zhex_string)) (result (ref $zhex_string))
+  (local $d (ref null $zhex_arr_str))
+  (local $i i32)
+  (local.set $d (struct.get $zhex_err $details (ref.cast (ref $zhex_err) (local.get $e))))
+  (block $absent
+    (if (ref.is_null (local.get $d))
+      (then (return (array.new_fixed $zhex_string 0))))
+    (loop $scan
+      (br_if $absent (i32.ge_u (local.get $i) (array.len (ref.as_non_null (local.get $d)))))
+      (if (call $zhex_str_eq (array.get $zhex_arr_str (ref.as_non_null (local.get $d)) (local.get $i)) (local.get $key))
+        (then (return (array.get $zhex_arr_str (ref.as_non_null (local.get $d)) (i32.add (local.get $i) (i32.const 1))))))
+      (local.set $i (i32.add (local.get $i) (i32.const 2)))
+      (br $scan)))
+  (array.new_fixed $zhex_string 0))
 `
 
 // watM3File: the file words over the fifteen $zhex_host_* imports (§3) and

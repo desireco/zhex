@@ -82,6 +82,11 @@ err struct below.
 (type $zhex_err (struct (field $family i32) (field $message (ref null $zhex_string))))
 ```
 
+(2026-11-18 amendment, #135: `$zhex_err` gained a third field
+`(field $details (ref null $zhex_arr_str))` — alternating key/value string
+pairs, null = no details — and `error.message`/`error.detail` compile to the
+M3 readers `$zhex_error_message`/`$zhex_error_detail`; see DESIGN-M3 §4.)
+
 `$family` 1 = ParseError (only family in M2; constants grow later). `$message`
 is the full first-line message *without* position: `<quote(t)> is not a signed
 64-bit decimal integer` where `quote` mirrors Go `%q`: wrap in `"`, emit `\"`,
@@ -118,6 +123,9 @@ the handler runs with it — nothing in M2 can read it (`error.*` stays fenced,
 §6), so it is pass-through only. The interpreter renders the same failure as
 `file:line:col: "x" is not a signed 64-bit decimal integer` (verified); the
 compiled artifact drops only the position, per the M1 convention.
+(2026-11-18 amendment, #135: `error.message` and `error.detail` now compile —
+the payload is readable through the M3 readers; the rest of `error.*` stays
+fenced per §6.)
 
 (2026-11-15 amendment: §2d's top-level fail-12 was superseded by M3's fail-16 — see
 DESIGN-M3 §8; the fail table itself is unchanged, bytes 12/15 included.)
@@ -304,8 +312,10 @@ run it with zhex run instead` (fence tests assert the new string). Fenced:
 - All temporal: `date.* time.* duration.* instant.* timezone.* zoned.*`
   (`duration.` arrives M3 per D3).
 - `console.arg console.args-count console.exit console.fail`.
-- All `error.*` — `new wrap report set-reporter has-cause cause code message
-  operation file line column detail` (the caught §2 err value stays opaque).
+- All `error.*` except `message` and `detail` — `new wrap report set-reporter
+  has-cause cause code operation file line column` (the caught §2 err value
+  stays opaque to them; `message`/`detail` compile since #135 — §2b's
+  amendment).
 - Checked collection forms (`try`/`catch` on `list.append`, `array.new`,
   `array.resize`, `file.exists`) — unchanged from M1 (they need recoverable
   Results from prelude helpers, a different mechanism than the fail trap).

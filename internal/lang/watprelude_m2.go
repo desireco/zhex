@@ -35,8 +35,10 @@ var watPreludeM2 = watM2Types +
 // memory offset 0 — the same slot $zhex_print_str stages into; print bytes
 // are consumed synchronously by the import, so the slot is free).
 const watM2Types = `
-(type $zhex_err (struct (field $family i32) (field $message (ref null $zhex_string))))
 (type $zhex_arr_str (array (mut (ref $zhex_string))))
+;; $details (amended 2026-11-18, #135): alternating key/value string pairs;
+;; null = the error carries no details (the interpreter's empty map read)
+(type $zhex_err (struct (field $family i32) (field $message (ref null $zhex_string)) (field $details (ref null $zhex_arr_str))))
 (type $zhex_map_i64_i64
   (struct (field $buckets (mut (ref null $zhex_arr_i32)))
           (field $next (mut (ref null $zhex_arr_i32)))
@@ -947,7 +949,8 @@ const watM2Text = `
       (br $ok))
     (return (struct.new $zhex_result (i32.const 1)
       (struct.new $zhex_err (i32.const 1)
-        (call $zhex_str_concat (call $zhex_quote (local.get $t)) (call $zhex_to_int_suffix))))))
+        (call $zhex_str_concat (call $zhex_quote (local.get $t)) (call $zhex_to_int_suffix))
+        (ref.null $zhex_arr_str)))))
   (struct.new $zhex_result (i32.const 0)
     (struct.new $zhex_some_i64
       (select (local.get $acc) (i64.sub (i64.const 0) (local.get $acc)) (local.get $neg)))))
