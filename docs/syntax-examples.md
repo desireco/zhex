@@ -8,6 +8,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | --- | --- | --- | --- |
 | [hello.zhex](../examples/hello.zhex) | `Ada` | `Hello, Ada!` | Read a whole line, build a string, print it. |
 | [composition.zhex](../examples/composition.zhex) | None | `32` | Typed words, inferred locals, flow composition. |
+| [with-blocks.zhex](../examples/with-blocks.zhex) | None | `he`, `3` | With blocks: a fixed seed under `with text` and a fused `with list` form, every step receiving the seed. |
 | [calls.zhex](../examples/calls.zhex) | None | `Hello, Ada`, `Hello, Grace`, `3`, `3`, `7`, `2`, `1`, `3` | Simple and parenthesized calls, defaults, zero-argument words, and cases that still need parentheses. |
 | [word-defaults.zhex](../examples/word-defaults.zhex) | None | `Hello Grace`, `default ran`, `Hello Ada`, `1`, `1` | Infer a parameter type from a default, evaluate it only when omitted, and give each call a fresh mutable default. |
 | [partials.zhex](../examples/partials.zhex) | None | `12`, `12`, `12`, `1`, `1`, `12`, `aDa`, `7`, `1`, `8`, `text-to-int`, `3` | Word and built-in partials, typed function values, captures, fresh deferred defaults, a flow step, and invocation-time error handling. |

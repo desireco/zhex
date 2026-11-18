@@ -215,6 +215,39 @@ flow text.to-int("7") try
 
 This prints `49`. Give a value a name when you reuse it or when the name clarifies the state; flows make a one-pass transformation visible from seed to output.
 
+## Fix a seed with a with block
+
+A `with` block is a second continuation of `flow` for the other shape: one value, many operations, no threading. Put `with <namespace>` directly under the seed line, then the steps:
+
+```zhex
+let name = "zhex"
+
+let shout = flow name
+with text
+    upper
+    length
+    slice 1, 3
+print(shout)
+```
+
+This prints `he`. Every step receives the **original seed** as its first argument — `upper` and `length` each see `"zhex"`, never the previous step's result — and the last step's value is the block's value. A bare step name resolves through the namespace first: `upper` under `with text` is `text.upper`. If the qualified name does not exist, the step resolves as an ordinary word with the seed, so `print` under `with text` prints the seed itself. The namespace can be built-in (`list`, `map`, `text`, ...) or a module you `use` whose words take the receiver first; a step that resolves nowhere fails `with-step`, naming both tries.
+
+Steps take the same shapes as flow steps — extra arguments after the seed, postfix `try` on fallible steps — and a `Result` seed must be handled before the block, as for `flow`.
+
+The `flow` keyword may be dropped when the seed line sits directly above `with`, at the same indentation, with no blank line between:
+
+```zhex
+let values = [1, 2]
+
+let kept = values
+with list
+    append(3)
+    length
+print(kept)
+```
+
+This prints `3`: `append(3)` grows the shared seed list, and `length` measures that same list — the block's value is the last step's. A naked expression anywhere else keeps its discarded no-op meaning, and a `with` with no expression line above it fails `with-location` at the `with` line. In the REPL, expression entries submit immediately, so write the explicit `flow` form there.
+
 An ordinary result type such as `Int` names a word's success value. If a `try` inside the word can fail, the checker infers the escaping error family and exposes an effective `Result` signature. Mark the call with `try` at each caller:
 
 ```zhex

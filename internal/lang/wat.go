@@ -2574,10 +2574,12 @@ func (e *watEmitter) emitResultUnwrap(res string, inner valueType) {
 
 // flowStatement runs the seed into a cursor local, then each call-shaped
 // step with the cursor as its first argument (args[0] is the tree's
-// incoming-value slot); the last step's value is the flow's value. A
-// closure binding is a legal step — e.call routes it to closureInvoke with
-// the cursor already in args[0], and steps whose extra args hold holes
-// route to partialCreation (DESIGN-M4 §3c).
+// incoming-value slot); the last step's value is the flow's value. A with
+// block is the same shape with a cursor that never updates: every step
+// reads the seed local, and non-final step values drop. A closure binding
+// is a legal step — e.call routes it to closureInvoke with the cursor
+// already in args[0], and steps whose extra args hold holes route to
+// partialCreation (DESIGN-M4 §3c).
 func (e *watEmitter) flowStatement(s *statement) {
 	fid := e.nextID()
 	curType := s.expr.typ
@@ -2602,6 +2604,12 @@ func (e *watEmitter) flowStatement(s *statement) {
 		}
 		if idx == len(s.steps)-1 {
 			return // the last step's value is the flow's value
+		}
+		if s.with != "" {
+			if !isUnitValue(nextType) {
+				e.line("drop")
+			}
+			continue
 		}
 		if !isUnitValue(nextType) {
 			next := e.temp("c"+fid+"_"+fmt.Sprint(idx+1), e.watLocalType(nextType))

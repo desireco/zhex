@@ -38,6 +38,20 @@ zhex> flow 3
 
 The spaces shown after `....>` are editable spaces supplied by the terminal editor. To enter `else`, press Backspace four times to remove one indentation level before you type it. The flow sends `3` to `positive`, then sends the result to `print`.
 
+A `with` block works the same way through the explicit `flow` form; press Backspace four times to type its `with` line at the seed's indentation, and the steps indent one level deeper:
+
+```text
+zhex> let kept = flow [1, 2]
+....> with list
+....>     append(3)
+....>     length
+....>
+zhex> kept
+3
+```
+
+Every step receives the original seed, so the block's value is the last step's — see [words and flows](words-and-flows.html#fix-a-seed-with-a-with-block). A bare expression line cannot fuse with `with` in the REPL, because expression entries submit immediately.
+
 An `if`, `match`, or `flow` block can be the whole value expression on the right side of a binding or assignment. The REPL keeps collecting an entry after a `match` header:
 
 ```text

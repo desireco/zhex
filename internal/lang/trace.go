@@ -85,6 +85,15 @@ func (r *runtime) traceFlowStep(x *expression, v value) {
 	r.emit(valueEvent{Event: "flow-step", Word: qualifiedName(x), Value: formatValue(v, x.inputType), File: x.pos.file, Line: x.pos.line})
 }
 
+// traceWithStep reports a with block's step: like a flow step, but the value
+// is always the block's fixed seed.
+func (r *runtime) traceWithStep(x *expression, v value) {
+	if r.trace == nil {
+		return
+	}
+	r.emit(valueEvent{Event: "with-step", Word: qualifiedName(x), Value: formatValue(v, x.inputType), File: x.pos.file, Line: x.pos.line})
+}
+
 func (r *runtime) traceWordReturn(w *word, v value) {
 	if r.trace == nil {
 		return

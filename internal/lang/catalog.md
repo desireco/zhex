@@ -68,6 +68,15 @@ A token cannot start an expression where one is required.
 ## flow-step
 A `flow` block needs at least one step word. Write one word per line; the first receives the seed value.
 
+## with-location
+A `with` line did not directly follow the expression line it continues. Put `with` on the next line below the seed expression, at the same indentation, with no blank line between.
+
+## with-seed
+A `with` block's seed produces Unit, so no step can receive it. Give `with` a value-producing expression line.
+
+## with-step
+A `with` step name resolved neither through the block's namespace nor as a word in scope. Spell the step as a qualified name, or define the word it names.
+
 ## unknown-name
 No binding or word has this name. The hint suggests the closest known one; if the name contains a hyphen, that hyphen is part of the name — subtraction is written `a - b` with spaces.
 

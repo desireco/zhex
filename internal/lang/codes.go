@@ -55,6 +55,9 @@ const (
 	CodeIntegerLiteralRange Code = "integer-literal-range"
 	CodeExpectedExpression  Code = "expected-expression"
 	CodeFlowStep            Code = "flow-step"
+	CodeWithLocation        Code = "with-location"
+	CodeWithSeed            Code = "with-seed"
+	CodeWithStep            Code = "with-step"
 
 	CodeUnknownName     Code = "unknown-name"
 	CodeDuplicateName   Code = "duplicate-name"
@@ -128,6 +131,7 @@ var diagnosticCodes = []Code{
 	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeUnclosedDelimiter, CodeStringEscape, CodeUnexpectedCharacter,
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,
 	CodeIntegerLiteralRange, CodeExpectedExpression, CodeFlowStep,
+	CodeWithLocation, CodeWithSeed, CodeWithStep,
 	CodeUnknownName, CodeDuplicateName, CodeDuplicateWord, CodeWordResult, CodeImmutableName, CodeAssignmentType,
 	CodeConditionType, CodeBranchType, CodeRangeType, CodeTryInput, CodeUnhandledResult, CodeUnaryType, CodeOperandTypes, CodeBoolOperand,
 	CodeCompareType, CodeOrderingType, CodeAdditionType, CodeArithmeticType, CodeArgumentCount, CodeArgumentType,

@@ -79,6 +79,7 @@ var engineTable = map[string]engineRow{
 	"sorting.zhex":                {},
 	"temporal.zhex":               {},
 	"times-table.zhex":            {stdin: "7\n"},
+	"with-blocks.zhex":            {},
 	"word-defaults.zhex":          {},
 	"xml-config.zhex":             {},
 }

@@ -463,8 +463,34 @@ flow double(5)
 	}
 }
 
-// ------------------------------------------------------------------- fences
+// TestWatWithSteps pins the with-block emission: one cursor local for the
+// seed, read by every step and never updated, with non-final step values
+// dropped — the last step's value is the block's value.
+func TestWatWithSteps(t *testing.T) {
+	wat := watOf(t, `
+let values = [1, 2]
+let kept = flow values
+with list
+    append(3)
+    length
+print(kept)
+`)
+	for _, want := range []string{
+		"local.set $t_c1_0",          // the seed cursor, set once
+		"call $zhex_list_append_i64", // step 1 reads the seed cursor...
+		"drop",                       // ...and its value discards
+		"call $zhex_list_length_i64", // step 2 reads the same seed cursor
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	if strings.Contains(wat, "$t_c1_1") {
+		t.Error("a with block must not thread a second cursor local")
+	}
+}
 
+// ------------------------------------------------------------------- fences
 func TestWatFencesOutOfSubsetConstructs(t *testing.T) {
 	cases := []struct {
 		name string

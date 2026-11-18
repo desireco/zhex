@@ -5,12 +5,12 @@ import { parseLifeFrames } from '../src/scripts/life-frames.mjs';
 const encoder = new TextEncoder();
 const data = JSON.parse(await readFile('data.json', 'utf8'));
 const runnable = data.Examples.filter(e => e.Wasm);
-// 22 = the corpus's 27 in-subset files minus the two library files (math.zhex,
+// 23 = the corpus's 28 in-subset files minus the two library files (math.zhex,
 // md.zhex) that appear only as Modules of their entry example, never as
 // runnable entries, minus the three demos-page programs under examples/demos/
 // that are not examples-page cards; twin pin of corpusTable in
 // internal/wasm/corpus_test.go.
-assert.equal(runnable.length, 22, 'runnable example count');
+assert.equal(runnable.length, 23, 'runnable example count');
 for (const example of data.Examples) {
   assert.ok(!example.Wasm || !example.WasmNote, `${example.ID} cannot be runnable and fenced at once`);
   if (!example.Wasm) assert(example.WasmNote, `${example.ID} fence note`);

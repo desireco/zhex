@@ -185,9 +185,25 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 		right := s.block(stmt.otherwise, copyInferScope(env))
 		return s.join(left, right, stmt.pos)
 	case "flow":
-		value := s.expr(stmt.expr, env, false)
+		seed := s.expr(stmt.expr, env, false)
+		value := seed
 		for _, step := range stmt.steps {
-			args := []*typeConstraint{value}
+			if stmt.with != "" {
+				s.checker.qualifyWithStep(step, stmt.with)
+				if !s.checker.stepNameResolves(step.text) && env[step.text] == nil {
+					if s.err == nil {
+						s.err = s.checker.withStepError(step, stmt.with)
+					}
+					return freshType()
+				}
+			}
+			// A with block pins the seed as every step's first argument;
+			// a threaded flow hands each step the previous result.
+			first := value
+			if stmt.with != "" {
+				first = seed
+			}
+			args := []*typeConstraint{first}
 			for _, arg := range step.args {
 				args = append(args, s.expr(arg, env, false))
 			}

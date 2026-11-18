@@ -59,6 +59,7 @@ var corpusTable = map[string]corpusRow{
 	"score-report.zhex":           {in: true},
 	"sorting.zhex":                {in: true},
 	"times-table.zhex":            {in: true, stdin: "7\n"},
+	"with-blocks.zhex":            {in: true},
 	"xml-config.zhex":             {in: true},
 
 	// out-of-subset (DESIGN-M4 §1 table): the first fence the emitter hits

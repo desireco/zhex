@@ -42,3 +42,27 @@ func TestInteractiveReplBlockValues(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInteractiveReplWithBlock(t *testing.T) {
+	s := startPTY(t)
+	s.send(t, "let clean = flow \"  ADA  \"\r")
+	s.until(t, "....>     ")
+	// The with line sits at the seed's indentation, so dedent the prefill.
+	s.send(t, strings.Repeat("\x7f", 4)+"with text\r")
+	s.until(t, "....>     ")
+	s.send(t, "lower\r")
+	s.until(t, "....>     ")
+	s.send(t, "trim\r")
+	s.until(t, "....>     ")
+	s.send(t, "\r")
+	s.until(t, "zhex> ")
+	s.send(t, "clean\r")
+	got := s.until(t, "zhex> ")
+	if !strings.Contains(got, "ADA") {
+		t.Fatalf("with block result: %q", got)
+	}
+	s.send(t, "bye()\r")
+	if err := s.cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -370,13 +370,22 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			}
 		}
 	case "flow":
+		seed := v
 		for _, step := range s.steps {
-			r.traceFlowStep(step, v)
+			if s.with != "" {
+				r.traceWithStep(step, seed)
+			} else {
+				r.traceFlowStep(step, v)
+			}
 			var callable *partialValue
 			if step.binding != nil {
 				callable = env[step.binding].function
 			}
-			args := []value{v}
+			first := v
+			if s.with != "" {
+				first = seed
+			}
+			args := []value{first}
 			for _, arg := range step.args[1:] {
 				if arg.kind == "hole" {
 					args = append(args, value{})

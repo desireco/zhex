@@ -355,5 +355,7 @@ type statement struct {
 	expr, end       *expression
 	body, otherwise []*statement
 	steps           []*expression
+	with            string   // a with block's namespace; "" for a threaded flow
+	withPos         position // the with token
 	binding         *binding
 }

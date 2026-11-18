@@ -49,7 +49,7 @@ That means spacing can change how a line is read: `a-b` is a name, while `a - b`
 
 A dot qualifies an operation by its owner, as in `text.reverse` or `math.gcd`. The dot is not general punctuation for other names. A leading underscore on a module word makes that word private to its module; see [modules](modules.html).
 
-Keywords such as `word`, `let`, `if`, `for`, `flow`, `try`, `and`, `or`, and `not` cannot be used as binding or word names. `use` is also reserved and only allowed at file top level.
+Keywords such as `word`, `let`, `if`, `for`, `flow`, `with`, `try`, `and`, `or`, and `not` cannot be used as binding or word names. `use` is also reserved and only allowed at file top level.
 
 ## Strings
 
@@ -64,7 +64,7 @@ Zhex does not join arbitrary adjacent source lines into one expression. Only an 
 
 ## Expression shape
 
-Expressions include literals, names, calls, unary operators, and binary operators. `if`, `match`, and `flow` are block forms; each can be used as the entire right-hand side of a `let`, `var`, or assignment, with its final value supplying the result. They are not general nested expressions or call arguments. `while condition` is a statement of type `Unit` and never a value; see [control flow](control-flow.html). Word calls may use parentheses (`greet("Ada")`) or the comma-separated short form (`greet "Ada"`) at complete expression boundaries; nested calls and ambiguous arguments keep parentheses. `try` is postfix: `read-line("Name: ") try`. See [calls and defaults](calls.html) for the call rules.
+Expressions include literals, names, calls, unary operators, and binary operators. `if`, `match`, and `flow` are block forms; each can be used as the entire right-hand side of a `let`, `var`, or assignment, with its final value supplying the result, and a `with` continuation under the seed line composes the same way. They are not general nested expressions or call arguments. `while condition` is a statement of type `Unit` and never a value; see [control flow](control-flow.html). Word calls may use parentheses (`greet("Ada")`) or the comma-separated short form (`greet "Ada"`) at complete expression boundaries; nested calls and ambiguous arguments keep parentheses. `try` is postfix: `read-line("Name: ") try`. See [calls and defaults](calls.html) for the call rules.
 
 Here is the operator precedence from lowest to highest:
 

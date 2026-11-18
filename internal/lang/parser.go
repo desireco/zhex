@@ -152,7 +152,7 @@ func (p *parser) require(kind string) token {
 // Reserved reports whether name is a Zhex keyword.
 func Reserved(name string) bool {
 	switch name {
-	case "word", "type", "record", "choice", "match", "case", "use", "let", "var", "if", "elif", "else", "for", "while", "in", "flow", "try", "catch", "return", "and", "or", "not", "true", "false":
+	case "word", "type", "record", "choice", "match", "case", "use", "let", "var", "if", "elif", "else", "for", "while", "in", "flow", "with", "try", "catch", "return", "and", "or", "not", "true", "false":
 		return true
 	}
 	return false
@@ -372,6 +372,9 @@ func (p *parser) parseStatement() *statement {
 		}
 		panic(err)
 	}
+	if p.at("with") {
+		panic(p.orphanWith())
+	}
 	s := &statement{pos: t.pos}
 	switch {
 	case p.at("let") || p.at("var"):
@@ -382,6 +385,7 @@ func (p *parser) parseStatement() *statement {
 		}
 		p.require("=")
 		s.expr = p.statementExpression(false)
+		s.expr = p.fusedWithStatementValue(s.expr)
 	case p.accept("return"):
 		s.kind = "return"
 		s.expr = p.expression(0)
@@ -420,28 +424,17 @@ func (p *parser) parseStatement() *statement {
 		s.kind = "flow"
 		s.expr = p.wholeExpression()
 		p.require("newline")
+		if w := p.current(); w.kind == "name" && w.text == "with" {
+			if w.pos.line != s.expr.end.line+1 {
+				panic(p.orphanWith())
+			}
+			p.parseWithClause(s)
+			break
+		}
 		if !p.at("indent") {
 			panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented flow"))
 		}
-		p.take()
-		for !p.at("dedent") && !p.at("eof") {
-			step := p.name()
-			x := &expression{kind: "call", text: step.text, pos: step.pos, end: step.end}
-			if p.accept("(") {
-				p.callArguments(x)
-			} else if p.bareArgumentStart() && p.current().pos.line == x.end.line && p.current().pos.column > x.end.column {
-				x.args = p.bareArguments()
-				last, guard := trailingBareTry(x.args[len(x.args)-1])
-				if guard != nil {
-					x.args[len(x.args)-1] = last
-					x.propagate = true
-				}
-			}
-			x.propagate = p.accept("try") || x.propagate
-			s.steps = append(s.steps, x)
-			p.require("newline")
-		}
-		p.require("dedent")
+		s.steps = p.flowSteps()
 		if len(s.steps) == 0 {
 			panic(errorAt(s.pos, CodeFlowStep, "flow requires a step"))
 		}
@@ -455,11 +448,95 @@ func (p *parser) parseStatement() *statement {
 			s.expr = p.wholeExpression()
 			p.require("newline")
 		}
+		s.expr = p.fusedWithStatementValue(s.expr)
 	default:
 		s.kind = "expression"
 		s.expr = p.statementExpression(true)
+		if p.atWithFuse(s.expr) {
+			s = p.fusedWithFlow(s.expr, s.pos)
+		}
 	}
 	return s
+}
+
+// orphanWith is the with-location diagnostic: a with line with no fusable
+// expression line directly above it.
+func (p *parser) orphanWith() error {
+	w := p.current()
+	return withHint(errorAt(w.pos, CodeWithLocation, "with must directly follow the expression line above it"),
+		"put with on the line directly below the seed expression, at the same indentation, with no blank line between")
+}
+
+// atWithFuse reports a with line that fuses x as its fixed seed: same
+// indentation (no indent token intervenes) on the line right after x ends.
+// Blank and comment lines emit no tokens, so adjacency is a line-number check.
+func (p *parser) atWithFuse(x *expression) bool {
+	if x.kind == "index-write" || x.kind == "catch" || x.kind == "match" {
+		return false
+	}
+	t := p.current()
+	return t.kind == "name" && t.text == "with" && t.pos.line == x.end.line+1
+}
+
+// fusedWithFlow builds the flow statement a fused with line names, keeping
+// the seed expression's position as the statement's own.
+func (p *parser) fusedWithFlow(seed *expression, pos position) *statement {
+	s := &statement{kind: "flow", pos: pos, expr: seed}
+	p.parseWithClause(s)
+	return s
+}
+
+// fusedWithStatementValue wraps a fused with block as a binding or
+// assignment right-hand side; block values and statement-shaped expressions
+// never fuse.
+func (p *parser) fusedWithStatementValue(x *expression) *expression {
+	if !p.atWithFuse(x) {
+		return x
+	}
+	s := p.fusedWithFlow(x, x.pos)
+	return &expression{kind: "statement-value", pos: x.pos, end: s.steps[len(s.steps)-1].end, statement: s}
+}
+
+// parseWithClause reads `with <namespace>` plus its indented steps; every
+// step receives the seed, never the previous step's result.
+func (p *parser) parseWithClause(s *statement) {
+	t := p.take()
+	name := p.name()
+	s.with, s.withPos = name.text, t.pos
+	p.require("newline")
+	if !p.at("indent") {
+		panic(errorAt(p.current().pos, CodeExpectedIndent, "expected an indented with block"))
+	}
+	s.steps = p.flowSteps()
+	if len(s.steps) == 0 {
+		panic(errorAt(s.withPos, CodeFlowStep, "with block requires a step"))
+	}
+}
+
+// flowSteps reads one call-shaped step per line inside an already-verified
+// indent token, through the matching dedent.
+func (p *parser) flowSteps() []*expression {
+	p.take()
+	var steps []*expression
+	for !p.at("dedent") && !p.at("eof") {
+		step := p.name()
+		x := &expression{kind: "call", text: step.text, pos: step.pos, end: step.end}
+		if p.accept("(") {
+			p.callArguments(x)
+		} else if p.bareArgumentStart() && p.current().pos.line == x.end.line && p.current().pos.column > x.end.column {
+			x.args = p.bareArguments()
+			last, guard := trailingBareTry(x.args[len(x.args)-1])
+			if guard != nil {
+				x.args[len(x.args)-1] = last
+				x.propagate = true
+			}
+		}
+		x.propagate = p.accept("try") || x.propagate
+		steps = append(steps, x)
+		p.require("newline")
+	}
+	p.require("dedent")
+	return steps
 }
 
 // Bare calls occur only at a complete statement-value boundary. Argument

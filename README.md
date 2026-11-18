@@ -100,6 +100,7 @@ The [examples page](https://desireco.github.io/zhex/examples.html) groups comple
 | --- | --- |
 | [Greeting](examples/hello.zhex) | Read a line, build a string, and print it. |
 | [Composition](examples/composition.zhex) | Typed words, inferred locals, and a flow that prints `32`. |
+| [With blocks](examples/with-blocks.zhex) | Fix one seed value and apply many operations to it — every step receives the seed. |
 | [Calls](examples/calls.zhex) | Define a word and call it with either parentheses or the simple comma-separated form. |
 | [Word defaults](examples/word-defaults.zhex) | Infer a parameter type from its default, evaluate defaults lazily, and create fresh mutable defaults per call. |
 | [Partial calls](examples/partials.zhex) | Use explicit holes with words and built-ins, capture values, and handle a fallible partial when it is invoked. |

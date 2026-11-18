@@ -406,6 +406,7 @@ type exampleSpec struct {
 var exampleSpecs = []exampleSpec{
 	{"hello", "Console input", "Read a name, transform the value, and print a greeting.", "Ada\n", "Language basics", nil, nil, "text", 1, "One line of text"},
 	{"composition", "Composition", "Build larger operations from small typed words.", "", "Language basics", nil, nil, "none", 0, ""},
+	{"with-blocks", "With blocks", "Fix one seed value and apply many operations to it.", "", "Language basics", nil, nil, "none", 0, ""},
 	{"calls", "Calls and defaults", "Call words with or without parentheses and compose them in flows.", "", "Language basics", nil, nil, "none", 0, ""},
 	{"word-defaults", "Word defaults", "Use inferred parameter defaults and fresh values for each call.", "", "Language basics", nil, nil, "none", 0, ""},
 	{"partials", "Explicit partial application", "Capture arguments with holes, then call the resulting word value.", "", "Language basics", nil, nil, "none", 0, ""},

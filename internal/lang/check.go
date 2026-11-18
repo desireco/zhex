@@ -462,6 +462,13 @@ func (c *checker) register(words []*word) error {
 
 // checkWords type-checks word bodies against the current file's view.
 func (c *checker) checkWords(words []*word) error {
+	// With-step names qualify first, against this view, so inference,
+	// effects, and checking read the same final spelling. c.inferenceBody
+	// is this view's top level everywhere checkWords is called.
+	for _, w := range words {
+		c.rewriteWithSteps(w.body)
+	}
+	c.rewriteWithSteps(c.inferenceBody)
 	hasOmitted := c.needsFunctionInference(words) || blockHasFunction(c.inferenceBody)
 	hasOmittedParam := false
 	for _, w := range words {
@@ -628,6 +635,77 @@ func (c *checker) used(name string) bool {
 		}
 	}
 	return false
+}
+
+// qualifyWithStep rewrites a with-block step name namespace-first: a bare
+// name whose namespace-qualified spelling resolves (append under with list
+// becomes list.append) takes precedence; any other name keeps flow's
+// ordinary seeding rule. Idempotent, so the inference and checking passes
+// can both run it.
+func (c *checker) qualifyWithStep(step *expression, namespace string) {
+	if name := namespace + "." + step.text; c.stepNameResolves(name) {
+		step.text = name
+	}
+}
+
+// stepNameResolves reports whether name answers as a word or constructor in
+// the current file's view.
+func (c *checker) stepNameResolves(name string) bool {
+	if HostWord(name) {
+		return true
+	}
+	if w, private := c.resolveWord(name); w != nil && private == nil {
+		return true
+	}
+	if choice, _ := c.resolveVariant(name); choice != nil {
+		return true
+	}
+	return c.types.visible[name] != nil
+}
+
+// withStepError narrates a with step that resolved nowhere: both the
+// namespace-qualified try and the bare name.
+func (c *checker) withStepError(step *expression, namespace string) error {
+	return errorAt(step.pos, CodeWithStep, "with step %q resolves neither as %q nor as a word in scope", step.text, namespace+"."+step.text)
+}
+
+// rewriteWithSteps qualifies every with-block step name ahead of the passes
+// that read step names — inference, effect collection, and body checking —
+// so they all see the same final spelling. Rewrite-only: the neither-place
+// error stays with the checking passes, which can also see scope bindings.
+func (c *checker) rewriteWithSteps(body []*statement) {
+	for _, s := range body {
+		if s.with != "" {
+			for _, step := range s.steps {
+				c.qualifyWithStep(step, s.with)
+			}
+		}
+		c.rewriteWithSteps(s.body)
+		c.rewriteWithSteps(s.otherwise)
+		c.rewriteWithExpr(s.expr)
+		c.rewriteWithExpr(s.end)
+		for _, step := range s.steps {
+			c.rewriteWithExpr(step)
+		}
+	}
+}
+
+func (c *checker) rewriteWithExpr(x *expression) {
+	if x == nil {
+		return
+	}
+	if x.statement != nil {
+		c.rewriteWithSteps([]*statement{x.statement})
+	}
+	c.rewriteWithExpr(x.left)
+	c.rewriteWithExpr(x.right)
+	for _, arg := range x.args {
+		c.rewriteWithExpr(arg)
+	}
+	c.rewriteWithSteps(x.handler)
+	for _, arm := range x.arms {
+		c.rewriteWithSteps(arm.body)
+	}
 }
 
 // An Error-valued continuation must not erase a concrete catch family.
@@ -892,9 +970,23 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		if isResult(typ) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "flow seed Result must be handled with try or catch")
 		}
+		seed := typ
+		if s.with != "" {
+			if seed == unitType && len(s.steps) > 0 {
+				return "", withHint(errorAt(s.steps[0].pos, CodeWithSeed, "with steps cannot receive a Unit seed"),
+					fmt.Sprintf("the seed expression on line %d produces Unit; give with a value-producing line", s.expr.pos.line))
+			}
+		}
+		result := typ
 		for index, step := range s.steps {
 			if len(step.argNames) != 0 {
 				return "", errorAt(step.pos, CodeArgumentType, "named arguments cannot be used in a flow step")
+			}
+			if s.with != "" {
+				c.qualifyWithStep(step, s.with)
+				if !c.stepNameResolves(step.text) && env.find(step.text) == nil {
+					return "", c.withStepError(step, s.with)
+				}
 			}
 			if step.propagate && isCheckedCollectionOperation(step.text) {
 				step.checkedCollection = true
@@ -918,28 +1010,33 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			if index == len(s.steps)-1 {
 				expected = c.flowExpected
 			}
-			typ, err = c.expressionExpected(step, env, expected)
+			stepTyp, err := c.expressionExpected(step, env, expected)
 			if err != nil {
 				return "", err
 			}
-			inner, fallible := resultInner(typ)
-			if fallible && step.text == "ok" && index == len(s.steps)-1 && typ == c.wordResult && !step.propagate {
+			inner, fallible := resultInner(stepTyp)
+			if fallible && step.text == "ok" && index == len(s.steps)-1 && stepTyp == c.wordResult && !step.propagate {
+				result = stepTyp
 				continue
 			}
 			if fallible && !step.propagate {
 				return "", withHint(errorAt(step.pos, CodeTryInput, "fallible flow step %s requires try", step.text), "add postfix try to propagate the failure")
 			}
 			if !fallible && step.propagate {
-				return "", errorAt(step.pos, CodeTryInput, "try requires a Result, found %s", typ)
+				return "", errorAt(step.pos, CodeTryInput, "try requires a Result, found %s", stepTyp)
 			}
 			if fallible {
-				if c.wordResult != "" && (!isResult(c.wordResult) || resultFamily(typ) != resultFamily(c.wordResult)) {
-					return "", errorAt(step.pos, CodeTryInput, "try propagates %s; enclosing word must return the same error type", resultFamily(typ))
+				if c.wordResult != "" && (!isResult(c.wordResult) || resultFamily(stepTyp) != resultFamily(c.wordResult)) {
+					return "", errorAt(step.pos, CodeTryInput, "try propagates %s; enclosing word must return the same error type", resultFamily(stepTyp))
 				}
-				typ = inner
+				stepTyp = inner
 			}
+			if s.with == "" {
+				typ = stepTyp
+			}
+			result = stepTyp
 		}
-		return typ, nil
+		return result, nil
 	}
 	return "", errorAt(s.pos, CodeUnsupportedCode, "unsupported statement %q", s.kind)
 }
