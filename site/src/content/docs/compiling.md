@@ -50,7 +50,7 @@ hint: install it — cargo install wasm-tools (rustup), pacman -S wasm-tools (Ar
 
 ## What compiles today
 
-Most of the [examples corpus](../examples.html) compiles: words and recursion, flows, collections, text work, JSON trees, XML decode, buffers, files, and reading input. Some constructs are not compiled yet — dates and time zones beyond `duration.` words, console arguments and exits, `error.*` inspection, word parameter and record field defaults, generic choices, and a few checked collection forms.
+Most of the [examples corpus](../examples.html) compiles: words and recursion, flows, collections, text work, JSON trees, XML decode, buffers, files, and reading input. Some constructs are not compiled yet — dates and time zones beyond `duration.` words, console arguments and exits, `error.*` inspection other than `error.message` and `error.detail`, word parameter and record field defaults, generic choices, and a few checked collection forms.
 
 A program that uses one stops with the `not-available-in-build` diagnostic naming the construct:
 
