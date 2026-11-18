@@ -13,7 +13,7 @@ These source files are runnable Zhex programs validated by the interpreter's tes
 | [partials.zhex](../examples/partials.zhex) | None | `12`, `12`, `12`, `1`, `1`, `12`, `aDa`, `7`, `1`, `8`, `text-to-int`, `3` | Word and built-in partials, typed function values, captures, fresh deferred defaults, a flow step, and invocation-time error handling. |
 | [records.zhex](../examples/records.zhex) | None | `Ada, age 36` | A nominal record declaration, a positional constructor, typed binding, field reads, and a word that accepts the record. |
 | [choices.zhex](../examples/choices.zhex) | None | `running`, `Could not start: network unavailable`, `7`, `0` | Concrete and one-parameter alternatives, payload binding, contextual nullary types, and exhaustive matching with a default. |
-| [collections.zhex](../examples/collections.zhex) | None | List indices and array coordinates, each append reports `collection-iterating`, `2`, `Lin` from `list.select`, `1`, `5` from `array.select`, then `6`, `7`, `12` after resize | Shared list mutation and indexing, dual-binding traversal, predicate selection of elements and rows, row-major array access, pre-mutation guards, overlap-preserving resize, and fill values. |
+| [collections.zhex](../examples/collections.zhex) | None | `3` and `Grace`, then `3` — the length after a flow chains two `list.append` steps — then list indices and array coordinates, each append reports `collection-iterating`, `2`, `Lin` from `list.select`, `1`, `5` from `array.select`, then `6`, `7`, `12` after resize | Shared list mutation and indexing, a flow chaining `list.append` steps (mutation words return their receiver), dual-binding traversal, predicate selection of elements and rows, row-major array access, pre-mutation guards, overlap-preserving resize, and fill values. |
 | [maps.zhex](../examples/maps.zhex) | None | `1`, `3`, `Ada: 11`, `Morgan has no score`, `Ada: 11`, `Grace: 9`, `Nancy: 23`, `4`, `4` | Inferred and empty typed maps, optional lookups, insertion order, update/removal, and map operations composed in flows. |
 | [temporal.zhex](../examples/temporal.zhex) | None | Noon and 1 p.m. after the DST transition | Calendar-day and elapsed-duration arithmetic in a named zone. |
 | [json-config.zhex](../examples/json-config.zhex) | None | `3`, `true`, `{"retries":3,"verbose":true}` | Decode a typed record with a default for a missing field, then encode the complete value. |
@@ -70,11 +70,12 @@ Fizz
 FizzBuzz
 ```
 
-The collections example also prints the zero-based list index with each name, reports the guarded append, selects the short names with `list.select` and the rows whose first cell is big with `array.select` (one row per call as a `List<Int>`, rectangle preserved), then visits the 2×3 array in row-major coordinate order before showing preserved and new values after resize:
+The collections example first chains `list.append` steps in a flow (mutation words return their receiver, so the list threads through) and prints the grown length, then also prints the zero-based list index with each name, reports the guarded append, selects the short names with `list.select` and the rows whose first cell is big with `array.select` (one row per call as a `List<Int>`, rectangle preserved), then visits the 2×3 array in row-major coordinate order before showing preserved and new values after resize:
 
 ```text
 3
 Grace
+3
 0: Ada
 collection-iterating
 1: Grace

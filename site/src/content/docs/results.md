@@ -136,18 +136,18 @@ These built-in operations return a `Result` directly:
 | `file.read-line(file)` | `Result<String, FileError>` | End of file, closed file, or read failure. |
 | `file.write(contents, path, append = false)` | `Result<Unit, FileError>` | The path cannot be opened for writing, the write fails, or closing fails; a partial or truncated file may remain. |
 | `buffer.line(buffer, i)` | `Result<String, BufferError>` | Index is outside the buffer's lines. |
-| `buffer.set-line(buffer, i, line)` | `Result<Unit, BufferError>` | Index is outside the buffer's lines. |
+| `buffer.set-line(buffer, i, line)` | `Result<Buffer, BufferError>` | Index is outside the buffer's lines; success returns the buffer. |
 | `error.cause(error)` | `Result<Error, Error>` | The error has no cause (`error-no-cause`). |
 
 List and array operations normally return ordinary values and report invalid operations as runtime diagnostics. Put `try` or `catch` directly on the operation to opt into the checked `Result` shown below; `try` unwraps success to the operation's ordinary result type, and assignments must be parenthesized before the guard:
 
 | Guarded operation | Result type when guarded | Example failure |
 | --- | --- | --- |
-| `list.append(list, value)` | `Result<Unit, Error>` | The collection is being iterated (`collection-iterating`) or the size limit is exceeded (`collection-limit`). |
+| `list.append(list, value)` | `Result<List<T>, Error>` | The collection is being iterated (`collection-iterating`) or the size limit is exceeded (`collection-limit`); success returns the list. |
 | `list[index]` | `Result<T, Error>` | Index is outside the list (`list-range`). |
 | `(list[index] = value)` | `Result<Unit, Error>` | Invalid index or an active traversal prevents mutation. |
 | `array.new(dimensions, fill)` | `Result<Array<T>, Error>` | Invalid rank/shape, or the element limit is exceeded. |
-| `array.resize(array, dimensions, fill)` | `Result<Unit, Error>` | Invalid shape, limit exceeded, or an active traversal prevents mutation. |
+| `array.resize(array, dimensions, fill)` | `Result<Array<T>, Error>` | Invalid shape, limit exceeded, or an active traversal prevents mutation; success returns the array. |
 | `array[i, j, ...]` | `Result<T, Error>` | Coordinates are outside the array (`array-range`). |
 | `(array[i, j, ...] = value)` | `Result<Unit, Error>` | Invalid coordinates or an active traversal prevents mutation. |
 

@@ -31,7 +31,7 @@ match scores["Ada"]
         print("No score")
 ```
 
-Bracket assignment sets a value and returns `Unit`; it does not produce a `Result`. `map.remove(map, key)` removes a key and returns `Unit`; removing an absent key does nothing. `map.contains(map, key)` returns `Bool`, and `map.length(map)` returns the number of entries.
+Bracket assignment sets a value and returns `Unit`; it does not produce a `Result`. `map.remove(map, key)` removes a key and returns the same map; removing an absent key does nothing. `map.contains(map, key)` returns `Bool`, and `map.length(map)` returns the number of entries.
 
 `map.put(map, key, value)` inserts or replaces an entry and returns the same map. `map.into(source, target)` copies entries from one map into another and returns the target. Both preserve insertion order: replacing an existing key keeps its position, and new keys append in source order. Removing a key and inserting it again puts it at the end. `map.into` applies its changes atomically; using the same map as source and target is a no-op unless that map is being traversed.
 
@@ -43,7 +43,7 @@ Bracket assignment sets a value and returns `Unit`; it does not produce a `Resul
 | `map.contains(map, key)` | `Bool` | Whether the key is present. |
 | `map[key]` | `Option<V>` | Value wrapped in `Option.Some`, or `Option.None` when absent. |
 | `map[key] = value` | `Unit` | Insert or replace a value. |
-| `map.remove(map, key)` | `Unit` | Remove the key; absent keys are a no-op. |
+| `map.remove(map, key)` | `Map<K, V>` | Remove the key and return the same map; absent keys are a no-op. |
 | `map.put(map, key, value)` | `Map<K, V>` | Insert or replace and return the same map. |
 | `map.into(source, target)` | `Map<K, V>` | Merge entries atomically and return the target. |
 | `map.keys(map)` | `List<K>` | Fresh list of the keys in insertion order. |

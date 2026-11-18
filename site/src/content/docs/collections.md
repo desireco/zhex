@@ -30,12 +30,12 @@ print(list.length(names))
 let empty: List<String> = list.new()
 ```
 
-Plain operations return ordinary values and raise runtime diagnostics when validation fails. Apply `try` or `catch` directly to a supported operation to handle its own failure as a Result. The list API is:
+Plain operations return ordinary values and raise runtime diagnostics when validation fails. Mutation words return their receiver, so a `flow` can thread one collection through successive mutations. Apply `try` or `catch` directly to a supported operation to handle its own failure as a Result. The list API is:
 
 | Operation | Result | Behavior |
 | --- | --- | --- |
 | `list.new()` | `List<T>` | Create an empty list when an expected `List<T>` type is available. |
-| `list.append(list, value)` | `Unit` | Append a value of the list's element type; fails with `collection-limit` if the size limit would be exceeded. |
+| `list.append(list, value)` | `List<T>` | Append a value of the list's element type and return the same list; fails with `collection-limit` if the size limit would be exceeded. |
 | `list.length(list)` | `Int` | Return the number of elements. |
 | `list.map(list, transform)` | `List<U>` | Call `transform` (`(T) -> U`) once per element, left to right; fresh outer list, shared elements, source unchanged. |
 | `list.filter(list, predicate)` | `List<T>` | Keep the elements whose `(T) -> Bool` predicate holds; same freshness rules as `list.map`. |
@@ -90,7 +90,7 @@ Rank is the number of dimensions; length is the total number of elements. Arrays
 | Operation | Result | Behavior |
 | --- | --- | --- |
 | `array.new(shape, fill)` | `Array<T>` | Allocate a shaped array filled with `fill`; fails with `array-rank`, `array-shape`, or `collection-limit` for invalid dimensions or size. |
-| `array.resize(array, shape, fill)` | `Unit` | Change the extents while keeping the rank; failed resizes leave the original array unchanged. |
+| `array.resize(array, shape, fill)` | `Array<T>` | Change the extents while keeping the rank and return the same array; failed resizes leave the original array unchanged. |
 | `array.shape(array)` | `List<Int>` | Return the current extents in a fresh list. |
 | `array.rank(array)` | `Int` | Return the number of dimensions. |
 | `array.length(array)` | `Int` | Return the total element count. |

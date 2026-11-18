@@ -118,7 +118,7 @@ show 7
 
 This prints `7`. The annotation resolves `print`'s overload here. Whole-program call constraints can also do so without an annotation, as in `let show = print _` followed by `show 7`; if neither annotation nor call sites determine a type, the checker reports ambiguity. A partial of `text.replace` can infer its remaining argument types from the operation and supplied arguments. The [partial application example](../examples.html#partials) also includes `list.append _, 1`.
 
-Collection intrinsics that normally return plain values keep that mode when partially applied. The function created by `list.append _, 1` returns `Unit` when invoked; adding `try` at invocation cannot switch it to a checked `Result`. To make a fallible function, put the intrinsic's checked form inside an ordinary word and partially apply that word:
+Collection intrinsics that normally return plain values keep that mode when partially applied. The function created by `list.append _, 1` returns the list it grew when invoked; adding `try` at invocation cannot switch it to a checked `Result`. To make a fallible function, put the intrinsic's checked form inside an ordinary word and partially apply that word:
 
 ```zhex
 word append-checked(values: List<Int>, item: Int)
