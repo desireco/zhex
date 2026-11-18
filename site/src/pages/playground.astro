@@ -335,8 +335,11 @@ print(greet("you"))
           if (!inputCard.hidden) payload.i = { stdin: stdinBox.value, kind: stdinBox.dataset.kind || "text", lines: Number(stdinBox.dataset.lines || 0), hint: stdinHint.textContent };
           const url = `${location.origin}${location.pathname}#p=${encodeURIComponent(JSON.stringify(payload))}`;
           // The address bar carries the link too, so the URL stays shareable
-          // even where the clipboard is blocked.
-          history.replaceState(null, "", url.slice(location.origin.length));
+          // even where the clipboard is blocked; a browser rejecting a long
+          // URL must not block the clipboard write.
+          try {
+            history.replaceState(null, "", url.slice(location.origin.length));
+          } catch {}
           const note = replMode ? document.querySelector(".pg-copy-note-repl") : document.querySelector(".pg-copy-note:not(.pg-copy-note-repl)");
           const write = navigator.clipboard?.writeText(url);
           if (!write) {
