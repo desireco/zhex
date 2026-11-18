@@ -21,12 +21,12 @@ const years = [...new Set(days.map(day => day.Year))];
 const teaserYear = years[years.length - 1] + 1;
 const latestYear = years[years.length - 1];
 ---
-<Base title="Advent of Code — Zhex" description="Advent of Code puzzles solved in Zhex — last year's archive, with this year following in December." current="advent-of-code">
+<Base title="Advent of Code — Zhex" description="Advent of Code puzzles solved in Zhex — three archive years, with the next one starting each December." current="advent-of-code">
   <main id="main" class="wrap">
     <section class="page-intro aoc-intro">
-      <p class="eyebrow">December 2025 archive</p>
+      <p class="eyebrow">The archive: 2023, 2024, 2025</p>
       <h1 id="aoc-title">Advent of Code.</h1>
-      <p class="lede">During December 2025 we worked through all twelve days of Advent of Code 2025 in Zhex, one small program per day. Each door links to that day's puzzle on adventofcode.com, with our own summary of what the puzzle asks. A day's second part appears on adventofcode.com only after its first part is solved, so our summaries cover the half every visitor can read.</p>
+      <p class="lede">Each December we work through that year's Advent of Code puzzles in Zhex, one small program per day; three archive years are here so far. Every door links to its puzzle on adventofcode.com, with our own summary of what the puzzle asks — most days cover both parts, and every part appears only after it is solved there.</p>
     </section>
 
     <div class="aoc-tabs" role="tablist" aria-label="Advent of Code years">
@@ -63,7 +63,6 @@ const latestYear = years[years.length - 1];
                   <div class="run-panel aoc-run-panel" data-wasm={day.Wasm}>
                     <label class="run-label" for={`aoc-day-${day.Year}-${day.Day}-stdin`}>Paste your puzzle input here</label>
                     <textarea id={`aoc-day-${day.Year}-${day.Day}-stdin`} rows={6} spellcheck="false">{day.Stdin}</textarea>
-                    <p class="run-input-error" role="alert" hidden></p>
                     <button class="button run-button" type="button">Run <span aria-hidden="true">→</span></button>
                     <h4>Output</h4>
                     <pre aria-live="polite"><samp data-run-output>{day.Output}</samp></pre>
@@ -162,7 +161,6 @@ const latestYear = years[years.length - 1];
       for (const panel of document.querySelectorAll(".aoc-run-panel")) {
         const button = panel.querySelector("button");
         const input = panel.querySelector("textarea");
-        const validation = panel.querySelector(".run-input-error");
         const output = panel.querySelector("[data-run-output]");
         const pane = output.closest("pre");
         const showMessage = (text) => {
@@ -170,7 +168,6 @@ const latestYear = years[years.length - 1];
           output.textContent = text;
         };
         button.addEventListener("click", async () => {
-          if (validation) validation.hidden = true;
           button.disabled = true;
           try {
             const bytes = await fetchArtifact(panel.dataset.wasm);
