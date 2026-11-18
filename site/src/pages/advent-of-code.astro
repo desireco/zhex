@@ -11,9 +11,8 @@ const statusLabel = {
   solved: "Solved",
 };
 const days = data.Aoc;
-// The convention's file names (#171): the runner and its words file.
+// The convention's file name (#171): one file per day, words plus main.
 const fileName = (day) => `day${String(day.Day).padStart(2, "0")}.zhex`;
-const coreName = (day) => `day${String(day.Day).padStart(2, "0")}-core.zhex`;
 const years = [...new Set(days.map(day => day.Year))];
 // The live year follows the newest archive year; it holds no rows yet, so
 // its tab renders the teaser. When that year's rows arrive, the teaser
@@ -76,12 +75,6 @@ const latestYear = years[years.length - 1];
                   <div class="program-code aoc-code">
                     <div class="code-label"><span>{fileName(day)}</span></div>
                     <pre><code><Fragment set:html={day.Code} /></code></pre>
-                  </div>
-                )}
-                {day.CoreCode && (
-                  <div class="program-code aoc-code">
-                    <div class="code-label"><span>{coreName(day)}</span></div>
-                    <pre><code><Fragment set:html={day.CoreCode} /></code></pre>
                   </div>
                 )}
               </div>
