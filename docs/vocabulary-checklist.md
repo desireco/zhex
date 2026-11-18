@@ -30,6 +30,7 @@ Tests are the language definition: write the failing behavioral test first (see 
 
 - `AGENTS.md` — the standard-operations line; the canonical-patterns sentence when an example registers; the reserved-module list when a new namespace arrives.
 - [initial-language.md](initial-language.md) — the contract; every behavior change lands here.
+- A reserved name beyond the documented ones (the `Option` constructors, and `main` as the zero-argument entry word of #134) is a contract addition, not a new word: it lands on the same truth surfaces with no `hostWords` entry, no editor keyword, and no example registration — and AGENTS.md plus initial-language.md must say both where the name is special (the entry file's top level) and where it stays ordinary (beside statements, in modules, in the REPL).
 - [standard-library-plan.md](standard-library-plan.md) — the inventory table row and the registered-names count sentence. Re-count the entries in `hostWords` and write that number; never adjust the previous number by arithmetic.
 - [syntax-examples.md](syntax-examples.md), [getting-started.md](getting-started.md), `README.md` (its `What it looks like` program must run), and [tests.md](tests.md) (test-catalog rows and the example-count sentence).
 - `site/src/content/docs/<namespace>.md` and `site/src/content/docs/standard-library.md`; `site/llms.txt` (the namespace word list, and the Example-sources line when an example registers).

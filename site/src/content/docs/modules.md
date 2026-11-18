@@ -5,7 +5,7 @@ section: Language
 order: 60
 ---
 
-`use name` loads `name.zhex` beside the file that contains the directive. Each imported file resolves its own imports beside itself. A module contains word and type declarations; top-level statements belong in the entry file.
+`use name` loads `name.zhex` beside the file that contains the directive. Each imported file resolves its own imports beside itself. A module contains word and type declarations; top-level statements belong in the entry file. One file can serve both roles: put the run logic in a zero-argument `word main`, and `zhex run` / `zhex compile` invoke it as the entry point whenever the file's own top level has no statements — an importing file still gets only the words.
 
 `main.zhex` fragment:
 

@@ -93,6 +93,8 @@ zhex run hello.zhex
 Hello, Zhex!
 ```
 
+A program runs its top-level statements. A file whose top level has none may instead define `word main` with no parameters; `zhex run` and `zhex compile` invoke it automatically as the entry point.
+
 ## Read the program
 
 Replace the file with a word that reads a name and sends it through a flow:
