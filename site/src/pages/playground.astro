@@ -22,7 +22,7 @@ const index = data.Examples.map(e => ({
       <p class="eyebrow">Try Zhex, right here</p>
       <h1 id="playground-title">Playground.</h1>
       <p class="lede">Write Zhex in your browser and run it — nothing to install.</p>
-      <p class="aside">Programs read the input box as their text; a read past the end reports end-of-file. The browser has no filesystem, no program arguments, and no environment file — words that need them say so when a program runs. <a class="text-link" href="examples.html">The examples page →</a> links every card here for editing.</p>
+      <p class="aside">Programs read the input box as their text; a read past its end opens a live input line under the output, so the program can wait for typed lines. The browser has no filesystem, no program arguments, and no environment file — words that need them say so when a program runs. <a class="text-link" href="examples.html">The examples page →</a> links every card here for editing.</p>
     </section>
 
     <section class="playground" aria-labelledby="playground-title">
@@ -58,6 +58,15 @@ const index = data.Examples.map(e => ({
           <div class="pg-result">
             <h4>Output</h4>
             <pre aria-live="polite"><samp data-pg-output></samp></pre>
+            <div class="pg-live" data-pg-live hidden>
+              <label class="run-label" for="pg-live-input">Type a line</label>
+              <p class="pg-live-hint">The program reads each line as you send it. End input ends the program's input — a read after that reports end-of-file.</p>
+              <div class="pg-live-row">
+                <input class="pg-live-input" id="pg-live-input" type="text" spellcheck="false" autoCapitalize="off" autoComplete="off">
+                <button class="button pg-send" type="button">Send</button>
+                <button class="button pg-end-input" type="button">End input</button>
+              </div>
+            </div>
             <h4>Diagnostics</h4>
             <div class="pg-diagnostics" data-pg-diagnostics aria-live="polite"></div>
           </div>
@@ -91,11 +100,13 @@ const index = data.Examples.map(e => ({
     <script>
       // The browser playground (#88) over the shared #91 engine: one lazy
       // load behind the open click, then two modes over the same module —
-      // Run (runSource) and REPL (newSession, with the continuation probes
-      // mirroring the terminal REPL's law entry for entry). The engine's
-      // loader is shared with the read-line spike; this page only consumes
-      // it. Share links carry source, input, mode, and module siblings in
-      // the URL fragment; example cards arrive through ?example=<id>.
+      // Run (runSource, falling back to runInteractive when the program
+      // outreads its box — #158) and REPL (newSession, with the
+      // continuation probes mirroring the terminal REPL's law entry for
+      // entry). The engine's loader is shared with the read-line spike;
+      // this page only consumes it. Share links carry source, input, mode,
+      // and module siblings in the URL fragment; example cards arrive
+      // through ?example=<id>.
       import { inputProblem } from "../scripts/input-check.mjs";
 
       // BASE_URL arrives without its trailing slash in this build format;
@@ -118,6 +129,10 @@ const index = data.Examples.map(e => ({
       const editor = document.querySelector("#pg-editor");
       const runButton = document.querySelector(".pg-run");
       const output = document.querySelector("[data-pg-output]");
+      const liveBlock = document.querySelector("[data-pg-live]");
+      const liveInput = document.querySelector("#pg-live-input");
+      const sendButton = document.querySelector(".pg-send");
+      const endInputButton = document.querySelector(".pg-end-input");
       const diagnostics = document.querySelector("[data-pg-diagnostics]");
       const replPanel = document.querySelector("#pg-panel-repl");
       const transcript = document.querySelector("[data-pg-transcript]");
@@ -265,15 +280,121 @@ print(greet("you"))
         if (stdinError) stdinError.hidden = true;
         runButton.disabled = true;
         const source = editor.value;
+        // A program that reads with no input supplied goes interactive at
+        // once (#158, over the #122 seam); a prefilled run keeps the
+        // one-shot path, restarting live only when the program outreads
+        // the box. The REPL seam cannot park a synchronous entry, so this
+        // is Run mode only.
+        if (readsInput(source) && stdinValue() === "") {
+          beginInteractive(source, [], "");
+          return;
+        }
         let result;
         try {
           result = engine.runSource(source, stdinValue());
-        } finally {
+        } catch (failure) {
           runButton.disabled = false;
+          throw failure;
         }
+        if (readPastBox(source, result)) {
+          beginInteractive(source, suppliedLines(),
+            "The program read past the input box, so it started again with the box's lines sent.");
+          return;
+        }
+        runButton.disabled = false;
         output.textContent = result.output;
         renderDiagnostics(source, result);
       }
+
+      // The word read-line as a standalone name — hyphens join names, so
+      // read-line-helper is a different word and must not match.
+      const readsInput = source => /(?<![\w-])read-line(?![\w-])/.test(source);
+
+      // The one-shot run's exhausted-stdin signature: the console-input
+      // end-of-input report, raised only when a read finds no input left.
+      function readPastBox(source, result) {
+        if (!result.report || !readsInput(source)) return false;
+        try {
+          const report = JSON.parse(result.report);
+          return report.code === "console-input" && report.message === "end of input";
+        } catch {
+          return false;
+        }
+      }
+
+      // The box's lines, without the empty tail a trailing newline leaves.
+      function suppliedLines() {
+        const lines = stdinValue().split("\n");
+        if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+        return lines;
+      }
+
+      // --- the live run: output streams, sent lines deliver (#122) ------
+
+      let interactive = null;
+
+      function beginInteractive(source, supplied, note) {
+        interactive = null;
+        runButton.disabled = true;
+        output.textContent = "";
+        diagnostics.textContent = "";
+        if (note) {
+          const noteLine = document.createElement("p");
+          noteLine.className = "pg-live-note";
+          noteLine.textContent = note;
+          diagnostics.append(noteLine);
+        }
+        liveInput.value = "";
+        liveInput.disabled = false;
+        sendButton.disabled = false;
+        endInputButton.disabled = false;
+        liveBlock.hidden = false;
+        try {
+          interactive = {
+            handle: engine.runInteractive(source, chunk => output.append(chunk),
+              result => finishInteractive(source, result)),
+          };
+        } catch (failure) {
+          interactive = null;
+          liveBlock.hidden = true;
+          runButton.disabled = false;
+          diagnostics.textContent = `The interactive run could not start — ${failure}.`;
+          return;
+        }
+        for (const line of supplied) interactive.handle.deliver(line);
+        liveInput.focus();
+      }
+
+      function finishInteractive(source, result) {
+        interactive = null;
+        liveBlock.hidden = true;
+        output.textContent = result.output;
+        renderDiagnostics(source, result);
+        runButton.disabled = false;
+      }
+
+      function sendLine() {
+        if (!interactive) return;
+        interactive.handle.deliver(liveInput.value.replace(/\r$/, ""));
+        liveInput.value = "";
+        liveInput.focus();
+      }
+
+      function endInteractiveInput() {
+        if (!interactive) return;
+        interactive.handle.close();
+        liveInput.disabled = true;
+        sendButton.disabled = true;
+        endInputButton.disabled = true;
+      }
+
+      sendButton.addEventListener("click", sendLine);
+      endInputButton.addEventListener("click", endInteractiveInput);
+      liveInput.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        sendLine();
+      });
 
       function renderDiagnostics(source, result) {
         diagnostics.textContent = "";

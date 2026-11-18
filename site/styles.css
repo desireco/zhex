@@ -1015,6 +1015,31 @@ pre {
   overflow-wrap: anywhere;
 }
 
+/* Interactive run (#158): a program reading past its input box turns the
+   output pane live; each sent line delivers through the #122 seam, and
+   End input reports the terminal's end-of-file. */
+.pg-live { margin: 0 0 1rem; }
+.pg-live-hint { margin: 0 0 .55rem; color: var(--muted); font-size: 14px; }
+.pg-live-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.pg-live-input {
+  flex: 1 1 18rem;
+  min-height: 44px;
+  padding: .65rem .85rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font: 650 14px/1.5 var(--mono);
+}
+.pg-live-input:disabled,
+.pg-live-row .button:disabled { opacity: .6; }
+.pg-live-row .button {
+  min-height: 44px;
+  min-width: 0;
+  justify-content: center;
+  padding: .5rem .9rem;
+}
+.pg-live-note { margin: 0 0 1rem; color: var(--muted); font: 650 14px/1.5 var(--mono); }
+
 .code-label-links { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
 
 /* Roadmap */
