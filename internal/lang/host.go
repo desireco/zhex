@@ -70,6 +70,22 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		args[1].mapping.merge(args[0].mapping)
 		return args[1], nil
+	case "map.keys", "map.values":
+		// A read, so the traversal guard does not apply: extraction completes
+		// before the fresh list escapes, the file.list shape.
+		m := args[0].mapping
+		if int64(len(m.entries)) > maxCollectionElements {
+			return value{}, errorAt(x.pos, CodeCollectionLimit, "%s exceeds element limit", x.text)
+		}
+		items := make([]value, len(m.entries))
+		for i, entry := range m.entries {
+			if x.text == "map.keys" {
+				items[i] = m.keyValue(entry.key)
+			} else {
+				items[i] = entry.value
+			}
+		}
+		return value{list: &listValue{items: items}}, nil
 	case "array.new":
 		return arrayNew(x.pos, args[0].list, args[1]), nil
 	case "array.resize":

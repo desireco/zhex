@@ -64,7 +64,7 @@ var hostWords = []string{
 	"date.new", "date.parse", "date.to-string", "date.add-days", "time.new", "time.parse", "time.to-string", "duration.new", "duration.parse", "duration.to-string",
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode", "json.parse", "xml.decode",
-	"map.length", "map.contains", "map.remove", "map.put", "map.into",
+	"map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values",
 	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.sort", "list.sort-by", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with",
@@ -1628,7 +1628,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			} else {
 				result = valueType("Result<String, Error>")
 			}
-		case "map.length", "map.contains", "map.remove", "map.put", "map.into":
+		case "map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values":
 			count := 1
 			if x.text == "map.contains" || x.text == "map.remove" || x.text == "map.into" {
 				count = 2
@@ -1669,6 +1669,10 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 					return "", errorAt(x.pos, CodeArgumentType, "map.into requires matching maps")
 				}
 				result = args[1]
+			case "map.keys":
+				result = valueType("List<" + string(key) + ">")
+			case "map.values":
+				result = valueType("List<" + string(element) + ">")
 			}
 			params = args
 		case "date.new", "time.new":

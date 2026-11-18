@@ -1062,7 +1062,7 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		default:
 			return namedType("Int")
 		}
-	case "map.length", "map.contains", "map.remove", "map.put", "map.into":
+	case "map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values":
 		key, value := freshType(), freshType()
 		collection := namedType("Map", key, value)
 		if len(args) > 0 {
@@ -1087,6 +1087,10 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			return namedType("Bool")
 		case "map.put":
 			return collection
+		case "map.keys":
+			return namedType("List", key)
+		case "map.values":
+			return namedType("List", value)
 		default:
 			return namedType("Unit")
 		}
