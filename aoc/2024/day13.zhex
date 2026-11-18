@@ -5,10 +5,8 @@ use day13-core
 # The machine blocks are separated by blank lines, so the runner reads to
 # end-of-file the same way day 5 does: branching on the end-of-file detail
 # (error.detail), which is fenced in the browser build (#135), and the
-# sentinel workaround days 1-4 use cannot cover a blank line either — the
-# browser read-line traps on an empty line before any catch could run
-# (#155). The door carries the fence note until the engine lane fixes
-# either gap.
+# sentinel workaround days 1-4 use cannot detect end-of-file either. The
+# door carries the fence note until the engine lane fixes #135.
 let input = buffer.new()
 var done = false
 while not done

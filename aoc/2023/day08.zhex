@@ -5,10 +5,8 @@ use day08-core
 # The network separates its instructions from its junctions with a blank
 # line, so the runner branches on the end-of-file detail (error.detail).
 # That word is fenced in the browser build (#135), and the sentinel
-# workaround days 1-4 and 6-7 use cannot cover this day either: the
-# browser read-line traps on an empty line before any catch could run
-# (#155). The door carries the fence note until the engine lane fixes
-# either gap.
+# workaround days 1-4 and 6-7 use cannot detect end-of-file either. The
+# door carries the fence note until the engine lane fixes #135.
 let input = buffer.new()
 var done = false
 while not done
