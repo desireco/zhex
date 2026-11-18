@@ -67,7 +67,7 @@ var hostWords = []string{
 	"map.length", "map.contains", "map.remove", "map.put", "map.into",
 	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.sort", "list.sort-by", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
-	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.starts-with", "text.ends-with",
+	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
 	"file.read", "file.open", "file.read-line", "file.close", "file.write", "file.stream", "file.list", "file.exists", "file.size", "file.free-space",
 	"file.join", "file.base", "file.extension", "file.directory-of",
@@ -1294,6 +1294,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if x.text == "text.join" && i == 0 {
 				expected = "List<String>"
 			}
+			if x.text == "text.from-code-points" && i == 0 {
+				expected = "List<Int>"
+			}
 			var err error
 			args[i], err = c.expressionExpected(arg, env, expected)
 			if err != nil {
@@ -1962,6 +1965,12 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			result = "List<String>"
 		case "text.join":
 			params = []valueType{"List<String>", stringType}
+			result = stringType
+		case "text.to-code-points":
+			params = []valueType{stringType}
+			result = "List<Int>"
+		case "text.from-code-points":
+			params = []valueType{"List<Int>"}
 			result = stringType
 		case "text.starts-with", "text.ends-with":
 			params = []valueType{stringType, stringType}

@@ -157,6 +157,102 @@ func TestStringContextIntException(t *testing.T) {
 	}
 }
 
+// TestTextCodePointWords pins the code-point conversion pair: a string's
+// code points (the unit text.length already counts) as a fresh List<Int>,
+// and the rebuild from valid code points only.
+func TestTextCodePointWords(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"to-code-points of ASCII", "let cps = text.to-code-points(\"Hi\")\nprint(cps[0])\nprint(cps[1])\n", "72\n105\n"},
+		{"to-code-points counts code points like length", "let cps = text.to-code-points(\"héllo\")\nprint(list.length(cps))\nprint(cps[1])\n", "5\n233\n"},
+		{"to-code-points of an emoji", "print(text.to-code-points(\"😀\")[0])\n", "128512\n"},
+		{"to-code-points of empty text is an empty list", "print(list.length(text.to-code-points(\"\")))\n", "0\n"},
+		{"to-code-points returns fresh lists", "let a = text.to-code-points(\"ab\")\nlet b = text.to-code-points(\"ab\")\nlist.append(a, 0)\nprint(list.length(a))\nprint(list.length(b))\n", "3\n2\n"},
+		{"from-code-points builds text", "print(text.from-code-points([72, 105]))\n", "Hi\n"},
+		{"from-code-points of an empty list is empty text", "print(\"[\" + text.from-code-points([]) + \"]\")\n", "[]\n"},
+		{"from-code-points keeps multibyte content", "print(text.from-code-points([233, 128512]))\n", "é😀\n"},
+		{"round trip through a flow", "flow \"héllo😀\"\n    text.to-code-points\n    text.from-code-points\n    print\n", "héllo😀\n"},
+		{"digits become ordinary Int arithmetic", "word digit(cp: Int) -> Int\n    cp - 48\nlet digits = list.map(text.to-code-points(\"12\"), digit(_))\nprint(digits[0] + digits[1])\n", "3\n"},
+		{"from-code-points partial", "let encode = text.from-code-points(_)\nprint encode([72, 105])\n", "Hi\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := runText(t, tc.source)
+			if got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestTextCodePointTyping pins the argument diagnostics: to-code-points takes
+// one String, from-code-points one List<Int>.
+func TestTextCodePointTyping(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"to-code-points argument count", "print(text.to-code-points())\n", "text.to-code-points requires 1 arguments, found 0"},
+		{"to-code-points value type", "print(text.to-code-points(1))\n", "argument 1 of text.to-code-points requires type String, found Int"},
+		{"from-code-points wants a list", "print(text.from-code-points(\"ab\"))\n", "argument 1 of text.from-code-points requires type List<Int>, found String"},
+		{"from-code-points element type", "print(text.from-code-points([\"a\"]))\n", "list element has type String; expected Int"},
+		{"from-code-points argument count", "print(text.from-code-points([65], [66]))\n", "text.from-code-points requires 1 arguments, found 2"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var out strings.Builder
+			err := Run("typing.zhex", tc.source, strings.NewReader(""), &out)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("wanted %q, got %v", tc.want, err)
+			}
+		})
+	}
+}
+
+// TestFromCodePointsInvalidIsABugSignal pins the hard error: negative values,
+// surrogate halves, and anything above U+10FFFF have no UTF-8 encoding, so
+// the run exits with text-code-point — stable first line, no hint, because
+// there is nothing to suggest but a valid code point.
+func TestFromCodePointsInvalidIsABugSignal(t *testing.T) {
+	for name, literal := range map[string]string{
+		"negative":  "-1",
+		"surrogate": "55296",
+		"above max": "1114112",
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := Run("bad.zhex", "print(text.from-code-points(["+literal+"]))\n", strings.NewReader(""), &strings.Builder{})
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if !strings.HasPrefix(err.Error(), "bad.zhex:1:7: text.from-code-points code point "+literal+" is invalid") {
+				t.Fatalf("first line changed: %q", err.Error())
+			}
+			if strings.Contains(err.Error(), "hint:") {
+				t.Fatalf("text-code-point must carry no hint: %q", err.Error())
+			}
+			report, ok := Report(err)
+			if !ok || !strings.Contains(report, `"code":"text-code-point"`) {
+				t.Fatalf("wanted code text-code-point, got %s", report)
+			}
+		})
+	}
+}
+
+// TestToCodePointsElementLimit pins the hard stop before materializing: a
+// string longer than the runtime element limit fails with the shared
+// collection-limit code, the same limit as text.split.
+func TestToCodePointsElementLimit(t *testing.T) {
+	var out strings.Builder
+	source := "var big = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\nfor i in range(1, 16)\n    big = big + big\nprint(list.length(text.to-code-points(big)))\n"
+	err := Run("cps.zhex", source, strings.NewReader(""), &out)
+	if err == nil || !strings.Contains(err.Error(), "text.to-code-points exceeds element limit") {
+		t.Fatalf("wanted element limit diagnostic, got %v", err)
+	}
+	report, ok := Report(err)
+	if !ok || !strings.Contains(report, `"code":"collection-limit"`) {
+		t.Fatalf("wanted code collection-limit, got %s", report)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("limit must stop the run before output, got %q", out.String())
+	}
+}
+
 func runText(t *testing.T, source string) string {
 	t.Helper()
 	var out strings.Builder

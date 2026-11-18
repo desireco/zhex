@@ -191,6 +191,9 @@ The text given to `text.to-int` is not a signed 64-bit decimal integer. It accep
 ## replace-empty
 `text.replace` was called with an empty old text. Every position matches an empty string, so there is no sane result; this is a bug signal, not a recoverable case. Pass a nonempty old text.
 
+## text-code-point
+`text.from-code-points` received a code point that is not valid Unicode: negative, above U+10FFFF, or a surrogate half (U+D800..U+DFFF). Strings are UTF-8 text, so those values have no encoding; this is a bug signal, not a recoverable case. Check the numbers before building the list.
+
 ## buffer-range
 `buffer.line` or `buffer.set-line` received an index outside the buffer's lines. The failure lives inside the `Result` and surfaces through `try`; check the index against `buffer.line-count` first.
 

@@ -365,6 +365,28 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			parts[i] = item.text
 		}
 		return value{text: strings.Join(parts, args[1].text)}, nil
+	case "text.to-code-points":
+		count := int64(utf8.RuneCountInString(args[0].text))
+		if count > maxCollectionElements {
+			return value{}, errorAt(x.pos, CodeCollectionLimit, "text.to-code-points exceeds element limit")
+		}
+		items := make([]value, 0, count)
+		for _, r := range args[0].text {
+			items = append(items, value{number: int64(r)})
+		}
+		return value{list: &listValue{items: items}}, nil
+	case "text.from-code-points":
+		var b strings.Builder
+		for _, item := range args[0].list.items {
+			cp := item.number
+			// Surrogate halves have no UTF-8 encoding; rune(cp) is safe past
+			// these guards because cp already fits a valid code point.
+			if cp < 0 || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF) {
+				return value{}, errorAt(x.pos, CodeTextCodePoint, "text.from-code-points code point %d is invalid", cp)
+			}
+			b.WriteRune(rune(cp))
+		}
+		return value{text: b.String()}, nil
 	case "text.starts-with":
 		return value{boolean: strings.HasPrefix(args[0].text, args[1].text)}, nil
 	case "text.ends-with":

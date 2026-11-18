@@ -10,13 +10,13 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words; #79 shipped `xml.decode` on the stdlib encoding/xml tokenizer; #64 shipped the two environment words. [`hostWords` in check.go](../internal/lang/check.go) registers **114 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words; #79 shipped `xml.decode` on the stdlib encoding/xml tokenizer; #64 shipped the two environment words; the #157 review follow-ups shipped the text code-point pair (#160). [`hostWords` in check.go](../internal/lang/check.go) registers **116 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
 | Bare | `print`, `range`, `read-line`, `ok`, `err` | [Console](../site/src/content/docs/console.md), [Results](../site/src/content/docs/results.md); `io_test.go`, `result_words_test.go`, `features_test.go` |
 | `int` | `to-string` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
-| `text` | `reverse`, `to-int`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace`, `split`, `join`, `starts-with`, `ends-with` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
+| `text` | `reverse`, `to-int`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace`, `split`, `join`, `to-code-points`, `from-code-points`, `starts-with`, `ends-with` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
 | `list` | `new`, `length`, `append`, `map`, `filter`, `fold`, `find`, `any`, `all`, `sort`, `sort-by` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go`, `list_words_test.go`, `sort_test.go` |
 | `array` | `new`, `resize`, `shape`, `rank`, `length` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |
 | `map` | `length`, `contains`, `remove`, `put`, `into` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
@@ -364,6 +364,19 @@ Settled decisions:
 
 Non-goals: no HTML parsing, no DOM, no template language, no CSS/JavaScript generation, no sanitization claim (`html.raw` is a documented bypass, not a sanitizer), no network.
 
+### Standard-library review follow-ups (#157, 2026-11-18)
+
+Small vocabulary stories from the #157 dogfooding review of the solved AoC years; each follows the [vocabulary-change checklist](vocabulary-checklist.md).
+
+**Code-point conversion pair.** Shipped as [#160](https://github.com/desireco/zhex/issues/160); host signatures:
+
+```text
+text.to-code-points(value: String) -> List<Int>
+text.from-code-points(values: List<Int>) -> String
+```
+
+Shipped notes: strings expose their code points (the unit `text.length`/`text.slice` already count) as a fresh `List<Int>`, so character classification becomes ordinary Int work (`cp - 48`) instead of the slice/`text.to-int`/`try` dance the AoC days carried; `from-code-points` rebuilds text and takes the plain-collection pattern for invalid input — negative, above U+10FFFF, or surrogate-half code points fail the new stable `text-code-point` code — and `to-code-points` enforces the one-million-element limit before materializing under the shared `collection-limit` code, the `text.split` precedent. No `Char` type; the values are `Int`s. No example was registered: the motivating demos are the AoC working areas, and the wasm-subset examples cannot take new host words until the compiler subset grows, so the S9 no-example precedent applies.
+
 ## Deferred and excluded scope
 
 - **HTTP client/server:** optional capability work, not Phase 1. [Go Client.Do](https://pkg.go.dev/net/http#Client.Do) illustrates why status codes are response data while transport failures are errors. Define response records, closure, timeout, redirects, body caps, headers and text/binary representation before introducing a getter. Server lifecycle is another story.
@@ -397,6 +410,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | S14 | [#77 — Markdown: report module as a pure-Zhex sibling module](https://github.com/desireco/zhex/issues/77) — shipped | #66/#67 research; owner-locked fragments and verbatim paragraphs, tables added by owner decision; no host words, so no inventory or editor changes; `modules/md-report/main` example registered |
 | — | [#72 — Language: while loop and read-line EOF reason](https://github.com/desireco/zhex/issues/72) — shipped | #65 prerequisite, ordered last in the queue; `while` is syntax (keyword), not a host word, so the inventory count is unchanged |
 | — | [#79 — XML: typed decode](https://github.com/desireco/zhex/issues/79) — shipped | #66 document research; common Error family with `xml-*` codes; `xml-config` example registered |
+| — | [#160 — Text: code-point conversion pair](https://github.com/desireco/zhex/issues/160) — shipped | #157 review; plain-collection `text-code-point` code; no example (S9 precedent, wasm subset) |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
 

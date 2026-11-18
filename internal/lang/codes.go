@@ -96,6 +96,7 @@ const (
 	CodeConsoleUTF8      Code = "console-utf8"
 	CodeTextToInt        Code = "text-to-int"
 	CodeReplaceEmpty     Code = "replace-empty"
+	CodeTextCodePoint    Code = "text-code-point"
 	CodeBufferRange      Code = "buffer-range"
 	CodeFileOpen         Code = "file-open"
 	CodeFileRead         Code = "file-read"
@@ -132,7 +133,7 @@ var diagnosticCodes = []Code{
 	CodeUnknownWord, CodePrintType, CodeRangeContext,
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
-	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeBufferRange,
+	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeTextCodePoint, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
 	CodeDoctestMismatch, CodeDoctestCheck, CodeTestFailed,
 	CodeNotAvailableInBuild,

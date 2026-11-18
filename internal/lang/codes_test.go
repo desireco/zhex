@@ -136,6 +136,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{"console-utf8", "let n = read-line(\"N: \") try\nprint(n)\n", "\xff\n", nil, nil},
 		{"text-to-int", "let n = text.to-int(\"abc\") try\nprint(n)\n", "", nil, nil},
 		{"replace-empty", "print(text.replace(\"a\", \"\", \"b\"))\n", "", nil, nil},
+		{"text-code-point", "print(text.from-code-points([55296]))\n", "", nil, nil},
 		{"argument-missing", "print(console.arg(0) try)\n", "", nil, nil},
 		{"buffer-range", "let s = buffer.line(buffer.new(), 0) try\n", "", nil, nil},
 		{"file-open", "let t = file.read(\"/nonexistent-zhex\") try\n", "", nil, nil},
