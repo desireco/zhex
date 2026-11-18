@@ -177,10 +177,10 @@ just check
 just build
 just install
 just run fibonacci
-just serve
+just site
 ```
 
-`just run` starts the greeting example and keeps console input available. Install site dependencies with `npm ci --prefix site` (Node 22.23.4 or newer (or Node 24)). `just site` builds the website, and `just serve` rebuilds it and serves it at [127.0.0.1:8000/zhex/](http://127.0.0.1:8000/zhex/). Pass a different port with `just serve 8080`. `just test-race` runs the race checks. The underlying Go commands remain available directly.
+`just run` starts the greeting example and keeps console input available. Install site dependencies with `npm ci --prefix site` (Node 22.23.4 or newer (or Node 24)). `just site` builds the website and serves it at [127.0.0.1:8000/zhex/](http://127.0.0.1:8000/zhex/). Pass a different port with `just site 8080`, or build without serving with `just build-site`. `just test-race` runs the race checks. The underlying Go commands remain available directly.
 
 ## Project documents
 

@@ -4,15 +4,14 @@ The website introduces Zhex, runs its examples at build time, and organizes lang
 
 ## Build and preview
 
-Install Go, Node 22.23.4 or newer (or Node 24), and the locked site dependencies, then build or preview from the repository root:
+Install Go, Node 22.23.4 or newer (or Node 24), and the locked site dependencies, then build and preview from the repository root:
 
 ```sh
 npm ci --prefix site
 just site
-just serve
 ```
 
-Open [localhost:8000/zhex/](http://127.0.0.1:8000/zhex/). `_site/` and `site/data.json` are generated; edit sources instead. `just test` runs Go tests and the complete website build. `go vet ./...` checks Go source.
+`just site` builds and then serves at [localhost:8000/zhex/](http://127.0.0.1:8000/zhex/); `just build-site` builds without serving, and `just site-fresh` recompiles every wasm artifact. `_site/` and `site/data.json` are generated; edit sources instead. `just test` runs Go tests and the complete website build. `go vet ./...` checks Go source.
 
 The Astro configuration sets the `/zhex` Pages base and emits stable `.html` URLs. `site/src/content/docs/` holds topic pages with `title`, `description`, `section`, and `order` frontmatter. Keep them consistent with `docs/initial-language.md`, `docs/getting-started.md`, and `docs/editors.md`. The legacy docs anchors and `/errors.html` catalog anchors remain available. `site/design/` ships verbatim, along with the example sources, roadmap, manifesto, and `llms.txt`.
 
