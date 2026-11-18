@@ -90,6 +90,13 @@ assert(aoc.includes(`id="aoc-tab-${teaserYear}"`), `teaser year ${teaserYear} ta
 // neither, so the counts must track the data.
 assert.equal((aoc.match(/class="run-panel aoc-run-panel"/g) || []).length, data.Aoc.filter(d => d.Wasm).length, 'a run panel per wasm-backed door');
 assert.equal((aoc.match(/Not compiled to WebAssembly yet/g) || []).length, data.Aoc.filter(d => d.WasmNote).length, 'a fence note per fenced door');
+// #171: every solved and part1 door carries its solution source verbatim —
+// the runner always, the words file when the day has one.
+const codeDays = data.Aoc.filter(d => d.Status === 'part1' || d.Status === 'solved');
+assert(codeDays.length > 0, 'the archive has doors with code');
+for (const day of codeDays) assert(day.Code, `aoc ${day.Year} day ${day.Day} carries source`);
+const codeBlocks = codeDays.reduce((count, day) => count + 1 + (day.CoreCode ? 1 : 0), 0);
+assert.equal((aoc.match(/class="program-code aoc-code"/g) || []).length, codeBlocks, 'a labeled code block per solution file');
 // #88: every example card links into the playground by id, and the
 // playground page carries the cover, the two modes, and the tour.
 const playground = await read('playground.html');

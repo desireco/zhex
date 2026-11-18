@@ -845,13 +845,20 @@ pre {
   text-transform: uppercase;
 }
 
-.aoc-solution-body pre {
+.aoc-solution-body .run-panel pre {
   margin: 0;
   padding: 1rem;
   background: var(--paper);
   border: 1px solid var(--line);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* The solution code (#171) reuses the examples' code window without its
+   accent shadow — two stacked windows would shadow-box the reveal. */
+.aoc-solution-body .program-code {
+  margin-top: 1rem;
+  box-shadow: none;
 }
 
 .aoc-teaser { margin-top: 2rem; }

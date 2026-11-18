@@ -84,6 +84,10 @@ type AocDay struct {
 	// Output is the Go oracle's sample stdout for a part1 or solved day; the
 	// build gate compares the browser run's bytes against it.
 	Output string
+	// Code is the day's runner source (dayNN.zhex) highlighted for the page
+	// and CoreCode its importable words file (dayNN-core.zhex); the "Show
+	// solution" reveal renders both after the run panel (#171).
+	Code, CoreCode string
 	// Wasm is the compiled artifact's relative URL and WasmNote the fence
 	// diagnostic message, matching Example's fields; both stay empty until
 	// a day compiles.
@@ -448,6 +452,9 @@ func aocSamplePath(day int) string { return fmt.Sprintf("samples/day%02d.txt", d
 // aocSolutionPath names the day's solution under aoc/<year>.
 func aocSolutionPath(day int) string { return fmt.Sprintf("day%02d.zhex", day) }
 
+// aocCorePath names the importable words file beside the solution.
+func aocCorePath(day int) string { return fmt.Sprintf("day%02d-core.zhex", day) }
+
 // aocSpecs is the AoC manifest — one block per archive year, oldest first:
 // 2023's and 2024's 25 rows carry part-1 outlines, 2025 the twelve rows of
 // the 12-day event; the page derives its tabs and the upcoming year's
@@ -714,6 +721,12 @@ func loadAoc(root string) ([]AocDay, error) {
 				return nil, fmt.Errorf("run aoc %d day %d solution: %w", spec.year, spec.day, err)
 			}
 			day.Output = output.String()
+			day.Code = string(highlight(string(source)))
+			// The words file ships with the runner when the day has one; a
+			// day without it simply renders one block.
+			if core, err := os.ReadFile(filepath.Join(root, "aoc", fmt.Sprintf("%d", spec.year), aocCorePath(spec.day))); err == nil {
+				day.CoreCode = string(highlight(string(core)))
+			}
 		}
 		days = append(days, day)
 	}
