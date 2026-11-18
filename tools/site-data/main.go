@@ -2,14 +2,19 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"html"
 	"html/template"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -788,31 +793,215 @@ func resolveSibling(entryPath string) func(string) (lang.ModuleSource, bool) {
 	}
 }
 
+// cacheEntry records one artifact's last compiled input set; Note caches a
+// fenced example's diagnostic so a cached fence needs no recompile.
+type cacheEntry struct {
+	Hash string `json:"hash"`
+	Note string `json:"note,omitempty"`
+}
+
+// wasmCache reuses artifacts whose full input set is unchanged: the source,
+// every sibling module beside it (over-inclusive by design — a directory
+// rename or an unrelated module edit recompiles that entry's artifact,
+// never a stale one), the entry path and skin, the compiler packages'
+// sources, and the Go toolchain version. A hash miss, a missing or empty
+// artifact, or any manifest doubt recompiles.
+type wasmCache struct {
+	dir     string
+	fresh   bool
+	fp      string
+	entries map[string]cacheEntry
+	rebuilt int
+	total   int
+}
+
+func newWasmCache(dir string) (*wasmCache, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	c := &wasmCache{dir: dir, fresh: os.Getenv("ZHEX_WASM_FRESH") != "", entries: map[string]cacheEntry{}}
+	if !c.fresh {
+		// A manifest that fails to read or parse stays empty: full rebuild.
+		if b, err := os.ReadFile(filepath.Join(dir, ".manifest.json")); err == nil {
+			json.Unmarshal(b, &c.entries)
+		}
+	}
+	fp, err := compilerFingerprint()
+	if err != nil {
+		return nil, err
+	}
+	c.fp = fp
+	return c, nil
+}
+
+// compile compiles one artifact unless the cache proves it fresh; the
+// returned note is empty when the artifact exists, or the cached fence
+// diagnostic for out-of-subset sources. label names the artifact in errors.
+func (c *wasmCache) compile(name, path, source, label string) (string, error) {
+	c.total++
+	hash, err := artifactHash(path, source, c.fp)
+	if err != nil {
+		return "", err
+	}
+	if !c.fresh {
+		if e, ok := c.entries[name]; ok && e.Hash == hash && (e.Note != "" || artifactFresh(filepath.Join(c.dir, name))) {
+			// A fenced source compiles no artifact; its cached note is fresh.
+			return e.Note, nil
+		}
+	}
+	note := ""
+	if err := wasm.Compile(path, source, filepath.Join(c.dir, name), resolveSibling(path), lang.WatSkinBrowser); err != nil {
+		reportJSON, ok := lang.Report(err)
+		var report struct{ Code, Message string }
+		if !ok || json.Unmarshal([]byte(reportJSON), &report) != nil || report.Code != string(lang.CodeNotAvailableInBuild) {
+			return "", fmt.Errorf("compile %s: %w", label, err)
+		}
+		note = report.Message
+	}
+	c.entries[name] = cacheEntry{Hash: hash, Note: note}
+	c.rebuilt++
+	if os.Getenv("ZHEX_WASM_DEBUG") != "" {
+		fmt.Fprintln(os.Stderr, "rebuilt:", name)
+	}
+	return note, nil
+}
+
+func (c *wasmCache) save() error {
+	b, err := json.Marshal(c.entries)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(c.dir, ".manifest.json"), b, 0o644)
+}
+
+// artifactFresh requires a non-empty regular file; anything else recompiles.
+func artifactFresh(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular() && info.Size() > 0
+}
+
+// compilerFingerprint hashes every compiler-relevant source outside the
+// artifact inputs — the interpreter and wasm packages, this tool, and the
+// Go toolchain version — so a compiler change rebuilds every artifact.
+// shortcut: non-test .go files only; a build-tag-only layout change would
+// be missed, upgrade if the packages grow such inputs.
+func compilerFingerprint() (string, error) {
+	h := sha256.New()
+	fmt.Fprintf(h, "go %s\n", runtime.Version())
+	for _, root := range []string{"internal/lang", "internal/wasm", "tools/site-data"} {
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || d.Name() == "main_test.go" || strings.HasSuffix(d.Name(), "_test.go") {
+				return nil
+			}
+			b, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(h, "%s %x\n", path, sha256.Sum256(b))
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// useLine extracts the module name from a `use <name>` statement line, the
+// language's only import mechanism; any other line yields "".
+func useLine(line string) string {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "use ") {
+		return ""
+	}
+	name := strings.TrimSpace(strings.TrimPrefix(line, "use "))
+	if name == "" || strings.ContainsAny(name, " \t;#") {
+		return ""
+	}
+	return name
+}
+
+// moduleDeps collects the transitive sibling-module paths a source imports
+// through `use`, following the same sibling resolution the interpreter
+// applies. A `use` in string data can over-include (harmless recompile);
+// the import syntax itself has no other form to miss.
+func moduleDeps(path, source string, seen map[string]bool) error {
+	for _, name := range strings.Split(source, "\n") {
+		n := useLine(name)
+		if n == "" {
+			continue
+		}
+		modPath := filepath.Join(filepath.Dir(path), n+".zhex")
+		if seen[modPath] {
+			continue
+		}
+		seen[modPath] = true
+		b, err := os.ReadFile(modPath)
+		if err != nil {
+			// The compile itself reports the missing module loudly; here
+			// the name still contributes its (absent) bytes to the hash.
+			continue
+		}
+		if err := moduleDeps(modPath, string(b), seen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// artifactHash hashes one artifact's full input set: the entry's source,
+// every transitively imported sibling module, its path (it feeds
+// diagnostics), and the compiler fingerprint.
+func artifactHash(path, source, fp string) (string, error) {
+	h := sha256.New()
+	fmt.Fprintf(h, "%s\n%s\n%x\n", path, source, fp)
+	deps := map[string]bool{path: true}
+	if err := moduleDeps(path, source, deps); err != nil {
+		return "", err
+	}
+	names := make([]string, 0, len(deps))
+	for n := range deps {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		b, err := os.ReadFile(n)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(h, "%s %x\n", n, sha256.Sum256(b))
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
 // compileExamples writes each in-subset example's browser WebAssembly
 // artifact into dir (flat names: modules/main becomes modules-main.wasm,
 // demos join as demo-<id>.wasm) and records on the matching Example the
-// relative artifact URL (Wasm) or the fence diagnostic message (WasmNote).
+// relative artifact URL (Wasm) or the fence diagnostic message (WasmNote),
+// skipping artifacts whose inputs are unchanged since the last run.
 // Any other failure — a missing assembler, an emitter bug — fails the build
 // loudly: no silent button-less site.
 func compileExamples(data *pageData, dir string) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	cache, err := newWasmCache(dir)
+	if err != nil {
 		return err
 	}
 	for i, spec := range exampleSpecs {
 		example := &data.Examples[i]
 		path := filepath.Join("examples", spec.id+".zhex")
 		name := strings.ReplaceAll(spec.id, "/", "-") + ".wasm"
-		err := wasm.Compile(path, example.Source, filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser)
-		if err == nil {
+		note, err := cache.compile(name, path, example.Source, "example "+spec.id+".zhex")
+		if err != nil {
+			return err
+		}
+		if note == "" {
 			example.Wasm = "wasm/" + name
-			continue
+		} else {
+			example.WasmNote = note
 		}
-		reportJSON, ok := lang.Report(err)
-		var report struct{ Code, Message string }
-		if !ok || json.Unmarshal([]byte(reportJSON), &report) != nil || report.Code != string(lang.CodeNotAvailableInBuild) {
-			return fmt.Errorf("compile example %s: %w", spec.id+".zhex", err)
-		}
-		example.WasmNote = report.Message
 	}
 	// A demo artifact is required, never fenced: a demos page without its
 	// artifact fails the build loudly, like a missing example compile does.
@@ -823,8 +1012,12 @@ func compileExamples(data *pageData, dir string) error {
 			return fmt.Errorf("read demo %s: %w", spec.file, err)
 		}
 		name := "demo-" + spec.id + ".wasm"
-		if err := wasm.Compile(path, string(source), filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser); err != nil {
-			return fmt.Errorf("compile demo %s: %w", spec.file, err)
+		note, err := cache.compile(name, path, string(source), "demo "+spec.file)
+		if err != nil {
+			return err
+		}
+		if note != "" {
+			return fmt.Errorf("demo %s: %s", spec.file, note)
 		}
 		data.Demos[i].Wasm = "wasm/" + name
 	}
@@ -842,17 +1035,20 @@ func compileExamples(data *pageData, dir string) error {
 			return fmt.Errorf("read aoc %d day %d solution: %w", day.Year, day.Day, err)
 		}
 		name := fmt.Sprintf("aoc-%d-day%02d.wasm", day.Year, day.Day)
-		err = wasm.Compile(path, string(source), filepath.Join(dir, name), resolveSibling(path), lang.WatSkinBrowser)
-		if err == nil {
+		note, err := cache.compile(name, path, string(source), fmt.Sprintf("aoc %d day %d", day.Year, day.Day))
+		if err != nil {
+			return err
+		}
+		if note == "" {
 			data.Aoc[i].Wasm = "wasm/" + name
-			continue
+		} else {
+			data.Aoc[i].WasmNote = note
 		}
-		reportJSON, ok := lang.Report(err)
-		var report struct{ Code, Message string }
-		if !ok || json.Unmarshal([]byte(reportJSON), &report) != nil || report.Code != string(lang.CodeNotAvailableInBuild) {
-			return fmt.Errorf("compile aoc %d day %d: %w", day.Year, day.Day, err)
-		}
-		data.Aoc[i].WasmNote = report.Message
 	}
+	if err := cache.save(); err != nil {
+		return err
+	}
+	// stderr: stdout carries the data.json payload.
+	fmt.Fprintf(os.Stderr, "wasm: %d of %d artifacts rebuilt\n", cache.rebuilt, cache.total)
 	return nil
 }

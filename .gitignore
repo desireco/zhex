@@ -11,3 +11,4 @@
 /site/data.json
 /site/public/wasm/
 /site/public/zhex-engine*
+/site/public/.engine-hash

@@ -570,3 +570,54 @@ func TestLiveAocRowsMatchTheOracle(t *testing.T) {
 		}
 	}
 }
+
+func TestArtifactHashTracksSourcesModulesAndCompiler(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, source string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("main.zhex", "use helper\nprint 1\n")
+	write("helper.zhex", "# helper\n")
+	write("other.zhex", "# other\n")
+	base, err := artifactHash(filepath.Join(dir, "main.zhex"), "use helper\nprint 1\n", "fp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The entry and its transitive module feed the hash; an unrelated
+	// sibling does not.
+	if same, err := artifactHash(filepath.Join(dir, "main.zhex"), "use helper\nprint 2\n", "fp"); err != nil || same == base {
+		t.Fatalf("entry change did not change the hash: same=%v err=%v", same == base, err)
+	}
+	if mod, err := os.ReadFile(filepath.Join(dir, "helper.zhex")); err != nil {
+		t.Fatal(err)
+	} else {
+		write("helper.zhex", "# helper changed\n")
+		if changed, err := artifactHash(filepath.Join(dir, "main.zhex"), "use helper\nprint 1\n", "fp"); err != nil || changed == base {
+			t.Fatalf("module change did not change the hash")
+		}
+		write("helper.zhex", string(mod))
+	}
+	if unrelated, err := artifactHash(filepath.Join(dir, "main.zhex"), "use helper\nprint 1\n", "fp"); err != nil || unrelated != base {
+		t.Fatalf("hash is unstable with unchanged inputs")
+	}
+	write("other.zhex", "# other changed\n")
+	if same, err := artifactHash(filepath.Join(dir, "main.zhex"), "use helper\nprint 1\n", "fp"); err != nil || same != base {
+		t.Fatalf("unrelated sibling changed the hash")
+	}
+}
+
+func TestUseLineReadsOnlyImportStatements(t *testing.T) {
+	for line, want := range map[string]string{
+		"use math":        "math",
+		"  use math  ":    "math",
+		"# use math":      "",
+		"print \"use x\"": "",
+		"use":             "",
+	} {
+		if got := useLine(line); got != want {
+			t.Fatalf("useLine(%q) = %q, want %q", line, got, want)
+		}
+	}
+}

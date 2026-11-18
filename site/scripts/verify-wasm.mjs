@@ -20,7 +20,7 @@ for (const example of data.Examples) {
 // exist there — a stale artifact from a removed or newly fenced example must
 // fail the build instead of shipping dead bytes.
 const aocDays = data.Aoc.filter(d => d.Wasm);
-const onDisk = await readdir('../_site/wasm');
+const onDisk = (await readdir('../_site/wasm')).filter(f => !f.startsWith('.'));
 const expected = [...runnable.map(e => e.Wasm.replace('wasm/', '')), ...data.Demos.map(d => d.Wasm.replace('wasm/', '')), ...data.Aoc.filter(d => d.Wasm).map(d => d.Wasm.replace('wasm/', ''))];
 assert.deepEqual([...onDisk].sort(), [...expected].sort(), '_site/wasm holds exactly the runnable, demo, and solved-door artifacts');
 for (const example of runnable) {
