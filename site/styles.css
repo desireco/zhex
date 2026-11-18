@@ -1098,7 +1098,6 @@ pre {
 }
 
 .roadmap-section.done { background: var(--surface); }
-.roadmap-section.next { border-top: 18px solid var(--accent); }
 .roadmap-source {
   padding-block: 2rem 4rem;
   color: var(--muted);
