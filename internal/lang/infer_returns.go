@@ -766,6 +766,7 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 		}
 	}
 	add("int.to-string", stringType, intType)
+	add("int.mod-floor", intType, intType, intType)
 	add("text.reverse text.upper text.lower text.trim", stringType, stringType)
 	add("text.to-int", intParseResultType, stringType)
 	add("text.length text.line-count text.word-count", intType, stringType)

@@ -266,6 +266,19 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{}, r.write(x.pos, text+"\n")
 	case "int.to-string":
 		return value{text: strconv.FormatInt(args[0].number, 10)}, nil
+	case "int.mod-floor":
+		n, modulus := args[0].number, args[1].number
+		if modulus == 0 {
+			return value{}, errorAt(x.pos, CodeDivisionZero, "int.mod-floor modulus is zero")
+		}
+		wrapped := n % modulus
+		// Floored semantics: a nonzero result takes the modulus's sign, so
+		// %'s truncation needs one adjustment; |wrapped| < |modulus| keeps
+		// the sum in Int range.
+		if wrapped != 0 && (wrapped < 0) != (modulus < 0) {
+			wrapped += modulus
+		}
+		return value{number: wrapped}, nil
 	case "text.reverse":
 		runes := []rune(args[0].text)
 		for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
