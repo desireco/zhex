@@ -339,7 +339,7 @@ func TestArrayResizePreservesCoordinates(t *testing.T) {
 }
 
 func TestArrayFailuresAndZeroShapes(t *testing.T) {
-	source := "let grid = array.new([2, 2], 7) try\n(grid[9, 0] = 1) catch problem\n    print(error.code(problem))\narray.resize(grid, [3], 0) catch problem\n    print(error.code(problem))\nprint(grid[0, 0] try)\nlet empty = array.new([9223372036854775807, 0], 1) try\nprint(array.length(empty))\n"
+	source := "let grid = array.new([2, 2], 7) try\n(grid[9, 0] = 1) catch problem\n    print(error.code(problem))\nlet bad = array.resize(grid, [3], 0) catch problem\n    print(error.code(problem))\n    grid\nprint(grid[0, 0] try)\nlet empty = array.new([9223372036854775807, 0], 1) try\nprint(array.length(empty))\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
@@ -369,7 +369,7 @@ func TestArrayRejectsBadTypes(t *testing.T) {
 }
 
 func TestCollectionLoopsPositionsAndMutationGuard(t *testing.T) {
-	source := "let items = [3, 4]\nlet alias = items\nfor index, item in items\n    print(index)\n    print(item)\n    list.append(alias, 9) catch problem\n        print(error.code(problem))\nlist.append(items, 5) try\nlet grid = array.new([2, 2], 7) try\nfor coords, item in grid\n    print(coords[0] try)\n    print(coords[1] try)\n    print(item)\n    (grid[0, 0] = 8) catch problem\n        print(error.code(problem))\nprint(list.length(items))\n"
+	source := "let items = [3, 4]\nlet alias = items\nfor index, item in items\n    print(index)\n    print(item)\n    let blocked = list.append(alias, 9) catch problem\n        print(error.code(problem))\n        alias\nlist.append(items, 5) try\nlet grid = array.new([2, 2], 7) try\nfor coords, item in grid\n    print(coords[0] try)\n    print(coords[1] try)\n    print(item)\n    (grid[0, 0] = 8) catch problem\n        print(error.code(problem))\nprint(list.length(items))\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
@@ -436,7 +436,7 @@ func TestArrayErrorDetailsAndOrigin(t *testing.T) {
 }
 
 func TestNestedCollectionLoopsHoldGuardUntilOuterEnds(t *testing.T) {
-	source := "let xs = [1]\nfor x in xs\n    for y in xs\n        print(y)\n    list.append(xs, 2) catch problem\n        print(error.code(problem))\nlist.append(xs, 3) try\nprint(list.length(xs))\n"
+	source := "let xs = [1]\nfor x in xs\n    for y in xs\n        print(y)\n    let blocked = list.append(xs, 2) catch problem\n        print(error.code(problem))\n        xs\nlist.append(xs, 3) try\nprint(list.length(xs))\n"
 	var out bytes.Buffer
 	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)

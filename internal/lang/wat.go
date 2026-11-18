@@ -1979,7 +1979,7 @@ func (e *watEmitter) builtinCall(x *expression) {
 		k, v := e.mapSpecs(x)
 		e.expr(x.args[0])
 		e.expr(x.args[1])
-		e.line("call " + watMapRemove(k, v)) // Unit
+		e.line("call " + watMapRemove(k, v)) // returns the same map (flows)
 	case "map.into":
 		k, v := e.mapSpecs(x)
 		e.expr(x.args[0]) // source (guard targets only)

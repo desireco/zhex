@@ -64,7 +64,7 @@ word parse(text: String) -> Network
             let outs: List<String> = []
             for target in text.split(sides[1], ", ")
                 list.append(outs, target)
-            list.append(targets, outs)
+            let added = list.append(targets, outs)
     # targets named by nobody: untyped output modules
     var settled = false
     while not settled
@@ -89,7 +89,7 @@ word parse(text: String) -> Network
         if kinds[at] == 2
             for other in range(0, list.length(names))
                 if list.any(targets[other], _is(_, names[at]))
-                    list.append(ins, names[other])
+                    let added = list.append(ins, names[other])
             for input in ins
                 mem[names[at] + "|" + input] = false
         if kinds[at] == 1

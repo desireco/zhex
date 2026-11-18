@@ -283,8 +283,8 @@ const watPreludeM4TestExports = `
 (func $t_l12 (result (ref $zhex_list_i64))
   (local $l (ref $zhex_list_i64))
   (local.set $l (call $zhex_list_new_i64))
-  (call $zhex_list_append_i64 (local.get $l) (i64.const 1))
-  (call $zhex_list_append_i64 (local.get $l) (i64.const 2))
+  (drop (call $zhex_list_append_i64 (local.get $l) (i64.const 1)))
+  (drop (call $zhex_list_append_i64 (local.get $l) (i64.const 2)))
   (local.get $l))
 
 ;; a void closure invoked through the grid's _r_v row prints its argument

@@ -16,12 +16,12 @@ word parse(text: String) -> List<Pattern>
     var rows: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(rows, line)
+            let added = list.append(rows, line)
         elif list.length(rows) > 0
             list.append(patterns, Pattern(rows))
             rows = []
     if list.length(rows) > 0
-        list.append(patterns, Pattern(rows))
+        let added = list.append(patterns, Pattern(rows))
     patterns
 
 # The pattern turned a quarter turn, so column mirrors become row mirrors.

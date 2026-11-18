@@ -18,7 +18,7 @@ word _tokens(line: String) -> List<String>
     let tokens: List<String> = []
     for token in text.split(text.slice(line, text.index-of(line, ":") + 1, text.length(line)), " ")
         if text.length(token) > 0
-            list.append(tokens, token)
+            let added = list.append(tokens, token)
     tokens
 
 # One line's race values.

@@ -12,7 +12,7 @@ while not done
     if line == "~end-of-input~"
         done = true
     else
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let boxes = day08-core.parse(buffer.to-text(input)) try
 # the puzzle fixes 1000 connections for the full list and walks its 20-box
 # example through the ten shortest; the door runs the example

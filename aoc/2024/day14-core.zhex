@@ -24,7 +24,7 @@ word parse(text: String) -> List<Robot>
             let drift = text.split(halves[1], "=")
             let xy = text.split(place[1], ",")
             let vxy = text.split(drift[1], ",")
-            list.append(robots, Robot(text.to-int(xy[0]) try, text.to-int(xy[1]) try, text.to-int(vxy[0]) try, text.to-int(vxy[1]) try))
+            let added = list.append(robots, Robot(text.to-int(xy[0]) try, text.to-int(xy[1]) try, text.to-int(vxy[0]) try, text.to-int(vxy[1]) try))
     robots
 
 # shortcut: the worked example's twelve robots live in an 11 by 7 space;

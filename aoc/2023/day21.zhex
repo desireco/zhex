@@ -12,7 +12,7 @@ while not done
     if line == "~end-of-input~"
         done = true
     else
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let grid = day21-core.parse(buffer.to-text(input))
 # the puzzle walks its 11-row example 6 and 100 steps and a real garden
 # 64 and 26501365; the door runs the example

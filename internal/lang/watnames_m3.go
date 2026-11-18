@@ -262,7 +262,7 @@ const (
 	watBufferAddLine   = "$zhex_buffer_add_line"
 	watBufferLineCount = "$zhex_buffer_line_count"
 	watBufferLine      = "$zhex_buffer_line"     // (b, i) -> Result<String, BufferError>
-	watBufferSetLine   = "$zhex_buffer_set_line" // (b, i, s) -> Result<Unit, BufferError>
+	watBufferSetLine   = "$zhex_buffer_set_line" // (b, i, s) -> Result<Buffer, BufferError>
 	watBufferToText    = "$zhex_buffer_to_text"
 )
 

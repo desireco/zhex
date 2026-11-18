@@ -12,7 +12,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(grid, line)
+            let added = list.append(grid, line)
     grid
 
 word _cell(grid: List<String>, row: Int, column: Int) -> String

@@ -39,7 +39,7 @@ word parse(text: String) -> Universe
     let rows: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(rows, line)
+            let added = list.append(rows, line)
     let width = text.length(rows[0])
     let galaxies: List<Galaxy> = []
     let row-empty: List<Bool> = []

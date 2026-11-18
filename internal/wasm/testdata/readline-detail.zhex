@@ -12,7 +12,7 @@ while not done
         else
             error.message(problem)
     if not done
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 print(buffer.to-text(input))
 let n = text.to-int("12x") catch bad
     print(error.message(bad))

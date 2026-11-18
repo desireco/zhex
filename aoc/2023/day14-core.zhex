@@ -15,7 +15,7 @@ word parse(text: String) -> Dish
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(grid, line)
+            let added = list.append(grid, line)
     Dish(grid)
 
 # n copies of a one-character string joined.

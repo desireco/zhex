@@ -23,7 +23,7 @@ word _numbers(line: String) -> List<Int>
     let numbers: List<Int> = []
     for token in text.split(line, " ")
         if text.length(token) > 0
-            list.append(numbers, text.to-int(token) try)
+            let added = list.append(numbers, text.to-int(token) try)
     numbers
 
 ## Parse the seed line and every map block into the chain.
@@ -38,14 +38,14 @@ word parse(text: String) -> Almanac
                     list.append(seeds, number)
             elif text.ends-with(line, "map:")
                 if list.length(current) > 0
-                    list.append(levels, current)
+                    let added = list.append(levels, current)
                 let fresh: List<RangeMap> = []
                 current = fresh
             else
                 let numbers = _numbers(line) try
-                list.append(current, RangeMap(numbers[0], numbers[1], numbers[2]))
+                let added = list.append(current, RangeMap(numbers[0], numbers[1], numbers[2]))
     if list.length(current) > 0
-        list.append(levels, current)
+        let added = list.append(levels, current)
     Almanac(seeds, levels)
 
 # Where one number lands in one map level; unmapped numbers stay.
@@ -109,15 +109,15 @@ word _map-spans(spans: List<Span>, ranges: List<RangeMap>) -> List<Span>
                 let source-last = range-map.source + range-map.length - 1
                 if range-map.source <= span.last and span.first <= source-last
                     if span.first < range-map.source
-                        list.append(pending, Span(span.first, range-map.source - 1))
+                        let added = list.append(pending, Span(span.first, range-map.source - 1))
                     if source-last < span.last
-                        list.append(pending, Span(source-last + 1, span.last))
+                        let added = list.append(pending, Span(source-last + 1, span.last))
                     let lo = _max(span.first, range-map.source)
                     let hi = _min(span.last, source-last)
                     list.append(mapped, Span(lo - range-map.source + range-map.destination, hi - range-map.source + range-map.destination))
                     handled = true
         if not handled
-            list.append(mapped, span)
+            let added = list.append(mapped, span)
         index = index + 1
     mapped
 

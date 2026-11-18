@@ -13,7 +13,7 @@ while not done
     if line == "~end-of-input~"
         done = true
     else
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let edges = day23-core.parse(buffer.to-text(input))
 print(day23-core.part-one(edges))
 print(day23-core.part-two(edges))

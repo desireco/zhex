@@ -65,6 +65,27 @@ func TestMapIterationOrderRemoveAndMerge(t *testing.T) {
 	}
 }
 
+func TestMapRemoveReturnsItsMap(t *testing.T) {
+	source := `let scores = {"Ada": 1, "Bob": 2}
+let same = map.remove(scores, "Bob")
+print(map.contains(scores, "Bob"))
+map.remove(same, "Ada")
+print(map.length(scores))
+flow {"Ada": 1, "Cy": 2}
+    map.remove("Ada")
+    map.remove("Cy")
+    map.length
+    print
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "false\n0\n0\n" {
+		t.Fatal(out.String())
+	}
+}
+
 func TestMapIterationRejectsAliasedMutationAndUnwinds(t *testing.T) {
 	var out bytes.Buffer
 	s := NewSession(strings.NewReader(""), &out, nil, nil)

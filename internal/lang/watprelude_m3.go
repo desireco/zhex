@@ -842,7 +842,7 @@ const watM3Buffer = `
 (func $zhex_buffer_new (result (ref $zhex_buffer))
   (struct.new $zhex_buffer (array.new_default $zhex_arr_ref (i32.const 0))))
 
-(func $zhex_buffer_add_line (param $b (ref $zhex_buffer)) (param $s (ref $zhex_string))
+(func $zhex_buffer_add_line (param $b (ref $zhex_buffer)) (param $s (ref $zhex_string)) (result (ref $zhex_buffer))
   (local $old (ref null $zhex_arr_ref))
   (local $n i32)
   (local $fresh (ref null $zhex_arr_ref))
@@ -858,7 +858,8 @@ const watM3Buffer = `
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $copy)))
   (array.set $zhex_arr_ref (local.get $fresh) (local.get $n) (local.get $s))
-  (struct.set $zhex_buffer $lines (local.get $b) (local.get $fresh)))
+  (struct.set $zhex_buffer $lines (local.get $b) (local.get $fresh))
+  (local.get $b))
 
 (func $zhex_buffer_line_count (param $b (ref $zhex_buffer)) (result i64)
   (i64.extend_i32_u (array.len (struct.get $zhex_buffer $lines (local.get $b)))))
@@ -892,7 +893,7 @@ const watM3Buffer = `
               (array.new_fixed $zhex_string 15 (i32.const 32) (i32.const 105) (i32.const 115) (i32.const 32) (i32.const 111) (i32.const 117) (i32.const 116) (i32.const 115) (i32.const 105) (i32.const 100) (i32.const 101) (i32.const 32) (i32.const 48) (i32.const 46) (i32.const 46)))
             (call $zhex_int_to_string (i64.sub (i64.extend_i32_u (local.get $n)) (i64.const 1)))))))))
   (array.set $zhex_arr_ref (struct.get $zhex_buffer $lines (local.get $b)) (i32.wrap_i64 (local.get $index)) (local.get $s))
-  (struct.new $zhex_result (i32.const 0) (ref.null eq)))
+  (struct.new $zhex_result (i32.const 0) (local.get $b)))
 
 (func $zhex_buffer_to_text (param $b (ref $zhex_buffer)) (result (ref $zhex_string))
   (local $lines (ref null $zhex_arr_ref))
@@ -1166,8 +1167,8 @@ const watM3File = `
         (loop $entry
           (br_if $listed (i32.ge_u (local.get $cursor) (i32.add (i32.const 4) (local.get $n))))
           (local.set $elen (i32.load (local.get $cursor)))
-          (call $zhex_list_append_ref (local.get $list)
-            (call $zhex_bytes_to_string (i32.add (local.get $cursor) (i32.const 4)) (local.get $elen)))
+          (drop (call $zhex_list_append_ref (local.get $list)
+            (call $zhex_bytes_to_string (i32.add (local.get $cursor) (i32.const 4)) (local.get $elen))))
           (local.set $cursor (i32.add (local.get $cursor) (i32.add (i32.const 4) (local.get $elen))))
           (br $entry)))
       (return (struct.new $zhex_result (i32.const 0) (local.get $list)))))
@@ -1333,7 +1334,7 @@ const watM3File = `
 (func $zhex_stream_close (param $handle i32)
   (if (ref.is_null (global.get $zhex_stream_paths))
     (then (return)))
-  (call $zhex_map_remove_i64_ref (ref.as_non_null (global.get $zhex_stream_paths)) (i64.extend_i32_s (local.get $handle)))
+  (drop (call $zhex_map_remove_i64_ref (ref.as_non_null (global.get $zhex_stream_paths)) (i64.extend_i32_s (local.get $handle))))
   (drop (call $zhex_host_fs_close (local.get $handle))))
 `
 

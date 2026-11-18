@@ -28,9 +28,9 @@ word parse(text: String) -> Database
                 let dash = text.index-of(line, "-")
                 let first = text.to-int(text.slice(line, 0, dash)) try
                 let last = text.to-int(text.slice(line, dash + 1, text.length(line))) try
-                list.append(ranges, IdRange(first, last))
+                let added = list.append(ranges, IdRange(first, last))
             else
-                list.append(ids, text.to-int(line) try)
+                let added = list.append(ids, text.to-int(line) try)
     Database(ranges, ids)
 
 word _covers(fresh-range: IdRange, id: Int) -> Bool

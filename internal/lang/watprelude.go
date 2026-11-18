@@ -293,7 +293,7 @@ const watPreludeListI64 = `
 (func $zhex_list_length_i64 (param $list (ref $zhex_list_i64)) (result i64)
   (i64.extend_i32_u (array.len (struct.get $zhex_list_i64 $items (local.get $list)))))
 
-(func $zhex_list_append_i64 (param $list (ref $zhex_list_i64)) (param $elem i64)
+(func $zhex_list_append_i64 (param $list (ref $zhex_list_i64)) (param $elem i64) (result (ref $zhex_list_i64))
   (local $old (ref null $zhex_arr_i64))
   (local $n i32)
   (local $fresh (ref null $zhex_arr_i64))
@@ -313,7 +313,8 @@ const watPreludeListI64 = `
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $copy)))
   (array.set $zhex_arr_i64 (local.get $fresh) (local.get $n) (local.get $elem))
-  (struct.set $zhex_list_i64 $items (local.get $list) (local.get $fresh)))
+  (struct.set $zhex_list_i64 $items (local.get $list) (local.get $fresh))
+  (local.get $list))
 
 (func $zhex_list_get_i64 (param $list (ref $zhex_list_i64)) (param $index i64) (result i64)
   (if (i64.ge_u (local.get $index)
@@ -342,7 +343,7 @@ const watPreludeListI32 = `
 (func $zhex_list_length_i32 (param $list (ref $zhex_list_i32)) (result i64)
   (i64.extend_i32_u (array.len (struct.get $zhex_list_i32 $items (local.get $list)))))
 
-(func $zhex_list_append_i32 (param $list (ref $zhex_list_i32)) (param $elem i32)
+(func $zhex_list_append_i32 (param $list (ref $zhex_list_i32)) (param $elem i32) (result (ref $zhex_list_i32))
   (local $old (ref null $zhex_arr_i32))
   (local $n i32)
   (local $fresh (ref null $zhex_arr_i32))
@@ -362,7 +363,8 @@ const watPreludeListI32 = `
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $copy)))
   (array.set $zhex_arr_i32 (local.get $fresh) (local.get $n) (local.get $elem))
-  (struct.set $zhex_list_i32 $items (local.get $list) (local.get $fresh)))
+  (struct.set $zhex_list_i32 $items (local.get $list) (local.get $fresh))
+  (local.get $list))
 
 (func $zhex_list_get_i32 (param $list (ref $zhex_list_i32)) (param $index i64) (result i32)
   (if (i64.ge_u (local.get $index)
@@ -391,7 +393,7 @@ const watPreludeListRef = `
 (func $zhex_list_length_ref (param $list (ref $zhex_list_ref)) (result i64)
   (i64.extend_i32_u (array.len (struct.get $zhex_list_ref $items (local.get $list)))))
 
-(func $zhex_list_append_ref (param $list (ref $zhex_list_ref)) (param $elem (ref null eq))
+(func $zhex_list_append_ref (param $list (ref $zhex_list_ref)) (param $elem (ref null eq)) (result (ref $zhex_list_ref))
   (local $old (ref null $zhex_arr_ref))
   (local $n i32)
   (local $fresh (ref null $zhex_arr_ref))
@@ -411,7 +413,8 @@ const watPreludeListRef = `
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $copy)))
   (array.set $zhex_arr_ref (local.get $fresh) (local.get $n) (local.get $elem))
-  (struct.set $zhex_list_ref $items (local.get $list) (local.get $fresh)))
+  (struct.set $zhex_list_ref $items (local.get $list) (local.get $fresh))
+  (local.get $list))
 
 (func $zhex_list_get_ref (param $list (ref $zhex_list_ref)) (param $index i64) (result (ref null eq))
   (if (i64.ge_u (local.get $index)

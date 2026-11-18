@@ -9,11 +9,17 @@ list.append(names, "Lin")
 print(list.length(names))
 print names[1]
 
+let grown = flow [1]
+    list.append(2)
+    list.append(3)
+print(list.length(grown))
+
 let alias = names
 for index, name in names
     print(int.to-string(index) + ": " + name)
-    list.append(alias, "blocked") catch problem
+    let blocked = list.append(alias, "blocked") catch problem
         print(error.code(problem))
+        alias
 
 let short-names = list.select(names, short(_))
 print(list.length(short-names))

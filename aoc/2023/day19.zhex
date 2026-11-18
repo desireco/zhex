@@ -18,7 +18,7 @@ while not done
         else
             error.message(problem)
     if not done
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let sorter = day19-core.parse(buffer.to-text(input)) try
 print(day19-core.part-one(sorter))
 print(day19-core.part-two(sorter))

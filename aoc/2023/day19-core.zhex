@@ -33,7 +33,7 @@ word parse(text: String) -> Sorter
                 let ratings: List<Int> = []
                 for field in text.split(text.slice(line, 1, text.length(line) - 1), ",")
                     list.append(ratings, text.to-int(text.slice(field, 2, text.length(field))) try)
-                list.append(parts, ratings)
+                let added = list.append(parts, ratings)
             else
                 let name = text.slice(line, 0, text.index-of(line, "{"))
                 let rules: List<Rule> = []

@@ -20,7 +20,7 @@ word parse(text: String) -> List<Row>
             let groups: List<Int> = []
             for token in text.split(halves[1], ",")
                 list.append(groups, text.to-int(token) try)
-            list.append(rows, Row(halves[0], groups))
+            let added = list.append(rows, Row(halves[0], groups))
     rows
 
 # The number of ways one spring row matches its group sizes.

@@ -14,8 +14,8 @@ word parse(text: String) -> List<List<Int>>
             let history: List<Int> = []
             for token in text.split(line, " ")
                 if text.length(token) > 0
-                    list.append(history, text.to-int(token) try)
-            list.append(histories, history)
+                    let added = list.append(history, text.to-int(token) try)
+            let added = list.append(histories, history)
     histories
 
 word _nonzero(value: Int) -> Bool

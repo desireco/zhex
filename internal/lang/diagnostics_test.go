@@ -69,7 +69,7 @@ func TestEveryResultTypeUnwrapsRendersAndHints(t *testing.T) {
 		{stringResultType, "let x = read-line(\"\") try\n", stringType},
 		{intParseResultType, "let x = text.to-int(\"1\") try\n", intType},
 		{stringBufferResultType, "let x = buffer.line(buffer.new(), 0) try\n", stringType},
-		{unitBufferResultType, "let x = buffer.set-line(buffer.new(), 0, \"a\") try\n", unitType},
+		{bufferBufferResultType, "let x = buffer.set-line(buffer.new(), 0, \"a\") try\n", bufferType},
 		{stringFileResultType, "let x = file.read(\"/x\") try\n", stringType},
 		{fileResultType, "let x = file.open(\"/x\") try\n", fileType},
 	} {

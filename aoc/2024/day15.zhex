@@ -18,7 +18,7 @@ while not done
         else
             error.message(problem)
     if not done
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let warehouse = day15-core.parse(buffer.to-text(input))
 print(day15-core.part-one(warehouse))
 print(day15-core.part-two(warehouse))

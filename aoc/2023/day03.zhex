@@ -13,7 +13,7 @@ while not done
     if line == "~end-of-input~"
         done = true
     else
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let schematic = day03-core.parse(buffer.to-text(input))
 print(day03-core.part-one(schematic))
 print(day03-core.part-two(schematic))

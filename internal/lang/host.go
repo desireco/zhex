@@ -63,7 +63,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			return value{}, err
 		}
 		args[0].mapping.remove(args[1])
-		return value{}, nil
+		return args[0], nil
 	case "map.into":
 		if err := args[1].mapping.guard(x.pos, "map.into"); err != nil {
 			return value{}, err
@@ -134,7 +134,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			return failedCollection(x.pos, CodeCollectionLimit, "list.append", "list exceeds element limit", nil), nil
 		}
 		args[0].list.items = append(args[0].list.items, args[1])
-		return value{result: &inputResult{}}, nil
+		return value{result: &inputResult{value: args[0]}}, nil
 	case "list.length":
 		return value{number: int64(len(args[0].list.items))}, nil
 	case "list.map":
@@ -424,7 +424,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{buffer: &bufferValue{}}, nil
 	case "buffer.add-line":
 		args[0].buffer.lines = append(args[0].buffer.lines, args[1].text)
-		return value{}, nil
+		return args[0], nil
 	case "buffer.line-count":
 		return value{number: int64(len(args[0].buffer.lines))}, nil
 	case "buffer.line":
@@ -439,7 +439,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			return value{result: &inputResult{err: errorAt(x.pos, CodeBufferRange, "buffer index %d is outside 0..%d", i, len(args[0].buffer.lines)-1)}}, nil
 		}
 		args[0].buffer.lines[i] = args[2].text
-		return value{result: &inputResult{}}, nil
+		return value{result: &inputResult{value: args[0]}}, nil
 	case "buffer.to-text":
 		return value{text: strings.Join(args[0].buffer.lines, "\n")}, nil
 	case "file.read":

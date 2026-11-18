@@ -1655,7 +1655,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				if args[1] != key {
 					return "", errorAt(x.pos, CodeArgumentType, "map.remove key requires %s", key)
 				}
-				result = unitType
+				result = args[0]
 			case "map.put":
 				if args[1] != key || args[2] != element {
 					return "", errorAt(x.pos, CodeArgumentType, "map.put requires a matching key and value")
@@ -1758,7 +1758,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 					if args[2] == errorType && x.args[2].binding != nil && x.args[2].binding.errorFamily != "" && x.args[2].binding.errorFamily != "Error" {
 						return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
 					}
-					result = valueTypeResultUnitError
+					result = valueType("Result<" + string(args[0]) + ", Error>")
 				case "array.shape":
 					result = "List<Int>"
 				default:
@@ -1793,7 +1793,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			if args[1] == errorType && x.args[1].binding != nil && x.args[1].binding.errorFamily != "" && x.args[1].binding.errorFamily != "Error" {
 				return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
 			}
-			params, result = args, valueTypeResultUnitError
+			params, result = args, valueType("Result<"+string(args[0])+", Error>")
 		case "list.length":
 			if len(args) != 1 {
 				return "", errorAt(x.pos, CodeArgumentCount, "list.length requires 1 argument, found %d", len(args))
@@ -1986,7 +1986,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			result = bufferType
 		case "buffer.add-line":
 			params = []valueType{bufferType, stringType}
-			result = unitType
+			result = bufferType
 		case "buffer.line-count":
 			params = []valueType{bufferType}
 			result = intType
@@ -1995,7 +1995,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			result = stringBufferResultType
 		case "buffer.set-line":
 			params = []valueType{bufferType, intType, stringType}
-			result = unitBufferResultType
+			result = bufferBufferResultType
 		case "buffer.to-text":
 			params = []valueType{bufferType}
 			result = stringType

@@ -11,7 +11,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(grid, line)
+            let added = list.append(grid, line)
     grid
 
 word _dx(direction: Int) -> Int
@@ -63,7 +63,7 @@ word _nodes(grid: List<String>) -> List<Int>
                     if _open(grid, x + _dx(direction), y + _dy(direction))
                         open-neighbors = open-neighbors + 1
                 if y == 0 or y == list.length(grid) - 1 or open-neighbors >= 3
-                    list.append(nodes, _key(x, y))
+                    let added = list.append(nodes, _key(x, y))
     nodes
 
 # A node key's position in the node list.
@@ -148,7 +148,7 @@ word _graph(grid: List<String>, slopes: Bool) -> Graph
             let w = _walk(grid, node-at, x, y, direction, slopes)
             if w.node >= 0
                 list.append(adj[i], _index-of(nodes, w.node))
-                list.append(adj[i], w.len)
+                let added = list.append(adj[i], w.len)
     Graph(nodes, adj)
 
 # The longest walk left from a node, never revisiting a node.

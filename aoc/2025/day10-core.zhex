@@ -41,7 +41,7 @@ word parse(text: String) -> List<Machine>
             let numbers = text.slice(last, 1, text.length(last) - 1)
             for digit in text.split(numbers, ",")
                 list.append(joltage, text.to-int(digit) try)
-            list.append(machines, Machine(target, text.length(diagram), buttons, joltage))
+            let added = list.append(machines, Machine(target, text.length(diagram), buttons, joltage))
     machines
 
 # Flip one light of an encoded state by place value: no bitwise words,
@@ -85,7 +85,7 @@ word _fewest-presses(machine: Machine) -> Int
                     if not visited[next]
                         visited[next] = true
                         list.append(states, next)
-                        list.append(depths, depth + 1)
+                        let added = list.append(depths, depth + 1)
         answer
 
 ## Sum over machines of the fewest presses reaching each target.

@@ -12,7 +12,7 @@ while not done
     if line == "~end-of-input~"
         done = true
     else
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let lists = day01-core.parse(buffer.to-text(input)) try
 print(day01-core.part-one(lists))
 print(day01-core.part-two(lists))

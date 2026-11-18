@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -86,15 +87,14 @@ func TestBufferRejectedByPrintAndEquality(t *testing.T) {
 }
 
 // TestBufferTypePositions covers Buffer in word signatures and try unwrapping
-// buffer.line to String and buffer.set-line to Unit.
+// buffer.line to String and buffer.set-line to its Buffer receiver.
 func TestBufferTypePositions(t *testing.T) {
 	source := "word first(b: Buffer) -> Result<String, BufferError>\n" +
 		"    ok(buffer.line(b, 0) try)\n" +
 		"word fresh() -> Buffer\n" +
 		"    buffer.new()\n" +
-		"word seed(b: Buffer) -> Result<Unit, BufferError>\n" +
-		"    let done = buffer.set-line(b, 0, \"set\") try\n" +
-		"    ok(done)\n" +
+		"word seed(b: Buffer) -> Result<Buffer, BufferError>\n" +
+		"    ok(buffer.set-line(b, 0, \"set\") try)\n" +
 		"let b = fresh()\n" +
 		"buffer.add-line(b, \"line\")\n" +
 		"seed(b) try\n" +
@@ -105,5 +105,23 @@ func TestBufferTypePositions(t *testing.T) {
 	}
 	if want := "set\n"; out.String() != want {
 		t.Fatalf("got %q, want %q", out.String(), want)
+	}
+}
+
+func TestBufferMutatorsReturnTheirBuffer(t *testing.T) {
+	source := `let b = buffer.new()
+let same = buffer.add-line(b, "one")
+buffer.add-line(same, "two")
+print(buffer.line-count(b))
+let again = buffer.set-line(b, 0, "first") try
+buffer.add-line(again, "three")
+print(buffer.to-text(b))
+`
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "2\nfirst\ntwo\nthree\n" {
+		t.Fatal(out.String())
 	}
 }

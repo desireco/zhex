@@ -17,7 +17,7 @@ while not done
         else
             error.message(problem)
     if not done
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let network = day08-core.parse(buffer.to-text(input))
 print(day08-core.part-one(network))
 print(day08-core.part-two(network))

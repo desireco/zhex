@@ -52,7 +52,7 @@ word parse(text: String) -> List<String>
     let lines: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(lines, line)
+            let added = list.append(lines, line)
     lines
 
 ## Sum the values reading digit characters only.

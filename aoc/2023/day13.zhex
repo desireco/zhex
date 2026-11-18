@@ -17,7 +17,7 @@ while not done
         else
             error.message(problem)
     if not done
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let patterns = day13-core.parse(buffer.to-text(input))
 print(day13-core.part-one(patterns))
 print(day13-core.part-two(patterns))

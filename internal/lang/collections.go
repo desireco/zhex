@@ -160,7 +160,7 @@ func arrayResize(pos position, a *arrayValue, dims *listValue, fill value) value
 		}
 	}
 	a.shape, a.items = shape, items
-	return value{result: &inputResult{}}
+	return value{result: &inputResult{value: value{array: a}}}
 }
 
 // plainWriteResult promotes checked collection failures to runtime diagnostics.

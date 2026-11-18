@@ -20,9 +20,9 @@ word parse(text: String) -> List<Int>
         if text.length(line) > 0
             let clicks = text.to-int(text.slice(line, 1, text.length(line))) try
             if text.slice(line, 0, 1) == "L"
-                list.append(rotations, 0 - clicks)
+                let added = list.append(rotations, 0 - clicks)
             else
-                list.append(rotations, clicks)
+                let added = list.append(rotations, clicks)
     rotations
 
 ## Count the rotations that land the dial on 0.

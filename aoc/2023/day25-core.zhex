@@ -43,12 +43,12 @@ word parse(text: String) -> Wiring
             let from = _name(ids, parts[0], count)
             if from == count
                 count = count + 1
-                list.append(adj, [])
+                let added = list.append(adj, [])
             for name in text.split(text.trim(parts[1]), " ")
                 let to = _name(ids, name, count)
                 if to == count
                     count = count + 1
-                    list.append(adj, [])
+                    let added = list.append(adj, [])
                 list.append(adj[from], list.length(far))
                 list.append(far, to)
                 list.append(adj[to], list.length(far))
@@ -87,7 +87,7 @@ word _reaches(w: Wiring, caps: List<Int>, from: Int, to: Int, came: List<Int>) -
                 if next == to
                     found = true
                 else
-                    list.append(queue, next)
+                    let added = list.append(queue, next)
             wi = wi + 1
     found
 

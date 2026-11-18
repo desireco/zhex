@@ -13,7 +13,7 @@ word parse(text: String) -> List<Int>
     for line in text.split(text, "\n")
         if text.length(line) > 0
             let secret = text.to-int(line) catch 0
-            list.append(secrets, secret)
+            let added = list.append(secrets, secret)
     secrets
 
 # XOR of two values below 2^24, one bit at a time: a bit is set exactly when

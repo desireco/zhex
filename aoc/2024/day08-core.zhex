@@ -12,7 +12,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(grid, line)
+            let added = list.append(grid, line)
     grid
 
 ## One antenna: its frequency and position.
@@ -28,7 +28,7 @@ word _antennas(grid: List<String>) -> List<Antenna>
         for c in range(0, text.length(grid[0]))
             let cell = text.slice(grid[r], c, c + 1)
             if cell != "."
-                list.append(antennas, Antenna(cell, r, c))
+                let added = list.append(antennas, Antenna(cell, r, c))
     antennas
 
 # A position's set key.

@@ -16,7 +16,7 @@ word _numbers(section: String) -> List<Int>
     let numbers: List<Int> = []
     for token in text.split(section, " ")
         if text.length(token) > 0
-            list.append(numbers, text.to-int(token) try)
+            let added = list.append(numbers, text.to-int(token) try)
     numbers
 
 ## Parse the calibration document into its equations.
@@ -25,7 +25,7 @@ word parse(text: String) -> List<Equation>
     for line in text.split(text, "\n")
         if text.length(line) > 0
             let halves = text.split(line, ":")
-            list.append(equations, Equation(text.to-int(halves[0]) try, _numbers(halves[1]) try))
+            let added = list.append(equations, Equation(text.to-int(halves[0]) try, _numbers(halves[1]) try))
     equations
 
 # The two operands' digits joined into one number; operands are nonnegative,

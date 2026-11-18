@@ -74,7 +74,7 @@ word _add-form(forms: List<Form>, keys: List<String>, form: Form)
             seen = true
     if not seen
         list.append(keys, key)
-        list.append(forms, form)
+        let added = list.append(forms, form)
 
 # Every distinct orientation: four rotations, each with its two mirror
 # images, duplicates dropped by key.
@@ -106,13 +106,13 @@ word parse(text: String) -> Farm
     var block: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(block, line)
+            let added = list.append(block, line)
         else
             if list.length(block) > 0
                 list.append(blocks, block)
                 block = []
     if list.length(block) > 0
-        list.append(blocks, block)
+        let added = list.append(blocks, block)
     let shapes: List<List<Form>> = []
     for i in range(0, list.length(blocks) - 1)
         let rows: List<String> = []

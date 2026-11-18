@@ -23,7 +23,7 @@ word parse(text: String) -> Layout
                     list.append(towels, towel)
                 section = 1
             else
-                list.append(designs, line)
+                let added = list.append(designs, line)
     Layout(towels, designs)
 
 ## The number of ways towels can spell one design exactly. The ways live

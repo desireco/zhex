@@ -83,7 +83,7 @@ word parse(text: String) -> List<Hand>
         if text.length(line) > 0
             let parts = text.split(line, " ")
             let bid = text.to-int(parts[1]) try
-            list.append(hands, Hand(parts[0], bid))
+            let added = list.append(hands, Hand(parts[0], bid))
     hands
 
 word _part-one-key(hand: Hand) -> Int

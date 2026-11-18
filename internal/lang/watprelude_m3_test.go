@@ -183,7 +183,7 @@ const watPreludeM3TestExports = `
 (func (export "t_buf_count") (param $b (ref $zhex_buffer)) (result i64)
   (call $zhex_buffer_line_count (local.get $b)))
 (func (export "t_buf_add") (param $b (ref $zhex_buffer)) (param $len i32) (result (ref $zhex_buffer))
-  (call $zhex_buffer_add_line (local.get $b) (call $t_in (i32.const 0) (local.get $len)))
+  (drop (call $zhex_buffer_add_line (local.get $b) (call $t_in (i32.const 0) (local.get $len))))
   (local.get $b))
 (func (export "t_buf_to_text") (param $b (ref $zhex_buffer)) (result i32)
   (call $zhex_stage_utf8_at (call $zhex_buffer_to_text (local.get $b)) (i32.const 0)))

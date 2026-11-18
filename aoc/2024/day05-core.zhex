@@ -20,13 +20,13 @@ word parse(text: String) -> Manual
             let bar = text.index-of(line, "|")
             let before = text.to-int(text.slice(line, 0, bar)) try
             let after = text.to-int(text.slice(line, bar + 1, text.length(line))) try
-            list.append(rules, Rule(before, after))
+            let added = list.append(rules, Rule(before, after))
         else
             if text.length(line) > 0
                 let pages: List<Int> = []
                 for page in text.split(line, ",")
                     list.append(pages, text.to-int(page) try)
-                list.append(updates, pages)
+                let added = list.append(updates, pages)
     Manual(rules, updates)
 
 # Whether a rule demands second print before first.

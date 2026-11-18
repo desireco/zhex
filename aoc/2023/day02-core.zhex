@@ -38,7 +38,7 @@ word parse(text: String) -> List<Game>
     let games: List<Game> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(games, _parse-game(line) try)
+            let added = list.append(games, _parse-game(line) try)
     games
 
 ## Sum the IDs of the games the bag could have produced.

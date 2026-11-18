@@ -17,7 +17,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(grid, line)
+            let added = list.append(grid, line)
     grid
 
 # The grid's width: its widest row.
@@ -120,7 +120,7 @@ word _s-dirs(grid: List<String>) -> List<Int>
     let start = _start(grid)
     for direction in range(0, 4)
         if _connects-back(_tile(grid, start.x + _dx(direction), start.y + _dy(direction)), direction)
-            list.append(dirs, direction)
+            let added = list.append(dirs, direction)
     dirs
 
 # The pipe shape S stands in for, from its two connections.

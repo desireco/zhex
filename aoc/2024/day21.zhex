@@ -12,7 +12,7 @@ while not done
     if line == "~end-of-input~"
         done = true
     else
-        buffer.add-line(input, line)
+        let added = buffer.add-line(input, line)
 let codes = day21-core.parse(buffer.to-text(input))
 print(day21-core.part-one(codes))
 print(day21-core.part-two(codes))

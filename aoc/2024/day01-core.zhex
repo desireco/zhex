@@ -15,7 +15,7 @@ word parse(text: String) -> Lists
         if text.length(line) > 0
             let gap = text.index-of(line, " ")
             list.append(left, text.to-int(text.slice(line, 0, gap)) try)
-            list.append(right, text.to-int(text.slice(line, gap + 1, text.length(line))) try)
+            let added = list.append(right, text.to-int(text.slice(line, gap + 1, text.length(line))) try)
     Lists(left, right)
 
 ## Total the distances between the two sorted columns, rank by rank.

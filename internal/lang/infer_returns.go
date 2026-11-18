@@ -780,10 +780,10 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 	add("text.from-code-points", stringType, "List<Int>")
 	add("text.starts-with text.ends-with", boolType, stringType, stringType)
 	add("buffer.new", bufferType)
-	add("buffer.add-line", unitType, bufferType, stringType)
+	add("buffer.add-line", bufferType, bufferType, stringType)
 	add("buffer.line-count", intType, bufferType)
 	add("buffer.line", stringBufferResultType, bufferType, intType)
-	add("buffer.set-line", unitBufferResultType, bufferType, intType, stringType)
+	add("buffer.set-line", bufferBufferResultType, bufferType, intType, stringType)
 	add("buffer.to-text", stringType, bufferType)
 	add("file.read", stringFileResultType, stringType)
 	add("file.open", fileResultType, stringType)
@@ -1024,9 +1024,9 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			s.equal(args[1], element, x.pos)
 		}
 		if checked {
-			return namedType("Result", namedType("Unit"), namedType("Error"))
+			return namedType("Result", namedType("List", element), namedType("Error"))
 		}
-		return namedType("Unit")
+		return namedType("List", element)
 	case "array.new":
 		element := freshType()
 		if len(args) > 0 {
@@ -1054,9 +1054,9 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 				s.equal(args[2], element, x.pos)
 			}
 			if checked {
-				return namedType("Result", namedType("Unit"), namedType("Error"))
+				return namedType("Result", namedType("Array", element), namedType("Error"))
 			}
-			return namedType("Unit")
+			return namedType("Array", element)
 		case "array.shape":
 			return namedType("List", namedType("Int"))
 		default:
@@ -1085,7 +1085,7 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			return namedType("Int")
 		case "map.contains":
 			return namedType("Bool")
-		case "map.put":
+		case "map.put", "map.remove":
 			return collection
 		case "map.keys":
 			return namedType("List", key)

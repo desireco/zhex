@@ -10,7 +10,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            list.append(grid, line)
+            let added = list.append(grid, line)
     grid
 
 ## The row holding a marker, or -1 when absent.
@@ -85,14 +85,14 @@ word _forward(grid: List<String>) -> Map<String, Int>
             let turn-key = _key(Pos(here.r, here.c, nd))
             if cost + 1000 < _get(dist, turn-key)
                 map.put(dist, turn-key, cost + 1000)
-                list.append(queue, Pos(here.r, here.c, nd))
+                let added = list.append(queue, Pos(here.r, here.c, nd))
         let nr = here.r + _dr(here.d)
         let nc = here.c + _dc(here.d)
         if nr >= 0 and nr < list.length(grid) and nc >= 0 and nc < text.length(grid[nr]) and text.slice(grid[nr], nc, nc + 1) != "#"
             let step-key = _key(Pos(nr, nc, here.d))
             if cost + 1 < _get(dist, step-key)
                 map.put(dist, step-key, cost + 1)
-                list.append(queue, Pos(nr, nc, here.d))
+                let added = list.append(queue, Pos(nr, nc, here.d))
     dist
 
 ## Best costs from every state to E, over the reversed moves: a turn stays
@@ -114,14 +114,14 @@ word _backward(grid: List<String>) -> Map<String, Int>
             let turn-key = _key(Pos(here.r, here.c, nd))
             if cost + 1000 < _get(dist, turn-key)
                 map.put(dist, turn-key, cost + 1000)
-                list.append(queue, Pos(here.r, here.c, nd))
+                let added = list.append(queue, Pos(here.r, here.c, nd))
         let pr = here.r - _dr(here.d)
         let pc = here.c - _dc(here.d)
         if pr >= 0 and pr < list.length(grid) and pc >= 0 and pc < text.length(grid[pr]) and text.slice(grid[pr], pc, pc + 1) != "#"
             let step-key = _key(Pos(pr, pc, here.d))
             if cost + 1 < _get(dist, step-key)
                 map.put(dist, step-key, cost + 1)
-                list.append(queue, Pos(pr, pc, here.d))
+                let added = list.append(queue, Pos(pr, pc, here.d))
     dist
 
 ## The lowest score any route from S to E can earn.

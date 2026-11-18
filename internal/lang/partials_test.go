@@ -570,7 +570,7 @@ func TestPartialFailuresPointAtInvocation(t *testing.T) {
 		line   int
 	}{
 		{"let values = [1]\nlet push = list.append(values, _)\nfor n in values\n    push(2)\n", 4},
-		{"let values = [1]\nlet append: (List<Int>, Int) -> Unit = list.append(_, _)\nlet push = append(values, _)\nfor n in values\n    push(2)\n", 5},
+		{"let values = [1]\nlet append: (List<Int>, Int) -> List<Int> = list.append(_, _)\nlet push = append(values, _)\nfor n in values\n    push(2)\n", 5},
 	}
 	for _, tc := range cases {
 		err := Run("test.zhex", tc.source, strings.NewReader(""), &bytes.Buffer{})
@@ -671,7 +671,7 @@ print(list.length(values))
 func TestCallableFlowCannotEraseConcreteErrorFamily(t *testing.T) {
 	for _, source := range []string{
 		`word store(values: List<Error>, problem: Error) -> Unit
-    list.append(values, problem)
+    let added = list.append(values, problem)
 let values: List<Error> = []
 let save = store values, _
 let n = text.to-int("bad") catch problem
@@ -701,7 +701,7 @@ let n = text.to-int("bad") catch problem
 		}
 	}
 	source := `word store(values: List<Error>, problem: Error) -> Unit
-    list.append(values, problem)
+    let added = list.append(values, problem)
 let values: List<Error> = []
 let save = store values, _
 let n = text.to-int("bad") catch problem

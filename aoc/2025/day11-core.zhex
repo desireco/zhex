@@ -21,7 +21,7 @@ word parse(text: String) -> Wiring
             let known = map.contains(wires, name)
             map.put(wires, name, text.split(halves[1], " "))
             if not known
-                list.append(devices, name)
+                let added = list.append(devices, name)
     Wiring(devices, wires)
 
 # A device's current count in a Map<String, Int>; absent means zero.
@@ -60,7 +60,7 @@ word _routes(wiring: Wiring, start: String, skip-one: String, skip-two: String) 
     let queue: List<String> = []
     for device in wiring.devices
         if device != skip-one and device != skip-two and _count-of(indegree, device) == 0
-            list.append(queue, device)
+            let added = list.append(queue, device)
     var head = 0
     while head < list.length(queue)
         let device = queue[head]
@@ -70,7 +70,7 @@ word _routes(wiring: Wiring, start: String, skip-one: String, skip-two: String) 
                 map.put(ways, target, _count-of(ways, target) + _count-of(ways, device))
                 map.put(indegree, target, _count-of(indegree, target) - 1)
                 if _count-of(indegree, target) == 0
-                    list.append(queue, target)
+                    let added = list.append(queue, target)
     _count-of(ways, "out")
 
 ## Count the distinct routes from "you" to "out".

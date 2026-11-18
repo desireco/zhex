@@ -41,7 +41,7 @@ word parse(text: String) -> DigPlan
             list.append(dirs, text.index-of("RDLU", parts[0]))
             list.append(dists, text.to-int(parts[1]) try)
             list.append(hex-dirs, _digit(text.slice(parts[2], 7, 8)))
-            list.append(hex-dists, _hex-length(parts[2]))
+            let added = list.append(hex-dists, _hex-length(parts[2]))
     DigPlan(dirs, dists, hex-dirs, hex-dists)
 
 word _step-x(direction: Int) -> Int

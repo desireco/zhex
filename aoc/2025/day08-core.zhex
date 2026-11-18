@@ -30,7 +30,7 @@ word parse(text: String) -> List<Box>
             let x = text.to-int(parts[0]) try
             let y = text.to-int(parts[1]) try
             let z = text.to-int(parts[2]) try
-            list.append(boxes, Box(x, y, z))
+            let added = list.append(boxes, Box(x, y, z))
     boxes
 
 word _rank(connection: Connection) -> Int
