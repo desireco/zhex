@@ -72,7 +72,7 @@ func TestRejectedPrograms(t *testing.T) {
 		{"bad indentation", "if true\n  print(1)\n", "indent"},
 		{"tab indentation", "if true\n\tprint(1)\n", "tab"},
 		{"missing body", "word x() -> Int\nprint(1)\n", "indented"},
-		{"literal overflow", "print(9223372036854775808)\n", "range"},
+		{"literal overflow", "print(170141183460469231731687303715884105728)\n", "range"},
 		{"invalid UTF8", "print(\"\xff\")\n", "UTF-8"},
 		{"unterminated string", "print(\"hello)\n", "string"},
 		{"reserved binding", "let if = 1\n", "name"},
@@ -92,7 +92,7 @@ func TestRejectedPrograms(t *testing.T) {
 }
 
 func TestRuntimeErrors(t *testing.T) {
-	for _, expression := range []string{"9223372036854775807 + 1", "-9223372036854775808 - 1", "3037000500 * 3037000500", "-(-9223372036854775808)", "-9223372036854775808 / -1", "1 / 0", "1 % 0"} {
+	for _, expression := range []string{"170141183460469231731687303715884105727 + 1", "-170141183460469231731687303715884105728 - 1", "20000000000000000000 * 20000000000000000000", "-(-170141183460469231731687303715884105728)", "-170141183460469231731687303715884105728 / -1", "1 / 0", "1 % 0"} {
 		t.Run(expression, func(t *testing.T) {
 			var out bytes.Buffer
 			err := Run("runtime.zhex", fmt.Sprintf("print(%s)\n", expression), strings.NewReader(""), &out)

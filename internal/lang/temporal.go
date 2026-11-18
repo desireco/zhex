@@ -16,20 +16,22 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 	switch x.text {
 	case "date.new":
 		y, m, d := args[0].number, args[1].number, args[2].number
-		if y < 1 || y > 9999 || m < 1 || m > 12 || d < 1 || d > 31 {
+		if !componentFits(y) || !componentFits(m) || !componentFits(d) ||
+			y.int64() < 1 || y.int64() > 9999 || m.int64() < 1 || m.int64() > 12 || d.int64() < 1 || d.int64() > 31 {
 			return value{}, temporalComponents(errorAt(x.pos, CodeTemporalInvalid, "invalid date components"), "year", y, "month", m, "day", d)
 		}
-		v := time.Date(int(y), time.Month(m), int(d), 0, 0, 0, 0, time.UTC)
-		if v.Month() != time.Month(m) {
+		v := time.Date(int(y.int64()), time.Month(m.int64()), int(d.int64()), 0, 0, 0, 0, time.UTC)
+		if v.Month() != time.Month(m.int64()) {
 			return value{}, temporalComponents(errorAt(x.pos, CodeTemporalInvalid, "invalid date components"), "year", y, "month", m, "day", d)
 		}
 		return value{moment: v}, nil
 	case "time.new":
 		h, m, s := args[0].number, args[1].number, args[2].number
-		if h < 0 || h > 23 || m < 0 || m > 59 || s < 0 || s > 59 {
+		if !componentFits(h) || !componentFits(m) || !componentFits(s) ||
+			h.int64() < 0 || h.int64() > 23 || m.int64() < 0 || m.int64() > 59 || s.int64() < 0 || s.int64() > 59 {
 			return value{}, temporalComponents(errorAt(x.pos, CodeTemporalInvalid, "invalid time components"), "hour", h, "minute", m, "second", s)
 		}
-		return value{moment: time.Date(1, 1, 1, int(h), int(m), int(s), 0, time.UTC)}, nil
+		return value{moment: time.Date(1, 1, 1, int(h.int64()), int(m.int64()), int(s.int64()), 0, time.UTC)}, nil
 	case "date.parse":
 		v, err := time.Parse("2006-01-02", args[0].text)
 		if err != nil || !dateText.MatchString(args[0].text) || v.Year() < 1 {
@@ -47,21 +49,25 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 		if err != nil {
 			return value{result: &inputResult{err: errorAt(x.pos, CodeDurationParse, "invalid duration")}}, nil
 		}
-		return value{result: &inputResult{value: value{number: int64(v)}}}, nil
+		return value{result: &inputResult{value: value{number: i128from64(int64(v))}}}, nil
 	case "duration.new":
-		return value{number: args[0].number}, nil
+		ns := args[0].number
+		if !ns.fits64() {
+			return value{}, errorAt(x.pos, CodeTemporalRange, "duration is outside the supported range")
+		}
+		return value{number: ns}, nil
 	case "date.to-string":
 		return value{text: args[0].moment.Format("2006-01-02")}, nil
 	case "time.to-string":
 		return value{text: args[0].moment.Format("15:04:05.999999999")}, nil
 	case "duration.to-string":
-		return value{text: time.Duration(args[0].number).String()}, nil
+		return value{text: time.Duration(args[0].number.int64()).String()}, nil
 	case "date.add-days":
 		days := args[1].number
-		if days < -3652059 || days > 3652059 {
+		if !componentFits(days) || days.int64() < -3652059 || days.int64() > 3652059 {
 			return value{}, errorAt(x.pos, CodeTemporalRange, "date arithmetic is outside the supported range")
 		}
-		v := args[0].moment.AddDate(0, 0, int(days))
+		v := args[0].moment.AddDate(0, 0, int(days.int64()))
 		if v.Year() < 1 || v.Year() > 9999 {
 			return value{}, errorAt(x.pos, CodeTemporalRange, "date arithmetic is outside the supported range")
 		}
@@ -84,7 +90,7 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 	case "instant.to-string":
 		return value{text: args[0].moment.UTC().Format(time.RFC3339Nano)}, nil
 	case "instant.add-duration":
-		v := args[0].moment.Add(time.Duration(args[1].number))
+		v := args[0].moment.Add(time.Duration(args[1].number.int64()))
 		if !validTemporal(v) {
 			return value{}, errorAt(x.pos, CodeTemporalRange, "instant is outside the supported range")
 		}
@@ -119,21 +125,21 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 		}
 		return value{moment: v}, nil
 	case "zoned.add-duration":
-		v := args[0].moment.Add(time.Duration(args[1].number))
+		v := args[0].moment.Add(time.Duration(args[1].number.int64()))
 		if !validTemporal(v) {
 			return value{}, errorAt(x.pos, CodeTemporalRange, "zoned time is outside the supported range")
 		}
 		return value{moment: v}, nil
 	case "zoned.add-days":
 		days := args[1].number
-		if days == 0 {
+		if days.isZero() {
 			return args[0], nil
 		}
-		if days < -3652059 || days > 3652059 {
+		if !componentFits(days) || days.int64() < -3652059 || days.int64() > 3652059 {
 			return value{}, errorAt(x.pos, CodeTemporalRange, "zoned arithmetic is outside the supported range")
 		}
 		old := args[0].moment
-		civil := time.Date(old.Year(), old.Month(), old.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(days))
+		civil := time.Date(old.Year(), old.Month(), old.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(days.int64()))
 		v, err := resolveCivilTime(civil.Year(), civil.Month(), civil.Day(), old.Hour(), old.Minute(), old.Second(), old.Nanosecond(), old.Location())
 		if err != nil || !validTemporal(v) {
 			return value{}, errorAt(x.pos, CodeTemporalRange, "zoned time is outside the supported range")
@@ -143,11 +149,15 @@ func temporalBuiltin(x *expression, args []value) (value, error) {
 	panic("unknown temporal builtin")
 }
 
-func temporalComponents(err error, a string, av int64, b string, bv int64, c string, cv int64) error {
+func temporalComponents(err error, a string, av i128, b string, bv i128, c string, cv i128) error {
 	d := err.(*diagnostic)
-	d.details = map[string]string{a: strconv.FormatInt(av, 10), b: strconv.FormatInt(bv, 10), c: strconv.FormatInt(cv, 10)}
+	d.details = map[string]string{a: i128string(av), b: i128string(bv), c: i128string(cv)}
 	return d
 }
+
+// componentFits reports whether an Int argument narrows to the int64
+// component ranges the temporal constructors accept.
+func componentFits(v i128) bool { return v.fits64() }
 
 // Both representations must remain in the supported Gregorian range.
 func validTemporal(t time.Time) bool {

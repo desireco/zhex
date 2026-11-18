@@ -25,7 +25,7 @@ func TestXMLRejectsUnknownCollisionDuplicateAndTypes(t *testing.T) {
 		{"<server name=\\\"a\\\"><name>b</name></server>", "xml-field"},
 		{"<server><name>a</name><name>b</name></server>", "xml-field"},
 		{"<server><retries>soon</retries></server>", "xml-type"},
-		{"<server retries=\\\"99999999999999999999\\\"/>", "xml-range"},
+		{"<server retries=\\\"170141183460469231731687303715884105728\\\"/>", "xml-range"},
 		{"<server verbose=\\\"yes\\\"/>", "xml-type"},
 		{"<server>text<name>x</name></server>", "xml-type"},
 		{"<server retries=\\\"1.5\\\"/>", "xml-type"},

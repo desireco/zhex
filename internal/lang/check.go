@@ -1096,7 +1096,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			} else if keyType != kt {
 				return "", errorAt(key.pos, CodeArgumentType, "map keys must have one type")
 			}
-			identity := fmt.Sprintf("%s:%d:%s", kt, key.number, key.text)
+			identity := fmt.Sprintf("%s:%s:%s", kt, i128string(key.number), key.text)
 			if seen[identity] {
 				return "", errorAt(key.pos, CodeDuplicateName, "duplicate map key")
 			}

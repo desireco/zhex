@@ -153,7 +153,7 @@ func (s *Session) literal(v value, typ valueType) (string, bool) {
 	}
 	switch typ {
 	case intType:
-		return strconv.FormatInt(v.number, 10), true
+		return i128string(v.number), true
 	case boolType:
 		return strconv.FormatBool(v.boolean), true
 	case stringType:
@@ -165,7 +165,7 @@ func (s *Session) literal(v value, typ valueType) (string, bool) {
 	case timeType:
 		return `time.parse("` + v.moment.Format("15:04:05.999999999") + `") try`, true
 	case durationType:
-		return "duration.new(" + strconv.FormatInt(v.number, 10) + ")", true
+		return "duration.new(" + i128string(v.number) + ")", true
 	case instantType:
 		return `instant.parse("` + v.moment.UTC().Format(time.RFC3339Nano) + `") try`, true
 	case timezoneType:

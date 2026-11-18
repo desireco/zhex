@@ -316,7 +316,7 @@ type expression struct {
 	pos               position
 	end               position // exclusive, one past the last rune
 	text              string
-	number            int64
+	number            i128
 	depth             int
 	left, right       *expression
 	args              []*expression

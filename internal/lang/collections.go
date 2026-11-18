@@ -18,7 +18,7 @@ func sortValuesStable(items []value, byText bool) []value {
 		if byText {
 			return sorted[i].text < sorted[j].text
 		}
-		return sorted[i].number < sorted[j].number
+		return i128cmp(sorted[i].number, sorted[j].number) < 0
 	})
 	return sorted
 }
@@ -32,7 +32,7 @@ func sortListStable(items, keys []value, byText bool) []value {
 		if byText {
 			return keys[order[a]].text < keys[order[b]].text
 		}
-		return keys[order[a]].number < keys[order[b]].number
+		return i128cmp(keys[order[a]].number, keys[order[b]].number) < 0
 	})
 	sorted := make([]value, len(items))
 	for i, at := range order {
@@ -47,21 +47,21 @@ func failedCollection(pos position, code Code, operation, message string, detail
 	return value{result: &inputResult{err: d}}
 }
 
-func listRead(pos position, list *listValue, index int64) value {
-	if index < 0 || index >= int64(len(list.items)) {
-		return failedCollection(pos, CodeListRange, "list.index", "list index is out of range", map[string]string{"index": strconv.FormatInt(index, 10), "length": strconv.Itoa(len(list.items))})
+func listRead(pos position, list *listValue, index i128) value {
+	if !index.fits64() || index.int64() < 0 || index.int64() >= int64(len(list.items)) {
+		return failedCollection(pos, CodeListRange, "list.index", "list index is out of range", map[string]string{"index": i128string(index), "length": strconv.Itoa(len(list.items))})
 	}
-	return value{result: &inputResult{value: list.items[index]}}
+	return value{result: &inputResult{value: list.items[index.int64()]}}
 }
 
-func listWrite(pos position, list *listValue, index int64, item value) value {
+func listWrite(pos position, list *listValue, index i128, item value) value {
 	if list.active > 0 {
 		return failedCollection(pos, CodeCollectionIterating, "list.set", "collection is being iterated", nil)
 	}
-	if index < 0 || index >= int64(len(list.items)) {
-		return failedCollection(pos, CodeListRange, "list.set", "list index is out of range", map[string]string{"index": strconv.FormatInt(index, 10), "length": strconv.Itoa(len(list.items))})
+	if !index.fits64() || index.int64() < 0 || index.int64() >= int64(len(list.items)) {
+		return failedCollection(pos, CodeListRange, "list.set", "list index is out of range", map[string]string{"index": i128string(index), "length": strconv.Itoa(len(list.items))})
 	}
-	list.items[index] = item
+	list.items[index.int64()] = item
 	return value{result: &inputResult{}}
 }
 
@@ -72,11 +72,14 @@ func arrayShape(pos position, dims *listValue, operation string) ([]int64, int, 
 	shape := make([]int64, len(dims.items))
 	zero := false
 	for i, v := range dims.items {
-		shape[i] = v.number
-		if v.number < 0 {
-			return nil, 0, failedCollection(pos, CodeArrayShape, operation, "array extents cannot be negative", map[string]string{"axis": strconv.Itoa(i), "extent": strconv.FormatInt(v.number, 10)})
+		if v.number.negative() {
+			return nil, 0, failedCollection(pos, CodeArrayShape, operation, "array extents cannot be negative", map[string]string{"axis": strconv.Itoa(i), "extent": i128string(v.number)})
 		}
-		zero = zero || v.number == 0
+		if !v.number.fits64() {
+			return nil, 0, failedCollection(pos, CodeCollectionLimit, operation, "array exceeds element limit", map[string]string{"limit": strconv.Itoa(maxCollectionElements)})
+		}
+		shape[i] = v.number.int64()
+		zero = zero || v.number.isZero()
 	}
 	if zero {
 		return shape, 0, value{}
@@ -101,7 +104,7 @@ func arrayNew(pos position, dims *listValue, fill value) value {
 	}
 	return value{result: &inputResult{value: value{array: &arrayValue{shape: shape, items: items}}}}
 }
-func arrayIndex(pos position, a *arrayValue, indices []int64, item value, write bool) value {
+func arrayIndex(pos position, a *arrayValue, indices []i128, item value, write bool) value {
 	operation := "array.index"
 	if write {
 		operation = "array.set"
@@ -113,11 +116,11 @@ func arrayIndex(pos position, a *arrayValue, indices []int64, item value, write 
 		return failedCollection(pos, CodeArrayRank, operation, "array index has the wrong rank", map[string]string{"rank": strconv.Itoa(len(indices)), "expected_rank": strconv.Itoa(len(a.shape))})
 	}
 	offset := int64(0)
-	for i, n := range indices {
-		if n < 0 || n >= a.shape[i] {
-			return failedCollection(pos, CodeArrayRange, operation, "array coordinate is out of range", map[string]string{"axis": strconv.Itoa(i), "index": strconv.FormatInt(n, 10), "extent": strconv.FormatInt(a.shape[i], 10)})
+	for i, index := range indices {
+		if !index.fits64() || index.int64() < 0 || index.int64() >= a.shape[i] {
+			return failedCollection(pos, CodeArrayRange, operation, "array coordinate is out of range", map[string]string{"axis": strconv.Itoa(i), "index": i128string(index), "extent": strconv.FormatInt(a.shape[i], 10)})
 		}
-		offset = offset*a.shape[i] + n
+		offset = offset*a.shape[i] + index.int64()
 	}
 	if write {
 		a.items[offset] = item

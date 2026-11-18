@@ -61,7 +61,7 @@ func TestInferredFailureReturnsOnceAndKeepsOrigin(t *testing.T) {
 	source := "word inner(raw: String) -> Int\n    text.to-int(raw) try\nword outer(raw: String) -> Int\n    inner(raw) try\nouter(\"bad\") try\n"
 	var out, trace bytes.Buffer
 	err := RunWithTrace("test.zhex", source, strings.NewReader(""), &out, &trace)
-	if err == nil || !strings.Contains(err.Error(), "not a signed 64-bit decimal integer") {
+	if err == nil || !strings.Contains(err.Error(), "not a signed 128-bit decimal integer") {
 		t.Fatalf("error %v", err)
 	}
 	if !strings.Contains(trace.String(), `"word":"outer","value":"err(`) {

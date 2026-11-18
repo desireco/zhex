@@ -2,7 +2,7 @@ package lang
 
 type mapKey struct {
 	text    string
-	number  int64
+	number  i128
 	boolean bool
 }
 type mapEntry struct {

@@ -172,7 +172,7 @@ func TestExamples(t *testing.T) {
 }
 
 func TestInputFailures(t *testing.T) {
-	for _, input := range []string{"", "\n", "  \n", "abc\n", "1.5\n", "9223372036854775808\n", "-9223372036854775809\n", "\xff\n"} {
+	for _, input := range []string{"", "\n", "  \n", "abc\n", "1.5\n", "170141183460469231731687303715884105728\n", "-170141183460469231731687303715884105729\n", "\xff\n"} {
 		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
 			var out bytes.Buffer
 			err := Run("input.zhex", "let n = text.to-int(read-line(\"Number: \") try) try\nprint(n)\n", strings.NewReader(input), &out)

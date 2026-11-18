@@ -45,7 +45,7 @@ func TestTryReturnsFailureAtWordBoundary(t *testing.T) {
 	source := "word parse(s: String) -> Result<Int, ParseError>\n    let n = text.to-int(s) try\n    ok(n)\n\nparse(\"bad\") try\n"
 	var output, trace bytes.Buffer
 	err := RunWithTrace("test.zhex", source, strings.NewReader(""), &output, &trace)
-	if err == nil || !strings.Contains(err.Error(), "not a signed 64-bit decimal integer") {
+	if err == nil || !strings.Contains(err.Error(), "not a signed 128-bit decimal integer") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(trace.String(), `"event":"word-return","word":"parse","value":"err(`) {
@@ -273,7 +273,7 @@ func TestErrorAliasPreservesFamily(t *testing.T) {
 	}
 	good := "word parse() -> Result<Int, ParseError>\n    let n = text.to-int(\"bad\") catch problem\n        let alias = problem\n        return err(alias)\n    ok(n)\nparse() try\n"
 	var out bytes.Buffer
-	if err := Run("test.zhex", good, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "not a signed 64-bit") {
+	if err := Run("test.zhex", good, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "not a signed 128-bit") {
 		t.Fatalf("same-family alias: %v", err)
 	}
 }
@@ -300,7 +300,7 @@ func TestFallibleFlowRequiresTryAndPropagates(t *testing.T) {
 	}
 	source = strings.Replace(source, `flow "42"`, `flow "bad"`, 1)
 	out.Reset()
-	if err := Run("test.zhex", source, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "not a signed 64-bit") || out.Len() != 0 {
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "not a signed 128-bit") || out.Len() != 0 {
 		t.Fatalf("flow failure: %v, output %q", err, out.String())
 	}
 }

@@ -93,7 +93,7 @@ func (s *Session) seamEnter(r *runtime, x *expression, args []value) (value, err
 	if err != nil {
 		var exit *ExitError
 		if errors.As(err, &exit) {
-			return outcome(2, value{number: int64(exit.Status)}), nil
+			return outcome(2, value{number: i128from64(int64(exit.Status))}), nil
 		}
 		return outcome(1, value{text: err.Error()}), nil
 	}

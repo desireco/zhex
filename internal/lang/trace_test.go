@@ -118,7 +118,7 @@ func TestTraceResultBinding(t *testing.T) {
 		{"read-line ok", "line", "let line = read-line(\"x: \")\nline catch\n    \"\"\nprint(\"done\")\n", "abc\n", "ok(\"abc\")", "x: done\n"},
 		{"read-line err", "line", "let line = read-line(\"x: \")\nline catch\n    \"\"\nprint(\"done\")\n", "", "err(\"end of input\")", "x: done\n"},
 		{"to-int ok", "n", "let n = text.to-int(\"48\")\nn catch\n    0\nprint(\"done\")\n", "", "ok(\"48\")", "done\n"},
-		{"to-int err", "n", "let n = text.to-int(\"abc\")\nn catch\n    0\nprint(\"done\")\n", "", "err(\"\\\"abc\\\" is not a signed 64-bit decimal integer\")", "done\n"},
+		{"to-int err", "n", "let n = text.to-int(\"abc\")\nn catch\n    0\nprint(\"done\")\n", "", "err(\"\\\"abc\\\" is not a signed 128-bit decimal integer\")", "done\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var out, trace bytes.Buffer

@@ -197,13 +197,12 @@ func parseJSON(dec *json.Decoder, path string, depth int) (*jsonNode, error) {
 	return nil, &jsonFailure{path: path, message: "invalid JSON value", code: CodeJSONSyntax, offset: dec.InputOffset()}
 }
 
-// exactJSONInt accepts only integer-form JSON tokens in the signed 64-bit range.
-func exactJSONInt(text string) (int64, bool) {
+// exactJSONInt accepts only integer-form JSON tokens in the signed 128-bit range.
+func exactJSONInt(text string) (i128, bool) {
 	if strings.ContainsAny(text, ".eE") {
-		return 0, false
+		return i128{}, false
 	}
-	n, err := strconv.ParseInt(text, 10, 64)
-	return n, err == nil
+	return i128parse(text)
 }
 
 type jsonClone struct {
@@ -302,7 +301,7 @@ func decodeJSONValue(n *jsonNode, s *jsonSchema, def *value, memo *jsonClone, pa
 		}
 		v, ok := exactJSONInt(n.text)
 		if !ok {
-			return value{}, &jsonFailure{path: path, message: "expected an integer-form signed 64-bit number", code: CodeJSONRange, expected: "Int", actual: "number"}
+			return value{}, &jsonFailure{path: path, message: "expected an integer-form signed 128-bit number", code: CodeJSONRange, expected: "Int", actual: "number"}
 		}
 		return value{number: v}, nil
 	case "bool":
@@ -540,7 +539,7 @@ func appendJSON(out *bytes.Buffer, v value, s *jsonSchema, path string, depth in
 	}
 	switch s.kind {
 	case "int":
-		out.WriteString(strconv.FormatInt(v.number, 10))
+		out.WriteString(i128string(v.number))
 	case "bool":
 		out.WriteString(strconv.FormatBool(v.boolean))
 	case "string":

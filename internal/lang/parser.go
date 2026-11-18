@@ -1,7 +1,6 @@
 package lang
 
 import (
-	"strconv"
 	"strings"
 )
 
@@ -806,9 +805,9 @@ func (p *parser) unary() *expression {
 }
 
 func (p *parser) number(t token) *expression {
-	n, err := strconv.ParseInt(t.text, 10, 64)
-	if err != nil {
-		panic(errorAt(t.pos, CodeIntegerLiteralRange, "integer literal is outside the signed 64-bit range"))
+	n, ok := i128parse(t.text)
+	if !ok {
+		panic(errorAt(t.pos, CodeIntegerLiteralRange, "integer literal is outside the signed 128-bit range"))
 	}
 	return &expression{kind: "int", number: n, pos: t.pos, end: t.end}
 }

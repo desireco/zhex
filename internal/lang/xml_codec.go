@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -119,16 +120,20 @@ func namesOf(stack []*xmlElement) []string {
 	return names
 }
 
+// xmlIntegerForm is the integer-form shape: optional sign, digits only.
+var xmlIntegerForm = regexp.MustCompile(`^[+-]?[0-9]+$`)
+
 // exactXMLInt parses integer-form element or attribute text in the signed
-// 64-bit range; ErrRange is a range failure, anything else a type failure.
-func exactXMLInt(text, path string) (int64, error) {
+// 128-bit range; integer-form text beyond the width is a range failure,
+// anything else a type failure.
+func exactXMLInt(text, path string) (i128, error) {
 	trimmed := strings.TrimSpace(text)
-	n, err := strconv.ParseInt(trimmed, 10, 64)
-	if err != nil {
-		if errors.Is(err, strconv.ErrRange) {
-			return 0, &xmlFailure{path: path, message: "expected an integer-form signed 64-bit number", code: CodeXMLRange, expected: "Int", actual: trimmed}
+	n, ok := i128parse(trimmed)
+	if !ok {
+		if xmlIntegerForm.MatchString(trimmed) {
+			return i128{}, &xmlFailure{path: path, message: "expected an integer-form signed 128-bit number", code: CodeXMLRange, expected: "Int", actual: trimmed}
 		}
-		return 0, &xmlFailure{path: path, message: "expected Int", code: CodeXMLType, expected: "Int", actual: "text"}
+		return i128{}, &xmlFailure{path: path, message: "expected Int", code: CodeXMLType, expected: "Int", actual: "text"}
 	}
 	return n, nil
 }

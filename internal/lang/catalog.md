@@ -60,7 +60,7 @@ A block header is followed by nothing. Every block needs at least one statement.
 Expressions or blocks nest past the parser's limit. Split the expression into named parts with `let`.
 
 ## integer-literal-range
-An integer literal is outside the signed 64-bit range. Keep literals within ±9223372036854775807; compute larger values at runtime.
+An integer literal is outside the signed 128-bit range. Keep literals within ±170141183460469231731687303715884105727; compute larger values at runtime.
 
 ## expected-expression
 A token cannot start an expression where one is required.
@@ -177,7 +177,7 @@ An imported file contains top-level statements. Imported files declare words onl
 A word or record type beginning with an underscore is private to its module. Public declarations cannot expose a private record type. Make the declaration private or use a public type.
 
 ## integer-overflow
-An arithmetic result does not fit in a signed 64-bit integer. Overflow is an error in Zhex, not a wraparound; keep intermediate values in range.
+An arithmetic result does not fit in a signed 128-bit integer. Overflow is an error in Zhex, not a wraparound; keep intermediate values in range.
 
 ## division-zero
 Division or remainder by zero. Guard the divisor with a condition first.
@@ -198,7 +198,7 @@ Reading a line from the input stream failed, usually because the input ended. Th
 The line read from the input stream is not valid UTF-8. Zhex reads UTF-8 text; supply the input as UTF-8.
 
 ## text-to-int
-The text given to `text.to-int` is not a signed 64-bit decimal integer. It accepts only digits, with an optional sign; surrounding whitespace is ignored.
+The text given to `text.to-int` is not a signed 128-bit decimal integer. It accepts only digits, with an optional sign; surrounding whitespace is ignored.
 
 ## replace-empty
 `text.replace` was called with an empty old text. Every position matches an empty string, so there is no sane result; this is a bug signal, not a recoverable case. Pass a nonempty old text.

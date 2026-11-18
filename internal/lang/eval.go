@@ -4,14 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strconv"
 	"time"
 )
 
 type value struct {
-	number   int64
+	number   i128
 	boolean  bool
 	text     string
 	result   *inputResult
@@ -269,7 +268,8 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 		if err != nil {
 			return value{}, err
 		}
-		for n := v.number; n < end.number; n++ {
+		// n stays below end, so the successor cannot overflow i128.
+		for n := v.number; i128cmp(n, end.number) < 0; n, _ = i128add(n, i128from64(1)) {
 			env[s.binding] = value{number: n}
 			r.traceBinding(s.pos, s.binding, value{number: n})
 			if _, err := r.block(s.body, env); err != nil {
@@ -310,12 +310,12 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			first := item
 			if s.secondBinding != nil {
 				if v.list != nil {
-					first = value{number: int64(index)}
+					first = value{number: i128from64(int64(index))}
 				} else {
 					coords := make([]value, len(v.array.shape))
 					n := int64(index)
 					for i := len(coords) - 1; i >= 0; i-- {
-						coords[i] = value{number: n % v.array.shape[i]}
+						coords[i] = value{number: i128from64(n % v.array.shape[i])}
 						n /= v.array.shape[i]
 					}
 					first = value{list: &listValue{items: coords}}
@@ -451,7 +451,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 		if err != nil {
 			return value{}, err
 		}
-		indices := make([]int64, len(idx.args))
+		indices := make([]i128, len(idx.args))
 		keys := make([]value, len(idx.args))
 		for i, arg := range idx.args {
 			v, err := r.expression(arg, env)
@@ -582,12 +582,13 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 		if x.text == "not" {
 			return value{boolean: !v.boolean}, nil
 		}
-		if v.number == math.MinInt64 {
+		n, ok := i128neg(v.number)
+		if !ok {
 			d := errorAt(x.pos, CodeIntegerOverflow, "integer overflow").(*diagnostic)
 			d.operation = x.text
 			return value{}, d
 		}
-		return value{number: -v.number}, nil
+		return value{number: n}, nil
 	case "binary":
 		left, err := r.expression(x.left, env)
 		if err != nil {
@@ -714,10 +715,10 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 				}
 				switch x.text {
 				case "buffer.line", "buffer.set-line":
-					d.details["index"] = strconv.FormatInt(args[1].number, 10)
+					d.details["index"] = i128string(args[1].number)
 					d.details["line-count"] = strconv.Itoa(len(args[0].buffer.lines))
 				case "console.arg":
-					d.details["index"] = strconv.FormatInt(args[0].number, 10)
+					d.details["index"] = i128string(args[0].number)
 					d.details["argument-count"] = strconv.Itoa(len(r.args))
 				case "file.read", "file.open":
 					d.details["path"] = args[0].text
@@ -823,53 +824,50 @@ func binary(x *expression, a, b value) (value, error) {
 		}
 		return value{boolean: equal}, nil
 	case "<":
-		return value{boolean: a.number < b.number}, nil
+		return value{boolean: i128cmp(a.number, b.number) < 0}, nil
 	case "<=":
-		return value{boolean: a.number <= b.number}, nil
+		return value{boolean: i128cmp(a.number, b.number) <= 0}, nil
 	case ">":
-		return value{boolean: a.number > b.number}, nil
+		return value{boolean: i128cmp(a.number, b.number) > 0}, nil
 	case ">=":
-		return value{boolean: a.number >= b.number}, nil
+		return value{boolean: i128cmp(a.number, b.number) >= 0}, nil
 	case "+":
 		if x.typ == stringType {
 			// The string-context Int exception renders an Int operand the
 			// way int.to-string does.
 			leftText, rightText := a.text, b.text
 			if x.left.typ == intType {
-				leftText = strconv.FormatInt(a.number, 10)
+				leftText = i128string(a.number)
 			}
 			if x.right.typ == intType {
-				rightText = strconv.FormatInt(b.number, 10)
+				rightText = i128string(b.number)
 			}
 			return value{text: leftText + rightText}, nil
 		}
 	}
-	var n int64
+	var n i128
 	overflow := false
 	switch x.text {
 	case "+":
-		n = a.number + b.number
-		overflow = b.number > 0 && a.number > math.MaxInt64-b.number || b.number < 0 && a.number < math.MinInt64-b.number
+		n, overflow = i128add(a.number, b.number)
 	case "-":
-		n = a.number - b.number
-		overflow = b.number < 0 && a.number > math.MaxInt64+b.number || b.number > 0 && a.number < math.MinInt64+b.number
+		n, overflow = i128sub(a.number, b.number)
 	case "*":
-		n = a.number * b.number
-		overflow = a.number != 0 && (a.number == -1 && b.number == math.MinInt64 || n/a.number != b.number)
+		n, overflow = i128mul(a.number, b.number)
 	case "/", "%":
-		if b.number == 0 {
+		if b.number.isZero() {
 			return value{}, errorAt(x.pos, CodeDivisionZero, "division or remainder by zero")
 		}
-		if a.number == math.MinInt64 && b.number == -1 {
+		if a.number == i128Min && b.number == i128from64(-1) {
 			if x.text == "%" {
-				return value{number: 0}, nil
+				return value{number: i128from64(0)}, nil
 			}
 			return value{}, errorAt(x.pos, CodeIntegerOverflow, "integer overflow")
 		}
-		if x.text == "/" {
-			n = a.number / b.number
-		} else {
-			n = a.number % b.number
+		var rem i128
+		n, rem = i128divmod(a.number, b.number)
+		if x.text == "%" {
+			n = rem
 		}
 	}
 	if overflow {
