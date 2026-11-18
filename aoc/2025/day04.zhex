@@ -1,18 +1,88 @@
+# Advent of Code 2025, day 4 — Printing Department (solution words).
+# The input is a floor diagram: @ marks a roll of paper, . an empty spot.
+# A roll is accessible while fewer than four of its eight neighbors hold
+# rolls. Part 1 counts the accessible rolls; part 2 repeats the removal
+# until no roll comes free, counting every roll taken.
+
+## Parse the diagram into its grid rows.
+word parse(text: String) -> List<String>
+    let grid: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(grid, line)
+    grid
+
+word _occupied(grid: List<String>, x: Int, y: Int) -> Bool
+    if y < 0 or y >= list.length(grid)
+        false
+    else
+        let row = grid[y]
+        if x < 0 or x >= text.length(row)
+            false
+        else
+            text.slice(row, x, x + 1) == "@"
+
+word _neighbor-count(grid: List<String>, x: Int, y: Int) -> Int
+    var count = 0
+    for dy in range(-1, 2)
+        for dx in range(-1, 2)
+            if not (dx == 0 and dy == 0)
+                if _occupied(grid, x + dx, y + dy)
+                    count = count + 1
+    count
+
+## Count the rolls with fewer than four occupied neighbors.
+word part-one(grid: List<String>) -> Int
+    var accessible = 0
+    for y in range(0, list.length(grid))
+        let row = grid[y]
+        for x in range(0, text.length(row))
+            if text.slice(row, x, x + 1) == "@" and _neighbor-count(grid, x, y) < 4
+                accessible = accessible + 1
+    accessible
+
+# One simultaneous removal round: every accessible roll comes free at once,
+# so neighbor counts use the grid as it stood at the round's start.
+word _remove-round(grid: List<String>) -> List<String>
+    let next: List<String> = []
+    for y in range(0, list.length(grid))
+        let row = grid[y]
+        var rebuilt = ""
+        for x in range(0, text.length(row))
+            if text.slice(row, x, x + 1) == "@" and _neighbor-count(grid, x, y) < 4
+                rebuilt = rebuilt + "."
+            else
+                rebuilt = rebuilt + text.slice(row, x, x + 1)
+        list.append(next, rebuilt)
+    next
+
+## Remove accessible rolls round by round to the fixpoint, counting
+## every roll removed along the way.
+word part-two(grid: List<String>) -> Int
+    var current = grid
+    var removed = part-one(current)
+    var round-removed = removed
+    while round-removed > 0
+        current = _remove-round(current)
+        round-removed = part-one(current)
+        removed = removed + round-removed
+    removed
+
 # Advent of Code 2025, day 4 — Printing Department.
 # Reads the floor diagram from stdin until end of input, prints both answers.
-use day04-core
 
-# shortcut: a diagram row is always @ and . characters, so this sentinel
-# cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let grid = day04-core.parse(buffer.to-text(input))
-print(day04-core.part-one(grid))
-print(day04-core.part-two(grid))
+word main()
+    # shortcut: a diagram row is always @ and . characters, so this sentinel
+    # cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let grid = parse(buffer.to-text(input))
+    print(part-one(grid))
+    print(part-two(grid))

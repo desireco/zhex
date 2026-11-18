@@ -1,18 +1,70 @@
+# Advent of Code 2025, day 2 — Gift Shop (solution words).
+# The input is one line of comma-separated ID ranges, each "first-last".
+# An ID is invalid when its digits are one block repeated: exactly twice
+# in part 1, any number of times in part 2. Each part sums the invalid IDs.
+
+# Whether the digits are the leading block repeated back to back; the
+# caller guarantees the block length divides the digit length.
+word _repeats-block(digits: String, block-length: Int) -> Bool
+    var same = true
+    var index = block-length
+    while same and index < text.length(digits)
+        if text.slice(digits, index, index + block-length) != text.slice(digits, 0, block-length)
+            same = false
+        index = index + block-length
+    same
+
+## Parse the comma-separated ranges into every ID they expand to.
+word parse(text: String) -> List<Int>
+    let ids: List<Int> = []
+    for part in text.split(text, ",")
+        if text.length(part) > 0
+            let dash = text.index-of(part, "-")
+            let first = text.to-int(text.slice(part, 0, dash)) try
+            let last = text.to-int(text.slice(part, dash + 1, text.length(part))) try
+            for id in range(first, last + 1)
+                list.append(ids, id)
+    ids
+
+## Sum the IDs whose digits are one block repeated exactly twice.
+word part-one(ids: List<Int>) -> Int
+    var total = 0
+    for id in ids
+        let digits = int.to-string(id)
+        if text.length(digits) % 2 == 0 and _repeats-block(digits, text.length(digits) / 2)
+            total = total + id
+    total
+
+## Sum the IDs whose digits are one block repeated any number of times.
+word part-two(ids: List<Int>) -> Int
+    var total = 0
+    for id in ids
+        let digits = int.to-string(id)
+        var invalid = false
+        var block-length = 1
+        while not invalid and block-length <= text.length(digits) / 2
+            if text.length(digits) % block-length == 0
+                invalid = _repeats-block(digits, block-length)
+            block-length = block-length + 1
+        if invalid
+            total = total + id
+    total
+
 # Advent of Code 2025, day 2 — Gift Shop.
 # Reads the price list from stdin until end of input, prints both answers.
-use day02-core
 
-# shortcut: a range is always digits around a dash, so this sentinel cannot
-# collide; it stands in for the end-of-file failure because error.detail is
-# not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let ids = day02-core.parse(buffer.to-text(input)) try
-print(day02-core.part-one(ids))
-print(day02-core.part-two(ids))
+word main()
+    # shortcut: a range is always digits around a dash, so this sentinel cannot
+    # collide; it stands in for the end-of-file failure because error.detail is
+    # not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let ids = parse(buffer.to-text(input)) try
+    print(part-one(ids))
+    print(part-two(ids))

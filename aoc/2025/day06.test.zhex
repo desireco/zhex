@@ -1,9 +1,9 @@
-use day06-core
+use day06
 use test
 
 let sample = "123 328  51 64 \n 45 64  387 23 \n  6 98  215 314\n*   +   *   +  "
-let worksheet = day06-core.parse(sample) try
+let worksheet = day06.parse(sample) try
 
-test.check(day06-core.part-one(worksheet) == 4277556, "day 6 part 1")
-test.check(day06-core.part-two(worksheet) == 3263827, "day 6 part 2")
+test.check(day06.part-one(worksheet) == 4277556, "day 6 part 1")
+test.check(day06.part-two(worksheet) == 3263827, "day 6 part 2")
 print "day 6 tests passed"

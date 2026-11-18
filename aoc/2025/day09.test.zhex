@@ -1,9 +1,9 @@
-use day09-core
+use day09
 use test
 
 let sample = "7,1\n11,1\n11,7\n9,7\n9,5\n2,5\n2,3\n7,3"
-let tiles = day09-core.parse(sample) try
+let tiles = day09.parse(sample) try
 
-test.check(day09-core.part-one(tiles) == 50, "day 9 part 1")
-test.check(day09-core.part-two(tiles) == 24, "day 9 part 2")
+test.check(day09.part-one(tiles) == 50, "day 9 part 1")
+test.check(day09.part-two(tiles) == 24, "day 9 part 2")
 print "day 9 tests passed"

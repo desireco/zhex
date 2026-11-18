@@ -1,9 +1,9 @@
-use day03-core
+use day03
 use test
 
 let sample = "987654321111111\n811111111111119\n234234234234278\n818181911112111"
-let banks = day03-core.parse(sample) try
+let banks = day03.parse(sample) try
 
-test.check(day03-core.part-one(banks) == 357, "day 3 part 1")
-test.check(day03-core.part-two(banks) == 3121910778619, "day 3 part 2")
+test.check(day03.part-one(banks) == 357, "day 3 part 1")
+test.check(day03.part-two(banks) == 3121910778619, "day 3 part 2")
 print "day 3 tests passed"

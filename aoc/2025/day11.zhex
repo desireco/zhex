@@ -1,18 +1,106 @@
+# Advent of Code 2025, day 11 — Reactor (solution words).
+# The input is a wiring list: each line names a device and the devices
+# its outputs feed, and data never flows backward, so the wiring is a
+# DAG. Part 1 counts the distinct routes from "you" to "out". Part 2
+# restarts from "svr" and counts only routes that visit both "dac" and
+# "fft" — inclusion-exclusion over four plain path counts, each one an
+# iterative accumulation over a Kahn topological order (no recursion).
+
+type Wiring = record
+    devices: List<String>
+    wires: Map<String, List<String>>
+
+## Parse one "device: target target" line per input line.
+word parse(text: String) -> Wiring
+    let devices: List<String> = []
+    let wires: Map<String, List<String>> = {}
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let halves = text.split(line, ": ")
+            let name = halves[0]
+            let known = map.contains(wires, name)
+            map.put(wires, name, text.split(halves[1], " "))
+            if not known
+                let added = list.append(devices, name)
+    Wiring(devices, wires)
+
+# A device's current count in a Map<String, Int>; absent means zero.
+word _count-of(counts: Map<String, Int>, name: String) -> Int
+    match counts[name]
+        case Option.Some(value)
+            value
+        case Option.None
+            0
+
+# A device's wiring list; devices come from the map's own keys, so the
+# None arm is unreachable for real inputs.
+word _targets-of(wiring: Wiring, device: String) -> List<String>
+    match wiring.wires[device]
+        case Option.Some(targets)
+            targets
+        case Option.None
+            let none: List<String> = []
+            none
+
+# Routes from `start` to "out", treating `skip-one` and `skip-two` as
+# deleted devices ("" deletes nothing). Kahn order: count incoming
+# wires, queue the sources, then every dequeue pushes its route count
+# along its wires; the queue is an append-only list walked by a head
+# index, so first-in-first-out needs no pop word.
+word _routes(wiring: Wiring, start: String, skip-one: String, skip-two: String) -> Int
+    let indegree: Map<String, Int> = {}
+    for device in wiring.devices
+        if device != skip-one and device != skip-two
+            for target in _targets-of(wiring, device)
+                if target != skip-one and target != skip-two
+                    let counted = map.put(indegree, target, _count-of(indegree, target) + 1)
+    let ways: Map<String, Int> = {}
+    if start != skip-one and start != skip-two
+        let seeded = map.put(ways, start, 1)
+    let queue: List<String> = []
+    for device in wiring.devices
+        if device != skip-one and device != skip-two and _count-of(indegree, device) == 0
+            let added = list.append(queue, device)
+    var head = 0
+    while head < list.length(queue)
+        let device = queue[head]
+        head = head + 1
+        for target in _targets-of(wiring, device)
+            if target != skip-one and target != skip-two
+                map.put(ways, target, _count-of(ways, target) + _count-of(ways, device))
+                map.put(indegree, target, _count-of(indegree, target) - 1)
+                if _count-of(indegree, target) == 0
+                    let added = list.append(queue, target)
+    _count-of(ways, "out")
+
+## Count the distinct routes from "you" to "out".
+word part-one(wiring: Wiring) -> Int
+    _routes(wiring, "you", "", "")
+
+# Routes from "svr" to "out" through both "dac" and "fft": all routes,
+# minus the ones avoiding either, plus the ones avoiding both.
+word part-two(wiring: Wiring) -> Int
+    let all = _routes(wiring, "svr", "", "")
+    let without-dac = _routes(wiring, "svr", "dac", "")
+    let without-fft = _routes(wiring, "svr", "fft", "")
+    let without-either = _routes(wiring, "svr", "dac", "fft")
+    all - without-dac - without-fft + without-either
+
 # Advent of Code 2025, day 11 — Reactor.
 # Reads wiring lines from stdin until end of input, prints both answers.
-use day11-core
 
-# shortcut: a wiring line always contains a colon, so this sentinel
-# cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let wiring = day11-core.parse(buffer.to-text(input))
-print(day11-core.part-one(wiring))
-print(day11-core.part-two(wiring))
+word main()
+    # shortcut: a wiring line always contains a colon, so this sentinel
+    # cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let wiring = parse(buffer.to-text(input))
+    print(part-one(wiring))
+    print(part-two(wiring))

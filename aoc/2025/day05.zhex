@@ -1,23 +1,90 @@
+# Advent of Code 2025, day 5 — Cafeteria (solution words).
+# The database lists fresh ingredient ID ranges, a blank line, then the
+# available ingredient IDs; the ranges are inclusive and may overlap, and
+# an ID is fresh when it falls inside any range. Part 1 counts how many of
+# the available IDs are fresh; part 2 measures the ranges themselves — the
+# total number of distinct IDs they cover, overlaps counted once.
+
+## One inclusive fresh-ID range.
+type IdRange = record
+    first: Int
+    last: Int
+
+## The database: the fresh ranges and the available IDs.
+type Database = record
+    ranges: List<IdRange>
+    ids: List<Int>
+
+## Parse the two sections around the blank line.
+word parse(text: String) -> Database
+    let ranges: List<IdRange> = []
+    let ids: List<Int> = []
+    var in-ranges = true
+    for line in text.split(text, "\n")
+        if in-ranges and text.length(line) == 0
+            in-ranges = false
+        elif text.length(line) > 0
+            if in-ranges
+                let dash = text.index-of(line, "-")
+                let first = text.to-int(text.slice(line, 0, dash)) try
+                let last = text.to-int(text.slice(line, dash + 1, text.length(line))) try
+                let added = list.append(ranges, IdRange(first, last))
+            else
+                let added = list.append(ids, text.to-int(line) try)
+    Database(ranges, ids)
+
+word _covers(fresh-range: IdRange, id: Int) -> Bool
+    id >= fresh-range.first and id <= fresh-range.last
+
+## Count the available IDs that fall inside any fresh range.
+word part-one(database: Database) -> Int
+    var fresh = 0
+    for id in database.ids
+        if list.any(database.ranges, _covers(_, id))
+            fresh = fresh + 1
+    fresh
+
+word _range-first(fresh-range: IdRange) -> Int
+    fresh-range.first
+
+## Measure the union of the fresh ranges: sorted by first ID, a range
+## extends the current span while it overlaps and opens a new one after a
+## gap, so overlapping IDs count exactly once.
+word part-two(database: Database) -> Int
+    let sorted = list.sort-by(database.ranges, _range-first(_))
+    let opening = sorted[0]
+    var total = 0
+    var low = opening.first
+    var high = opening.last
+    for fresh-range in sorted
+        if fresh-range.first > high
+            total = total + (high - low + 1)
+            low = fresh-range.first
+            high = fresh-range.last
+        elif fresh-range.last > high
+            high = fresh-range.last
+    total + (high - low + 1)
+
 # Advent of Code 2025, day 5 — Cafeteria.
 # Reads the database from stdin until end of input, prints both answers.
-use day05-core
 
-# The database separates its two sections with a blank line, so the runner
-# branches on the end-of-file detail (error.detail). That word is fenced in
-# the browser build (#135), and the sentinel workaround days 1-4 use cannot
-# detect end-of-file either. The door carries the fence note until the
-# engine lane fixes #135.
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch problem
-        if error.detail(problem, "reason") == "end-of-file"
-            done = true
-            ""
-        else
-            error.message(problem)
-    if not done
-        let added = buffer.add-line(input, line)
-let database = day05-core.parse(buffer.to-text(input)) try
-print(day05-core.part-one(database))
-print(day05-core.part-two(database))
+word main()
+    # The database separates its two sections with a blank line, so the runner
+    # branches on the end-of-file detail (error.detail). That word is fenced in
+    # the browser build (#135), and the sentinel workaround days 1-4 use cannot
+    # detect end-of-file either. The door carries the fence note until the
+    # engine lane fixes #135.
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch problem
+            if error.detail(problem, "reason") == "end-of-file"
+                done = true
+                ""
+            else
+                error.message(problem)
+        if not done
+            let added = buffer.add-line(input, line)
+    let database = parse(buffer.to-text(input)) try
+    print(part-one(database))
+    print(part-two(database))

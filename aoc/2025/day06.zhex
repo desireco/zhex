@@ -1,18 +1,106 @@
+# Advent of Code 2025, day 6 — Trash Compactor (solution words).
+# The math worksheet stacks each problem's numbers vertically with its
+# operator (+ or *) at the bottom; problems sit side by side, separated by
+# a full column of spaces. Part 1 reads the numbers row-wise: each row
+# lists one number per problem in order. Part 2 reads them column-wise:
+# each column of digits, top to bottom, is one number, and an all-space
+# column moves to the next problem. Both parts total the problems' answers.
+
+## The worksheet, decoded: its operators plus each problem's numbers read
+## row-wise and column-wise.
+type Worksheet = record
+    operators: List<String>
+    rowwise: List<List<Int>>
+    columnwise: List<List<Int>>
+
+# The non-space fields of a row, in order.
+word _fields(row: String) -> List<String>
+    let fields: List<String> = []
+    for field in text.split(row, " ")
+        if text.length(field) > 0
+            let added = list.append(fields, field)
+    fields
+
+# One empty number list per problem, ready to fill.
+word _empty-columns(count: Int) -> List<List<Int>>
+    let columns: List<List<Int>> = []
+    for problem in range(0, count)
+        let numbers: List<Int> = []
+        list.append(columns, numbers)
+    columns
+
+## Parse the worksheet: split each data row's numbers problem by problem,
+## then stack each column's digits top to bottom into one number per
+## column, with all-space columns separating problems.
+word parse(text: String) -> Worksheet
+    let rows: List<String> = []
+    for line in text.split(text, "\n")
+        if text.length(line) > 0
+            let added = list.append(rows, line)
+    let operators = _fields(rows[list.length(rows) - 1])
+    let rowwise = _empty-columns(list.length(operators))
+    for index in range(0, list.length(rows) - 1)
+        let fields = _fields(rows[index])
+        for problem in range(0, list.length(operators))
+            list.append(rowwise[problem], text.to-int(fields[problem]) try)
+    let columnwise = _empty-columns(list.length(operators))
+    var problem = 0
+    for column in range(0, text.length(rows[0]))
+        var digits = ""
+        for index in range(0, list.length(rows) - 1)
+            let row = rows[index]
+            if column < text.length(row)
+                let character = text.slice(row, column, column + 1)
+                if character != " "
+                    digits = digits + character
+        if text.length(digits) > 0
+            let added = list.append(columnwise[problem], text.to-int(digits) try)
+        else
+            problem = problem + 1
+    Worksheet(operators, rowwise, columnwise)
+
+# Apply one problem's operator to its numbers.
+word _apply(operator: String, numbers: List<Int>) -> Int
+    var total = 0
+    if operator == "*"
+        total = 1
+    for number in numbers
+        if operator == "*"
+            total = total * number
+        else
+            total = total + number
+    total
+
+# Total the worksheet under one reading of the numbers.
+word _total(operators: List<String>, numbers: List<List<Int>>) -> Int
+    var total = 0
+    for problem in range(0, list.length(operators))
+        total = total + _apply(operators[problem], numbers[problem])
+    total
+
+## Total the answers with the numbers read row-wise.
+word part-one(worksheet: Worksheet) -> Int
+    _total(worksheet.operators, worksheet.rowwise)
+
+## Total the answers with the numbers read column-wise.
+word part-two(worksheet: Worksheet) -> Int
+    _total(worksheet.operators, worksheet.columnwise)
+
 # Advent of Code 2025, day 6 — Trash Compactor.
 # Reads the worksheet from stdin until end of input, prints both answers.
-use day06-core
 
-# shortcut: a worksheet row is digits, spaces, +, and *, so this sentinel
-# cannot collide; it stands in for the end-of-file failure because
-# error.detail is not compiled to wasm yet (#135)
-let input = buffer.new()
-var done = false
-while not done
-    let line = read-line("") catch "~end-of-input~"
-    if line == "~end-of-input~"
-        done = true
-    else
-        let added = buffer.add-line(input, line)
-let worksheet = day06-core.parse(buffer.to-text(input)) try
-print(day06-core.part-one(worksheet))
-print(day06-core.part-two(worksheet))
+word main()
+    # shortcut: a worksheet row is digits, spaces, +, and *, so this sentinel
+    # cannot collide; it stands in for the end-of-file failure because
+    # error.detail is not compiled to wasm yet (#135)
+    let input = buffer.new()
+    var done = false
+    while not done
+        let line = read-line("") catch "~end-of-input~"
+        if line == "~end-of-input~"
+            done = true
+        else
+            let added = buffer.add-line(input, line)
+    let worksheet = parse(buffer.to-text(input)) try
+    print(part-one(worksheet))
+    print(part-two(worksheet))

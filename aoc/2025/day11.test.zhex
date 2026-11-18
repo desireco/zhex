@@ -1,15 +1,15 @@
-use day11-core
+use day11
 use test
 
 let sample-one = "aaa: you hhh\nyou: bbb ccc\nbbb: ddd eee\nccc: ddd eee fff\nddd: ggg\neee: out\nfff: out\nggg: out\nhhh: ccc fff iii\niii: out"
 let sample-two = "svr: aaa bbb\naaa: fft\nfft: ccc\nbbb: tty\ntty: ccc\nccc: ddd eee\nddd: hub\nhub: fff\neee: dac\ndac: fff\nfff: ggg hhh\nggg: out\nhhh: out"
-let wiring-one = day11-core.parse(sample-one)
-let wiring-two = day11-core.parse(sample-two)
+let wiring-one = day11.parse(sample-one)
+let wiring-two = day11.parse(sample-two)
 
 # the sample file is part one's example, so the door's part-2 answer is
 # the honest 0 — "svr" is absent from that wiring
-test.check(day11-core.part-one(wiring-one) == 5, "day 11 part 1")
-test.check(day11-core.part-two(wiring-one) == 0, "day 11 part 2 on part-1 sample")
-test.check(day11-core.part-one(wiring-two) == 0, "day 11 part 1 on part-2 sample")
-test.check(day11-core.part-two(wiring-two) == 2, "day 11 part 2")
+test.check(day11.part-one(wiring-one) == 5, "day 11 part 1")
+test.check(day11.part-two(wiring-one) == 0, "day 11 part 2 on part-1 sample")
+test.check(day11.part-one(wiring-two) == 0, "day 11 part 1 on part-2 sample")
+test.check(day11.part-two(wiring-two) == 2, "day 11 part 2")
 print "day 11 tests passed"
