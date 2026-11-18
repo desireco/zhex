@@ -65,7 +65,7 @@ var hostWords = []string{
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode", "json.parse", "xml.decode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values",
-	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -1301,6 +1301,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if x.text == "list.append" && i == 1 && len(args) > 0 {
 				_, expected, _ = collectionInner(args[0])
 			}
+			if x.text == "list.insert" && i == 2 && len(args) > 0 {
+				_, expected, _ = collectionInner(args[0])
+			}
 			if (x.text == "list.filter" || x.text == "list.select" || x.text == "list.find" || x.text == "list.any" || x.text == "list.all") && i == 1 && len(args) > 0 {
 				if _, inner, ok := collectionInner(args[0]); ok {
 					expected = functionType([]valueType{inner}, boolType)
@@ -1879,6 +1882,18 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				return "", valueError(x.pos, x.args[0], CodeArgumentType, fmt.Sprintf("list.contains requires a List<Int> or List<String>, found %s", args[0]), "test other element types with list.any and a predicate", x.args[0])
 			}
 			params, result = []valueType{args[0], inner}, boolType
+		case "list.insert":
+			if len(args) != 3 {
+				return "", errorAt(x.pos, CodeArgumentCount, "list.insert requires 3 arguments, found %d", len(args))
+			}
+			kind, inner, ok := collectionInner(args[0])
+			if !ok || kind != "List" || args[1] != intType || args[2] != inner {
+				return "", errorAt(x.pos, CodeArgumentType, "list.insert requires a List, an Int index, and a matching element")
+			}
+			if args[2] == errorType && x.args[2].binding != nil && x.args[2].binding.errorFamily != "" && x.args[2].binding.errorFamily != "Error" {
+				return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+			}
+			params, result = args, valueType("Result<"+string(args[0])+", Error>")
 		case "list.sort":
 			if len(args) != 1 {
 				return "", errorAt(x.pos, CodeArgumentCount, "list.sort requires 1 argument, found %d", len(args))

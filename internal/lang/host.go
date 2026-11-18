@@ -135,6 +135,20 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		args[0].list.items = append(args[0].list.items, args[1])
 		return value{result: &inputResult{value: args[0]}}, nil
+	case "list.insert":
+		if args[0].list.active > 0 {
+			return failedCollection(x.pos, CodeCollectionIterating, "list.insert", "collection is being iterated", nil), nil
+		}
+		if len(args[0].list.items) >= maxCollectionElements {
+			return failedCollection(x.pos, CodeCollectionLimit, "list.insert", "list exceeds element limit", nil), nil
+		}
+		index := args[1].number
+		if index < 0 || index > int64(len(args[0].list.items)) {
+			return failedCollection(x.pos, CodeListRange, "list.insert", "list insert index is out of range", map[string]string{"index": strconv.FormatInt(index, 10), "length": strconv.Itoa(len(args[0].list.items))}), nil
+		}
+		rest := append([]value{args[2]}, args[0].list.items[index:]...)
+		args[0].list.items = append(args[0].list.items[:index], rest...)
+		return value{result: &inputResult{value: args[0]}}, nil
 	case "list.length":
 		return value{number: int64(len(args[0].list.items))}, nil
 	case "list.map":

@@ -1021,7 +1021,7 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			return termFromType(boolFileResultType)
 		}
 		return namedType("Bool")
-	case "list.length", "list.append":
+	case "list.length", "list.append", "list.insert":
 		element := freshType()
 		if len(args) > 0 {
 			s.equal(args[0], namedType("List", element), x.pos)
@@ -1029,7 +1029,14 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		if x.text == "list.length" {
 			return namedType("Int")
 		}
-		if len(args) > 1 {
+		if x.text == "list.insert" {
+			if len(args) > 1 {
+				s.equal(args[1], namedType("Int"), x.pos)
+			}
+			if len(args) > 2 {
+				s.equal(args[2], element, x.pos)
+			}
+		} else if len(args) > 1 {
 			s.equal(args[1], element, x.pos)
 		}
 		if checked {
