@@ -44,6 +44,7 @@ Plain operations return ordinary values and raise runtime diagnostics when valid
 | `list.find(list, predicate)` | `Option<T>` | Return `Option.Some` for the first matching element and `Option.None` when nothing matches, including an empty list. |
 | `list.any(list, predicate)` | `Bool` | Stop at the first element whose predicate holds and return `true`; an empty list is `false`. |
 | `list.all(list, predicate)` | `Bool` | Stop at the first element whose predicate fails and return `false`; an empty list is `true`. |
+| `list.contains(list, item)` | `Bool` | Membership for `List<Int>` and `List<String>`: a linear scan that stops at the first equal element; an empty list is `false`. |
 | `list.sort(list)` | `List<T>` | Return a stable ascending copy of a `List<Int>` or `List<String>`; `String` order is Unicode code-point order. |
 | `list.sort-by(list, key)` | `List<T>` | Return a stable ascending copy ordered by `key` (`(T) -> Int` or `(T) -> String`), evaluated once per element in source order; same freshness rules as `list.map`. |
 
@@ -60,6 +61,8 @@ items[0] = second
 The seven list callback words take ordinary function values — explicit partials such as `text.trim(_)`, word-name partials such as `passing(_)`, or let-bound callables; there is no lambda syntax. Callbacks run once per element, left to right, and may print or mutate unrelated values. A callback whose type returns a `Result` is rejected at check time, as is a `list.fold` accumulator, with `a Result cannot be returned from a callback` (`unhandled-result`). While callbacks run, the source list holds its traversal guard: mutating it, including through aliases, raises the `collection-iterating` runtime diagnostic before the change. `list.any` and `list.all` stop calling the predicate once the answer is determined, so effects from later elements' callbacks do not happen; `list.select` and `array.select` visit every element or row — they never short-circuit.
 
 `list.sort` and `list.sort-by` return stable ascending copies: a fresh outer list with shared elements, an unchanged source, and equal keys keeping source order. `list.sort` accepts `List<Int>` or `List<String>` values; `list.sort-by` orders any list by a key that is a callback under the same contract, evaluated exactly once per element in source order before any comparison while the traversal guard is held, and returning `Int` or `String`. `String` order is Unicode code-point order, without locale collation or normalization. Wrong types fail at check time before any key runs: `list.sort requires a List<Int> or List<String>, found ...`, `list.sort-by requires a key function, found ...`, and `list.sort-by key must return Int or String, found ...`.
+
+`list.contains(list, item)` answers membership under the same constrained overloads as `list.sort`: it accepts `List<Int>` with an `Int` item or `List<String>` with a `String` item — string equality is exact, with no trimming — and every other element type fails at check time with `list.contains requires a List<Int> or List<String>, found ...` and a hint to test other element types with `list.any` and a predicate. The scan holds the source list's traversal guard and stops at the first matching element; an empty list is `false`.
 
 ```zhex
 word passing score: Int -> Bool

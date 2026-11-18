@@ -969,6 +969,15 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			s.equal(args[1], namedType("@function", namedType("List", element), namedType("Bool")), x.pos)
 		}
 		return namedType("Array", element)
+	case "list.contains":
+		element := freshType()
+		if len(args) > 0 {
+			s.equal(args[0], namedType("List", element), x.pos)
+		}
+		if len(args) > 1 {
+			s.equal(args[1], element, x.pos)
+		}
+		return namedType("Bool")
 	case "list.sort":
 		element := freshType()
 		if len(args) > 0 {

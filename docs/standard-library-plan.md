@@ -10,14 +10,14 @@ The strongest lessons are Go's explicit namespaces and host boundaries, Python's
 
 ## Current inventory and evidence
 
-The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words; #79 shipped `xml.decode` on the stdlib encoding/xml tokenizer; #64 shipped the two environment words; the #157 review follow-ups shipped the text code-point pair (#160), the floored modulo word (#161), and the map extraction pair (#162). [`hostWords` in check.go](../internal/lang/check.go) registers **119 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
+The baseline is commit `b4b6f59`; stories S1 (#57), S2 (#58), S4 (#60), S5 (#61), and S6 (#62) have since shipped four text words, one file word, six list callback words, and two list sorting words; #68 renamed the read side to `file.read` and `file.stream` while retiring `file.read-lines`; S9 (#73) shipped four file inspect words, S11 (#74) four lexical path words, and S10 (#75) four destructive file words; #76 shipped `json.parse` over the host-predeclared `Json` tree type; #70 added the two select-by-predicate words; #79 shipped `xml.decode` on the stdlib encoding/xml tokenizer; #64 shipped the two environment words; the #157 review follow-ups shipped the text code-point pair (#160), the floored modulo word (#161), the map extraction pair (#162), and the list membership word (#163). [`hostWords` in check.go](../internal/lang/check.go) registers **120 names**. Constructors, operators, bracket access/assignment, and REPL commands are additional syntax or session facilities, not additional registered host words. The table is a complete name inventory; the linked site references specify signatures and edge cases.
 
 | Owner | Shipped words | Reference and executable evidence |
 | --- | --- | --- |
 | Bare | `print`, `range`, `read-line`, `ok`, `err` | [Console](../site/src/content/docs/console.md), [Results](../site/src/content/docs/results.md); `io_test.go`, `result_words_test.go`, `features_test.go` |
 | `int` | `to-string`, `mod-floor` | [Text](../site/src/content/docs/text.md), [Values](../site/src/content/docs/values.md); `text_test.go`, `int_test.go`, `examples_test.go` |
 | `text` | `reverse`, `to-int`, `length`, `line-count`, `word-count`, `upper`, `lower`, `trim`, `contains`, `index-of`, `slice`, `replace`, `split`, `join`, `to-code-points`, `from-code-points`, `starts-with`, `ends-with` | [Text](../site/src/content/docs/text.md); `text_test.go`, `examples_test.go` |
-| `list` | `new`, `length`, `append`, `map`, `filter`, `fold`, `find`, `any`, `all`, `sort`, `sort-by` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go`, `list_words_test.go`, `sort_test.go` |
+| `list` | `new`, `length`, `append`, `map`, `filter`, `fold`, `find`, `any`, `all`, `contains`, `sort`, `sort-by` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go`, `list_words_test.go`, `sort_test.go`, `list_contains_test.go` |
 | `array` | `new`, `resize`, `shape`, `rank`, `length` | [Collections](../site/src/content/docs/collections.md); `rich_values_test.go`, `plain_collection_test.go` |
 | `map` | `length`, `contains`, `remove`, `put`, `into`, `keys`, `values` | [Maps](../site/src/content/docs/maps.md); `maps_test.go` |
 | `json` | `decode`, `encode`, `parse` | [JSON](../site/src/content/docs/json.md); `json_test.go` and `json_tree_test.go` |
@@ -394,6 +394,15 @@ map.values(value: Map<K, V>) -> List<V>
 
 Shipped notes: fresh lists in documented insertion order — the same order `for k, v in map` traverses, so overwrite keeps an entry's position and remove-then-re-add moves it last — reusing the `map.put` checker polymorphism for K/V; both enforce the one-million-element limit before materializing under the shared `collection-limit` code. Extraction is a read (no traversal-guard interaction — the list escapes only after extraction completes, the `file.list` shape); keys extract for String, Int, and Bool keys alike. No new diagnostic codes. No example registered, the #160 reason.
 
+**List membership.** Shipped as [#163](https://github.com/desireco/zhex/issues/163); host signature:
+
+```text
+list.contains(values: List<Int>, item: Int) -> Bool
+list.contains(values: List<String>, item: String) -> Bool
+```
+
+Shipped notes: rides the `list.sort` constrained-overload machinery — `List<Int>` and `List<String>` accepted, every other element type rejected at check time with the `list.any`-and-a-predicate hint — so the closed overload set stays exactly where `list.sort` drew it (`List<Bool>` was optional in the story and stays out: weak demand, and equality for records or choices has no meaning to lean on). Runtime is the `list.any` contract with an implicit equality predicate: a linear scan that stops at the first match with the traversal guard held, `false` for an empty list. No new diagnostic codes. No example registered, the #160 reason.
+
 ## Deferred and excluded scope
 
 - **HTTP client/server:** optional capability work, not Phase 1. [Go Client.Do](https://pkg.go.dev/net/http#Client.Do) illustrates why status codes are response data while transport failures are errors. Define response records, closure, timeout, redirects, body caps, headers and text/binary representation before introducing a getter. Server lifecycle is another story.
@@ -430,6 +439,7 @@ The owner approved story creation and one-by-one review. The stories were first 
 | — | [#160 — Text: code-point conversion pair](https://github.com/desireco/zhex/issues/160) — shipped | #157 review; plain-collection `text-code-point` code; no example (S9 precedent, wasm subset) |
 | — | [#161 — Int: floored modulo word](https://github.com/desireco/zhex/issues/161) — shipped | #157 review; reuses `division-zero` for modulus zero; no example (wasm subset) |
 | — | [#162 — Map: keys/values extraction to List](https://github.com/desireco/zhex/issues/162) — shipped | #157 review; reuses `collection-limit`; no example (wasm subset) |
+| — | [#163 — List: contains with constrained overloads](https://github.com/desireco/zhex/issues/163) — shipped | #157 review; rides the `list.sort` overload machinery; no example (wasm subset) |
 
 No story is In Progress merely because it appears in this order. #30 tracks completion of research and backlog preparation; each story follows the normal claim, implementation, verification, and close-last workflow when selected.
 

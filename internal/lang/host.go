@@ -220,6 +220,17 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			}
 		}
 		return value{boolean: true}, nil
+	case "list.contains":
+		source := args[0].list
+		source.active++
+		defer func() { source.active-- }()
+		_, inner, _ := collectionInner(x.inputType)
+		for _, item := range source.items {
+			if inner == stringType && item.text == args[1].text || inner != stringType && item.number == args[1].number {
+				return value{boolean: true}, nil
+			}
+		}
+		return value{boolean: false}, nil
 	case "list.sort":
 		_, inner, _ := collectionInner(x.inputType)
 		items := args[0].list.items
