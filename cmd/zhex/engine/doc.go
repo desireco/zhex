@@ -4,13 +4,13 @@
 // loader.js — never a copy. Built with GOOS=js GOARCH=wasm (see the justfile's
 // engine recipe), it exposes the engine API on globalThis.zhex:
 //
-//   runSource(source, stdin) -> {output, diagnostics, report, trace, exit}
-//   runInteractive(source, onOutput, onDone) -> {deliver(line), close()}
-//   newSession(stdin) -> {enter, words, takeOutput, takeDiagnostics}
-//   isIncomplete(source) -> boolean
-//   delimiterIndent(source) -> number | null
-//   lastStatementIndent(source) -> number | null
-//   setResolve(fn)  // fn(name) -> {path, source} or null, the `use` supplier
+//	runSource(source, stdin) -> {output, diagnostics, report, trace, exit}
+//	runInteractive(source, onOutput, onDone) -> {deliver(line), close()}
+//	newSession(stdin) -> {enter, words, takeOutput, takeDiagnostics}
+//	isIncomplete(source) -> boolean
+//	delimiterIndent(source) -> number | null
+//	lastStatementIndent(source) -> number | null
+//	setResolve(fn)  // fn(name) -> {path, source} or null, the `use` supplier
 //
 // runSource is one-shot: output is program stdout, diagnostics the
 // console.fail channel, report the --report=json envelope of a failed run
@@ -23,7 +23,9 @@
 // the program finishes; the returned handle's deliver(line) queues one line
 // (a missing trailing newline is added) and close() ends the stream — a read
 // past close fails with the coded end-of-file failure, exactly like
-// runSource's supplied stdin running out. newSession carries the REPL law —
+// runSource's supplied stdin running out. Bulk-delivering more than 16
+// lines before the program reads parks the deliver callback until it drains.
+// newSession carries the REPL law —
 // words, names, and adopted modules survive entries; enter(source) ->
 // {echo, error, report, exit} with the redefined note and print output in the
 // buffer takeOutput drains, console.fail output in takeDiagnostics.

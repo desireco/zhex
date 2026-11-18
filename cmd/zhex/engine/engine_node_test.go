@@ -447,10 +447,10 @@ func TestEngineSessionLaws(t *testing.T) {
 
 // interactiveResult is one interactive harness answer.
 type interactiveResult struct {
-	Chunks        []string `json:"chunks"`
+	Chunks         []string `json:"chunks"`
 	ChunksAtSettle []string `json:"chunksAtSettle"`
-	LoopLagMs     int      `json:"loopLagMs"`
-	Result        struct {
+	LoopLagMs      int      `json:"loopLagMs"`
+	Result         struct {
 		Output      string `json:"output"`
 		Diagnostics string `json:"diagnostics"`
 		Report      string `json:"report"`
