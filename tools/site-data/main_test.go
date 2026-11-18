@@ -353,7 +353,7 @@ func TestDemoSpecsAreWellFormedAndOnDisk(t *testing.T) {
 func emptyYear(year, days int) []aocSpec {
 	specs := make([]aocSpec, days)
 	for at := range specs {
-		specs[at] = aocSpec{year: year, day: at + 1, status: "empty"}
+		specs[at] = aocSpec{year: year, day: at + 1, status: "empty", kind: "text"}
 	}
 	return specs
 }
@@ -402,7 +402,9 @@ func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	// the prefill and the stdin.
 	specs := emptyYear(2023, 3)
 	specs[0].status = "part1"
+	specs[0].answers = []string{"10"}
 	specs[1].status = "solved"
+	specs[1].answers = []string{"1"}
 	aocSpecs = specs
 	days, err = loadAoc(root)
 	if err != nil {
@@ -418,8 +420,11 @@ func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	// A solved day without its sample fails, naming year and day.
 	specs = emptyYear(2023, 3)
 	specs[0].status = "part1"
+	specs[0].answers = []string{"10"}
 	specs[1].status = "solved"
+	specs[1].answers = []string{"1"}
 	specs[2].status = "solved"
+	specs[2].answers = []string{"3"}
 	aocSpecs = specs
 	deleteDay := filepath.Join(root, "aoc", "2023", "samples", "day03.txt")
 	if err := os.Remove(deleteDay); err != nil {
@@ -460,5 +465,108 @@ func TestLoadAocRunsSolutionsBehindTheStatus(t *testing.T) {
 	}
 	if days[2].Stdin != "1\n" || days[2].Output != "" {
 		t.Fatalf("working day stdin %q output %q; want sample only", days[2].Stdin, days[2].Output)
+	}
+}
+
+// The review finding (F1): fenced days never run the wasm verify loop, so a
+// wrong recorded answer reached the page unvalidated. Two pins: loadAoc
+// compares the oracle stdout against the row's ExpectedAnswers line by line,
+// and kind gets the same closed vocabulary validateSpec applies to examples.
+// The live-manifest test runs the real corpus so any future answer drift
+// fails the build instead of waiting for a human.
+func TestLoadAocRejectsAnswersThatDriftFromTheOracle(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "aoc", "2023", "samples", "day01.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("5\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path = filepath.Join(root, "aoc", "2023", "day01.zhex")
+	if err := os.WriteFile(path, []byte("print(10)\nprint(24)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	original := aocSpecs
+	defer func() { aocSpecs = original }()
+
+	// Matching answers (both parts, positionally) load fine.
+	specs := emptyYear(2023, 1)
+	specs[0].status = "solved"
+	specs[0].answers = []string{"10", "24"}
+	aocSpecs = specs
+	if _, err := loadAoc(root); err != nil {
+		t.Fatalf("matching answers: %v", err)
+	}
+
+	// A wrong part-1 answer fails the build loudly, naming year and day.
+	specs[0].answers = []string{"11", "24"}
+	aocSpecs = specs
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "2023") || !strings.Contains(err.Error(), "day 1") || !strings.Contains(err.Error(), "expected answer") {
+		t.Fatalf("drifted part-1 answer error = %v", err)
+	}
+
+	// So does a wrong part-2 answer.
+	specs[0].answers = []string{"10", "25"}
+	aocSpecs = specs
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "part 2") {
+		t.Fatalf("drifted part-2 answer error = %v", err)
+	}
+
+	// A part1/solved row without answers is unvalidated and rejected.
+	specs[0].answers = nil
+	aocSpecs = specs
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "expected answer") {
+		t.Fatalf("missing answers error = %v", err)
+	}
+}
+
+// TestLoadAocRejectsUnknownInputKinds mirrors validateSpec's closed kind
+// vocabulary on the aoc rows (review finding F1, part 2).
+func TestLoadAocRejectsUnknownInputKinds(t *testing.T) {
+	original := aocSpecs
+	defer func() { aocSpecs = original }()
+	specs := emptyYear(2023, 1)
+	specs[0].kind = "float"
+	aocSpecs = specs
+	if _, err := loadAoc(t.TempDir()); err == nil || !strings.Contains(err.Error(), "2023") || !strings.Contains(err.Error(), "day 1") || !strings.Contains(err.Error(), "kind must be none, int, or text") {
+		t.Fatalf("unknown kind error = %v", err)
+	}
+}
+
+// TestLiveAocRowsMatchTheOracle pins every real part1/solved manifest row to
+// its ExpectedAnswers through the full loader, closing the fenced-day gap
+// (review finding F1): the 2024 day-22 drift class now fails the build.
+// 2024 day 24 composes with the convention: its second answer line is the
+// literal "pending" and the oracle prints "pending" for part 2, so straight
+// positional line equality holds for every live row.
+func TestLiveAocRowsMatchTheOracle(t *testing.T) {
+	if testing.Short() {
+		t.Skip("live oracle corpus")
+	}
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil { // module resolution is cwd-relative
+		t.Fatal(err)
+	}
+	defer func() { os.Chdir(original) }()
+	days, err := loadAoc(".")
+	if err != nil {
+		t.Fatalf("live aoc manifest: %v", err)
+	}
+	for _, day := range days {
+		if day.Status != "part1" && day.Status != "solved" {
+			continue
+		}
+		if day.Output == "" {
+			t.Errorf("aoc %d day %d: %s day has no oracle output", day.Year, day.Day, day.Status)
+		}
 	}
 }

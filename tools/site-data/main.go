@@ -713,6 +713,9 @@ func loadAoc(root string) ([]AocDay, error) {
 		default:
 			return nil, fmt.Errorf("aoc %d day %d: status must be empty, working, part1, or solved", spec.year, spec.day)
 		}
+		if spec.kind != "none" && spec.kind != "int" && spec.kind != "text" {
+			return nil, fmt.Errorf("aoc %d day %d: kind must be none, int, or text", spec.year, spec.day)
+		}
 		day := AocDay{
 			Year:            spec.year,
 			Day:             spec.day,
@@ -745,6 +748,20 @@ func loadAoc(root string) ([]AocDay, error) {
 				return nil, fmt.Errorf("run aoc %d day %d solution: %w", spec.year, spec.day, err)
 			}
 			day.Output = output.String()
+			// Fenced days escape the wasm verify loop, so the recorded
+			// answers are pinned here: the oracle's stdout lines must equal
+			// the row's ExpectedAnswers positionally (2024 day 24 prints
+			// "pending" for its honestly-unsolved part 2).
+			if len(spec.answers) == 0 {
+				return nil, fmt.Errorf("aoc %d day %d: %s day needs expected answers for the oracle check", spec.year, spec.day, spec.status)
+			}
+			lines := strings.Split(strings.TrimRight(day.Output, "\n"), "\n")
+			for at, answer := range spec.answers {
+				part := at + 1
+				if part > len(lines) || strings.TrimSpace(lines[at]) != strings.TrimSpace(answer) {
+					return nil, fmt.Errorf("aoc %d day %d: expected answer for part %d is %q but the oracle printed %q", spec.year, spec.day, part, answer, strings.Join(lines, "\n"))
+				}
+			}
 			day.Code = string(highlight(string(source)))
 			// The words file ships with the runner when the day has one; a
 			// day without it simply renders one block.
