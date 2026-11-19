@@ -804,11 +804,23 @@ func (e *watEmitter) forCollection(s *statement) {
 	}
 	recv := e.temp("recv"+k, nullableRef("(ref "+recvType+")"))
 	items := e.temp("items"+k, "(ref null "+watArrType(spec)+")")
+	itemsLen := e.temp("len"+k, "i32")
 	i := e.temp("i"+k, "i32")
 	e.line("local.set " + recv)
 	e.line("local.get " + recv)
 	e.line("struct.get " + recvType + " $items")
 	e.line("local.set " + items)
+	if kind == "List" {
+		// a list's logical length is the $len field (#187); the items
+		// array may carry capacity slack beyond it
+		e.line("local.get " + recv)
+		e.line("struct.get " + recvType + " $len")
+		e.line("local.set " + itemsLen)
+	} else {
+		e.line("local.get " + items)
+		e.line("array.len")
+		e.line("local.set " + itemsLen)
+	}
 	e.bumpActive(recv, recvType, 1)
 	e.cleanups = append(e.cleanups, watCleanup{recv, recvType})
 	e.line("i32.const 0")
@@ -818,8 +830,7 @@ func (e *watEmitter) forCollection(s *statement) {
 	e.line("loop $loop" + k)
 	e.depth++
 	e.line("local.get " + i)
-	e.line("local.get " + items)
-	e.line("array.len")
+	e.line("local.get " + itemsLen)
 	e.line("i32.lt_u")
 	e.line("if")
 	e.depth++
@@ -1049,6 +1060,8 @@ func (e *watEmitter) emitCoords(recv, arrayType, i, k, bindingLocal string) {
 	e.depth--
 	e.line("end")
 	e.line("local.get " + coords)
+	e.line("local.get " + coords)
+	e.line("array.len")
 	e.line("i32.const 0")
 	e.line("struct.new " + watListType(watSpecI64))
 	e.line("local.set " + bindingLocal)
@@ -1177,6 +1190,7 @@ func (e *watEmitter) listLiteral(x *expression) {
 		}
 	}
 	e.line("array.new_fixed %s %d", watArrType(watSpecOf(inner)), len(x.args))
+	e.line("i32.const %d", len(x.args))
 	e.line("i32.const 0")
 	e.line("struct.new " + watListType(watSpecOf(inner)))
 }

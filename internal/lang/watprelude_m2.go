@@ -609,7 +609,7 @@ const watM2Text = `
           (br $fill)))
       (array.set $zhex_arr_ref (local.get $arr) (local.get $w)
         (call $zhex_str_sub (local.get $t) (local.get $start) (local.get $n)))))
-  (struct.new $zhex_list_ref (local.get $arr) (i32.const 0)))
+  (struct.new $zhex_list_ref (local.get $arr) (local.get $parts) (i32.const 0)))
 
 (func $zhex_text_join (param $values (ref $zhex_list_ref)) (param $sep (ref $zhex_string)) (result (ref $zhex_string))
   (local $items (ref null $zhex_arr_ref))
@@ -623,7 +623,7 @@ const watM2Text = `
   (local $r (ref null $zhex_string))
   (local $w i32)
   (local.set $items (struct.get $zhex_list_ref $items (local.get $values)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $values)))
   (if (i32.eqz (local.get $n))
     (then (return (array.new_fixed $zhex_string 0))))
   (local.set $ls (array.len (local.get $sep)))
@@ -3259,9 +3259,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3287,9 +3287,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i32 (local.get $n)))
-  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3315,9 +3315,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3343,9 +3343,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3371,9 +3371,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i32 (local.get $n)))
-  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3399,9 +3399,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3427,9 +3427,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3455,9 +3455,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i32 (local.get $n)))
-  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3483,9 +3483,9 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (local.get $n) (i32.const 0)))
   (block $mapped
     (loop $map
       (br_if $mapped (i32.ge_u (local.get $i) (local.get $n)))
@@ -3513,7 +3513,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
   (block $filtered
     (loop $filter
@@ -3539,7 +3539,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_i64 (local.get $fin) (local.get $i) (array.get $zhex_arr_i64 (local.get $arr) (local.get $i)))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $shrink)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $fin) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $fin) (local.get $w) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_select_i64 (param $src (ref $zhex_list_i64)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_i64))
@@ -3553,7 +3553,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
   (block $filtered
     (loop $filter
@@ -3579,7 +3579,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_i64 (local.get $fin) (local.get $i) (array.get $zhex_arr_i64 (local.get $arr) (local.get $i)))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $shrink)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $fin) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $fin) (local.get $w) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_fold_i64_i64 (param $src (ref $zhex_list_i64)) (param $acc i64) (param $clo (ref $zhex_closure)) (result i64)
@@ -3590,7 +3590,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -3616,7 +3616,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -3642,7 +3642,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -3668,7 +3668,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (block $done
     (loop $find
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -3698,7 +3698,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (block $done
     (loop $scan
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -3726,7 +3726,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (block $done
     (loop $scan
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -3756,7 +3756,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i32 (local.get $n)))
   (block $filtered
     (loop $filter
@@ -3782,7 +3782,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_i32 (local.get $fin) (local.get $i) (array.get $zhex_arr_i32 (local.get $arr) (local.get $i)))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $shrink)))
-  (local.set $out (struct.new $zhex_list_i32 (local.get $fin) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i32 (local.get $fin) (local.get $w) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_select_i32 (param $src (ref $zhex_list_i32)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_i32))
@@ -3796,7 +3796,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i32 (local.get $n)))
   (block $filtered
     (loop $filter
@@ -3822,7 +3822,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_i32 (local.get $fin) (local.get $i) (array.get $zhex_arr_i32 (local.get $arr) (local.get $i)))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $shrink)))
-  (local.set $out (struct.new $zhex_list_i32 (local.get $fin) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i32 (local.get $fin) (local.get $w) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_fold_i32_i64 (param $src (ref $zhex_list_i32)) (param $acc i64) (param $clo (ref $zhex_closure)) (result i64)
@@ -3833,7 +3833,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -3859,7 +3859,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -3885,7 +3885,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -3911,7 +3911,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (block $done
     (loop $find
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -3941,7 +3941,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (block $done
     (loop $scan
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -3969,7 +3969,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (block $done
     (loop $scan
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -3999,7 +3999,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
   (block $filtered
     (loop $filter
@@ -4025,7 +4025,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_ref (local.get $fin) (local.get $i) (array.get $zhex_arr_ref (local.get $arr) (local.get $i)))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $shrink)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $fin) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $fin) (local.get $w) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_select_ref (param $src (ref $zhex_list_ref)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_ref))
@@ -4039,7 +4039,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
   (block $filtered
     (loop $filter
@@ -4065,7 +4065,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_ref (local.get $fin) (local.get $i) (array.get $zhex_arr_ref (local.get $arr) (local.get $i)))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $shrink)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $fin) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $fin) (local.get $w) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_fold_ref_i64 (param $src (ref $zhex_list_ref)) (param $acc i64) (param $clo (ref $zhex_closure)) (result i64)
@@ -4076,7 +4076,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -4102,7 +4102,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -4128,7 +4128,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $a (local.get $acc))
   (block $folded
     (loop $fold
@@ -4154,7 +4154,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (block $done
     (loop $find
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -4184,7 +4184,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (block $done
     (loop $scan
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -4212,7 +4212,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (block $done
     (loop $scan
       (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
@@ -4240,7 +4240,7 @@ const watM2Callbacks = `
   (local $arr (ref null $zhex_arr_i64))
   (local $out (ref null $zhex_list_i64))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
   (block $sorted
     (loop $insert
@@ -4259,7 +4259,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_i64 (local.get $arr) (local.get $j) (local.get $x))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $insert)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_sort_ref (param $src (ref $zhex_list_ref)) (result (ref $zhex_list_ref))
@@ -4271,7 +4271,7 @@ const watM2Callbacks = `
   (local $arr (ref null $zhex_arr_ref))
   (local $out (ref null $zhex_list_ref))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
   (block $sorted
     (loop $insert
@@ -4290,7 +4290,7 @@ const watM2Callbacks = `
       (array.set $zhex_arr_ref (local.get $arr) (local.get $j) (local.get $x))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $insert)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_sort_by_i64_i64 (param $src (ref $zhex_list_i64)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_i64))
@@ -4306,7 +4306,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
   (local.set $karr (array.new_default $zhex_arr_i64 (local.get $n)))
   (block $keyed
@@ -4345,7 +4345,7 @@ const watM2Callbacks = `
       (br $insert)))
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.sub (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_sort_by_i64_ref (param $src (ref $zhex_list_i64)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_i64))
@@ -4361,7 +4361,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i64 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i64 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i64 (local.get $n)))
   (local.set $karr (array.new_default $zhex_arr_ref (local.get $n)))
   (block $keyed
@@ -4400,7 +4400,7 @@ const watM2Callbacks = `
       (br $insert)))
 (struct.set $zhex_list_i64 $active (local.get $src)
     (i32.sub (struct.get $zhex_list_i64 $active (local.get $src)) (i32.const 1)))
-  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i64 (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_sort_by_i32_i64 (param $src (ref $zhex_list_i32)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_i32))
@@ -4416,7 +4416,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i32 (local.get $n)))
   (local.set $karr (array.new_default $zhex_arr_i64 (local.get $n)))
   (block $keyed
@@ -4455,7 +4455,7 @@ const watM2Callbacks = `
       (br $insert)))
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.sub (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
-  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_sort_by_i32_ref (param $src (ref $zhex_list_i32)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_i32))
@@ -4471,7 +4471,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.add (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_i32 $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_i32 $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_i32 (local.get $n)))
   (local.set $karr (array.new_default $zhex_arr_ref (local.get $n)))
   (block $keyed
@@ -4510,7 +4510,7 @@ const watM2Callbacks = `
       (br $insert)))
 (struct.set $zhex_list_i32 $active (local.get $src)
     (i32.sub (struct.get $zhex_list_i32 $active (local.get $src)) (i32.const 1)))
-  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_i32 (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_sort_by_ref_i64 (param $src (ref $zhex_list_ref)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_ref))
@@ -4526,7 +4526,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
   (local.set $karr (array.new_default $zhex_arr_i64 (local.get $n)))
   (block $keyed
@@ -4565,7 +4565,7 @@ const watM2Callbacks = `
       (br $insert)))
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.sub (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_list_sort_by_ref_ref (param $src (ref $zhex_list_ref)) (param $clo (ref $zhex_closure)) (result (ref $zhex_list_ref))
@@ -4581,7 +4581,7 @@ const watM2Callbacks = `
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.add (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
   (local.set $items (struct.get $zhex_list_ref $items (local.get $src)))
-  (local.set $n (array.len (local.get $items)))
+  (local.set $n (struct.get $zhex_list_ref $len (local.get $src)))
   (local.set $arr (array.new_default $zhex_arr_ref (local.get $n)))
   (local.set $karr (array.new_default $zhex_arr_ref (local.get $n)))
   (block $keyed
@@ -4620,7 +4620,7 @@ const watM2Callbacks = `
       (br $insert)))
 (struct.set $zhex_list_ref $active (local.get $src)
     (i32.sub (struct.get $zhex_list_ref $active (local.get $src)) (i32.const 1)))
-  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (i32.const 0)))
+  (local.set $out (struct.new $zhex_list_ref (local.get $arr) (local.get $n) (i32.const 0)))
   (ref.as_non_null (local.get $out)))
 
 (func $zhex_array_select_i64 (param $src (ref $zhex_array_i64)) (param $clo (ref $zhex_closure)) (result (ref $zhex_array_i64))
@@ -4668,7 +4668,7 @@ const watM2Callbacks = `
               (i32.add (i32.mul (local.get $i) (local.get $width)) (local.get $j))))
           (local.set $j (i32.add (local.get $j) (i32.const 1)))
           (br $rowcopy)))
-      (local.set $row (struct.new $zhex_list_i64 (local.get $ritems) (i32.const 0)))
+      (local.set $row (struct.new $zhex_list_i64 (local.get $ritems) (local.get $width) (i32.const 0)))
       (array.set $zhex_arr_ref (local.get $rowlists) (local.get $i) (local.get $row))
       (array.set $zhex_arr_i32 (local.get $keep) (local.get $i)
 (local.get $clo)
@@ -4761,7 +4761,7 @@ const watM2Callbacks = `
               (i32.add (i32.mul (local.get $i) (local.get $width)) (local.get $j))))
           (local.set $j (i32.add (local.get $j) (i32.const 1)))
           (br $rowcopy)))
-      (local.set $row (struct.new $zhex_list_i32 (local.get $ritems) (i32.const 0)))
+      (local.set $row (struct.new $zhex_list_i32 (local.get $ritems) (local.get $width) (i32.const 0)))
       (array.set $zhex_arr_ref (local.get $rowlists) (local.get $i) (local.get $row))
       (array.set $zhex_arr_i32 (local.get $keep) (local.get $i)
 (local.get $clo)
@@ -4854,7 +4854,7 @@ const watM2Callbacks = `
               (i32.add (i32.mul (local.get $i) (local.get $width)) (local.get $j))))
           (local.set $j (i32.add (local.get $j) (i32.const 1)))
           (br $rowcopy)))
-      (local.set $row (struct.new $zhex_list_ref (local.get $ritems) (i32.const 0)))
+      (local.set $row (struct.new $zhex_list_ref (local.get $ritems) (local.get $width) (i32.const 0)))
       (array.set $zhex_arr_ref (local.get $rowlists) (local.get $i) (local.get $row))
       (array.set $zhex_arr_i32 (local.get $keep) (local.get $i)
 (local.get $clo)

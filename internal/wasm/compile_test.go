@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"zhex/internal/lang"
 )
@@ -605,6 +606,91 @@ func TestDifferential(t *testing.T) {
 				t.Fatalf("exit status mismatch: interpreted %d, compiled %d", exitCode(runErr), code)
 			}
 		})
+	}
+}
+
+// growthBound is the wall-clock canary for the growth fixtures (#187):
+// amortized appends finish in well under a second under both skins, while
+// the grow-by-one appends this gate caught were O(n^2) — 100k appends copy
+// ~5e9 elements and blow far past the bound. Generous enough that loaded
+// CI machines stay green on the amortized path.
+const growthBound = 10 * time.Second
+
+// TestDifferentialGrowth (#187): the list-heavy fixture builds 100k-element
+// lists and a 100k-line buffer by append, then digests them. Both skins
+// must match the interpreter byte for byte and finish inside growthBound.
+func TestDifferentialGrowth(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	path := filepath.Join("testdata", "grow-lists.zhex")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var interpreted bytes.Buffer
+	runErr := lang.Run(path, string(source), strings.NewReader(""), &interpreted)
+	wantOut, wantCode := interpreted.String(), exitCode(runErr)
+
+	browser := compileFixture(t, "grow-lists", lang.WatSkinBrowser)
+	start := time.Now()
+	out, _, code := runNode(t, browser)
+	if elapsed := time.Since(start); elapsed > growthBound {
+		t.Fatalf("browser skin took %s (bound %s): list growth is quadratic again", elapsed, growthBound)
+	}
+	if out != wantOut || code != wantCode {
+		t.Fatalf("browser skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
+	}
+
+	wasi := compileFixture(t, "grow-lists", lang.WatSkinWASI)
+	dir := t.TempDir()
+	stdinPath := filepath.Join(dir, "stdin.txt")
+	if err := os.WriteFile(stdinPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	start = time.Now()
+	out, _, code = runWasmtime(t, wasi, t.TempDir(), stdinPath, nil)
+	if elapsed := time.Since(start); elapsed > growthBound {
+		t.Fatalf("wasi skin took %s (bound %s): list growth is quadratic again", elapsed, growthBound)
+	}
+	if out != wantOut || code != wantCode {
+		t.Fatalf("wasi skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
+	}
+}
+
+// TestDifferentialStreamIO (#187): 100k stdin lines read through the
+// read-to-EOF loop, each echoed with a prefix — the streaming shape whose
+// per-line host crossings this change buffers. Correctness gate only (the
+// win is a small constant factor; the #6 benchmark carries the numbers).
+func TestDifferentialStreamIO(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	var stdin bytes.Buffer
+	for i := 0; i < 100000; i++ {
+		fmt.Fprintf(&stdin, "row-%d\n", i%9973)
+	}
+	path := filepath.Join("testdata", "grow-stream.zhex")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var interpreted bytes.Buffer
+	runErr := lang.Run(path, string(source), bytes.NewReader(stdin.Bytes()), &interpreted)
+	wantOut, wantCode := interpreted.String(), exitCode(runErr)
+
+	dir := t.TempDir()
+	stdinPath := filepath.Join(dir, "stdin.txt")
+	if err := os.WriteFile(stdinPath, stdin.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	browser := compileFixture(t, "grow-stream", lang.WatSkinBrowser)
+	out, _, code := runNode(t, browser, "--stdin", stdinPath)
+	if out != wantOut || code != wantCode {
+		t.Fatalf("browser skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
+	}
+
+	wasi := compileFixture(t, "grow-stream", lang.WatSkinWASI)
+	out, _, code = runWasmtime(t, wasi, t.TempDir(), stdinPath, nil)
+	if out != wantOut || code != wantCode {
+		t.Fatalf("wasi skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
 	}
 }
 

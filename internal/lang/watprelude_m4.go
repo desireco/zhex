@@ -70,7 +70,7 @@ const watM4CloVoidRows = `
 const watM4CheckedReads = `
 (func $zhex_list_get_checked_i64 (param $list (ref $zhex_list_i64)) (param $index i64) (result (ref $zhex_result))
   (if (i64.ge_u (local.get $index)
-        (i64.extend_i32_u (array.len (struct.get $zhex_list_i64 $items (local.get $list)))))
+        (i64.extend_i32_u (struct.get $zhex_list_i64 $len (local.get $list))))
     (then (return (struct.new $zhex_result (i32.const 1)
       (call $zhex_errv (i32.const 5) (call $mx_list_range))))))
   (struct.new $zhex_result (i32.const 0)
@@ -79,7 +79,7 @@ const watM4CheckedReads = `
 
 (func $zhex_list_get_checked_i32 (param $list (ref $zhex_list_i32)) (param $index i64) (result (ref $zhex_result))
   (if (i64.ge_u (local.get $index)
-        (i64.extend_i32_u (array.len (struct.get $zhex_list_i32 $items (local.get $list)))))
+        (i64.extend_i32_u (struct.get $zhex_list_i32 $len (local.get $list))))
     (then (return (struct.new $zhex_result (i32.const 1)
       (call $zhex_errv (i32.const 5) (call $mx_list_range))))))
   (struct.new $zhex_result (i32.const 0)
@@ -88,7 +88,7 @@ const watM4CheckedReads = `
 
 (func $zhex_list_get_checked_ref (param $list (ref $zhex_list_ref)) (param $index i64) (result (ref $zhex_result))
   (if (i64.ge_u (local.get $index)
-        (i64.extend_i32_u (array.len (struct.get $zhex_list_ref $items (local.get $list)))))
+        (i64.extend_i32_u (struct.get $zhex_list_ref $len (local.get $list))))
     (then (return (struct.new $zhex_result (i32.const 1)
       (call $zhex_errv (i32.const 5) (call $mx_list_range))))))
   (struct.new $zhex_result (i32.const 0)
@@ -1072,7 +1072,7 @@ const watM4XmlDecode = `
             (local.set $i (i32.add (local.get $i) (i32.const 1)))
             (br $dl)))
           (return (struct.new $zhex_result (i32.const 0)
-            (struct.new $zhex_list_i64 (ref.as_non_null (local.get $i64s)) (i32.const 0))))))
+            (struct.new $zhex_list_i64 (ref.as_non_null (local.get $i64s)) (local.get $cc) (i32.const 0))))))
       (if (i32.eq (local.get $elkind) (i32.const 1))
         (then
           (local.set $i32s (array.new_default $zhex_arr_i32 (local.get $cc)))
@@ -1088,7 +1088,7 @@ const watM4XmlDecode = `
             (local.set $i (i32.add (local.get $i) (i32.const 1)))
             (br $dl)))
           (return (struct.new $zhex_result (i32.const 0)
-            (struct.new $zhex_list_i32 (ref.as_non_null (local.get $i32s)) (i32.const 0))))))
+            (struct.new $zhex_list_i32 (ref.as_non_null (local.get $i32s)) (local.get $cc) (i32.const 0))))))
       (local.set $items (array.new_default $zhex_arr_ref (local.get $cc)))
       (block $dec (loop $dl
         (br_if $dec (i32.ge_u (local.get $i) (local.get $cc)))
@@ -1102,7 +1102,7 @@ const watM4XmlDecode = `
         (local.set $i (i32.add (local.get $i) (i32.const 1)))
         (br $dl)))
       (return (struct.new $zhex_result (i32.const 0)
-        (struct.new $zhex_list_ref (ref.as_non_null (local.get $items)) (i32.const 0))))))
+        (struct.new $zhex_list_ref (ref.as_non_null (local.get $items)) (local.get $cc) (i32.const 0))))))
   (if (i32.eq (local.get $kind) (i32.const 5))
     (then
       ;; duplicate tag names are duplicate map keys (first offender reported)
@@ -1306,7 +1306,7 @@ const watM4XmlDecode = `
                       (local.set $j (i32.add (local.get $j) (i32.const 1)))
                       (br $lil)))
                     (array.set $zhex_arr_ref (ref.as_non_null (local.get $fresh)) (local.get $i)
-                      (struct.new $zhex_list_i64 (ref.as_non_null (local.get $i64s)) (i32.const 0)))))
+                      (struct.new $zhex_list_i64 (ref.as_non_null (local.get $i64s)) (local.get $k) (i32.const 0)))))
                 (if (i32.eq (local.get $elkind) (i32.const 1))
                   (then
                     (local.set $i32s (array.new_default $zhex_arr_i32 (local.get $k)))
@@ -1326,7 +1326,7 @@ const watM4XmlDecode = `
                       (local.set $j (i32.add (local.get $j) (i32.const 1)))
                       (br $lil)))
                     (array.set $zhex_arr_ref (ref.as_non_null (local.get $fresh)) (local.get $i)
-                      (struct.new $zhex_list_i32 (ref.as_non_null (local.get $i32s)) (i32.const 0)))))
+                      (struct.new $zhex_list_i32 (ref.as_non_null (local.get $i32s)) (local.get $k) (i32.const 0)))))
                 (if (i32.and (i32.ne (local.get $elkind) (i32.const 0)) (i32.ne (local.get $elkind) (i32.const 1)))
                   (then
                     (local.set $items (array.new_default $zhex_arr_ref (local.get $k)))
@@ -1346,7 +1346,7 @@ const watM4XmlDecode = `
                       (local.set $j (i32.add (local.get $j) (i32.const 1)))
                       (br $lil)))
                     (array.set $zhex_arr_ref (ref.as_non_null (local.get $fresh)) (local.get $i)
-                      (struct.new $zhex_list_ref (ref.as_non_null (local.get $items)) (i32.const 0))))))
+                      (struct.new $zhex_list_ref (ref.as_non_null (local.get $items)) (local.get $k) (i32.const 0))))))
               (else
                 ;; non-list field: the first matching child element
                 (local.set $found (i32.const -1))

@@ -530,7 +530,7 @@ const watPreludeM3TestExports = `
     (array.new_fixed $zhex_string 6 (i32.const 105) (i32.const 110) (i32.const 103) (i32.const 101) (i32.const 115) (i32.const 116))
     (i64.const 3)
     (i32.const 0)
-    (struct.new $zhex_list_ref (array.new_default $zhex_arr_ref (i32.const 0)) (i32.const 0))
+    (struct.new $zhex_list_ref (array.new_default $zhex_arr_ref (i32.const 0)) (i32.const 0) (i32.const 0))
     (call $zhex_map_new_str_i64)
     (struct.new $zhex_none)))
 

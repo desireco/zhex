@@ -25,9 +25,13 @@ import (
 //	8192..8255     fd_filestat_get buffer
 //	8256..8271     iovec {ptr,len} + nwritten/nread
 //	8272..8399     eight read-line handle slots {fd, buflen, bufpos, _}
-//	8448..8479     misc state (fd out, bufused, rd_len, cookie, cap, ...)
+//	8400           stdout buffer fill (outlen)
+//	8448..8479     misc state (fd out, rd_len, dirent bytes, readdir cookie)
+//	8480..41151    stdout buffer (32KB, #187: batched fd_write)
 //	65536..0x100000  transient bulk (read_file relay, environ, readdir)
 //	0x100000+slot*0x100000  per-handle read-line buffers (grown lazily)
+//	0x900000..     the module's persistent stdin buffer (#187; the adapter
+//	               never allocates past the last handle slot)
 //
 // shortcut: transient bulk over ~960KB collides with handle 0's buffer only
 // when a program mixes read-line handles with large whole-file reads;
@@ -221,16 +225,48 @@ const watWasiCore = `
       (br $entry)))
   (call $wasi.path_remove_directory (i32.const 3) (local.get $ptr) (local.get $len)))
 
+;; ---- batched stdout (#187) ----
+;; print bytes accumulate at 8480 and cross to fd_write only when the
+;; 32KB buffer fills, before stderr diagnostics, before a stdin read
+;; (prompt visibility), and at _start's end — stdout ordering is
+;; unchanged. shortcut: a native trap (divide by zero, failed cast) loses
+;; at most the pending 32KB; the staged fail codes all flush (upgrade:
+;; wasm EH to flush on trap).
+
+(func $wasi_out_flush
+  (if (i32.load (i32.const 8400))
+    (then
+      (drop (call $wasi_write (i32.const 1) (i32.const 8480) (i32.load (i32.const 8400))))
+      (i32.store (i32.const 8400) (i32.const 0)))))
+
+(func $wasi_out_write (param $ptr i32) (param $len i32)
+  (local $space i32)
+  (block $done
+    (loop $again
+      (br_if $done (i32.eqz (local.get $len)))
+      (local.set $space (i32.sub (i32.const 32768) (i32.load (i32.const 8400))))
+      (if (i32.ge_u (local.get $space) (local.get $len))
+        (then (local.set $space (local.get $len))))
+      (memory.copy (i32.add (i32.const 8480) (i32.load (i32.const 8400)))
+        (local.get $ptr) (local.get $space))
+      (i32.store (i32.const 8400) (i32.add (i32.load (i32.const 8400)) (local.get $space)))
+      (local.set $ptr (i32.add (local.get $ptr) (local.get $space)))
+      (local.set $len (i32.sub (local.get $len) (local.get $space)))
+      (br_if $done (i32.eqz (local.get $len)))
+      (call $wasi_out_flush)
+      (br $again))))
+
 ;; ---- the fifteen $zhex_host_* adapters ----
 
 (func $zhex_host_print (param $ptr i32) (param $len i32)
-  (drop (call $wasi_write (i32.const 1) (local.get $ptr) (local.get $len))))
+  (call $wasi_out_write (local.get $ptr) (local.get $len)))
 
 (func $env.print (param $p i32) (param $l i32)
-  (drop (call $wasi_write (i32.const 1) (local.get $p) (local.get $l))))
+  (call $wasi_out_write (local.get $p) (local.get $l)))
 
 (func $zhex_host_stdin_read (param $ptr i32) (param $cap i32) (result i32)
   (local $e i32)
+  (call $wasi_out_flush)
   (i32.store (i32.const 8256) (local.get $ptr))
   (i32.store (i32.const 8260) (local.get $cap))
   (local.set $e (call $wasi.fd_read (i32.const 0) (i32.const 8256) (i32.const 1) (i32.const 8264)))
@@ -674,17 +710,20 @@ const watWasiCore = `
       (array.new_fixed $zhex_string 1 (i32.const 10)))))
 
 (func $zhex_fail (param $code i32)
+  (call $wasi_out_flush)
   (drop (call $wasi_write (i32.const 2) (i32.const 0)
     (call $wasi_fail_line (call $wasi_fail_text (local.get $code)))))
   (call $wasi.proc_exit (i32.const 1)))
 
 (func $zhex_fail_msg (param $code i32) (param $msg (ref $zhex_string))
+  (call $wasi_out_flush)
   (drop (call $wasi_write (i32.const 2) (i32.const 0)
     (call $wasi_fail_line (local.get $msg))))
   (call $wasi.proc_exit (i32.const 1)))
 
 (func $zhex_wasi_start (export "_start")
-  (call $zhex_main))
+  (call $zhex_main)
+  (call $wasi_out_flush))
 
 ;; handle slots start closed (fd = -1)
 (data (i32.const 8272)
