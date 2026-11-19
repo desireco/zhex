@@ -1,7 +1,6 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"zhex/internal/zhexrt"
 )
 
 func (r *runtime) write(pos position, text string) error {

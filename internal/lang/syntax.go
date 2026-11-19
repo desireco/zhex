@@ -1,10 +1,10 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"zhex/internal/zhexrt"
 )
 
 type position struct {

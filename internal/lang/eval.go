@@ -1,13 +1,13 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"time"
+	"zhex/internal/zhexrt"
 )
 
 type value struct {

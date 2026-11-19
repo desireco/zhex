@@ -9,7 +9,7 @@ import "embed"
 // being listed here. Platform-tagged files are not allowed in the set:
 // the copies must build for every GOOS/GOARCH.
 //
-//go:embed int.go diag.go console.go value.go arith.go
+//go:embed int.go diag.go console.go value.go arith.go coll.go text.go files.go words.go json.go
 var rtFS embed.FS
 
 // Files returns the runtime sources keyed by file name.

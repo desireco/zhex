@@ -1,9 +1,9 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"errors"
 	"strings"
+	"zhex/internal/zhexrt"
 )
 
 // RegisterReplSeam registers the #65 prototype's per-run repl.* seam on the

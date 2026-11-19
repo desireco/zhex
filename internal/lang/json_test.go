@@ -1,10 +1,10 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"bytes"
 	"strings"
 	"testing"
+	"zhex/internal/zhexrt"
 )
 
 func TestJSONDecodeRecordDefaultsAndEncode(t *testing.T) {

@@ -1,9 +1,9 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"sort"
 	"strconv"
+	"zhex/internal/zhexrt"
 )
 
 func isCheckedCollectionOperation(name string) bool {

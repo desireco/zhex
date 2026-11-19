@@ -52,7 +52,8 @@ func nativeFence(pos position, what string) {
 
 // nativeFunc is the per-word emission context: how errors return from the
 // current function, the local-name scope, hoisted expression preambles,
-// and the pending cleanups every early return must run.
+// and the pending cleanups every early return must run (traversal guards
+// and open streams).
 type nativeFunc struct {
 	word      *word
 	fallible  bool // returns (T, *zhexrt.Error); the entry returns *zhexrt.Error
@@ -60,6 +61,7 @@ type nativeFunc struct {
 	localUsed map[string]bool
 	pre       *strings.Builder
 	refs      map[*binding]bool // bindings the body reads
+	cleanups  []string          // statements run before early returns inside their scope
 }
 
 // nativeEmitter walks a checked Program and writes Go.
@@ -78,14 +80,16 @@ type nativeEmitter struct {
 
 	posVars map[string]string
 
-	tempCount  int
-	flowFirst  string
-	fn         *nativeFunc
+	tempCount int
+	flowFirst string
+	fn        *nativeFunc
 
 	// bindingRefs collects the bindings a function body reads, so lets
 	// Zhex never uses can evaluate for effect without a Go declaration
 	// (Go rejects unused declarations; Zhex allows them).
 	bindingRefs map[*binding]bool
+
+	recordFields map[string][]string // record id -> Go field names
 }
 
 func (e *nativeEmitter) line(format string, args ...any) {
@@ -201,7 +205,7 @@ func (e *nativeEmitter) posVar(pos position) string {
 }
 
 // writePosVars writes the position variable declarations after the walk,
-// when every use is known, in first-use order.
+// when every use is known.
 func (e *nativeEmitter) writePosVars() {
 	if len(e.posVars) == 0 {
 		return
@@ -210,10 +214,6 @@ func (e *nativeEmitter) writePosVars() {
 	keys := make([]string, 0, len(e.posVars))
 	for key := range e.posVars {
 		keys = append(keys, key)
-	}
-	order := map[string]int{}
-	for i, key := range keys {
-		order[e.posVars[key]] = i
 	}
 	sort.Slice(keys, func(i, j int) bool { return e.posVars[keys[i]] < e.posVars[keys[j]] })
 	for _, key := range keys {
@@ -227,9 +227,11 @@ func (e *nativeEmitter) writePosVars() {
 // ---------------------------------------------------------------- types
 
 // goType maps a Zhex type to its Go representation. The checker is
-// monomorphic, so the mapping is total on the compiled subset: Int is the
-// interpreter's two-limb struct, Results collapse to one runtime repr,
-// and anything unsupported fences.
+// monomorphic, so the mapping is total on the compiled subset: Int is
+// the interpreter's two-limb struct, collections are zhexrt generics
+// over pointers (sharing semantics, GC-covered cycles), records and
+// choices are the generated structs, and Results collapse to one runtime
+// repr. Anything unsupported fences.
 func (e *nativeEmitter) goType(pos position, t valueType) string {
 	switch t {
 	case intType:
@@ -240,12 +242,63 @@ func (e *nativeEmitter) goType(pos position, t valueType) string {
 		return "string"
 	case unitType:
 		return "zhexrt.Unit"
+	case bufferType:
+		return "*zhexrt.Buffer"
+	case fileType:
+		return "*zhexrt.File"
+	case jsonType:
+		return "*zhexrt.Json"
+	case errorType:
+		return "*zhexrt.Error"
 	}
 	if inner, ok := resultInner(t); ok {
 		return "zhexrt.Result[" + e.goType(pos, inner) + "]"
 	}
+	if kind, inner, ok := collectionInner(t); ok {
+		if kind == "List" {
+			return "*zhexrt.List[" + e.goType(pos, inner) + "]"
+		}
+		return "*zhexrt.Array[" + e.goType(pos, inner) + "]"
+	}
+	if base, args, ok := typeApplication(t); ok {
+		switch base {
+		case "Option":
+			return "zhexrt.Option[" + e.goType(pos, args[0]) + "]"
+		case "Map":
+			return "*zhexrt.Map[" + e.goType(pos, args[0]) + ", " + e.goType(pos, args[1]) + "]"
+		}
+	}
+	if params, result, ok := functionTypeParts(t); ok {
+		if anyResult(params) {
+			nativeFence(pos, "fallible function values")
+		}
+		var ins []string
+		for _, param := range params {
+			ins = append(ins, e.goType(pos, param))
+		}
+		// a function value returning a Result carries the Result as its
+		// Go return; try and catch unwrap it at the call sites
+		return "func(" + strings.Join(ins, ", ") + ") " + e.goType(pos, result)
+	}
+	if record := e.byID[string(t)]; record != nil && !record.builtin {
+		return "*" + e.packageName("t:"+record.id(), record.id())
+	}
+	switch t {
+	case "Date", "Time", "Duration", "Instant", "TimeZone", "ZonedDateTime":
+		nativeFence(pos, string(t)+" values")
+	}
 	nativeFence(pos, fmt.Sprintf("%s values", t))
 	return ""
+}
+
+// anyResult reports whether any parameter type is a Result.
+func anyResult(params []valueType) bool {
+	for _, param := range params {
+		if isResult(param) {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------- walk
@@ -259,6 +312,9 @@ func (e *nativeEmitter) collect() {
 	e.goNames = map[string]string{}
 	e.usedNames = map[string]bool{}
 	e.posVars = map[string]string{}
+	e.recordFields = map[string][]string{}
+	e.byID[builtinJSON.id()] = builtinJSON
+	e.byID[builtinOption.id()] = builtinOption
 	for _, r := range e.p.records {
 		e.addRecord(r)
 	}
@@ -280,8 +336,18 @@ func (e *nativeEmitter) addWord(w *word) {
 }
 
 func (e *nativeEmitter) addRecord(r *recordType) {
-	if r == nil || r.builtin || e.byID[r.id()] != nil {
+	if r == nil || e.byID[r.id()] != nil {
 		return
+	}
+	if r.builtin {
+		return
+	}
+	if r.typeParam != "" {
+		kind := "record"
+		if r.choice {
+			kind = "choice"
+		}
+		nativeFence(r.pos, "generic "+kind+" "+r.name)
 	}
 	e.records = append(e.records, r)
 	e.byID[r.id()] = r
@@ -321,7 +387,7 @@ func (e *nativeEmitter) walkExpression(x *expression) {
 	if x == nil {
 		return
 	}
-	if e.bindingRefs != nil && x.kind == "name" && x.binding != nil {
+	if e.bindingRefs != nil && x.binding != nil && (x.kind == "name" || x.kind == "call") {
 		e.bindingRefs[x.binding] = true
 	}
 	if x.word != nil {
@@ -344,10 +410,21 @@ func (e *nativeEmitter) walkExpression(x *expression) {
 	}
 }
 
+// collectRefs prewalks a body collecting every binding it reads, so the
+// emitter can skip Go declarations Zhex itself never uses.
+func (e *nativeEmitter) collectRefs(body []*statement) map[*binding]bool {
+	e.bindingRefs = map[*binding]bool{}
+	e.walkStatements(body)
+	refs := e.bindingRefs
+	e.bindingRefs = nil
+	return refs
+}
+
 // ---------------------------------------------------------------- emit
 
 func (e *nativeEmitter) emit() {
 	e.collect()
+	e.emitRecords()
 	e.emitBody()
 	body := e.b.String()
 	e.b = strings.Builder{}
@@ -385,6 +462,89 @@ func (e *nativeEmitter) emitBody() {
 	e.emitEntry()
 }
 
+// recordFieldNames returns the Go field names for a record's fields, in
+// declaration order, deduplicated within the record. Choices flatten
+// every variant's payload onto one struct, prefixed by variant name so
+// spellings never collide.
+func (e *nativeEmitter) recordFieldNames(r *recordType) []string {
+	if got, ok := e.recordFields[r.id()]; ok {
+		return got
+	}
+	var fields []parameter
+	if r.choice {
+		for _, variant := range r.variants {
+			for _, field := range variant.fields {
+				fields = append(fields, parameter{name: variant.name + "-" + field.name, typ: field.typ})
+			}
+		}
+	} else {
+		fields = r.fields
+	}
+	used := map[string]bool{}
+	var names []string
+	for _, field := range fields {
+		name := goMangle(field.name)
+		for i := 2; used[name]; i++ {
+			name = fmt.Sprintf("%s_%d", goMangle(field.name), i)
+		}
+		used[name] = true
+		names = append(names, name)
+	}
+	e.recordFields[r.id()] = names
+	return names
+}
+
+// emitRecords writes one Go struct per reachable record and choice:
+// field-for-field for records, a tag plus prefixed payload fields for
+// choices.
+func (e *nativeEmitter) emitRecords() {
+	for _, r := range e.records {
+		name := e.packageName("t:"+r.id(), r.id())
+		if r.choice {
+			e.line("// %s: tag values %s", r.id(), e.variantIndexComment(r))
+			e.line("type %s struct {", name)
+			e.depth++
+			e.line("tag int")
+			for i, variant := range r.variants {
+				for j, field := range variant.fields {
+					e.line("%s %s", e.recordFieldNames(r)[e.variantFieldBase(r, i)+j], e.goType(field.pos, field.typ))
+				}
+			}
+			e.depth--
+			e.line("}")
+			e.line("")
+			continue
+		}
+		e.line("type %s struct {", name)
+		e.depth++
+		names := e.recordFieldNames(r)
+		for i, field := range r.fields {
+			e.line("%s %s", names[i], e.goType(field.pos, field.typ))
+		}
+		e.depth--
+		e.line("}")
+		e.line("")
+	}
+}
+
+func (e *nativeEmitter) variantIndexComment(r *recordType) string {
+	var parts []string
+	for i, variant := range r.variants {
+		parts = append(parts, fmt.Sprintf("%d=%s", i, variant.name))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// variantFieldBase is the first payload field index of a variant on the
+// flattened choice struct.
+func (e *nativeEmitter) variantFieldBase(r *recordType, variant int) int {
+	base := 0
+	for i := 0; i < variant; i++ {
+		base += len(r.variants[i].fields)
+	}
+	return base
+}
+
 // wordKey identifies a word for package-level naming.
 func wordKey(w *word) string {
 	if w.module == "" {
@@ -407,11 +567,6 @@ func wordGoName(w *word) string {
 // word with an explicit Result signature returns the Result directly and
 // escaping failures become its Err.
 func (e *nativeEmitter) emitWord(w *word) {
-	for _, param := range w.params {
-		if param.defaultExpr != nil {
-			nativeFence(param.pos, "word parameter defaults")
-		}
-	}
 	e.fn = &nativeFunc{word: w, fallible: w.inferred, locals: map[string]string{}, localUsed: map[string]bool{}, refs: e.collectRefs(w.body)}
 	e.fn.pre = &strings.Builder{}
 	resultType := e.goType(w.pos, w.result)
@@ -434,6 +589,7 @@ func (e *nativeEmitter) emitWord(w *word) {
 	e.line("defer zhexrt.LeaveWord()")
 	e.line("var __result %s", resultType)
 	e.statements(w.body, "__result")
+	e.emitCleanups()
 	if w.inferred {
 		e.line("return __result, nil")
 	} else {
@@ -443,14 +599,25 @@ func (e *nativeEmitter) emitWord(w *word) {
 	e.line("}")
 }
 
-// collectRefs prewalks a body collecting every binding it reads, so the
-// emitter can skip Go declarations Zhex itself never uses.
-func (e *nativeEmitter) collectRefs(body []*statement) map[*binding]bool {
-	e.bindingRefs = map[*binding]bool{}
-	e.walkStatements(body)
-	refs := e.bindingRefs
-	e.bindingRefs = nil
-	return refs
+// pushCleanup registers a statement every early return inside the
+// current scope must run first (traversal guards, open streams).
+func (e *nativeEmitter) pushCleanup(statement string) {
+	e.fn.cleanups = append(e.fn.cleanups, statement)
+}
+
+// popCleanup deregisters the innermost cleanup, emitting it for the
+// normal path.
+func (e *nativeEmitter) popCleanup() {
+	last := len(e.fn.cleanups) - 1
+	e.line("%s", e.fn.cleanups[last])
+	e.fn.cleanups = e.fn.cleanups[:last]
+}
+
+// emitCleanups writes every pending cleanup, for an early return.
+func (e *nativeEmitter) emitCleanups() {
+	for i := len(e.fn.cleanups) - 1; i >= 0; i-- {
+		e.line("%s", e.fn.cleanups[i])
+	}
 }
 
 // failReturn emits the early-error return for the current function shape:
@@ -458,6 +625,9 @@ func (e *nativeEmitter) collectRefs(body []*statement) map[*binding]bool {
 // zero of its success type, and an explicit-Result word makes it the
 // returned Result's Err.
 func (e *nativeEmitter) failReturn(errExpr string) {
+	for i := len(e.fn.cleanups) - 1; i >= 0; i-- {
+		e.pre("%s", e.fn.cleanups[i])
+	}
 	if e.fn.word == nil {
 		e.pre("return %s", errExpr)
 		return
@@ -487,13 +657,12 @@ func (e *nativeEmitter) emitEntry() {
 				e.line("return %s().Err", name)
 			} else {
 				e.line("%s()", name)
-				e.line("return nil")
 			}
 		}
 	} else {
 		e.statements(e.p.body, "")
-		e.line("return nil")
 	}
+	e.line("return nil")
 	e.depth--
 	e.line("}")
 	e.line("")
@@ -531,67 +700,31 @@ func blockValueKind(s *statement) bool {
 func (e *nativeEmitter) statement(s *statement, target string) {
 	switch s.kind {
 	case "expression":
-		e.fn.pre = &strings.Builder{}
-		v := e.expr(s.expr)
-		e.flushPre()
-		if target != "" && s.expr.typ != unitType {
-			e.line("%s = %s", target, v)
-		} else if !isCallShaped(s.expr) {
-			e.line("_ = %s", v)
-		} else {
-			e.line("%s", v)
-		}
+		e.emitExprStatement(s.expr, target)
 	case "return":
 		e.fn.pre = &strings.Builder{}
 		v := e.expr(s.expr)
 		e.flushPre()
+		e.emitCleanups()
 		if e.fn.word != nil && e.fn.fallible {
 			e.line("return %s, nil", v)
 		} else {
 			e.line("return %s", v)
 		}
 	case "let", "var", "assign":
-		if s.kind != "assign" && !e.fn.refs[s.binding] {
-			// never referenced later: evaluate the value for its effect
-			e.fn.pre = &strings.Builder{}
-			v := e.expr(s.expr)
-			e.flushPre()
-			if isCallShaped(s.expr) {
-				e.line("%s", v)
-			} else {
-				e.line("_ = %s", v)
-			}
-			return
-		}
-		name := e.localName(s.name)
-		if s.expr != nil && s.expr.kind == "statement-value" {
-			e.line("var %s %s", name, e.goType(s.pos, s.binding.typ))
-			e.statement(s.expr.statement, name)
-			return
-		}
-		e.fn.pre = &strings.Builder{}
-		v := e.expr(s.expr)
-		e.flushPre()
-		if s.kind == "assign" {
-			e.line("%s = %s", name, v)
-		} else {
-			e.line("%s := %s", name, v)
-		}
+		e.emitBinding(s)
 	case "if":
-		e.fn.pre = &strings.Builder{}
-		cond := e.expr(s.expr)
-		e.flushPre()
-		e.line("if %s {", cond)
-		e.depth++
-		e.statements(s.body, target)
-		e.depth--
-		if len(s.otherwise) != 0 {
-			e.line("} else {")
-			e.depth++
-			e.statements(s.otherwise, target)
-			e.depth--
-		}
-		e.line("}")
+		e.emitIf(s, target)
+	case "match":
+		e.emitMatch(s.expr, target)
+	case "while":
+		e.emitWhile(s)
+	case "for":
+		e.emitForRange(s)
+	case "for-collection":
+		e.emitForCollection(s)
+	case "for-lines":
+		e.emitForLines(s)
 	case "flow":
 		e.emitFlow(s, target)
 	default:
@@ -599,47 +732,350 @@ func (e *nativeEmitter) statement(s *statement, target string) {
 	}
 }
 
-// flushPre writes the hoisted expression preamble ahead of the statement
-// line being assembled.
-func (e *nativeEmitter) flushPre() {
-	text := e.fn.pre.String()
-	e.fn.pre.Reset()
-	if text != "" {
-		e.b.WriteString(text)
+// neverReturns reports whether the expression is a console.exit or
+// console.fail call: it terminates instead of producing the fallback
+// value, so a block tail carrying it assigns nothing.
+func neverReturns(x *expression) bool {
+	return x != nil && x.kind == "call" && (x.text == "console.exit" || x.text == "console.fail")
+}
+
+// emitExprStatement evaluates an expression for its value or effect.
+func (e *nativeEmitter) emitExprStatement(x *expression, target string) {
+	if x.kind == "match" {
+		e.emitMatch(x, target)
+		return
+	}
+	e.fn.pre = &strings.Builder{}
+	v := e.expr(x)
+	hoisted := e.fn.pre.Len() != 0
+	e.flushPre()
+	if target != "" && neverReturns(x) {
+		e.line("%s", v)
+		return
+	}
+	if target != "" && x.typ != unitType {
+		e.line("%s = %s", target, v)
+	} else if isCallShaped(x) && !hoisted {
+		e.line("%s", v)
+	} else {
+		e.line("_ = %s", v)
 	}
 }
 
-// isCallShaped reports whether the expression's value is a plain call
-// that may stand alone as a Go statement; try and catch materialize
-// temps, so they need an explicit discard even though they wrap calls.
-func isCallShaped(x *expression) bool {
-	return x != nil && x.kind == "call"
+// emitBinding writes let/var/assign, including block-valued right-hand
+// sides; a binding Zhex never reads evaluates for effect only.
+func (e *nativeEmitter) emitBinding(s *statement) {
+	if s.kind != "assign" && !e.fn.refs[s.binding] {
+		e.emitExprStatement(s.expr, "")
+		return
+	}
+	name := e.localName(s.name)
+	if s.expr != nil && s.expr.kind == "statement-value" {
+		e.line("var %s %s", name, e.goType(s.pos, s.binding.typ))
+		e.statement(s.expr.statement, name)
+		return
+	}
+	e.fn.pre = &strings.Builder{}
+	v := e.expr(s.expr)
+	e.flushPre()
+	if s.kind == "assign" {
+		e.line("%s = %s", name, v)
+	} else {
+		e.line("%s := %s", name, v)
+	}
+}
+
+func (e *nativeEmitter) emitIf(s *statement, target string) {
+	e.fn.pre = &strings.Builder{}
+	cond := e.expr(s.expr)
+	e.flushPre()
+	e.line("if %s {", cond)
+	e.depth++
+	e.statements(s.body, target)
+	e.depth--
+	if len(s.otherwise) != 0 {
+		e.line("} else {")
+		e.depth++
+		e.statements(s.otherwise, target)
+		e.depth--
+	}
+	e.line("}")
+}
+
+// emitMatch writes a match as a switch over the subject's tag (choices,
+// Json) or Some flag (Option), binding payloads per arm.
+func (e *nativeEmitter) emitMatch(x *expression, target string) {
+	e.fn.pre = &strings.Builder{}
+	subject := e.expr(x.left)
+	e.flushPre()
+	temp := e.temp()
+	e.line("%s := %s", temp, subject)
+	subjectType := x.left.typ
+	switch {
+	case subjectType == jsonType:
+		e.line("switch %s.Kind {", temp)
+	case e.optionInner(subjectType) != "":
+		e.line("switch {")
+	case e.byID[string(subjectType)] != nil && e.byID[string(subjectType)].choice:
+		e.line("switch %s.tag {", temp)
+	default:
+		nativeFence(x.pos, "match on "+string(subjectType))
+	}
+	for _, arm := range x.arms {
+		if arm.variant < 0 {
+			e.depth--
+			e.line("default:")
+			e.depth++
+		} else {
+			e.depth--
+			switch {
+			case subjectType == jsonType:
+				e.line("case %d:", arm.variant)
+			case e.optionInner(subjectType) != "":
+				if arm.variant == 0 {
+					e.line("case !%s.Some:", temp)
+				} else {
+					e.line("case %s.Some:", temp)
+				}
+			default:
+				e.line("case %d:", arm.variant)
+			}
+			e.depth++
+		}
+		e.depth++
+		e.emitMatchBindings(x, arm, temp)
+		e.statements(arm.body, target)
+		e.depth--
+	}
+	e.line("}")
+}
+
+// emitMatchBindings assigns the arm's payload names from the subject.
+func (e *nativeEmitter) emitMatchBindings(x *expression, arm matchArm, temp string) {
+	subjectType := x.left.typ
+	if subjectType == jsonType {
+		for _, b := range arm.bindings {
+			if b == nil {
+				continue
+			}
+			field := map[int]string{1: "Bool", 2: "Text", 3: "Text", 4: "List", 5: "Object"}[arm.variant]
+			e.line("%s := %s.%s", e.localName(b.name), temp, field)
+		}
+		return
+	}
+	if e.optionInner(subjectType) != "" {
+		for _, b := range arm.bindings {
+			if b != nil {
+				e.line("%s := %s.Value", e.localName(b.name), temp)
+			}
+		}
+		return
+	}
+	record := e.byID[string(subjectType)]
+	names := e.recordFieldNames(record)
+	base := e.variantFieldBase(record, arm.variant)
+	for i, b := range arm.bindings {
+		if b != nil {
+			e.line("%s := %s.%s", e.localName(b.name), temp, names[base+i])
+		}
+	}
+}
+
+// optionInner returns Option<T>'s inner type, or "".
+func (e *nativeEmitter) optionInner(t valueType) valueType {
+	if base, args, ok := typeApplication(t); ok && base == "Option" && len(args) == 1 {
+		return args[0]
+	}
+	return ""
+}
+
+func (e *nativeEmitter) emitWhile(s *statement) {
+	e.fn.pre = &strings.Builder{}
+	cond := e.expr(s.expr)
+	pre := e.fn.pre.String()
+	e.fn.pre.Reset()
+	if pre == "" {
+		e.line("for %s {", cond)
+		e.depth++
+		e.statements(s.body, "")
+		e.depth--
+		e.line("}")
+		return
+	}
+	// the condition's preamble must re-run each pass
+	e.line("for {")
+	e.depth++
+	e.line("%s", pre)
+	e.line("if !%s {", cond)
+	e.depth++
+	e.line("break")
+	e.depth--
+	e.line("}")
+	e.statements(s.body, "")
+	e.depth--
+	e.line("}")
+}
+
+// emitForRange writes `for n in range(start, end)` — exclusive end.
+func (e *nativeEmitter) emitForRange(s *statement) {
+	e.fn.pre = &strings.Builder{}
+	start := e.expr(s.expr)
+	end := e.expr(s.end)
+	e.flushPre()
+	name := e.localName(s.name)
+	e.line("for %s := %s; zhexrt.Cmp(%s, %s) < 0; %s, _ = zhexrt.AddOvf(%s, zhexrt.I64(1)) {", name, start, name, end, name, name)
+	e.depth++
+	e.statements(s.body, "")
+	e.depth--
+	e.line("}")
+}
+
+// emitForCollection writes `for v in list|array|map` and the dual-binding
+// forms, with the interpreter's traversal guards as cleanups.
+func (e *nativeEmitter) emitForCollection(s *statement) {
+	e.fn.pre = &strings.Builder{}
+	receiver := e.expr(s.expr)
+	e.flushPre()
+	temp := e.temp()
+	e.line("%s := %s", temp, receiver)
+	name := e.localName(s.name)
+	second := ""
+	if s.secondName != "" {
+		second = e.localName(s.secondName)
+	}
+	if kind, _, ok := collectionInner(s.expr.typ); ok && kind == "List" {
+		e.line("%s.Active++", temp)
+		e.pushCleanup(fmt.Sprintf("%s.Active--", temp))
+		if second != "" {
+			// the first binding is the index, the second the item
+			e.line("for __i, __item := range %s.Items {", temp)
+			e.depth++
+			if e.fn.refs[s.binding] {
+				e.line("%s := zhexrt.I64(int64(__i))", name)
+			}
+			if e.fn.refs[s.secondBinding] {
+				e.line("%s := __item", second)
+			}
+		} else {
+			e.line("for _, %s := range %s.Items {", name, temp)
+			e.depth++
+		}
+		e.statements(s.body, "")
+		e.depth--
+		e.line("}")
+		e.popCleanup()
+		return
+	}
+	if kind, _, ok := collectionInner(s.expr.typ); ok && kind == "Array" {
+		e.line("%s.Active++", temp)
+		e.pushCleanup(fmt.Sprintf("%s.Active--", temp))
+		if second != "" {
+			// the dual binding receives the coordinates as a fresh
+			// List<Int>, matching the interpreter's decomposition
+			e.line("for __i, %s := range %s.Items {", second, temp)
+			e.depth++
+			e.line("__coords := make([]zhexrt.Int, len(%s.Shape))", temp)
+			e.line("__n := int64(__i)")
+			e.line("for __axis := len(%s.Shape) - 1; __axis >= 0; __axis-- {", temp)
+			e.depth++
+			e.line("__coords[__axis] = zhexrt.I64(__n %% %s.Shape[__axis])", temp)
+			e.line("__n /= %s.Shape[__axis]", temp)
+			e.depth--
+			e.line("}")
+			e.line("%s := &zhexrt.List[zhexrt.Int]{Items: __coords}", name)
+			e.statements(s.body, "")
+			e.depth--
+			e.line("}")
+		} else {
+			e.line("for _, %s := range %s.Items {", name, temp)
+			e.depth++
+			e.statements(s.body, "")
+			e.depth--
+			e.line("}")
+		}
+		e.popCleanup()
+		return
+	}
+	// map: single binding iterates values, dual binding key then value
+	e.line("%s.Active++", temp)
+	e.pushCleanup(fmt.Sprintf("%s.Active--", temp))
+	if second != "" {
+		e.line("for _, __entry := range %s.Entries {", temp)
+		e.depth++
+		if e.fn.refs[s.binding] {
+			e.line("%s := __entry.Key", name)
+		}
+		if e.fn.refs[s.secondBinding] {
+			e.line("%s := __entry.Value", second)
+		}
+	} else {
+		e.line("for _, __entry := range %s.Entries {", temp)
+		e.depth++
+		e.line("%s := __entry.Value", name)
+	}
+	e.statements(s.body, "")
+	e.depth--
+	e.line("}")
+	e.popCleanup()
+}
+
+// emitForLines writes `for line in file.stream(path)` — the stream always
+// closes, including on early returns inside the body.
+func (e *nativeEmitter) emitForLines(s *statement) {
+	e.fn.pre = &strings.Builder{}
+	path := e.expr(s.expr)
+	e.flushPre()
+	file := e.temp()
+	e.line("%s := zhexrt.StreamOpen(%s, %s)", file, e.posVar(s.pos), path)
+	e.pushCleanup(fmt.Sprintf("zhexrt.FileClose(%s)", file))
+	name := e.localName(s.name)
+	linePos := e.posVar(s.pos)
+	e.line("for {")
+	e.depth++
+	next := e.temp()
+	e.line("%s, __ok := zhexrt.StreamLine(%s, %s)", next, linePos, file)
+	e.line("if !__ok {")
+	e.depth++
+	e.line("break")
+	e.depth--
+	e.line("}")
+	e.line("%s := %s", name, next)
+	e.statements(s.body, "")
+	e.depth--
+	e.line("}")
+	e.popCleanup()
 }
 
 // emitFlow writes a threaded flow or a with block as straight-line calls.
+// A with block fixes the seed: every step receives it as the first
+// argument instead of the previous step's result.
 func (e *nativeEmitter) emitFlow(s *statement, target string) {
-	if s.with != "" {
-		nativeFence(s.withPos, "with blocks")
-	}
 	e.fn.pre = &strings.Builder{}
-	cursor := e.expr(s.expr)
+	seed := e.expr(s.expr)
 	e.flushPre()
+	// materialize the seed once: a with block hands the same value to
+	// every step, and a threaded flow starts from it
+	seedTemp := e.temp()
+	e.line("%s := %s", seedTemp, seed)
+	cursor := seedTemp
+	withBlock := s.with != ""
 	for index, step := range s.steps {
 		e.fn.pre = &strings.Builder{}
 		last := index == len(s.steps)-1
-		value := e.stepValue(step, cursor)
+		first := cursor
+		if withBlock {
+			first = seedTemp
+		}
+		value := e.stepValue(step, first)
 		e.flushPre()
 		if last && target != "" && step.typ != unitType {
 			e.line("%s = %s", target, value)
 			continue
 		}
-		if last || step.typ == unitType {
-			// a Unit step (or the discarded tail) runs for its effect
-			if isCallShaped(step) {
-				e.line("%s", value)
-			} else {
-				e.line("_ = %s", value)
-			}
+		// with-block steps discard their values (the seed is fixed); a
+		// Unit step or the discarded tail runs for its effect
+		if last || step.typ == unitType || withBlock {
+			e.line("_ = %s", value)
 			cursor = "zhexrt.Unit{}"
 			continue
 		}
@@ -654,6 +1090,22 @@ func (e *nativeEmitter) stepValue(step *expression, first string) string {
 	e.flowFirst = first
 	defer func() { e.flowFirst = "" }()
 	return e.expr(step)
+}
+
+// flushPre writes the hoisted expression preamble ahead of the statement
+// line being assembled.
+func (e *nativeEmitter) flushPre() {
+	text := e.fn.pre.String()
+	e.fn.pre.Reset()
+	if text != "" {
+		e.b.WriteString(text)
+	}
+}
+
+// isCallShaped reports whether the expression is a plain call that may
+// stand alone as a Go statement when its value is discarded.
+func isCallShaped(x *expression) bool {
+	return x != nil && x.kind == "call"
 }
 
 // ---------------------------------------------------------------- expressions
@@ -672,14 +1124,17 @@ func (e *nativeEmitter) expr(x *expression) string {
 	case "string":
 		return strconv.Quote(x.text)
 	case "name":
-		if x.record != nil && x.record.choice {
-			nativeFence(x.pos, "choices")
-		}
-		v := e.localName(x.text)
-		if len(x.fields) != 0 {
-			nativeFence(x.pos, "record fields")
-		}
-		return v
+		return e.nameExpr(x)
+	case "field":
+		return e.fieldExpr(x)
+	case "list":
+		return e.listLiteral(x)
+	case "map":
+		return e.mapLiteral(x)
+	case "index":
+		return e.indexRead(x)
+	case "index-write":
+		return e.indexWrite(x)
 	case "unary":
 		v := e.expr(x.left)
 		if x.text == "not" {
@@ -701,6 +1156,170 @@ func (e *nativeEmitter) expr(x *expression) string {
 	return ""
 }
 
+// nameExpr reads a binding (with optional field path) or a bare choice
+// constructor such as Option.None. The parser spells a field path as one
+// dotted text, so the base local comes from the binding, not x.text.
+func (e *nativeEmitter) nameExpr(x *expression) string {
+	if x.record != nil && x.record.choice {
+		return e.choiceConstructor(x.record, x.variant, nil, x)
+	}
+	base := e.localName(x.binding.name)
+	if len(x.fields) == 0 {
+		return base
+	}
+	record := x.binding.typ
+	for _, index := range x.fields {
+		r := e.byID[string(record)]
+		if r == nil || r.choice {
+			nativeFence(x.pos, "fields on "+string(record))
+		}
+		base = base + "." + e.recordFieldNames(r)[index]
+		if index < len(r.fields) {
+			record = r.fields[index].typ
+		}
+	}
+	return base
+}
+
+// fieldExpr reads record fields off any receiver expression.
+func (e *nativeEmitter) fieldExpr(x *expression) string {
+	receiver := e.expr(x.left)
+	record := x.left.typ
+	for _, index := range x.fields {
+		r := e.byID[string(record)]
+		if r == nil || r.choice {
+			nativeFence(x.pos, "fields on "+string(record))
+		}
+		receiver = receiver + "." + e.recordFieldNames(r)[index]
+		if index < len(r.fields) {
+			record = r.fields[index].typ
+		}
+	}
+	return receiver
+}
+
+func (e *nativeEmitter) listLiteral(x *expression) string {
+	_, inner, _ := collectionInner(x.typ)
+	elementType := e.goType(x.pos, inner)
+	var items []string
+	for _, item := range x.args {
+		items = append(items, e.expr(item))
+	}
+	return fmt.Sprintf("&zhexrt.List[%s]{Items: []%s{%s}}", elementType, elementType, strings.Join(items, ", "))
+}
+
+func (e *nativeEmitter) mapLiteral(x *expression) string {
+	base, args, ok := typeApplication(x.typ)
+	if !ok || base != "Map" {
+		nativeFence(x.pos, "map literals")
+	}
+	temp := e.temp()
+	e.pre("%s := zhexrt.NewMap[%s, %s]()", temp, e.goType(x.pos, args[0]), e.goType(x.pos, args[1]))
+	for i := 0; i < len(x.args); i += 2 {
+		e.pre("zhexrt.MapPut(%s, %s, %s)", temp, e.expr(x.args[i]), e.expr(x.args[i+1]))
+	}
+	return temp
+}
+
+// mapKeyType returns the Map's key type string, or "" when not a map.
+func (e *nativeEmitter) mapKeyType(t valueType) string {
+	if base, args, ok := typeApplication(t); ok && base == "Map" && len(args) == 2 {
+		return string(args[0])
+	}
+	return ""
+}
+
+// indexRead emits m[k] (an Option), and the plain or checked list/array
+// indexed read.
+func (e *nativeEmitter) indexRead(x *expression) string {
+	receiver := e.expr(x.left)
+	indices := make([]string, len(x.args))
+	for i, arg := range x.args {
+		indices[i] = e.expr(arg)
+	}
+	if e.mapKeyType(x.left.typ) != "" {
+		return fmt.Sprintf("zhexrt.MapLookup(%s, %s)", receiver, indices[0])
+	}
+	pos := e.posVar(x.pos)
+	if kind, _, ok := collectionInner(x.left.typ); ok && kind == "List" {
+		call := fmt.Sprintf("zhexrt.ListGet(%s, %s, %s)", pos, receiver, indices[0])
+		if x.checkedIndex {
+			return call
+		}
+		return e.hardUnwrap(call)
+	}
+	call := fmt.Sprintf("zhexrt.ArrayGet(%s, %s, []zhexrt.Int{%s})", pos, receiver, strings.Join(indices, ", "))
+	if x.checkedIndex {
+		return call
+	}
+	return e.hardUnwrap(call)
+}
+
+// indexWrite emits the plain indexed write (checked writes fence: the
+// parenthesized form is the checked collection contract).
+func (e *nativeEmitter) indexWrite(x *expression) string {
+	if !x.plainWrite {
+		nativeFence(x.pos, "checked indexed writes")
+	}
+	idx := x.left
+	receiver := e.expr(idx.left)
+	indices := make([]string, len(idx.args))
+	for i, arg := range idx.args {
+		indices[i] = e.expr(arg)
+	}
+	value := e.expr(x.right)
+	pos := e.posVar(x.pos)
+	if e.mapKeyType(idx.left.typ) != "" {
+		e.pre("zhexrt.MapSetHard(%s, %s, %s, %s)", pos, receiver, indices[0], value)
+		return "zhexrt.Unit{}"
+	}
+	if kind, _, ok := collectionInner(idx.left.typ); ok && kind == "List" {
+		return e.hardUnwrap(fmt.Sprintf("zhexrt.ListSet(%s, %s, %s, %s)", pos, receiver, indices[0], value))
+	}
+	return e.hardUnwrap(fmt.Sprintf("zhexrt.ArraySet(%s, %s, []zhexrt.Int{%s}, %s)", pos, receiver, strings.Join(indices, ", "), value))
+}
+
+// hardUnwrap converts a checked Result into its plain form: the value
+// when it succeeded, a hard panic when it failed (plainReadResult).
+func (e *nativeEmitter) hardUnwrap(resultExpr string) string {
+	temp := e.temp()
+	e.pre("%s := %s", temp, resultExpr)
+	e.pre("if %s.Err != nil {", temp)
+	e.pre("	panic(%s.Err)", temp)
+	e.pre("}")
+	return temp + ".Value"
+}
+
+// binaryPrec is one Zhex/Go operator precedence class (both languages
+// agree on the ordering): or < and < comparisons < additive <
+// multiplicative.
+func binaryPrec(op string) int {
+	switch op {
+	case "or":
+		return 1
+	case "and":
+		return 2
+	case "==", "!=", "<", "<=", ">", ">=":
+		return 3
+	case "+", "-":
+		return 4
+	default:
+		return 5
+	}
+}
+
+// rightNeedsParen reports whether a binary right operand needs keeping in
+// parentheses: lower precedence than its parent, or equal precedence
+// under a non-commutative operator (the parser only nests those through
+// explicit grouping).
+func rightNeedsParen(op string, right *expression) bool {
+	if right.kind != "binary" {
+		return false
+	}
+	rp, pp := binaryPrec(right.text), binaryPrec(op)
+	return rp < pp || rp == pp && (op == "-" || op == "/" || op == "%")
+}
+
 func (e *nativeEmitter) binary(x *expression) string {
 	left := e.expr(x.left)
 	switch x.text {
@@ -715,19 +1334,29 @@ func (e *nativeEmitter) binary(x *expression) string {
 			op = "||"
 		}
 		if rightPre == "" {
+			if rightNeedsParen(x.text, x.right) {
+				right = "(" + right + ")"
+			}
 			return fmt.Sprintf("%s %s %s", left, op, right)
 		}
 		// Short-circuit: the right side's preamble must not run when the
 		// left side already decides.
 		temp := e.temp()
 		e.pre("%s := %s", temp, left)
-		e.pre("if %s %s {", temp, op)
+		if op == "&&" {
+			e.pre("if %s {", temp)
+		} else {
+			e.pre("if !%s {", temp)
+		}
 		e.pre("%s", rightPre)
 		e.pre("%s = %s", temp, right)
 		e.pre("}")
 		return temp
 	}
 	right := e.expr(x.right)
+	if rightNeedsParen(x.text, x.right) {
+		right = "(" + right + ")"
+	}
 	switch x.text {
 	case "==", "!=":
 		op := x.text
@@ -766,9 +1395,18 @@ func isFallibleCall(x *expression) bool {
 }
 
 // callValue emits a user-word call: pure words are plain expressions;
-// fallible words materialize a (value, error) pair.
+// fallible words materialize a (value, error) pair. Word parameter
+// defaults evaluate inline at the call site (they are closed
+// expressions).
 func (e *nativeEmitter) callValue(x *expression) (v, errv string) {
 	args := e.callArgs(x)
+	for i := len(args); i < len(x.word.params); i++ {
+		defaultExpr := x.word.params[i].defaultExpr
+		if defaultExpr == nil {
+			nativeFence(x.pos, "word parameter defaults")
+		}
+		args = append(args, e.expr(defaultExpr))
+	}
 	name := e.packageName(wordKey(x.word), wordGoName(x.word))
 	call := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
 	if !x.word.inferred {
@@ -788,17 +1426,34 @@ func (e *nativeEmitter) callArgs(x *expression) []string {
 			args = append(args, e.flowFirst)
 			continue
 		}
+		if arg.kind == "hole" {
+			continue
+		}
 		args = append(args, e.expr(arg))
 	}
 	return args
 }
 
 func (e *nativeEmitter) call(x *expression) string {
-	if x.partial || x.binding != nil {
-		nativeFence(x.pos, "partials")
+	if x.partial {
+		return e.partialExpr(x)
+	}
+	if x.binding != nil {
+		// a captured function value invoked with the call's arguments
+		args := e.callArgs(x)
+		return fmt.Sprintf("%s(%s)", e.localName(x.binding.name), strings.Join(args, ", "))
 	}
 	if x.record != nil {
-		nativeFence(x.pos, "record constructors")
+		if x.record.choice {
+			var args []string
+			for _, arg := range x.args {
+				if arg.kind != "hole" {
+					args = append(args, e.expr(arg))
+				}
+			}
+			return e.choiceConstructor(x.record, x.variant, args, x)
+		}
+		return e.recordConstructor(x)
 	}
 	if x.word != nil {
 		v, errv := e.callValue(x)
@@ -806,10 +1461,156 @@ func (e *nativeEmitter) call(x *expression) string {
 			return v
 		}
 		// plain context: the call's value is its Result
-		result := fmt.Sprintf("zhexrt.Result[%s]{Value: %s, Err: %s}", e.goType(x.pos, x.word.success), v, errv)
-		return result
+		return fmt.Sprintf("zhexrt.Result[%s]{Value: %s, Err: %s}", e.goType(x.pos, x.word.success), v, errv)
 	}
 	return e.builtin(x)
+}
+
+// choiceConstructor builds one variant: Option and Json map to zhexrt
+// literals, user choices to the generated struct.
+func (e *nativeEmitter) choiceConstructor(r *recordType, variant int, args []string, x *expression) string {
+	if r == builtinOption {
+		if variant == 0 {
+			return fmt.Sprintf("zhexrt.None[%s]()", e.goType(x.pos, e.optionInner(x.typ)))
+		}
+		return fmt.Sprintf("zhexrt.Some(%s)", args[0])
+	}
+	if r == builtinJSON {
+		switch variant {
+		case 0:
+			return "&zhexrt.Json{Kind: 0}"
+		case 1:
+			return fmt.Sprintf("&zhexrt.Json{Kind: 1, Bool: %s}", args[0])
+		case 2, 3:
+			return fmt.Sprintf("&zhexrt.Json{Kind: %d, Text: %s}", variant, args[0])
+		case 4:
+			return fmt.Sprintf("&zhexrt.Json{Kind: 4, List: %s}", args[0])
+		default:
+			return fmt.Sprintf("&zhexrt.Json{Kind: 5, Object: %s}", args[0])
+		}
+	}
+	name := e.packageName("t:"+r.id(), r.id())
+	if len(r.variants[variant].fields) == 0 {
+		return fmt.Sprintf("&%s{tag: %d}", name, variant)
+	}
+	names := e.recordFieldNames(r)
+	base := e.variantFieldBase(r, variant)
+	var fields []string
+	for i, arg := range args {
+		fields = append(fields, fmt.Sprintf("%s: %s", names[base+i], arg))
+	}
+	return fmt.Sprintf("&%s{tag: %d, %s}", name, variant, strings.Join(fields, ", "))
+}
+
+// recordConstructor builds a record literal, positional or all-named,
+// filling omitted trailing defaults inline (closed expressions).
+func (e *nativeEmitter) recordConstructor(x *expression) string {
+	r := x.record
+	name := e.packageName("t:"+r.id(), r.id())
+	fields := make([]string, len(r.fields))
+	present := make([]bool, len(r.fields))
+	for i, arg := range x.args {
+		index := i
+		if len(x.argNames) != 0 {
+			index = x.argFields[i]
+		}
+		fields[index] = e.recordFieldNames(r)[index] + ": " + e.expr(arg)
+		present[index] = true
+	}
+	for i, field := range r.fields {
+		if present[i] {
+			continue
+		}
+		if field.defaultExpr == nil {
+			nativeFence(x.pos, "record field defaults")
+		}
+		fields[i] = e.recordFieldNames(r)[i] + ": " + e.expr(field.defaultExpr)
+	}
+	return fmt.Sprintf("&%s{%s}", name, strings.Join(fields, ", "))
+}
+
+// partialExpr turns a partial application into a Go closure: captured
+// arguments evaluate once, in source order, at creation; holes become
+// the closure's parameters in order.
+func (e *nativeEmitter) partialExpr(x *expression) string {
+	params, result, ok := functionTypeParts(x.typ)
+	if !ok {
+		nativeFence(x.pos, "partials without a function type")
+	}
+	if anyResult(params) {
+		nativeFence(x.pos, "fallible partials")
+	}
+	if x.record != nil {
+		nativeFence(x.pos, "constructor partials")
+	}
+	// evaluate the captured arguments once, in source order, at
+	// creation: each lands in a temp the closure reads, so later
+	// reassignment of a captured name never leaks in
+	captured := make([]string, len(x.args))
+	for i, arg := range x.args {
+		if arg.kind == "hole" {
+			continue
+		}
+		temp := e.temp()
+		e.pre("%s := %s", temp, e.expr(arg))
+		captured[i] = temp
+	}
+	// the closure's parameters are the holes in order; params lists the
+	// RESULTING function's parameter types, so hole i maps to params[i]
+	var paramNames []string
+	var paramTypes []string
+	for i := range x.holes {
+		name := fmt.Sprintf("__a%d", i)
+		paramNames = append(paramNames, name)
+		paramTypes = append(paramTypes, name+" "+e.goType(x.pos, params[i]))
+	}
+	// splice holes and captured slots back into the call shape
+	var callArgs []string
+	holeAt := 0
+	for i := range x.args {
+		if x.args[i].kind == "hole" {
+			callArgs = append(callArgs, paramNames[holeAt])
+			holeAt++
+			continue
+		}
+		callArgs = append(callArgs, captured[i])
+	}
+	var body string
+	if x.word != nil {
+		name := e.packageName(wordKey(x.word), wordGoName(x.word))
+		if x.word.inferred {
+			// the word's Go form returns (value, error); the closure
+			// carries the Result
+			for i := len(callArgs); i < len(x.word.params); i++ {
+				if x.word.params[i].defaultExpr == nil {
+					nativeFence(x.pos, "word parameter defaults")
+				}
+				callArgs = append(callArgs, e.expr(x.word.params[i].defaultExpr))
+			}
+			body = fmt.Sprintf("__v, __e := %s(%s)\nreturn zhexrt.Result[%s]{Value: __v, Err: __e}", name, strings.Join(callArgs, ", "), e.goType(x.pos, x.word.success))
+		} else {
+			for i := len(callArgs); i < len(x.word.params); i++ {
+				if x.word.params[i].defaultExpr == nil {
+					nativeFence(x.pos, "word parameter defaults")
+				}
+				callArgs = append(callArgs, e.expr(x.word.params[i].defaultExpr))
+			}
+			body = fmt.Sprintf("return %s(%s)", name, strings.Join(callArgs, ", "))
+		}
+	} else {
+		call := e.builtinCall(x, callArgs)
+		if call == "" {
+			nativeFence(x.pos, x.text+" partials")
+		}
+		if isCheckedCollectionOperation(x.text) && !x.checkedCollection {
+			// the plain form of a checked operation: the closure hardens
+			// the failure
+			body = fmt.Sprintf("__r := %s\nif __r.Err != nil {\n	panic(__r.Err)\n}\nreturn __r.Value", call)
+		} else {
+			body = "return " + call
+		}
+	}
+	return fmt.Sprintf("func(%s) %s {\n%s\n}", strings.Join(paramTypes, ", "), e.goType(x.pos, result), body)
 }
 
 // tryExpr unwraps a Result and propagates its failure to the word
@@ -862,28 +1663,357 @@ func (e *nativeEmitter) catchExpr(x *expression) string {
 	return out
 }
 
+// ---------------------------------------------------------------- builtins
+
 // builtin emits the compiled builtins; anything else fences with its
-// name, so the diagnostic names exactly what the program used.
+// name, so the diagnostic names exactly what the program used. Checked
+// collection operations in their plain form harden the failure.
 func (e *nativeEmitter) builtin(x *expression) string {
-	pos := e.posVar(x.pos)
 	args := e.callArgs(x)
-	switch x.text {
-	case "print":
-		arg := args[0]
-		if x.args[0].typ == intType {
-			return fmt.Sprintf("zhexrt.PrintInt(%s, %s)", pos, arg)
-		}
-		if x.args[0].typ != stringType {
-			nativeFence(x.pos, "print of "+string(x.args[0].typ))
-		}
-		return fmt.Sprintf("zhexrt.Print(%s, %s)", pos, arg)
-	case "read-line":
-		return fmt.Sprintf("zhexrt.ReadLine(%s, %s)", pos, e.expr(x.args[0]))
-	case "text.to-int":
-		return fmt.Sprintf("zhexrt.ToInt(%s, %s)", pos, e.expr(x.args[0]))
-	case "int.to-string":
-		return fmt.Sprintf("zhexrt.Str(%s)", e.expr(x.args[0]))
+	call := e.builtinCall(x, args)
+	if call == "" {
+		nativeFence(x.pos, x.text)
 	}
-	nativeFence(x.pos, x.text)
+	if isCheckedCollectionOperation(x.text) && !x.checkedCollection {
+		return e.hardUnwrap(call)
+	}
+	return call
+}
+
+// builtinCall resolves one builtin to its zhexrt call, or "" when the
+// name is outside the compiled vocabulary.
+func (e *nativeEmitter) builtinCall(x *expression, args []string) string {
+	pos := e.posVar(x.pos)
+	need := func(n int) {
+		if len(args) < n {
+			nativeFence(x.pos, x.text)
+		}
+	}
+	switch x.text {
+	// console and input
+	case "print":
+		need(1)
+		if x.args[0].typ == intType {
+			return fmt.Sprintf("zhexrt.PrintInt(%s, %s)", pos, args[0])
+		}
+		if x.args[0].typ == boolType {
+			return fmt.Sprintf("zhexrt.PrintBool(%s, %s)", pos, args[0])
+		}
+		return fmt.Sprintf("zhexrt.Print(%s, %s)", pos, args[0])
+	case "read-line":
+		need(1)
+		return fmt.Sprintf("zhexrt.ReadLine(%s, %s)", pos, args[0])
+	case "text.to-int":
+		need(1)
+		return fmt.Sprintf("zhexrt.ToInt(%s, %s)", pos, args[0])
+	case "int.to-string":
+		need(1)
+		return fmt.Sprintf("zhexrt.Str(%s)", args[0])
+	case "console.arg":
+		need(1)
+		return fmt.Sprintf("zhexrt.ArgsAt(%s, %s)", pos, args[0])
+	case "console.args-count":
+		return "zhexrt.ArgsCount()"
+	case "console.exit":
+		need(1)
+		return fmt.Sprintf("zhexrt.ExitWith(%s, %s)", pos, args[0])
+	case "console.fail":
+		need(1)
+		return fmt.Sprintf("zhexrt.FailWith(%s)", args[0])
+	case "env.get":
+		need(1)
+		return fmt.Sprintf("zhexrt.EnvGet(%s)", args[0])
+	case "env.load":
+		need(1)
+		return fmt.Sprintf("zhexrt.EnvLoad(%s, %s)", pos, args[0])
+
+	// error words
+	case "error.new":
+		need(2)
+		return fmt.Sprintf("zhexrt.ErrorNew(%s, %s, %s)", pos, args[0], args[1])
+	case "error.wrap":
+		need(3)
+		return fmt.Sprintf("zhexrt.ErrorWrap(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "error.has-cause":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorHasCause(%s)", args[0])
+	case "error.cause":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorCause(%s, %s)", pos, args[0])
+	case "error.code":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorCode(%s)", args[0])
+	case "error.message":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorMessage(%s)", args[0])
+	case "error.operation":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorOperation(%s)", args[0])
+	case "error.file":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorFile(%s)", args[0])
+	case "error.line":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorLine(%s)", args[0])
+	case "error.column":
+		need(1)
+		return fmt.Sprintf("zhexrt.ErrorColumn(%s)", args[0])
+	case "error.detail":
+		need(2)
+		return fmt.Sprintf("zhexrt.ErrorDetail(%s, %s)", args[0], args[1])
+
+	// ok / err
+	case "ok":
+		need(1)
+		return fmt.Sprintf("zhexrt.Ok(%s)", args[0])
+	case "err":
+		need(1)
+		inner, _ := resultInner(x.typ)
+		return fmt.Sprintf("zhexrt.Result[%s]{Err: %s}", e.goType(x.pos, inner), args[0])
+
+	// text words
+	case "text.reverse":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextReverse(%s)", args[0])
+	case "text.length":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextLength(%s)", args[0])
+	case "text.line-count":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextLineCount(%s)", args[0])
+	case "text.word-count":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextWordCount(%s)", args[0])
+	case "text.upper":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextUpper(%s)", args[0])
+	case "text.lower":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextLower(%s)", args[0])
+	case "text.trim":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextTrim(%s)", args[0])
+	case "text.contains":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextContains(%s, %s)", args[0], args[1])
+	case "text.index-of":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextIndexOf(%s, %s)", args[0], args[1])
+	case "text.slice":
+		need(3)
+		return fmt.Sprintf("zhexrt.TextSlice(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "text.replace":
+		need(3)
+		return fmt.Sprintf("zhexrt.TextReplace(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "text.split":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextSplit(%s, %s, %s)", pos, args[0], args[1])
+	case "text.join":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextJoin(%s, %s)", args[0], args[1])
+	case "text.to-code-points":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextToCodePoints(%s, %s)", pos, args[0])
+	case "text.from-code-points":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextFromCodePoints(%s, %s)", pos, args[0])
+	case "text.starts-with":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextStartsWith(%s, %s)", args[0], args[1])
+	case "text.ends-with":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextEndsWith(%s, %s)", args[0], args[1])
+
+	// list words
+	case "list.new":
+		_, inner, _ := collectionInner(x.typ)
+		return fmt.Sprintf("&zhexrt.List[%s]{}", e.goType(x.pos, inner))
+	case "list.append":
+		need(2)
+		return fmt.Sprintf("zhexrt.ListAppend(%s, %s, %s)", pos, args[0], args[1])
+	case "list.insert":
+		need(3)
+		return fmt.Sprintf("zhexrt.ListInsert(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "list.length":
+		need(1)
+		return fmt.Sprintf("zhexrt.ListLength(%s)", args[0])
+	case "list.map":
+		need(2)
+		return fmt.Sprintf("zhexrt.ListMap(%s, %s)", args[0], args[1])
+	case "list.filter", "list.select":
+		need(2)
+		return fmt.Sprintf("zhexrt.ListFilter(%s, %s)", args[0], args[1])
+	case "list.fold":
+		need(3)
+		return fmt.Sprintf("zhexrt.ListFold(%s, %s, %s)", args[0], args[1], args[2])
+	case "list.find":
+		need(2)
+		return fmt.Sprintf("zhexrt.ListFind(%s, %s)", args[0], args[1])
+	case "list.any":
+		need(2)
+		return fmt.Sprintf("zhexrt.ListAny(%s, %s)", args[0], args[1])
+	case "list.all":
+		need(2)
+		return fmt.Sprintf("zhexrt.ListAll(%s, %s)", args[0], args[1])
+	case "list.contains":
+		need(2)
+		return fmt.Sprintf("zhexrt.ListContains(%s, %s)", args[0], args[1])
+	case "list.sort":
+		need(1)
+		if x.inputType == "List<String>" {
+			return fmt.Sprintf("zhexrt.ListSortStrings(%s)", args[0])
+		}
+		return fmt.Sprintf("zhexrt.ListSortInts(%s)", args[0])
+	case "list.sort-by":
+		need(2)
+		if e.sortKeyIsText(x) {
+			return fmt.Sprintf("zhexrt.ListSortByString(%s, %s)", args[0], args[1])
+		}
+		return fmt.Sprintf("zhexrt.ListSortByInt(%s, %s)", args[0], args[1])
+
+	// map words
+	case "map.length":
+		need(1)
+		return fmt.Sprintf("zhexrt.MapLength(%s)", args[0])
+	case "map.contains":
+		need(2)
+		return fmt.Sprintf("zhexrt.MapContains(%s, %s)", args[0], args[1])
+	case "map.put":
+		need(3)
+		return fmt.Sprintf("zhexrt.MapPutChecked(%s, %q, %s, %s, %s)", pos, x.text, args[0], args[1], args[2])
+	case "map.remove":
+		need(2)
+		return fmt.Sprintf("zhexrt.MapRemove(%s, %q, %s, %s)", pos, x.text, args[0], args[1])
+	case "map.into":
+		need(2)
+		return fmt.Sprintf("zhexrt.MapInto(%s, %s, %s)", pos, args[1], args[0])
+	case "map.keys":
+		need(1)
+		return fmt.Sprintf("zhexrt.MapKeys(%s, %q, %s)", pos, x.text, args[0])
+	case "map.values":
+		need(1)
+		return fmt.Sprintf("zhexrt.MapValues(%s, %q, %s)", pos, x.text, args[0])
+
+	// array words
+	case "array.new":
+		need(2)
+		return fmt.Sprintf("zhexrt.ArrayNew(%s, %s, %s)", pos, args[0], args[1])
+	case "array.resize":
+		need(3)
+		return fmt.Sprintf("zhexrt.ArrayResize(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "array.shape":
+		need(1)
+		return fmt.Sprintf("zhexrt.ArrayShape(%s)", args[0])
+	case "array.rank":
+		need(1)
+		return fmt.Sprintf("zhexrt.ArrayRank(%s)", args[0])
+	case "array.select":
+		need(2)
+		return fmt.Sprintf("zhexrt.ArraySelect(%s, %s, %s)", pos, args[0], args[1])
+	case "array.length":
+		need(1)
+		return fmt.Sprintf("zhexrt.ArrayLength(%s)", args[0])
+
+	// buffer words
+	case "buffer.new":
+		return "zhexrt.BufferNew()"
+	case "buffer.add-line":
+		need(2)
+		return fmt.Sprintf("zhexrt.BufferAddLine(%s, %s)", args[0], args[1])
+	case "buffer.line-count":
+		need(1)
+		return fmt.Sprintf("zhexrt.BufferLineCount(%s)", args[0])
+	case "buffer.line":
+		need(2)
+		return fmt.Sprintf("zhexrt.BufferLine(%s, %s, %s)", pos, args[0], args[1])
+	case "buffer.set-line":
+		need(3)
+		return fmt.Sprintf("zhexrt.BufferSetLine(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "buffer.to-text":
+		need(1)
+		return fmt.Sprintf("zhexrt.BufferToText(%s)", args[0])
+
+	// file words
+	case "file.read":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileRead(%s, %s)", pos, args[0])
+	case "file.open":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileOpen(%s, %s)", pos, args[0])
+	case "file.read-line":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileReadLineOf(%s, %s)", pos, args[0])
+	case "file.close":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileClose(%s)", args[0])
+	case "file.write":
+		need(2)
+		if len(args) == 2 {
+			return fmt.Sprintf("zhexrt.FileWrite(%s, %s, %s, false)", pos, args[0], args[1])
+		}
+		return fmt.Sprintf("zhexrt.FileWrite(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "file.list":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileList(%s, %s)", pos, args[0])
+	case "file.exists":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileExists(%s, %s)", pos, args[0])
+	case "file.size":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileSize(%s, %s)", pos, args[0])
+	case "file.join":
+		need(2)
+		return fmt.Sprintf("zhexrt.FileJoin(%s, %s)", args[0], args[1])
+	case "file.base":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileBase(%s)", args[0])
+	case "file.extension":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileExtension(%s)", args[0])
+	case "file.directory-of":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileDirectoryOf(%s)", args[0])
+	case "file.make-folder":
+		need(1)
+		if len(args) == 1 {
+			return fmt.Sprintf("zhexrt.FileMakeFolder(%s, %s, false)", pos, args[0])
+		}
+		return fmt.Sprintf("zhexrt.FileMakeFolder(%s, %s, %s)", pos, args[0], args[1])
+	case "file.delete":
+		need(1)
+		return fmt.Sprintf("zhexrt.FileDelete(%s, %s)", pos, args[0])
+	case "file.delete-folder":
+		need(1)
+		if len(args) == 1 {
+			return fmt.Sprintf("zhexrt.FileDeleteFolder(%s, %s, false)", pos, args[0])
+		}
+		return fmt.Sprintf("zhexrt.FileDeleteFolder(%s, %s, %s)", pos, args[0], args[1])
+	case "file.move":
+		need(2)
+		if len(args) == 2 {
+			return fmt.Sprintf("zhexrt.FileMove(%s, %s, %s, false)", pos, args[0], args[1])
+		}
+		return fmt.Sprintf("zhexrt.FileMove(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+
+	// json tree words
+	case "json.parse":
+		need(1)
+		return fmt.Sprintf("zhexrt.JsonParse(%s, %s)", pos, args[0])
+	case "json.encode":
+		need(1)
+		if x.jsonSchema == nil {
+			return fmt.Sprintf("zhexrt.JsonEncode(%s, %s)", pos, args[0])
+		}
+	}
 	return ""
+}
+
+// sortKeyIsText reports whether sort-by's key function returns String.
+func (e *nativeEmitter) sortKeyIsText(x *expression) bool {
+	if len(x.args) >= 2 {
+		if _, result, ok := functionTypeParts(x.args[1].typ); ok {
+			return result == stringType
+		}
+	}
+	return false
 }

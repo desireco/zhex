@@ -1,11 +1,11 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"bytes"
 	"fmt"
 	"strings"
 	"testing"
+	"zhex/internal/zhexrt"
 )
 
 func TestAnnotatedBindingsCheckDeclaredType(t *testing.T) {

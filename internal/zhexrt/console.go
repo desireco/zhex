@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -30,13 +31,21 @@ func write(pos Pos, text string) {
 }
 
 // Print writes one line of text; PrintInt renders an Int the way
-// int.to-string does.
-func Print(pos Pos, text string) {
+// int.to-string does; PrintBool renders true/false. All three return
+// Unit so generated call sites can use the call's value.
+func Print(pos Pos, text string) Unit {
 	write(pos, text+"\n")
+	return Unit{}
 }
 
-func PrintInt(pos Pos, n Int) {
+func PrintInt(pos Pos, n Int) Unit {
 	write(pos, Str(n)+"\n")
+	return Unit{}
+}
+
+func PrintBool(pos Pos, value bool) Unit {
+	write(pos, strconv.FormatBool(value)+"\n")
+	return Unit{}
 }
 
 // ReadLine writes the prompt (if any) and reads one chomped line. End of

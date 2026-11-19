@@ -10,9 +10,9 @@ import (
 // code carries one at every operation that can fail at runtime so errors
 // render exactly as zhex run's do.
 type Pos struct {
-	File  string
-	Line  int
-	Col   int
+	File string
+	Line int
+	Col  int
 }
 
 // At constructs a Pos concisely at generated call sites.
@@ -32,6 +32,7 @@ type Error struct {
 	Hint      string
 	Operation string
 	Details   map[string]string
+	Cause     *Error
 }
 
 func (e *Error) Error() string {

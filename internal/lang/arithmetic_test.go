@@ -1,11 +1,11 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"math"
 	"math/big"
 	"math/rand"
 	"testing"
+	"zhex/internal/zhexrt"
 )
 
 func TestCheckedArithmeticAgainstIntegerMath(t *testing.T) {

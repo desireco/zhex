@@ -1,10 +1,10 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"fmt"
 	"path/filepath"
 	"strings"
+	"zhex/internal/zhexrt"
 )
 
 type scope struct {

@@ -1,8 +1,8 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"strings"
+	"zhex/internal/zhexrt"
 )
 
 type parser struct {

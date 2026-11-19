@@ -39,20 +39,17 @@ func TestNativeEmitsReadableGo(t *testing.T) {
 // the pinned not-available-in-build code and a diagnostic naming them.
 func TestNativeFenceNamesTheConstruct(t *testing.T) {
 	for _, tc := range []struct{ name, source, construct string }{
-		{"lists", "let xs: List<Int> = []\n", "list expressions"},
-		{"records", "type P = record\n    x: Int\nlet p = P(1)\n", "record constructors"},
-		{"choices", "type Light = choice\n    Red\n    Green\nlet l = Light.Red\n", "choices"},
-		{"while", "var n = 0\nwhile n < 3\n    n = n + 1\n", "while statements"},
-		{"builtin", "let s = text.upper(\"a\")\n", "text.upper"},
-		{"partials", "word add(a: Int, b: Int) -> Int\n    a + b\nlet inc = add(_, 1)\n", "partials"},
+		{"json.decode", "type C = record\n    n: Int\nlet c = json.decode(\"{\\\"n\\\": 1}\", C(0)) try\n", "json.decode"},
+		{"xml.decode", "type C = record\n    n: Int\nlet c = xml.decode(\"<c n=\\\"1\\\"/>\", C(0)) try\n", "xml.decode"},
+		{"temporal words", "let t = date.new(2026, 1, 1)\n", "date.new"},
+		{"free space", "let free = file.free-space(\".\") try\n", "file.free-space"},
+		{"generic choices", "type Maybe<T> = choice\n    None\n    Some(value: T)\nlet m = Maybe.Some(1)\n", "generic choice"},
+		{"checked writes", "let xs: List<Int> = []\n(xs[0] = 1) try\n", "checked indexed writes"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := compileNative(t, tc.source)
 			if err == nil {
 				t.Fatalf("%s compiled; expected a not-available-in-build fence", tc.name)
-			}
-			if tc.construct == "" {
-				return // merely must compile-check cleanly elsewhere
 			}
 			if !strings.Contains(err.Error(), "not available in this build") || !strings.Contains(err.Error(), tc.construct) {
 				t.Fatalf("fence mismatch: %v", err)

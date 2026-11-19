@@ -1,11 +1,11 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"zhex/internal/zhexrt"
 )
 
 // exportFormat is the header of every Session.Export file.

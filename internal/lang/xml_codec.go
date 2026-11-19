@@ -1,7 +1,6 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"zhex/internal/zhexrt"
 )
 
 // The XML codec reuses the json schema and clone machinery: both decodes are

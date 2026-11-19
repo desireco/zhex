@@ -1,7 +1,6 @@
 package lang
 
 import (
-	"zhex/internal/zhexrt"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -10,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"zhex/internal/zhexrt"
 )
 
 type jsonField struct {
