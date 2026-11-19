@@ -52,6 +52,8 @@ hint: install it — cargo install wasm-tools (rustup), pacman -S wasm-tools (Ar
 
 Most of the [examples corpus](../examples.html) compiles: words and recursion, flows, collections, text work, JSON trees, XML decode, buffers, files, and reading input. Some constructs are not compiled yet — dates and time zones beyond `duration.` words, console arguments and exits, `error.*` inspection other than `error.message` and `error.detail`, word parameter and record field defaults, generic choices, and a few checked collection forms.
 
+Compiled programs use 64-bit integers by design — WebAssembly has no wider integer type. A literal beyond the signed 64-bit range refuses with the `not-available-in-build` diagnostic below, and computed arithmetic past the bound reports `integer overflow`, while `zhex run` computes the same program at the interpreter's full 128-bit width.
+
 A program that uses one stops with the `not-available-in-build` diagnostic naming the construct:
 
 ```text
