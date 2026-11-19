@@ -64,12 +64,13 @@ The first language milestone runs real programs with checked types and console i
 
 Grow the language's reach: a dedicated domain and funding. This is the proposed order; each step needs working examples and tests.
 
-- Standard library: the researched inventory ships; what remains is ticketed, not shipped.
+- Standard library: the researched inventory ships — 121 registered words; what remains is small and triaged.
   - The proposals and dependency order live in `docs/standard-library-plan.md` (#30).
-  - Open vocabulary tickets: #163 `list.contains`, #164 comparator sort, #165 `map.put` receiver.
+  - Open gap tickets in the Inbox: #159 bitwise and stack words, #166 catch placement, #168 the 2024 day 24 part-2 solver analysis.
 - WebAssembly: the A3 WASI runner runs a compiled module under a standalone wasm runtime.
   - `file.*` words work against one preopened directory.
   - It compiles today but stays runtime-untested; `docs/wasm-plan.md` tracks it open.
+  - Compiled builds fence Ints at 64 bits with named limits; widening to the interpreter's 128-bit width is tracked as #178.
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Funding: enable GitHub Sponsors or Open Collective and pursue the researched channels (#26).
   - A sponsor section on the site.
