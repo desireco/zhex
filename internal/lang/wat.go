@@ -1086,6 +1086,8 @@ func (e *watEmitter) expr(x *expression) {
 		e.call(x)
 	case "index":
 		e.indexExpr(x)
+	case "field":
+		e.fieldExpr(x)
 	case "index-write":
 		e.indexWrite(x)
 	case "match":
@@ -2287,6 +2289,31 @@ func (e *watEmitter) printCore(x *expression, stackHasArg bool) {
 		e.line("call " + watPrintLine)
 	default:
 		watFence(x.pos, "print of "+string(x.inputType))
+	}
+}
+
+// fieldExpr emits the postfix field chain after any postfix receiver —
+// xs[0].a.b — walking struct.gets exactly like nameExpr's dotted path.
+func (e *watEmitter) fieldExpr(x *expression) {
+	e.expr(x.left)
+	t := x.left.typ
+	for at, idx := range x.fields {
+		r := e.byID[string(t)]
+		if r == nil || r.choice {
+			watFence(x.pos, string(t))
+		}
+		fieldType := r.fields[idx].typ
+		if at == len(x.fields)-1 {
+			if fieldType == unitType {
+				e.line("drop")
+				return // a Unit field carries no value
+			}
+			e.line("struct.get %s $f%d", watRecordName(r), idx)
+			e.assertNonNull(fieldType)
+			return
+		}
+		e.line("struct.get %s $f%d", watRecordName(r), idx)
+		t = fieldType
 	}
 }
 

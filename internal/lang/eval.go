@@ -515,6 +515,15 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 			v = v.record.fields[index]
 		}
 		return v, nil
+	case "field":
+		v, err := r.expression(x.left, env)
+		if err != nil {
+			return value{}, err
+		}
+		for _, index := range x.fields {
+			v = v.record.fields[index]
+		}
+		return v, nil
 	case "match":
 		subject, err := r.expression(x.left, env)
 		if err != nil {

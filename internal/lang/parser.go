@@ -817,7 +817,12 @@ func (p *parser) unary() *expression {
 		return u
 	}
 	x := p.primary()
-	for p.at("[") {
+	for p.at("[") || p.at("field") {
+		if p.at("field") {
+			t := p.take()
+			x = p.checkDepth(&expression{kind: "field", pos: t.pos, end: t.end, text: t.text, left: x})
+			continue
+		}
 		t := p.take()
 		index := &expression{kind: "index", pos: t.pos, left: x}
 		if !p.at("]") {

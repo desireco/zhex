@@ -1188,6 +1188,30 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		} else {
 			typ = element
 		}
+	case "field":
+		base, err := c.expressionExpected(x.left, env, "")
+		if err != nil {
+			return "", err
+		}
+		typ = base
+		// The postfix field chain resolves exactly like the dotted-name path:
+		// each part walks one record field, checked in declaration order.
+		for _, part := range strings.Split(x.text, ".") {
+			record := c.types.all[string(typ)]
+			index := -1
+			if record != nil {
+				for i, field := range record.fields {
+					if field.name == part {
+						index, typ = i, field.typ
+						break
+					}
+				}
+			}
+			if index < 0 {
+				return "", errorAt(x.pos, CodeUnknownName, "type %s has no field %q", typ, part)
+			}
+			x.fields = append(x.fields, index)
+		}
 	case "index-write":
 		x.left.checkedIndex = true
 		indexed, err := c.expressionExpected(x.left, env, "")

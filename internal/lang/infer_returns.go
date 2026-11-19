@@ -491,6 +491,12 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 			indexes[i] = s.expr(arg, env, false)
 		}
 		return s.index(receiver, indexes, x.pos, checked, false)
+	case "field":
+		result := s.expr(x.left, env, false)
+		for _, part := range strings.Split(x.text, ".") {
+			result = s.recordField(result, part, x.pos)
+		}
+		return result
 	case "index-write":
 		receiver := s.expr(x.left.left, env, false)
 		indexes := make([]*typeConstraint, len(x.left.args))

@@ -80,6 +80,24 @@ func lex(file, source string) ([]token, error) {
 				tokens = append(tokens, token{"name", string(runes[start:i]), pos, position{file: file, line: lineIndex + 1, column: i + 1}})
 				continue
 			}
+			// A dot that starts a name continues a postfix field chain
+			// (bytes[0].x); a dot anywhere else is an unexpected character.
+			if c == '.' && i+1 < len(runes) && nameStart(runes[i+1]) {
+				i += 2
+				for i < len(runes) {
+					if namePart(runes[i]) {
+						i++
+						continue
+					}
+					if (runes[i] == '-' || runes[i] == '.') && i+1 < len(runes) && nameStart(runes[i+1]) {
+						i += 2
+						continue
+					}
+					break
+				}
+				tokens = append(tokens, token{"field", string(runes[start+1 : i]), pos, position{file: file, line: lineIndex + 1, column: i + 1}})
+				continue
+			}
 			if c >= '0' && c <= '9' {
 				i++
 				for i < len(runes) && runes[i] >= '0' && runes[i] <= '9' {

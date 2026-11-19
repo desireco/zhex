@@ -440,6 +440,27 @@ print(ys[1])
 	}
 }
 
+// #182: an indexed read followed by field reads compiles to the list/array
+// read helper, the element cast, and the same struct.get the dotted-name
+// path emits.
+func TestWatPostfixFieldChains(t *testing.T) {
+	wat := watOf(t, `
+type Cell = record
+    x: Int
+
+let xs: List<Cell> = [Cell(x: 3)]
+print(xs[0].x)
+`)
+	for _, want := range []string{
+		"call " + watListGet(watSpecRef),
+		"struct.get $zt_Cell $f0",
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
+		}
+	}
+}
+
 // TestWatErrorInspectionWords pins #135: error.message and error.detail
 // compile to the prelude's err-value readers instead of fencing.
 func TestWatErrorInspectionWords(t *testing.T) {
