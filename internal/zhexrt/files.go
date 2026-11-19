@@ -70,7 +70,7 @@ func (f *File) nextLine(pos Pos) (string, bool) {
 	if rerr == io.EOF && len(raw) == 0 {
 		return "", false
 	}
-	line := chomp(raw)
+	line := Chomp(raw)
 	if !utf8.ValidString(line) {
 		panic(fileErr(pos, "file-utf8", f.path, "invalid-utf8", "file %q is not valid UTF-8", f.path))
 	}

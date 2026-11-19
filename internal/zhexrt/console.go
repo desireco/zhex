@@ -14,7 +14,8 @@ import (
 var stdin = bufio.NewReader(os.Stdin)
 
 // chomp strips one trailing newline pair, the interpreter's read-line.
-func chomp(line string) string {
+// Chomp drops the newline and a trailing carriage return.
+func Chomp(line string) string {
 	if n := len(line); n > 0 && line[n-1] == '\n' {
 		line = line[:n-1]
 		if n = len(line); n > 0 && line[n-1] == '\r' {
@@ -62,7 +63,7 @@ func ReadLine(pos Pos, prompt string) Result[string] {
 	if err != nil && err != io.EOF {
 		return ErrAt[string](pos, "console-input", fmt.Sprintf("console input failed: %v", err), map[string]string{"reason": "read-failed"})
 	}
-	line = chomp(line)
+	line = Chomp(line)
 	if !utf8.ValidString(line) {
 		return ErrAt[string](pos, "console-utf8", "console input is not valid UTF-8", nil)
 	}

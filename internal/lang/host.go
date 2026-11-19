@@ -28,6 +28,11 @@ func (r *runtime) write(pos position, text string) error {
 	return nil
 }
 
+// builtin dispatches the built-in words. The pure text/int words call the
+// zhexrt implementations the native target shares (the M3 extraction);
+// operations over dynamic values (collections, buffers, files) or with
+// injectable failure seams stay here, byte-equal by the differential
+// gates.
 func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	if err := wordBoundary(x); err != nil {
 		return value{result: &inputResult{err: err}}, nil
@@ -323,11 +328,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		return value{number: wrapped}, nil
 	case "text.reverse":
-		runes := []rune(args[0].text)
-		for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-			runes[i], runes[j] = runes[j], runes[i]
-		}
-		return value{text: string(runes)}, nil
+		return value{text: zhexrt.TextReverse(args[0].text)}, nil
 	case "read-line":
 		if err := r.write(x.pos, args[0].text); err != nil {
 			return value{}, err
@@ -343,7 +344,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			e.details = map[string]string{"reason": "read-failed"}
 			return value{result: &inputResult{err: e}}, nil
 		}
-		line = chomp(line)
+		line = zhexrt.Chomp(line)
 		if !utf8.ValidString(line) {
 			return value{result: &inputResult{err: errorAt(x.pos, CodeConsoleUTF8, "console input is not valid UTF-8")}}, nil
 		}
@@ -355,32 +356,21 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		return value{result: &inputResult{value: value{number: number}}}, nil
 	case "text.length":
-		return value{number: zhexrt.I64(int64(utf8.RuneCountInString(args[0].text)))}, nil
+		return value{number: zhexrt.TextLength(args[0].text)}, nil
 	case "text.line-count":
-		if args[0].text == "" {
-			return value{}, nil
-		}
-		count := int64(strings.Count(args[0].text, "\n"))
-		if !strings.HasSuffix(args[0].text, "\n") {
-			count++
-		}
-		return value{number: zhexrt.I64(count)}, nil
+		return value{number: zhexrt.TextLineCount(args[0].text)}, nil
 	case "text.word-count":
-		return value{number: zhexrt.I64(int64(len(strings.Fields(args[0].text))))}, nil
+		return value{number: zhexrt.TextWordCount(args[0].text)}, nil
 	case "text.upper":
-		return value{text: strings.ToUpper(args[0].text)}, nil
+		return value{text: zhexrt.TextUpper(args[0].text)}, nil
 	case "text.lower":
-		return value{text: strings.ToLower(args[0].text)}, nil
+		return value{text: zhexrt.TextLower(args[0].text)}, nil
 	case "text.trim":
-		return value{text: strings.TrimSpace(args[0].text)}, nil
+		return value{text: zhexrt.TextTrim(args[0].text)}, nil
 	case "text.contains":
-		return value{boolean: strings.Contains(args[0].text, args[1].text)}, nil
+		return value{boolean: zhexrt.TextContains(args[0].text, args[1].text)}, nil
 	case "text.index-of":
-		at := strings.Index(args[0].text, args[1].text)
-		if at < 0 {
-			return value{number: zhexrt.I64(-1)}, nil
-		}
-		return value{number: zhexrt.I64(int64(utf8.RuneCountInString(args[0].text[:at])))}, nil
+		return value{number: zhexrt.TextIndexOf(args[0].text, args[1].text)}, nil
 	case "text.slice":
 		runes := []rune(args[0].text)
 		start, end := args[1].number, args[2].number
@@ -445,9 +435,9 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		return value{text: b.String()}, nil
 	case "text.starts-with":
-		return value{boolean: strings.HasPrefix(args[0].text, args[1].text)}, nil
+		return value{boolean: zhexrt.TextStartsWith(args[0].text, args[1].text)}, nil
 	case "text.ends-with":
-		return value{boolean: strings.HasSuffix(args[0].text, args[1].text)}, nil
+		return value{boolean: zhexrt.TextEndsWith(args[0].text, args[1].text)}, nil
 	case "buffer.new":
 		return value{buffer: &bufferValue{}}, nil
 	case "buffer.add-line":
@@ -568,43 +558,13 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		return value{choice: &choiceValue{name: "Option.None", variant: 0}}, nil
 	case "env.load":
-		return loadEnvFile(x.pos, args[0].text), nil
+		loaded := zhexrt.EnvLoad(rtPos(x.pos), args[0].text)
+		if loaded.Err != nil {
+			return value{result: &inputResult{err: fromRT(loaded.Err)}}, nil
+		}
+		return value{result: &inputResult{}}, nil
 	}
 	return value{}, errorAt(x.pos, CodeUnsupportedCode, "unknown built-in operation %q", x.text)
-}
-
-// loadEnvFile reads KEY=VALUE lines into the process environment. Blank
-// lines and whole-line comments are skipped, one surrounding quote pair on
-// the value is stripped, and a key already present — in the environment or
-// set by an earlier line — keeps its value, so the first assignment wins.
-// Lines before a malformed one are already applied and stay applied.
-func loadEnvFile(pos position, path string) value {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		d := errorAt(pos, CodeEnvRead, "cannot read %q: %v", path, err).(*diagnostic)
-		d.details = map[string]string{"path": path, "reason": osFailureReason(err)}
-		return value{result: &inputResult{err: d}}
-	}
-	for i, line := range strings.Split(string(content), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		key, text, found := strings.Cut(line, "=")
-		key, text = strings.TrimSpace(key), strings.TrimSpace(text)
-		if !found || key == "" || strings.ContainsAny(key, " \t") {
-			d := errorAt(pos, CodeEnvParse, "line %d of %q is not a KEY=VALUE assignment: %q", i+1, path, line).(*diagnostic)
-			d.details = map[string]string{"path": path, "line": strconv.Itoa(i + 1)}
-			return value{result: &inputResult{err: d}}
-		}
-		if len(text) >= 2 && (text[0] == '"' || text[0] == '\'') && text[len(text)-1] == text[0] {
-			text = text[1 : len(text)-1]
-		}
-		if _, present := os.LookupEnv(key); !present {
-			os.Setenv(key, text)
-		}
-	}
-	return value{result: &inputResult{}}
 }
 
 func formatValue(v value, typ valueType) string {

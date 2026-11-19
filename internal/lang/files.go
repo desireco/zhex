@@ -6,8 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"unicode/utf8"
+
+	"zhex/internal/zhexrt"
 )
 
 // openFile opens path for reading, reporting failures as file-open.
@@ -228,15 +229,6 @@ func readFile(pos position, path string) (string, error) {
 	return string(content), nil
 }
 
-// chomp drops the newline and a trailing carriage return, like read-line.
-func chomp(line string) string {
-	if strings.HasSuffix(line, "\n") {
-		line = strings.TrimSuffix(line, "\n")
-		line = strings.TrimSuffix(line, "\r")
-	}
-	return line
-}
-
 // nextLine returns the next chomped, UTF-8-validated line; ok is false at
 // end of file, which the for-in loop treats as normal exhaustion.
 func (f *fileValue) nextLine(pos position) (line string, ok bool, err error) {
@@ -250,7 +242,7 @@ func (f *fileValue) nextLine(pos position) (line string, ok bool, err error) {
 	if rerr == io.EOF && len(raw) == 0 {
 		return "", false, nil
 	}
-	line = chomp(raw)
+	line = zhexrt.Chomp(raw)
 	if !utf8.ValidString(line) {
 		return "", false, fileReason(errorAt(pos, CodeFileUTF8, "file %q is not valid UTF-8", f.path), f.path, "invalid-utf8")
 	}
