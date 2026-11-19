@@ -47,7 +47,7 @@ jobs:
         run: |
           mkdir -p site/public
           GOOS=js GOARCH=wasm go build -o site/public/zhex-engine.wasm ./cmd/zhex/engine
-          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" site/public/zhex-engine-exec.js
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" site/public/zhex-engine-exec.js 2>/dev/null || cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" site/public/zhex-engine-exec.js
           cp cmd/zhex/engine/loader.js site/public/zhex-engine.js
       - name: Build website from executable examples
         run: npm --prefix site run build

@@ -27,12 +27,12 @@ test-race:
 engine:
     #!/bin/bash
     mkdir -p site/public
-    hash="$(go version; find cmd/zhex/engine internal/lang -name '*.go' ! -name '*_test.go' -print0 | sort -z | xargs -0 sha256sum | sha256sum; sha256sum "$(go env GOROOT)/lib/wasm/wasm_exec.js" cmd/zhex/engine/loader.js)"
+    hash="$(go version; find cmd/zhex/engine internal/lang -name '*.go' ! -name '*_test.go' -print0 | sort -z | xargs -0 sha256sum | sha256sum; sha256sum "$([ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ] && echo "$(go env GOROOT)/lib/wasm/wasm_exec.js" || echo "$(go env GOROOT)/misc/wasm/wasm_exec.js")" cmd/zhex/engine/loader.js)"
     if [ -s site/public/zhex-engine.wasm ] && [ -f site/public/zhex-engine-exec.js ] && [ -f site/public/zhex-engine.js ] && [ -f site/public/.engine-hash ] && [ "$(cat site/public/.engine-hash)" = "$hash" ]; then
         echo "engine: up to date"
     else
         GOOS=js GOARCH=wasm go build -o site/public/zhex-engine.wasm ./cmd/zhex/engine &&
-        cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" site/public/zhex-engine-exec.js &&
+        { cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" site/public/zhex-engine-exec.js 2>/dev/null || cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" site/public/zhex-engine-exec.js; } &&
         cp cmd/zhex/engine/loader.js site/public/zhex-engine.js &&
         printf '%s' "$hash" > site/public/.engine-hash
     fi
