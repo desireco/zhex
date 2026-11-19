@@ -775,6 +775,13 @@ func (e *nativeEmitter) emitBinding(s *statement) {
 		e.statement(s.expr.statement, name)
 		return
 	}
+	// the parser hands a let-bound match straight to the expression
+	// grammar, unwrapped (statementExpression)
+	if s.expr != nil && s.expr.kind == "match" {
+		e.line("var %s %s", name, e.goType(s.pos, s.binding.typ))
+		e.emitMatch(s.expr, name)
+		return
+	}
 	e.fn.pre = &strings.Builder{}
 	v := e.expr(s.expr)
 	e.flushPre()
