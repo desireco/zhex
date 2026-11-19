@@ -70,7 +70,7 @@ Grow the language's reach: a dedicated domain and funding. This is the proposed 
 - WebAssembly: the A3 WASI runner runs a compiled module under a standalone wasm runtime.
   - `file.*` words work against one preopened directory.
   - It compiles today but stays runtime-untested; `docs/wasm-plan.md` tracks it open.
-  - Compiled builds fence Ints at 64 bits with named limits; widening to the interpreter's 128-bit width is tracked as #178.
+  - Compiled builds use 64-bit Ints by design — WebAssembly has no wider integer type, and wider values refuse with a named limit (#178 ruled the boundary final).
 - Domain: buy a dedicated domain for the language and point it at the published site.
 - Funding: enable GitHub Sponsors or Open Collective and pursue the researched channels (#26).
   - A sponsor section on the site.
