@@ -16,3 +16,10 @@ let ghosts = "LR\n\n11A = (11B, XXX)\n11B = (XXX, 11Z)\n11Z = (11B, XXX)\n22A = 
 let ghost-network = day08.parse(ghosts)
 test.check(day08.part-two(ghost-network) == 6, "day 8 part 2, ghost example")
 print "day 8 tests passed"
+
+test.check(day08.guard(day08.parse("")) == "no network in input", "empty input reports no network")
+test.check(day08.guard(day08.parse("RL")) == "no network in input", "instructions-only input reports no network")
+test.check(day08.guard(day08.parse("RL\n\nBBB = (CCC, DDD)")) == "node AAA is missing from the network", "missing AAA reported")
+test.check(day08.guard(day08.parse("RL\n\nAAA = (BBB, CCC)")) == "node AAA names missing neighbor BBB", "dangling neighbor reported")
+test.check(day08.guard(network) == "", "sample network passes the guard")
+print "day 8 guard tests passed"

@@ -90,6 +90,23 @@ word part-two(network: Network) -> Int
             answer = _lcm(answer, _ghost-length(network, name))
     answer
 
+# The reason the input cannot be walked, or "" when it can. Guards against
+# empty or truncated input so the walk cannot stall on a missing node.
+word guard(network: Network) -> String
+    if map.length(network.nodes) == 0
+        "no network in input"
+    elif text.length(network.directions) == 0
+        "no instruction line in input"
+    elif not map.contains(network.nodes, "AAA")
+        "node AAA is missing from the network"
+    else
+        var problem = ""
+        for name, junction in network.nodes
+            for side in [junction.left, junction.right]
+                if text.length(problem) == 0 and not map.contains(network.nodes, side)
+                    problem = "node " + name + " names missing neighbor " + side
+        problem
+
 # Advent of Code 2023, day 8 — Haunted Wasteland.
 # Reads the network from stdin until end of input, prints both answers.
 
@@ -111,5 +128,9 @@ word main()
         if not done
             let added = buffer.add-line(input, line)
     let network = parse(buffer.to-text(input))
-    print(part-one(network))
-    print(part-two(network))
+    let problem = guard(network)
+    if text.length(problem) > 0
+        print(problem)
+    else
+        print(part-one(network))
+        print(part-two(network))
