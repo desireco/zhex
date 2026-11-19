@@ -27,8 +27,8 @@ This document pins every interface three parallel builders share. Where a sectio
    (files `wat.go`, `watnames.go`, `watprelude.go`) next to `eval.go`, which it mirrors; one new
    exported function `lang.CompileWat`. `internal/wasm/` keeps orchestration: assembler exec,
    the CLI entry, and all tests/fixtures.
-3. **Zhex `Array<T>` has rank 2–32** (`collections.go arrayShape`); there is no rank-1 array.
-   Arrays therefore need a shape wrapper, not a bare GC array.
+3. **Zhex `Array<T>` has rank 1–32** (`collections.go arrayShape`); a rank-1 array is a
+   one-dimensional table. Arrays therefore need a shape wrapper, not a bare GC array.
 4. **Lists are reference values and `list.append` mutates the shared list**, so a bare GC array
    breaks aliasing on growth. Lists are a wrapper struct with a mutable items field (below).
 
@@ -152,7 +152,7 @@ Inventory:
   fresh array, store into `$items`; checks `$active` → fail 10, 1,000,000 limit → fail 8),
   `$zhex_list_length_X`, `$zhex_list_get_X/set_X` (bounds → fail 3, set also checks `$active`
   → fail 10).
-- `$zhex_array_new_X(shape list, fill) (ref $zhex_array_X)` — rank 2–32 → fail 5, negative
+- `$zhex_array_new_X(shape list, fill) (ref $zhex_array_X)` — rank 1–32 → fail 5, negative
   extent → fail 6, element limit → fail 9, zero extent → empty items; row-major flat items.
 - `$zhex_array_get_X/set_X(arr, coords (ref $zhex_arr_i64))` — rank match → fail 7, per-axis
   bounds → fail 4, offset = `offset*shape[i] + coord[i]` (eval order), set checks `$active`.
@@ -169,7 +169,7 @@ Inventory:
 | 2 | depth-limit | `runtime error: word call depth limit of 256 exceeded` |
 | 3 | list-range | `runtime error: list index is out of range` |
 | 4 | array-range | `runtime error: array coordinate is out of range` |
-| 5 | array-rank | `runtime error: array rank must be between 2 and 32` |
+| 5 | array-rank | `runtime error: array rank must be between 1 and 32` |
 | 6 | array-shape | `runtime error: array extents cannot be negative` |
 | 7 | array-rank | `runtime error: array index has the wrong rank` |
 | 8 | collection-limit | `runtime error: list exceeds element limit` |

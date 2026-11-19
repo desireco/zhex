@@ -10,3 +10,12 @@ for coords, value in grid
 print(sum)
 for coords, value in grid
     print(int.to-string(coords[0]) + "," + int.to-string(coords[1]) + "=" + int.to-string(value))
+# Rank-1 arrays (#183): one-dimensional tables with indexed writes.
+let line = array.new([4], 0)
+line[0] = 2
+line[3] = 7
+print(array.length(line))
+print(line[0] + line[3])
+for coords, value in line
+    if value > 0
+        print(int.to-string(coords[0]) + "=" + int.to-string(value))

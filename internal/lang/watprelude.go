@@ -434,7 +434,7 @@ const watPreludeListRef = `
 `
 
 // watPreludeArrayI64: Array<Int>. $zhex_array_new mirrors collections.go
-// arrayShape/arrayNew: rank outside 2-32 fails 5, a negative extent fails 6,
+// arrayShape/arrayNew: rank outside 1-32 fails 5, a negative extent fails 6,
 // a zero extent yields empty items, the per-axis limit check fails 9, and the
 // flat items are row-major. The stored shape is a private copy, so later
 // mutation of the shape list cannot alias it. get/set check rank (fail 7),
@@ -452,7 +452,7 @@ const watPreludeArrayI64 = `
   (local $copy (ref null $zhex_arr_i64))
   (local.set $dims (struct.get $zhex_list_i64 $items (local.get $shape)))
   (local.set $rank (array.len (local.get $dims)))
-  (if (i32.lt_u (local.get $rank) (i32.const 2))
+  (if (i32.lt_u (local.get $rank) (i32.const 1))
     (then (call $zhex_fail (i32.const 5))))
   (if (i32.gt_u (local.get $rank) (i32.const 32))
     (then (call $zhex_fail (i32.const 5))))
@@ -560,7 +560,7 @@ const watPreludeArrayI32 = `
   (local $copy (ref null $zhex_arr_i64))
   (local.set $dims (struct.get $zhex_list_i64 $items (local.get $shape)))
   (local.set $rank (array.len (local.get $dims)))
-  (if (i32.lt_u (local.get $rank) (i32.const 2))
+  (if (i32.lt_u (local.get $rank) (i32.const 1))
     (then (call $zhex_fail (i32.const 5))))
   (if (i32.gt_u (local.get $rank) (i32.const 32))
     (then (call $zhex_fail (i32.const 5))))
@@ -668,7 +668,7 @@ const watPreludeArrayRef = `
   (local $copy (ref null $zhex_arr_i64))
   (local.set $dims (struct.get $zhex_list_i64 $items (local.get $shape)))
   (local.set $rank (array.len (local.get $dims)))
-  (if (i32.lt_u (local.get $rank) (i32.const 2))
+  (if (i32.lt_u (local.get $rank) (i32.const 1))
     (then (call $zhex_fail (i32.const 5))))
   (if (i32.gt_u (local.get $rank) (i32.const 32))
     (then (call $zhex_fail (i32.const 5))))

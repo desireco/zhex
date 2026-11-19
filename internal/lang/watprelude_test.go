@@ -309,7 +309,13 @@ const watPreludeTestExports = `
   (local.set $a (call $a64))
   (struct.set $zhex_array_i64 $active (local.get $a) (i32.const 1))
   (call $zhex_array_get_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 2 (i64.const 1) (i64.const 2))))
-(func (export "a64_rank1") (drop (call $zhex_array_new_i64 (call $shape1 (i64.const 5)) (i64.const 0))))
+(func (export "a64_rank1_len") (result i64) (call $zhex_array_length_i64 (call $zhex_array_new_i64 (call $shape1 (i64.const 5)) (i64.const 0))))
+(func (export "a64_rank1_set_get") (result i64)
+  (local $a (ref $zhex_array_i64))
+  (local.set $a (call $zhex_array_new_i64 (call $shape1 (i64.const 5)) (i64.const 0)))
+  (call $zhex_array_set_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 1 (i64.const 3)) (i64.const 9))
+  (call $zhex_array_get_i64 (local.get $a) (array.new_fixed $zhex_arr_i64 1 (i64.const 3))))
+(func (export "a64_rank0") (drop (call $zhex_array_new_i64 (call $zhex_list_new_i64) (i64.const 0))))
 (func (export "a64_rank33") (drop (call $zhex_array_new_i64 (call $shape33) (i64.const 0))))
 (func (export "a64_negext") (drop (call $zhex_array_new_i64 (call $shape2 (i64.const 2) (i64.const -1)) (i64.const 0))))
 (func (export "a64_limit") (drop (call $zhex_array_new_i64 (call $shape2 (i64.const 1001) (i64.const 1001)) (i64.const 0))))
@@ -479,7 +485,9 @@ t('array i64 wrong rank traps 7', () => { fresh(); trap(() => exports.a64_wrongr
 t('array i64 set out of range traps 4', () => { fresh(); trap(() => exports.a64_set_oob(), 4); });
 t('array i64 set while iterating traps 10', () => { fresh(); trap(() => exports.a64_set_active(), 10); });
 t('array i64 get while iterating is fine', () => { fresh(); eq(exports.a64_get_active(), 7n, 'get_active'); });
-t('array rank 1 traps 5', () => { fresh(); trap(() => exports.a64_rank1(), 5); });
+t('array rank 1 length', () => { fresh(); eq(exports.a64_rank1_len(), 5n, 'len'); });
+t('array rank 1 set then get', () => { fresh(); eq(exports.a64_rank1_set_get(), 9n, 'set_get'); });
+t('array rank 0 traps 5', () => { fresh(); trap(() => exports.a64_rank0(), 5); });
 t('array rank 33 traps 5', () => { fresh(); trap(() => exports.a64_rank33(), 5); });
 t('array negative extent traps 6', () => { fresh(); trap(() => exports.a64_negext(), 6); });
 t('array over limit traps 9', () => { fresh(); trap(() => exports.a64_limit(), 9); });

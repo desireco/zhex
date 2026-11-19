@@ -66,8 +66,8 @@ func listWrite(pos position, list *listValue, index i128, item value) value {
 }
 
 func arrayShape(pos position, dims *listValue, operation string) ([]int64, int, value) {
-	if len(dims.items) < 2 || len(dims.items) > 32 {
-		return nil, 0, failedCollection(pos, CodeArrayRank, operation, "array rank must be between 2 and 32", map[string]string{"rank": strconv.Itoa(len(dims.items)), "min_rank": "2", "max_rank": "32"})
+	if len(dims.items) < 1 || len(dims.items) > 32 {
+		return nil, 0, failedCollection(pos, CodeArrayRank, operation, "array rank must be between 1 and 32", map[string]string{"rank": strconv.Itoa(len(dims.items)), "min_rank": "1", "max_rank": "32"})
 	}
 	shape := make([]int64, len(dims.items))
 	zero := false

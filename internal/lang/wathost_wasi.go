@@ -700,7 +700,7 @@ func watWasiFailTexts() string {
 		2:  "word call depth limit of 256 exceeded",
 		3:  "list index is out of range",
 		4:  "array coordinate is out of range",
-		5:  "array rank must be between 2 and 32",
+		5:  "array rank must be between 1 and 32",
 		6:  "array extents cannot be negative",
 		7:  "array index has the wrong rank",
 		8:  "list exceeds element limit",
