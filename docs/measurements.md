@@ -78,3 +78,41 @@ The director's recommendation, recorded verbatim here and on issue #4; the choic
 > Recommendation for the next application: a line-filter tool (grep-adjacent) — `zhex run filter.zhex <pattern> <file>` printing matching lines. Grounds: (1) the measurements show the streaming path is the memory-efficient shape (5.2 MB vs 14.9 MB for whole-body work) and a filter is naturally streaming; (2) it exercises exactly the shipped vocabulary (contains/index-of/trim-start-style Tier-2 words) and motivates the Tier-2 batch; (3) it is the first tool an agent reaches for on logs, matching the language's agent-first direction. Separately — not part of this ticket — the readability review flags number-to-text ceremony (`print(int.to-string(a) + " " + int.to-string(b))`, the 158-character counts line) as the top formatting cost; a future language story should consider string interpolation or a lighter join. The choice stays with the owner.
 
 Shipped as the line-filter tool: `zhex run examples/filter.zhex <pattern> <file>` prints the lines containing a literal, case-sensitive pattern, streaming the file (#81). The interpolation note above remains open.
+
+## Native execution (2026-11-19, from issue #6)
+
+Two landed arcs were measured by their implementing lanes with this page's discipline — deterministic generated inputs, one warm-up run, five measured runs, median wall time in milliseconds: the native Go target (#185, `zhex compile --target=native`) and the wasm prelude fixes (#187, amortized list growth and buffered WASI line I/O). Environment, pinned by the measurement thread: go1.27.4 linux/amd64, wasmtime 50.0.0, wasm-tools 1.263.0, AMD Ryzen 7 6800H (16 logical CPUs) — the same machine as the interpreter tables above. The full tables, generators, and harness notes live on issue #6.
+
+### Three engines on the same workloads
+
+`zhex run`, `zhex compile --target=wasi` under wasmtime (a fresh JIT process per run, and `wasmtime compile` AOT), and `zhex compile --target=native` (a Go-built binary). Inputs: fib-rec n=30; gcd-fold and flow-chain at 300k/100k iterations; text rows on the 778 KB fixture; puzzles on the generated dish 120×120, crucible 35×35, network-8100-5-1610, and factory. All times in ms.
+
+| workload | interp | wasm-jit | wasm-aot | native | native vs interp |
+|---|---:|---:|---:|---:|---:|
+| fib-rec | 1323 | 31 | 26 | **19** | 70× |
+| gcd-fold | 5518 | 49 | 47 | **1111** | 5.0× |
+| flow-chain | 457 | 17476 | 18035 | **116** | 3.9× |
+| text-counts | 87 | 35749 | 36668 | **11** | 7.9× |
+| text-upper | 94 | 155 | 152 | **18** | 5.2× |
+| filter-stdin | 77 | 124 | 118 | **4** | 19× |
+| dish (aoc23/14) | 64697 | 10673 | 11469 | **13781** | 4.7× |
+| crucible (aoc23/17) | 16489 | 6554 | 6712 | **880** | 19× |
+| network (aoc23/08) | 225 | 12780 | 13419 | **12** | 19× |
+| factory (aoc25/10) | 1106 | 962 | 921 | **115** | 9.6× |
+| *geometric mean speedup* | 1× | 0.71× | 0.68× | **10.6×** | |
+
+- Native lands inside the native-backend report's 5–15× estimate — a 10.6× geometric-mean speedup over the interpreter, 3.9–70× per workload — and is the only engine faster than the interpreter on every workload.
+- wasm is bimodal: near-C on tight numeric loops (gcd-fold 49 ms) but 150–460× the interpreter on text work — the wasm string is a code-point array, so `text.length`/`split`/`contains` and per-line I/O explode. Its geometric mean ends below the interpreter.
+- The one wasm win, gcd-fold, is the width asymmetry the report flagged: wasm Int is 64-bit (hardware divide) while native keeps the full 128-bit contract (big.Int-backed division). AoC-scale integers fit 64 bits — that workload class favors wasm; everything with strings, maps, or I/O favors Go decisively.
+
+### The wasm prelude fixes, before and after (#187)
+
+Amortized list/buffer growth (a capacity field with doubling appends) and buffered WASI line I/O, re-measured on the pre-fix inputs:
+
+- fib under wasm: 47× faster than the interpreter, held.
+- text counts, 10,000 lines: 115× slower → 4.6× faster.
+- text counts, 100,000 lines: did not finish (>180 s) → 109 ms, 2.1× faster.
+- factory BFS (2025 day 10): 947 ms → 19 ms, parity → 57× faster.
+- streaming text upper and line filter: 2.6–3.2× slower → 1.3–2.1× faster.
+
+Two rows still lose, both outside #187's no-redesign scope and filed as #188: the flow chain's residual 8.4× (the prelude's insertion sort, where the interpreter sorts in O(n log n)) and the network walk's 19× (map.put growing its key and value arrays one entry per put).

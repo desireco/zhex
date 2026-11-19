@@ -40,6 +40,6 @@ The working language includes records, choices, lists, multidimensional arrays, 
 
 ## Where it stands
 
-Zhex is still evolving; syntax and APIs may change. Today it runs through the Go interpreter. There is no native compiler, package manager, floating-point type, or generic user-defined word support. Standard-library expansion is being planned through concrete programs.
+Zhex is still evolving; syntax and APIs may change. Today it runs through the Go interpreter, and `zhex compile` builds checked programs to WebAssembly or to native Go binaries. There is no package manager, floating-point type, or generic user-defined word support. Standard-library expansion is being planned through concrete programs.
 
 Start with [Getting started](getting-started.html), explore the [examples](../examples.html), or read the [roadmap](../roadmap.html) to see what is shipped and what remains proposed.

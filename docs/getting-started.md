@@ -270,7 +270,7 @@ A type error such as `print("hello" + 1)` is rejected before the program reads i
 
 The built executable returns status `0` after a successful run, `1` for file or language errors, and `2` for invalid command usage. Identifiers may contain hyphens, as in `is-palindrome`. Put spaces around subtraction between names: `a - b` subtracts; `a-b` names a value or word.
 
-## Compile to WebAssembly
+## Compile to WebAssembly or native Go
 
 `zhex compile examples/hello.zhex` checks the program exactly like `zhex run`, then assembles a standalone WebAssembly module, writing `examples/hello.wasm` beside the source (`-o` picks another path). The default `--target=browser` builds a module for a web page or JavaScript host; `--target=wasi` builds a standalone module for a runner such as wasmtime:
 
@@ -279,7 +279,14 @@ zhex compile examples/hello.zhex --target=wasi
 printf 'Ada\n' | wasmtime run --dir .::/ examples/hello.wasm
 ```
 
-Compiling needs the free wasm-tools assembler — install it with `cargo install wasm-tools`, `pacman -S wasm-tools`, or `brew install wasm-tools`; a release binary from the BytecodeAlliance releases page also works. Without it, `zhex compile` stops with the coded `missing-tool` diagnostic and those three install hints, and no artifact is written. Running a compiled module needs nothing extra in a browser; standalone runs need a runner such as wasmtime. The [compiling guide](../site/src/content/docs/compiling.md) covers targets, the wasm-tools requirement, and which constructs compile today.
+`--target=native` instead emits a self-contained program directory — readable `main.go`, `go.mod`, and the runtime sources — beside the source and builds it with the Go toolchain you already installed, keeping the interpreter's full 128-bit integers:
+
+```sh
+zhex compile examples/hello.zhex --target=native
+printf 'Ada\n' | examples/hello/hello
+```
+
+The WebAssembly targets need the free wasm-tools assembler — install it with `cargo install wasm-tools`, `pacman -S wasm-tools`, or `brew install wasm-tools`; a release binary from the BytecodeAlliance releases page also works. Without it, `zhex compile` stops with the coded `missing-tool` diagnostic and those three install hints, and no artifact is written. Running a compiled module needs nothing extra in a browser; standalone runs need a runner such as wasmtime. The [compiling guide](../site/src/content/docs/compiling.md) covers targets, tool requirements, and which constructs compile today.
 
 ## Common problems
 

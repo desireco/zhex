@@ -13,7 +13,7 @@ import data from "../../data.json";
           <a class="button" href="docs/tldr.html">Read the docs <span aria-hidden="true">→</span></a>
           <a class="text-link" href="docs/getting-started.html">Getting started →</a>
         </div>
-        <p class="status"><span class="status-dot" aria-hidden="true"></span>Experimental · Go interpreter · Compiles to WebAssembly — browser runs need wasm-gc, roughly Chrome 119+, Firefox 120+, or Safari 18.2+</p>
+        <p class="status"><span class="status-dot" aria-hidden="true"></span>Experimental · Go interpreter · Compiles to WebAssembly and native Go — browser runs need wasm-gc, roughly Chrome 119+, Firefox 120+, or Safari 18.2+</p>
       </div>
     </section>
 
@@ -74,12 +74,12 @@ zhex run examples/hello.zhex</code></pre></div>
 
     <section class="section wrap" aria-labelledby="compile-title">
       <div class="section-heading">
-        <div><p class="eyebrow">Beyond the interpreter</p><h2 id="compile-title">Compile to WebAssembly.</h2></div>
-        <p class="intro">The same checked program becomes a standalone WebAssembly module — roughly 38–40 KB gzipped — for a web page or a WASI runner such as wasmtime.</p>
+        <div><p class="eyebrow">Beyond the interpreter</p><h2 id="compile-title">Compile to WebAssembly or native Go.</h2></div>
+        <p class="intro">The same checked program becomes a standalone WebAssembly module — roughly 38–40 KB gzipped — for a web page or a WASI runner such as wasmtime, or a native Go binary that keeps the interpreter's full 128-bit integers.</p>
       </div>
       <div class="command-block"><pre><code>zhex compile examples/collatz.zhex --target=wasi
 wasmtime run --dir .::/ examples/collatz.wasm</code></pre></div>
-      <p class="access-note">Compiling checks the program exactly like <code>zhex run</code> and needs the free wasm-tools assembler. <a href="docs/compiling.html">Read the compiling guide →</a></p>
+      <p class="access-note">Compiling checks the program exactly like <code>zhex run</code>; the WebAssembly targets need the free wasm-tools assembler, the native target needs Go. <a href="docs/compiling.html">Read the compiling guide →</a></p>
     </section>
 
     <section class="section principles-section" aria-labelledby="sponsors-title">
