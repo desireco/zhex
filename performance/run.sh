@@ -129,13 +129,13 @@ engine_cmd() { # sets the global CMD array for (engine, benchmark)
     esac
 }
 
-execute() { # run one engine/benchmark with correct stdin, stdout to $3
+execute() { # run one engine/benchmark from the suite dir (inputs are cwd-relative), stdout to $3
     local engine=$1 bench=$2 dest=$3
     engine_cmd "$engine" "$bench"
     if [ "$bench" = filterstream ]; then
-        "${CMD[@]}" <"$INPUTS/filterstream.txt" >"$dest"
+        (cd "$HERE" && "${CMD[@]}") <"$INPUTS/filterstream.txt" >"$dest"
     else
-        "${CMD[@]}" >"$dest"
+        (cd "$HERE" && "${CMD[@]}") >"$dest"
     fi
 }
 
@@ -171,16 +171,16 @@ timed_execute() { # one measured run; sets WALL_NS and RSS_KB
     start=$(date +%s%N)
     if [ -n "$GNU_TIME" ]; then
         if [ "$bench" = filterstream ]; then
-            "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}" <"$INPUTS/filterstream.txt" >/dev/null
+            (cd "$HERE" && "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}") <"$INPUTS/filterstream.txt" >/dev/null
         else
-            "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}" >/dev/null
+            (cd "$HERE" && "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}") >/dev/null
         fi
         RSS_KB=$(cat "$BUILD/rss.tmp")
     else
         if [ "$bench" = filterstream ]; then
-            "${CMD[@]}" <"$INPUTS/filterstream.txt" >/dev/null
+            (cd "$HERE" && "${CMD[@]}") <"$INPUTS/filterstream.txt" >/dev/null
         else
-            "${CMD[@]}" >/dev/null
+            (cd "$HERE" && "${CMD[@]}") >/dev/null
         fi
         RSS_KB=""
     fi
