@@ -15,6 +15,10 @@ doctests: build
 aoc: build
     bin/zhex test aoc
 
+# Run the cross-language benchmark suite (#190): slow, not part of just test.
+perf:
+    ./performance/run.sh
+
 # Run the WASM corpus gate: every examples/ file classified, in-subset byte-identical, out-of-subset fenced.
 corpus:
     go test ./internal/wasm/ -run 'TestCorpusGate' -v

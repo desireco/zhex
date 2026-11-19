@@ -1,0 +1,41 @@
+# Word frequencies over the generated corpus, printing the top ten by
+# count descending with word-ascending ties. The distinct-word list keeps
+# first-seen order so no language's map iteration order can leak into
+# the output; the two stable sort-by passes give the count-desc,
+# word-asc ranking.
+
+type Entry = record
+    name: String
+    count: Int
+
+word name-key(entry: Entry) -> String
+    entry.name
+
+word count-key(entry: Entry) -> Int
+    0 - entry.count
+
+word main()
+    let text = file.read("inputs/wordcount.txt") try
+    let counts: Map<String, Int> = {}
+    let distinct: List<String> = []
+    for line in text.split(text, "\n")
+        for w in text.split(line, " ")
+            if text.length(w) > 0
+                match counts[w]
+                    case Option.Some(n)
+                        let stored = map.put(counts, w, n + 1)
+                    case Option.None
+                        let added = list.append(distinct, w)
+                        let stored = map.put(counts, w, 1)
+    var entries: List<Entry> = []
+    for w in distinct
+        match counts[w]
+            case Option.Some(n)
+                let added = list.append(entries, Entry(w, n))
+            case Option.None
+                let added = list.append(entries, Entry(w, 0))
+    let by-name = list.sort-by(entries, name-key(_))
+    let ranked = list.sort-by(by-name, count-key(_))
+    for i in range(0, 10)
+        let entry = ranked[i]
+        print(entry.name + " " + entry.count)

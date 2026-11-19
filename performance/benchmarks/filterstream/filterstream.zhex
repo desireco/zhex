@@ -1,0 +1,13 @@
+# Print stdin lines containing "ERROR", streaming until end of input.
+# shortcut: the "~EOF~" sentinel cannot appear in the generated fixture, so
+# it safely stands in for the end-of-file failure this loop shape needs.
+
+word main()
+    var done = false
+    while not done
+        let line = read-line("") catch "~EOF~"
+        if line == "~EOF~"
+            done = true
+        else
+            if text.contains(line, "ERROR")
+                print line

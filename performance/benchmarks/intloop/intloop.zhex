@@ -1,0 +1,22 @@
+# Euclid's gcd by remainder over 100k pairs from an in-program Park-Miller
+# generator (state * 48271 % 2147483647, seeded 20260119); prints the gcd sum.
+
+word gcd(a: Int, b: Int) -> Int
+    var x = a
+    var y = b
+    while y != 0
+        let rest = y
+        y = x % y
+        x = rest
+    x
+
+word main()
+    var state = 20260119
+    var total = 0
+    for i in range(0, 100000)
+        state = state * 48271 % 2147483647
+        let a = state % 999983 + 1
+        state = state * 48271 % 2147483647
+        let b = state % 999979 + 1
+        total = total + gcd(a, b)
+    print(total)

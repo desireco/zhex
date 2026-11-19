@@ -1,0 +1,24 @@
+# Build 200k numbered lines into a buffer, then print the joined text's
+# length and how many times "42" occurs across the lines (non-overlapping,
+# counted per line while building).
+
+word count-sub(text: String, needle: String) -> Int
+    var hits = 0
+    var rest = text
+    var at = text.index-of(rest, needle)
+    while at >= 0
+        hits = hits + 1
+        rest = text.slice(rest, at + text.length(needle), text.length(rest))
+        at = text.index-of(rest, needle)
+    hits
+
+word main()
+    var hits = 0
+    let lines = buffer.new()
+    for i in range(0, 200000)
+        let line = "Line " + i + ": the quick brown fox jumps over the lazy dog"
+        hits = hits + count-sub(line, "42")
+        let added = buffer.add-line(lines, line)
+    let text = buffer.to-text(lines)
+    print(text.length(text))
+    print(hits)

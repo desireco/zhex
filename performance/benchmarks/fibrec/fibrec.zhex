@@ -1,0 +1,10 @@
+# Naive recursive Fibonacci at 30 — the call-recursion shape.
+
+word fib(n: Int) -> Int
+    if n < 2
+        n
+    else
+        fib(n - 1) + fib(n - 2)
+
+word main()
+    print(fib(30))
