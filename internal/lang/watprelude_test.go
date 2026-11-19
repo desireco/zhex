@@ -20,9 +20,9 @@ func TestWatPreludePinnedNames(t *testing.T) {
 		"(type $zhex_arr_i64     (array (mut i64)))",
 		"(type $zhex_arr_i32     (array (mut i32)))",
 		"(type $zhex_arr_ref     (array (mut (ref null eq))))",
-		"(type $zhex_list_i64    (struct (field $items (mut (ref null $zhex_arr_i64))) (field $active (mut i32))))",
-		"(type $zhex_list_i32    (struct (field $items (mut (ref null $zhex_arr_i32))) (field $active (mut i32))))",
-		"(type $zhex_list_ref    (struct (field $items (mut (ref null $zhex_arr_ref))) (field $active (mut i32))))",
+		"(type $zhex_list_i64    (struct (field $items (mut (ref null $zhex_arr_i64))) (field $len (mut i32)) (field $active (mut i32))))",
+		"(type $zhex_list_i32    (struct (field $items (mut (ref null $zhex_arr_i32))) (field $len (mut i32)) (field $active (mut i32))))",
+		"(type $zhex_list_ref    (struct (field $items (mut (ref null $zhex_arr_ref))) (field $len (mut i32)) (field $active (mut i32))))",
 		"(type $zhex_array_i64   (struct (field $shape (ref $zhex_arr_i64)) (field $items (mut (ref null $zhex_arr_i64))) (field $active (mut i32))))",
 		"(type $zhex_array_i32   (struct (field $shape (ref $zhex_arr_i64)) (field $items (mut (ref null $zhex_arr_i32))) (field $active (mut i32))))",
 		"(type $zhex_array_ref   (struct (field $shape (ref $zhex_arr_i64)) (field $items (mut (ref null $zhex_arr_ref))) (field $active (mut i32))))",
@@ -208,8 +208,28 @@ const watPreludeTestExports = `
   (call $zhex_list_get_i64 (local.get $l) (i64.const 0)))
 (func (export "l64_limit")
   (drop (call $zhex_list_append_i64
-    (struct.new $zhex_list_i64 (array.new_default $zhex_arr_i64 (i32.const 1000000)) (i32.const 0))
+    (struct.new $zhex_list_i64 (array.new_default $zhex_arr_i64 (i32.const 1000000)) (i32.const 1000000) (i32.const 0))
     (i64.const 1))))
+
+(func $l64_grow (param $n i32) (result (ref $zhex_list_i64))
+  (local $l (ref $zhex_list_i64))
+  (local $i i32)
+  (local.set $l (call $zhex_list_new_i64))
+  (block $done
+    (loop $again
+      (br_if $done (i32.ge_u (local.get $i) (local.get $n)))
+      (drop (call $zhex_list_append_i64 (local.get $l) (i64.extend_i32_u (local.get $i))))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $again)))
+  (local.get $l))
+(func (export "l64_grow_len") (param $n i32) (result i64) (call $zhex_list_length_i64 (call $l64_grow (local.get $n))))
+(func (export "l64_grow_ends") (param $n i32) (result i64)
+  (local $l (ref $zhex_list_i64))
+  (local.set $l (call $l64_grow (local.get $n)))
+  (i64.add (call $zhex_list_get_i64 (local.get $l) (i64.const 0))
+    (call $zhex_list_get_i64 (local.get $l) (i64.sub (i64.extend_i32_u (local.get $n)) (i64.const 1)))))
+(func (export "l64_grow_oob") (param $n i32) (result i64)
+  (call $zhex_list_get_i64 (call $l64_grow (local.get $n)) (i64.extend_i32_u (local.get $n))))
 
 (func $l32 (result (ref $zhex_list_i32))
   (local $l (ref $zhex_list_i32))
@@ -463,6 +483,17 @@ t('list i64 append while iterating traps 10', () => { fresh(); trap(() => export
 t('list i64 set while iterating traps 10', () => { fresh(); trap(() => exports.l64_set_active(), 10); });
 t('list i64 get while iterating is fine', () => { fresh(); eq(exports.l64_get_active(), 10n, 'get_active'); });
 t('list i64 append at limit traps 8', () => { fresh(); trap(() => exports.l64_limit(), 8); });
+t('list i64 growth crosses doublings', () => {
+  fresh();
+  for (const n of [1, 3, 4, 5, 8, 9, 33, 1000]) {
+    eq(exports.l64_grow_len(n), BigInt(n), 'len ' + n);
+    eq(exports.l64_grow_ends(n), BigInt(n - 1), 'ends ' + n);
+  }
+});
+t('list i64 bounds follow logical length past slack', () => {
+  fresh();
+  trap(() => exports.l64_grow_oob(5), 3);
+});
 
 t('list i32 length', () => { fresh(); eq(exports.l32_len(), 2n, 'len'); });
 t('list i32 get', () => { fresh(); eq(exports.l32_get1(), 1, 'get'); });

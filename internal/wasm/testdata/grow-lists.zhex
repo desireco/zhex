@@ -1,0 +1,34 @@
+# List-heavy growth (#187): 100k Int appends folded to a digest, 50k String
+# appends joined, and 100k buffer lines — the shapes the #6 benchmark caught
+# growing one element per append in the wasm prelude.
+
+word sum(a: Int, b: Int) -> Int
+    a + b
+
+var xs: List<Int> = list.new()
+var i = 0
+while i < 100000
+    list.append(xs, i)
+    i = i + 1
+print(int.to-string(list.length(xs)))
+print(int.to-string(list.fold(xs, 0, sum(_, _))))
+print(int.to-string(xs[0]) + "," + int.to-string(xs[99999]))
+
+var words: List<String> = list.new()
+var j = 0
+while j < 50000
+    list.append(words, int.to-string(j % 10))
+    j = j + 1
+print(int.to-string(list.length(words)))
+print(int.to-string(text.length(text.join(words, "-"))))
+print(words[49999])
+
+let b = buffer.new()
+var k = 0
+while k < 100000
+    buffer.add-line(b, int.to-string(k % 1000))
+    k = k + 1
+print(int.to-string(buffer.line-count(b)))
+print(buffer.line(b, 0) try)
+print(buffer.line(b, 99999) try)
+print(int.to-string(text.length(buffer.to-text(b))))

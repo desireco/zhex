@@ -199,7 +199,7 @@ const watPreludeM4TestExports = `
 
 (func $t_coll_defaults (result (ref null eq))
   (struct.new $t_coll
-    (struct.new $zhex_list_i64 (array.new_default $zhex_arr_i64 (i32.const 0)) (i32.const 0))
+    (struct.new $zhex_list_i64 (array.new_default $zhex_arr_i64 (i32.const 0)) (i32.const 0) (i32.const 0))
     (call $zhex_map_new_str_i64)))
 
 (func $t_eps_schema (result (ref $zjson_schema))
@@ -237,7 +237,7 @@ const watPreludeM4TestExports = `
         (ref.cast (ref $zhex_err)
           (struct.get $zhex_result $payload
             (call $zhex_xml_decode (call $t_in (i32.const 0) (local.get $len))
-              (struct.new $t_eps (struct.new $zhex_list_ref (array.new_default $zhex_arr_ref (i32.const 0)) (i32.const 0)))
+              (struct.new $t_eps (struct.new $zhex_list_ref (array.new_default $zhex_arr_ref (i32.const 0)) (i32.const 0) (i32.const 0)))
               (call $t_eps_schema))))))
     (i32.const 0)))
 (func (export "t_parse_tag") (param $len i32) (result i32)

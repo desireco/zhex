@@ -139,7 +139,7 @@ const watM3Types = `
 (type $zhex_file (struct (field $path (ref $zhex_string)) (field $handle i32) (field $closed (mut i32))))
 ;; buffer lines live in a nullable-eqref array: $zhex_arr_str elements are
 ;; non-null and cannot be default-allocated (prelude-private repr)
-(type $zhex_buffer (struct (field $lines (mut (ref null $zhex_arr_ref)))))
+(type $zhex_buffer (struct (field $lines (mut (ref null $zhex_arr_ref))) (field $len (mut i32))))
 
 ;; the Json tree (DESIGN-M3 6): six M1-scheme padded variants, ordinals
 ;; Null 0 .. Object 5 (jsonTreeValue); List holds a List<Json>, Object a
@@ -837,36 +837,49 @@ const watM3Path = `
 
 // watM3Buffer: the buffer suite (§4) - pure runtime, no imports, no element
 // limit (Surprises 10). line/set-line are bounds-checked Results in the
-// BufferError family with "buffer index <i> is outside 0..<n-1>".
+// BufferError family with "buffer index <i> is outside 0..<n-1>". add-line
+// grows amortized like list append (#187): $lines holds capacity slack,
+// $len tracks the line count.
 const watM3Buffer = `
 (func $zhex_buffer_new (result (ref $zhex_buffer))
-  (struct.new $zhex_buffer (array.new_default $zhex_arr_ref (i32.const 0))))
+  (struct.new $zhex_buffer (array.new_default $zhex_arr_ref (i32.const 0)) (i32.const 0)))
 
 (func $zhex_buffer_add_line (param $b (ref $zhex_buffer)) (param $s (ref $zhex_string)) (result (ref $zhex_buffer))
   (local $old (ref null $zhex_arr_ref))
   (local $n i32)
+  (local $cap i32)
   (local $fresh (ref null $zhex_arr_ref))
   (local $i i32)
+  (local.set $n (struct.get $zhex_buffer $len (local.get $b)))
   (local.set $old (struct.get $zhex_buffer $lines (local.get $b)))
-  (local.set $n (array.len (local.get $old)))
-  (local.set $fresh (array.new_default $zhex_arr_ref (i32.add (local.get $n) (i32.const 1))))
-  (block $copied
-    (loop $copy
-      (br_if $copied (i32.ge_u (local.get $i) (local.get $n)))
-      (array.set $zhex_arr_ref (local.get $fresh) (local.get $i)
-        (array.get $zhex_arr_ref (local.get $old) (local.get $i)))
-      (local.set $i (i32.add (local.get $i) (i32.const 1)))
-      (br $copy)))
-  (array.set $zhex_arr_ref (local.get $fresh) (local.get $n) (local.get $s))
-  (struct.set $zhex_buffer $lines (local.get $b) (local.get $fresh))
+  (local.set $cap (array.len (ref.as_non_null (local.get $old))))
+  (if (i32.lt_u (local.get $n) (local.get $cap))
+    (then
+      (array.set $zhex_arr_ref (ref.as_non_null (local.get $old)) (local.get $n) (local.get $s))
+      (struct.set $zhex_buffer $len (local.get $b) (i32.add (local.get $n) (i32.const 1))))
+    (else
+      (if (i32.lt_u (local.get $cap) (i32.const 4))
+        (then (local.set $cap (i32.const 4)))
+        (else (local.set $cap (i32.add (local.get $cap) (local.get $cap)))))
+      (local.set $fresh (array.new_default $zhex_arr_ref (local.get $cap)))
+      (block $copied
+        (loop $copy
+          (br_if $copied (i32.ge_u (local.get $i) (local.get $n)))
+          (array.set $zhex_arr_ref (local.get $fresh) (local.get $i)
+            (array.get $zhex_arr_ref (ref.as_non_null (local.get $old)) (local.get $i)))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $copy)))
+      (array.set $zhex_arr_ref (local.get $fresh) (local.get $n) (local.get $s))
+      (struct.set $zhex_buffer $lines (local.get $b) (local.get $fresh))
+      (struct.set $zhex_buffer $len (local.get $b) (i32.add (local.get $n) (i32.const 1)))))
   (local.get $b))
 
 (func $zhex_buffer_line_count (param $b (ref $zhex_buffer)) (result i64)
-  (i64.extend_i32_u (array.len (struct.get $zhex_buffer $lines (local.get $b)))))
+  (i64.extend_i32_u (struct.get $zhex_buffer $len (local.get $b))))
 
 (func $zhex_buffer_line (param $b (ref $zhex_buffer)) (param $index i64) (result (ref $zhex_result))
   (local $n i32)
-  (local.set $n (array.len (struct.get $zhex_buffer $lines (local.get $b))))
+  (local.set $n (struct.get $zhex_buffer $len (local.get $b)))
   (if (i64.ge_u (local.get $index) (i64.extend_i32_u (local.get $n)))
     (then
       (return (struct.new $zhex_result (i32.const 1)
@@ -882,7 +895,7 @@ const watM3Buffer = `
 
 (func $zhex_buffer_set_line (param $b (ref $zhex_buffer)) (param $index i64) (param $s (ref $zhex_string)) (result (ref $zhex_result))
   (local $n i32)
-  (local.set $n (array.len (struct.get $zhex_buffer $lines (local.get $b))))
+  (local.set $n (struct.get $zhex_buffer $len (local.get $b)))
   (if (i64.ge_u (local.get $index) (i64.extend_i32_u (local.get $n)))
     (then
       (return (struct.new $zhex_result (i32.const 1)
@@ -899,24 +912,50 @@ const watM3Buffer = `
   (local $lines (ref null $zhex_arr_ref))
   (local $n i32)
   (local $i i32)
-  (local $acc (ref $zhex_string))
-  (local $sep (ref $zhex_string))
+  (local $j i32)
+  (local $w i32)
+  (local $part (ref null $zhex_string))
+  (local $plen i32)
+  (local $r (ref null $zhex_string))
   (local.set $lines (struct.get $zhex_buffer $lines (local.get $b)))
-  (local.set $n (array.len (local.get $lines)))
+  (local.set $n (struct.get $zhex_buffer $len (local.get $b)))
   (if (i32.eqz (local.get $n)) (then (return (array.new_fixed $zhex_string 0))))
-  (local.set $sep (array.new_fixed $zhex_string 1 (i32.const 10)))
-  (local.set $acc (ref.cast (ref $zhex_string)
-    (array.get $zhex_arr_ref (local.get $lines) (i32.const 0))))
-  (local.set $i (i32.const 1))
-  (block $joined
-    (loop $join
-      (br_if $joined (i32.ge_u (local.get $i) (local.get $n)))
-      (local.set $acc (call $zhex_str_concat (call $zhex_str_concat (local.get $acc) (local.get $sep))
-        (ref.cast (ref $zhex_string)
-          (array.get $zhex_arr_ref (local.get $lines) (local.get $i)))))
+  ;; one pass to measure, one to fill - repeated str_concat was quadratic
+  ;; in the line count (#187); this mirrors the interpreter's strings.Join
+  (block $measured
+    (loop $measure
+      (br_if $measured (i32.ge_u (local.get $i) (local.get $n)))
+      (local.set $plen (i32.add (local.get $plen)
+        (array.len (ref.cast (ref $zhex_string)
+          (array.get $zhex_arr_ref (ref.as_non_null (local.get $lines)) (local.get $i))))))
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
-      (br $join)))
-  (local.get $acc))
+      (br $measure)))
+  (local.set $r (array.new_default $zhex_string
+    (i32.sub (i32.add (local.get $plen) (local.get $n)) (i32.const 1))))
+  (local.set $i (i32.const 0))
+  (local.set $w (i32.const 0))
+  (block $filled
+    (loop $fill
+      (br_if $filled (i32.ge_u (local.get $i) (local.get $n)))
+      (if (i32.gt_u (local.get $i) (i32.const 0))
+        (then
+          (array.set $zhex_string (ref.as_non_null (local.get $r)) (local.get $w) (i32.const 10))
+          (local.set $w (i32.add (local.get $w) (i32.const 1)))))
+      (local.set $part (ref.cast (ref $zhex_string)
+        (array.get $zhex_arr_ref (ref.as_non_null (local.get $lines)) (local.get $i))))
+      (local.set $plen (array.len (ref.as_non_null (local.get $part))))
+      (local.set $j (i32.const 0))
+      (block $cpdone
+        (loop $cp
+          (br_if $cpdone (i32.ge_u (local.get $j) (local.get $plen)))
+          (array.set $zhex_string (ref.as_non_null (local.get $r)) (local.get $w)
+            (array.get $zhex_string (ref.as_non_null (local.get $part)) (local.get $j)))
+          (local.set $w (i32.add (local.get $w) (i32.const 1)))
+          (local.set $j (i32.add (local.get $j) (i32.const 1)))
+          (br $cp)))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $fill)))
+  (ref.as_non_null (local.get $r)))
 `
 
 // watM3Readline: read-line(prompt) (§4) - the prompt goes out raw, then the
@@ -2717,7 +2756,7 @@ const watM3JsonParse = `
           (br $bl)))
       (return (struct.new $zhex_result (i32.const 0)
         (struct.new $zt_Json_List (i64.const 0) (i64.const 0) (i64.const 0) (i64.const 0) (i32.const 4)
-          (struct.new $zhex_list_ref (ref.as_non_null (local.get $items)) (i32.const 0)))))))
+          (struct.new $zhex_list_ref (ref.as_non_null (local.get $items)) (local.get $n2) (i32.const 0)))))))
   (local.set $m (call $zhex_map_new_str_ref))
   (local.set $items (ref.as_non_null (struct.get $zjson_node $members (local.get $n))))
   (local.set $n2 (array.len (ref.as_non_null (local.get $items))))
@@ -2957,9 +2996,8 @@ const watM3JsonEncode = `
   (if (ref.test (ref $zt_Json_List) (local.get $v))
     (then
       (local.set $acc (array.new_fixed $zhex_string 1 (i32.const 91)))
-      (local.set $n (array.len (ref.as_non_null
-        (struct.get $zhex_list_ref $items
-          (struct.get $zt_Json_List $f0 (ref.cast (ref $zt_Json_List) (local.get $v)))))))
+      (local.set $n (struct.get $zhex_list_ref $len
+        (struct.get $zt_Json_List $f0 (ref.cast (ref $zt_Json_List) (local.get $v)))))
       (block $joined
         (loop $jl
           (br_if $joined (i32.ge_u (local.get $i) (local.get $n)))
@@ -3055,7 +3093,7 @@ const watM3JsonEncode = `
       (local.set $acc (array.new_fixed $zhex_string 1 (i32.const 91)))
       (if (i32.eq (struct.get $zjson_schema $kind (local.get $elem)) (i32.const 0))
         (then
-          (local.set $n (array.len (ref.as_non_null (struct.get $zhex_list_i64 $items (ref.cast (ref $zhex_list_i64) (local.get $v))))))
+          (local.set $n (struct.get $zhex_list_i64 $len (ref.cast (ref $zhex_list_i64) (local.get $v))))
           (local.set $i64s (struct.get $zhex_list_i64 $items (ref.cast (ref $zhex_list_i64) (local.get $v))))
           (block $joined
             (loop $jl
@@ -3077,7 +3115,7 @@ const watM3JsonEncode = `
             (call $zhex_str_concat (ref.as_non_null (local.get $acc)) (array.new_fixed $zhex_string 1 (i32.const 93)))))))
       (if (i32.eq (struct.get $zjson_schema $kind (local.get $elem)) (i32.const 1))
         (then
-          (local.set $n (array.len (ref.as_non_null (struct.get $zhex_list_i32 $items (ref.cast (ref $zhex_list_i32) (local.get $v))))))
+          (local.set $n (struct.get $zhex_list_i32 $len (ref.cast (ref $zhex_list_i32) (local.get $v))))
           (local.set $i32s (struct.get $zhex_list_i32 $items (ref.cast (ref $zhex_list_i32) (local.get $v))))
           (block $joined
             (loop $jl
@@ -3097,7 +3135,7 @@ const watM3JsonEncode = `
               (br $jl)))
           (return (struct.new $zhex_result (i32.const 0)
             (call $zhex_str_concat (ref.as_non_null (local.get $acc)) (array.new_fixed $zhex_string 1 (i32.const 93)))))))
-      (local.set $n (array.len (ref.as_non_null (struct.get $zhex_list_ref $items (ref.cast (ref $zhex_list_ref) (local.get $v))))))
+      (local.set $n (struct.get $zhex_list_ref $len (ref.cast (ref $zhex_list_ref) (local.get $v))))
       (block $joined
         (loop $jl
           (br_if $joined (i32.ge_u (local.get $i) (local.get $n)))
@@ -3329,7 +3367,7 @@ const watM3JsonDecode = `
           (if (i32.eqz (ref.test (ref $zhex_list_i64) (local.get $v))) (then (return (local.get $v))))
           (local.set $r (call $zjson_memo_find (local.get $m) (local.get $v)))
           (if (i32.eqz (ref.is_null (local.get $r))) (then (return (local.get $r))))
-          (local.set $n (array.len (ref.as_non_null (struct.get $zhex_list_i64 $items (ref.cast (ref $zhex_list_i64) (local.get $v))))))
+          (local.set $n (struct.get $zhex_list_i64 $len (ref.cast (ref $zhex_list_i64) (local.get $v))))
           (local.set $f64 (array.new_default $zhex_arr_i64 (local.get $n)))
           (block $cp (loop $cl
             (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
@@ -3337,7 +3375,7 @@ const watM3JsonDecode = `
               (array.get $zhex_arr_i64 (ref.as_non_null (struct.get $zhex_list_i64 $items (ref.cast (ref $zhex_list_i64) (local.get $v)))) (local.get $i)))
             (local.set $i (i32.add (local.get $i) (i32.const 1)))
             (br $cl)))
-          (local.set $r (struct.new $zhex_list_i64 (ref.as_non_null (local.get $f64)) (i32.const 0)))
+          (local.set $r (struct.new $zhex_list_i64 (ref.as_non_null (local.get $f64)) (local.get $n) (i32.const 0)))
           (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
           (return (local.get $r))))
       (if (i32.eq (local.get $elkind) (i32.const 1))
@@ -3345,7 +3383,7 @@ const watM3JsonDecode = `
           (if (i32.eqz (ref.test (ref $zhex_list_i32) (local.get $v))) (then (return (local.get $v))))
           (local.set $r (call $zjson_memo_find (local.get $m) (local.get $v)))
           (if (i32.eqz (ref.is_null (local.get $r))) (then (return (local.get $r))))
-          (local.set $n (array.len (ref.as_non_null (struct.get $zhex_list_i32 $items (ref.cast (ref $zhex_list_i32) (local.get $v))))))
+          (local.set $n (struct.get $zhex_list_i32 $len (ref.cast (ref $zhex_list_i32) (local.get $v))))
           (local.set $f32 (array.new_default $zhex_arr_i32 (local.get $n)))
           (block $cp (loop $cl
             (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
@@ -3353,7 +3391,7 @@ const watM3JsonDecode = `
               (array.get $zhex_arr_i32 (ref.as_non_null (struct.get $zhex_list_i32 $items (ref.cast (ref $zhex_list_i32) (local.get $v)))) (local.get $i)))
             (local.set $i (i32.add (local.get $i) (i32.const 1)))
             (br $cl)))
-          (local.set $r (struct.new $zhex_list_i32 (ref.as_non_null (local.get $f32)) (i32.const 0)))
+          (local.set $r (struct.new $zhex_list_i32 (ref.as_non_null (local.get $f32)) (local.get $n) (i32.const 0)))
           (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
           (return (local.get $r))))))
   (if (i32.eq (local.get $kind) (i32.const 5))
@@ -3399,9 +3437,9 @@ const watM3JsonDecode = `
       (local.set $r (call $zjson_memo_find (local.get $m) (local.get $v)))
       (if (i32.eqz (ref.is_null (local.get $r))) (then (return (local.get $r))))
       (local.set $items (struct.get $zhex_list_ref $items (ref.cast (ref $zhex_list_ref) (local.get $v))))
-      (local.set $n (array.len (ref.as_non_null (local.get $items))))
+      (local.set $n (struct.get $zhex_list_ref $len (ref.cast (ref $zhex_list_ref) (local.get $v))))
       (local.set $fresh (array.new_default $zhex_arr_ref (local.get $n)))
-      (local.set $r (struct.new $zhex_list_ref (ref.as_non_null (local.get $fresh)) (i32.const 0)))
+      (local.set $r (struct.new $zhex_list_ref (ref.as_non_null (local.get $fresh)) (local.get $n) (i32.const 0)))
       (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
       (block $cl
         (loop $clp
@@ -3539,7 +3577,7 @@ const watM3JsonDecode = `
               (local.set $i (i32.add (local.get $i) (i32.const 1)))
               (br $dl)))
           (return (struct.new $zhex_result (i32.const 0)
-            (struct.new $zhex_list_i64 (ref.as_non_null (local.get $i64s)) (i32.const 0)))))
+            (struct.new $zhex_list_i64 (ref.as_non_null (local.get $i64s)) (local.get $count) (i32.const 0)))))
         (else
           (if (i32.eq (struct.get $zjson_schema $kind (ref.as_non_null (struct.get $zjson_schema $element (local.get $s)))) (i32.const 1))
             (then
@@ -3559,7 +3597,7 @@ const watM3JsonDecode = `
                   (local.set $i (i32.add (local.get $i) (i32.const 1)))
                   (br $dl)))
               (return (struct.new $zhex_result (i32.const 0)
-                (struct.new $zhex_list_i32 (ref.as_non_null (local.get $i32s)) (i32.const 0)))))
+                (struct.new $zhex_list_i32 (ref.as_non_null (local.get $i32s)) (local.get $count) (i32.const 0)))))
             (else
               (local.set $fresh (array.new_default $zhex_arr_ref (local.get $count)))
               (block $dec
@@ -3577,7 +3615,7 @@ const watM3JsonDecode = `
                   (local.set $i (i32.add (local.get $i) (i32.const 1)))
                   (br $dl)))
               (return (struct.new $zhex_result (i32.const 0)
-                (struct.new $zhex_list_ref (ref.as_non_null (local.get $fresh)) (i32.const 0))))))))))
+                (struct.new $zhex_list_ref (ref.as_non_null (local.get $fresh)) (local.get $count) (i32.const 0))))))))))
   (if (i32.eq (local.get $kind) (i32.const 5))
     (then
       (if (i32.ne (local.get $nkind) (i32.const 5))
