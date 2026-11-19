@@ -89,7 +89,7 @@ print(array.rank(grid))
 print(array.length(grid))
 ```
 
-Rank is the number of dimensions; length is the total number of elements. Arrays have rank 2 through 32. Each extent must be nonnegative; a zero extent makes an empty array. The product of the extents is checked against the 1,000,000-element limit. `array.shape` returns the extents as a fresh list.
+Rank is the number of dimensions; length is the total number of elements. Arrays have rank 1 through 32, so a one-extent shape makes a one-dimensional array indexed with a single index. Each extent must be nonnegative; a zero extent makes an empty array. The product of the extents is checked against the 1,000,000-element limit. `array.shape` returns the extents as a fresh list.
 
 | Operation | Result | Behavior |
 | --- | --- | --- |
@@ -98,7 +98,7 @@ Rank is the number of dimensions; length is the total number of elements. Arrays
 | `array.shape(array)` | `List<Int>` | Return the current extents in a fresh list. |
 | `array.rank(array)` | `Int` | Return the number of dimensions. |
 | `array.length(array)` | `Int` | Return the total element count. |
-| `array.select(array, predicate)` | `Array<T>` | Keep the rows of a rank-2 array whose `(List<T>) -> Bool` predicate holds: one row per call, left to right, each row a fresh `List<T>`; kept rows are unmodified and the rectangle (row width) is preserved in a fresh outer array. Rank 3+ raises the `array-rank` runtime diagnostic. |
+| `array.select(array, predicate)` | `Array<T>` | Keep the rows of a rank-2 array whose `(List<T>) -> Bool` predicate holds: one row per call, left to right, each row a fresh `List<T>`; kept rows are unmodified and the rectangle (row width) is preserved in a fresh outer array. A rank other than 2 raises the `array-rank` runtime diagnostic. |
 
 Array reads and writes use zero-based bracket indexing. Use exactly one index for each axis. Plain reads return the element and raise a runtime diagnostic on invalid rank or coordinates. Apply `try` or `catch` directly to a read to handle its failure as a Result. A plain indexed assignment returns `Unit`; an invalid rank or coordinate produces a runtime diagnostic. Parenthesize the assignment when the caller needs a recoverable `Result<Unit, Error>`:
 
@@ -116,6 +116,6 @@ An index is checked against every dimension and fails with `array-range` when it
 
 Plain reads, append, insert, array creation and resize return ordinary values and raise runtime diagnostics for their own validation failures. Directly applying `try` or `catch` selects the common `Result<..., Error>` family for these operations; a parenthesized indexed assignment has the same checked form. Guards cover that operation only, not failures in its receiver or arguments. A stored `let value = items[i]` is an element, so apply a guard directly to the read when recovery is needed. Collections cannot contain a `Result` value, so a fallible operation cannot hide an unhandled result obligation in an element. A caught concrete error cannot be hidden as an `Error` collection element or passed to a user word taking `Error` without first using `error.wrap`; built-in `error.*` operations accept it directly. Records and collections cannot be printed or compared directly; inspect fields/elements or construct text explicitly.
 
-`array.select(values, predicate)` follows the same callback contract: the predicate is an explicit partial or word name receiving each row as a fresh `List<T>`, called once per row left to right while the source array holds its traversal guard; kept rows come back unmodified in a fresh outer array that preserves the row width, elements are shared with the source, and an empty source or no matching rows gives a zero-row array. The interpreter has no rank-1 arrays, and a rank above 2 cannot be represented as a row list, so it fails at runtime with `array.select requires a rank-2 array, found rank N` (`array-rank`).
+`array.select(values, predicate)` follows the same callback contract: the predicate is an explicit partial or word name receiving each row as a fresh `List<T>`, called once per row left to right while the source array holds its traversal guard; kept rows come back unmodified in a fresh outer array that preserves the row width, elements are shared with the source, and an empty source or no matching rows gives a zero-row array. Only rank 2 can be represented as a row list, so any other rank fails at runtime with `array.select requires a rank-2 array, found rank N` (`array-rank`).
 
 Lists and arrays are shared mutable storage. See [collection iteration](iteration.html) for traversal order, positions, and mutation restrictions while iterating.

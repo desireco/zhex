@@ -138,7 +138,7 @@ Function types are monomorphic arrows with a fixed argument tuple, such as `(Int
 
 ## Handling a fallible call
 
-A trailing `try` or `catch` at a complete bare-call boundary handles that call's result. To handle a fallible argument separately, keep the outer call parenthesized and put `try` on the argument:
+A trailing `try` or `catch` at a complete bare-call boundary handles that call's result. To handle a fallible argument separately, keep the outer call parenthesized and put `try` or `catch` on the argument:
 
 ```zhex
 word add(left: Int, right: Int) -> Int

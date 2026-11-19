@@ -83,6 +83,19 @@ let count = text.to-int("bad") catch 3
 
 A name directly before the newline still names the error for an indented handler, so `catch problem` followed by an indented block keeps its meaning.
 
+The one-line fallback binds wherever an expression can: on `let` and assignment right-hand sides, as a standalone statement, and inside call arguments. Within an argument, everything up to the argument's boundary — the next comma, the closing parenthesis, or the statement's newline — forms the fallback:
+
+```zhex
+var count = 0
+count = text.to-int("bad") catch 0
+let xs: List<Int> = [1]
+let ys = list.append(xs, text.to-int("bad") catch 0)
+print(count)
+print(ys[1])
+```
+
+This prints `0` twice: the assignment recovers with `0`, and the `catch` guards the second argument of the append. A trailing ungrouped `catch` on the last argument of a short-form call instead guards the whole call, exactly as a trailing `try` does; parentheses keep it on the argument. The indented-block handler and its lone-name error binding remain statement forms, and a `catch` on a flow-step argument guards that argument while whole steps keep `try`.
+
 Inside a word, a final `catch` expression can supply the word's success value directly:
 
 ```zhex
