@@ -1,0 +1,34 @@
+# Cross-language benchmark run
+
+- date: 2026-11-19T21:22:11Z
+- host: Linux 7.2.15-1-omarchy x86_64
+- runs: 1 warm-up + 5 measured, median wall time in ms
+- verify: all present engines produced byte-identical outputs before timing
+- memory: peak RSS column unavailable — GNU /usr/bin/time is not installed
+
+## Engines
+
+| engine | version |
+|---|---|
+| zhex-interp | zhex 49d8a27 go version go1.27.4 linux/amd64 |
+| zhex-native | zhex 49d8a27 go version go1.27.4 linux/amd64 |
+| go | go version go1.27.4 linux/amd64 |
+| c | cc (GCC) 16.2.1 20260810 |
+| node | v22.23.1 |
+| bun | bun 1.4.4 |
+| ruby | ruby 3.4.10 |
+| python3 | Python 3.14.8 |
+| php | NOT INSTALLED |
+
+## Median wall time (ms)
+
+| benchmark | zhex-interp|zhex-native|go|c|node|bun|ruby|python3|php |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:||
+| fibrec | 1323.7 | 19.1 | 6.5 | 3.1 | 35.3 | 36.9 | 102.7 | 96.5 | NOT INSTALLED |
+| intloop | 919.8 | 266.1 | 7.4 | 7.2 | 47.1 | 51.4 | 77.6 | 90.9 | NOT INSTALLED |
+| stringbuild | 402.0 | 38.6 | 36.0 | 15.1 | 101.8 | 77.0 | 171.3 | 84.5 | NOT INSTALLED |
+| wordcount | 262.0 | 14.0 | 11.8 | 9.6 | 52.1 | 53.8 | 101.5 | 52.7 | NOT INSTALLED |
+| gridsim | 4310.0 | 378.1 | 6.9 | 4.4 | 54.7 | 51.5 | 317.4 | 688.7 | NOT INSTALLED |
+| filterstream | 138.2 | 12.7 | 7.0 | 4.7 | 59.9 | 62.2 | 66.7 | 17.6 | NOT INSTALLED |
+| *geomean (ms)* | 651.4 | 48.6 | 10.0 | 6.4 | 55.4 | 54.2 | 119.7 | 88.3 | — |
+
