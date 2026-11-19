@@ -163,7 +163,7 @@ func TestRunCommandRejectsMalformedTraceFlag(t *testing.T) {
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 {
 			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
 		}
-		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]\n" {
+		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out>] [--target=browser|wasi|native] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]\n" {
 			t.Fatalf("usage %q", diagnostics.String())
 		}
 	}

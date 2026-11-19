@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"sort"
 	"strconv"
 	"strings"
@@ -153,7 +154,7 @@ func (s *Session) literal(v value, typ valueType) (string, bool) {
 	}
 	switch typ {
 	case intType:
-		return i128string(v.number), true
+		return zhexrt.Str(v.number), true
 	case boolType:
 		return strconv.FormatBool(v.boolean), true
 	case stringType:
@@ -165,7 +166,7 @@ func (s *Session) literal(v value, typ valueType) (string, bool) {
 	case timeType:
 		return `time.parse("` + v.moment.Format("15:04:05.999999999") + `") try`, true
 	case durationType:
-		return "duration.new(" + i128string(v.number) + ")", true
+		return "duration.new(" + zhexrt.Str(v.number) + ")", true
 	case instantType:
 		return `instant.parse("` + v.moment.UTC().Format(time.RFC3339Nano) + `") try`, true
 	case timezoneType:

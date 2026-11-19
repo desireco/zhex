@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"bytes"
 	"strings"
 	"testing"
@@ -106,10 +107,10 @@ func TestJSONIntegerBoundariesAndTokenForm(t *testing.T) {
 		raw  string
 		want i128
 		ok   bool
-	}{{"-9223372036854775808", i128from64(-9223372036854775808), true}, {"9223372036854775807", i128from64(9223372036854775807), true}, {"9223372036854775808", i128{lo: 9223372036854775808, hi: 0}, true}, {"170141183460469231731687303715884105727", i128Max, true}, {"170141183460469231731687303715884105728", i128{}, false}, {"1.0", i128{}, false}, {"1e0", i128{}, false}, {"-0", i128from64(0), true}} {
+	}{{"-9223372036854775808", zhexrt.I64(-9223372036854775808), true}, {"9223372036854775807", zhexrt.I64(9223372036854775807), true}, {"9223372036854775808", zhexrt.Int{Lo: 9223372036854775808, Hi: 0}, true}, {"170141183460469231731687303715884105727", i128Max, true}, {"170141183460469231731687303715884105728", zhexrt.Int{}, false}, {"1.0", zhexrt.Int{}, false}, {"1e0", zhexrt.Int{}, false}, {"-0", zhexrt.I64(0), true}} {
 		n, ok := exactJSONInt(tc.raw)
 		if ok != tc.ok || ok && n != tc.want {
-			t.Errorf("%s => %s %v", tc.raw, i128string(n), ok)
+			t.Errorf("%s => %s %v", tc.raw, zhexrt.Str(n), ok)
 		}
 	}
 }
@@ -162,7 +163,7 @@ func TestJSONRejectsLoneSurrogateEscapes(t *testing.T) {
 
 func TestJSONOptionDoesNotConsumeWireNestingDepth(t *testing.T) {
 	schema := &jsonSchema{typ: intType, kind: "int"}
-	v := value{number: i128from64(7)}
+	v := value{number: zhexrt.I64(7)}
 	for i := 0; i < 130; i++ {
 		schema = &jsonSchema{kind: "option", element: schema}
 		v = value{choice: &choiceValue{name: "Option.Some", variant: 1, fields: []value{v}}}

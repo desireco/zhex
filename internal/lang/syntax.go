@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -29,27 +30,15 @@ type diagnostic struct {
 
 // Error keeps the first line stable — file:line:column: message — so
 // scripts and agents parsing it keep working; the source excerpt with a
-// caret and the hint are additive lines.
+// caret and the hint are additive lines. The formatting lives in zhexrt
+// (RenderDiag) so the native target's runtime diagnostics render
+// byte-identically.
 func (d *diagnostic) Error() string {
-	out := fmt.Sprintf("%s:%d:%d: %s", d.pos.file, d.pos.line, d.pos.column, d.message)
-	if d.line != "" {
-		out += "\n    " + d.line + "\n    "
-		indent, width := d.pos.column-1, 1
-		if d.spanStart.column > 0 && d.spanStart.line == d.spanEnd.line && d.spanEnd.column-d.spanStart.column > 1 {
-			indent, width = d.spanStart.column-1, d.spanEnd.column-d.spanStart.column
-		}
-		if indent < 0 {
-			indent = 0
-		}
-		if width < 1 {
-			width = 1
-		}
-		out += strings.Repeat(" ", indent) + strings.Repeat("^", width)
+	spanStart, spanEnd := 0, 0
+	if d.spanStart.line == d.spanEnd.line {
+		spanStart, spanEnd = d.spanStart.column, d.spanEnd.column
 	}
-	if d.hint != "" {
-		out += "\nhint: " + d.hint
-	}
-	return out
+	return zhexrt.RenderDiag(d.pos.file, d.pos.line, d.pos.column, d.message, d.hint, d.line, spanStart, spanEnd)
 }
 
 func errorAt(pos position, code Code, format string, args ...any) error {

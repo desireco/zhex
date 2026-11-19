@@ -1060,12 +1060,12 @@ func (e *watEmitter) expr(x *expression) {
 	e.pos = x.pos
 	switch x.kind {
 	case "int":
-		if !x.number.fits64() {
+		if !x.number.Fits64() {
 			// The WAT lane carries Ints as i64; the interpreter's 128-bit
 			// width fences here rather than truncating the literal.
 			watFence(x.pos, "integers beyond the signed 64-bit range")
 		}
-		e.line("i64.const %d", x.number.int64())
+		e.line("i64.const %d", x.number.AsInt64())
 	case "bool":
 		if x.text == "true" {
 			e.line("i32.const 1")

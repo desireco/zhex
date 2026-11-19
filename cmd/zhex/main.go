@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"zhex/internal/lang"
+	"zhex/internal/native"
 	"zhex/internal/wasm"
 )
 
@@ -23,7 +24,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out.wasm>] [--target=browser|wasi] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out>] [--target=browser|wasi|native] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -97,15 +98,18 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	return 0
 }
 
-// compileCmd implements `zhex compile <file.zhex> [-o <out.wasm>]
-// [--target=browser|wasi]`: check, emit WAT, assemble with wasm-tools, write
-// the artifact. The target picks the host layer (browser by default per D4);
-// an unknown value is a usage error. Checker errors render exactly as run's;
-// a missing wasm-tools prints the pinned missing-tool diagnostic; either way
-// no artifact is written.
+// compileCmd implements `zhex compile <file.zhex> [-o <out>]
+// [--target=browser|wasi|native]`: the wasm targets check, emit WAT, and
+// assemble with wasm-tools into one artifact; the native target emits a
+// Go program directory (main.go, go.mod, zhexrt) and builds it with the
+// Go toolchain, or writes the sources with a build instruction when go is
+// absent. Checker errors render exactly as run's; a missing wasm-tools
+// prints the pinned missing-tool diagnostic; either way no artifact is
+// written.
 func compileCmd(args []string, diagnostics io.Writer) int {
 	file, outPath := "", ""
 	skin := lang.WatSkinBrowser
+	target := "browser"
 	for i := 0; i < len(args); i++ {
 		switch arg := args[i]; {
 		case arg == "-o":
@@ -116,9 +120,11 @@ func compileCmd(args []string, diagnostics io.Writer) int {
 			i++
 			outPath = args[i]
 		case arg == "--target=browser":
-			skin = lang.WatSkinBrowser
+			target, skin = "browser", lang.WatSkinBrowser
 		case arg == "--target=wasi":
-			skin = lang.WatSkinWASI
+			target, skin = "wasi", lang.WatSkinWASI
+		case arg == "--target=native":
+			target = "native"
 		case strings.HasPrefix(arg, "-"):
 			fmt.Fprintln(diagnostics, usage)
 			return 2
@@ -134,7 +140,9 @@ func compileCmd(args []string, diagnostics io.Writer) int {
 		return 2
 	}
 	if outPath == "" {
-		if strings.HasSuffix(file, ".zhex") {
+		if target == "native" {
+			outPath = strings.TrimSuffix(file, ".zhex")
+		} else if strings.HasSuffix(file, ".zhex") {
 			outPath = strings.TrimSuffix(file, ".zhex") + ".wasm"
 		} else {
 			outPath = file + ".wasm"
@@ -146,6 +154,21 @@ func compileCmd(args []string, diagnostics io.Writer) int {
 		return 1
 	}
 	dir := filepath.Dir(file)
+	if target == "native" {
+		if err := native.Compile(file, string(source), outPath, func(name string) (lang.ModuleSource, bool) {
+			return readModule(dir, name)
+		}); err != nil {
+			var missing *native.MissingToolError
+			if errors.As(err, &missing) {
+				// the sources are written; the toolchain is the only thing missing
+				fmt.Fprintln(diagnostics, err)
+				return 0
+			}
+			fmt.Fprintln(diagnostics, err)
+			return 1
+		}
+		return 0
+	}
 	if err := wasm.Compile(file, string(source), outPath, func(name string) (lang.ModuleSource, bool) {
 		return readModule(dir, name)
 	}, skin); err != nil {

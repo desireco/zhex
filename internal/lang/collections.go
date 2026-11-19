@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"sort"
 	"strconv"
 )
@@ -18,7 +19,7 @@ func sortValuesStable(items []value, byText bool) []value {
 		if byText {
 			return sorted[i].text < sorted[j].text
 		}
-		return i128cmp(sorted[i].number, sorted[j].number) < 0
+		return zhexrt.Cmp(sorted[i].number, sorted[j].number) < 0
 	})
 	return sorted
 }
@@ -32,7 +33,7 @@ func sortListStable(items, keys []value, byText bool) []value {
 		if byText {
 			return keys[order[a]].text < keys[order[b]].text
 		}
-		return i128cmp(keys[order[a]].number, keys[order[b]].number) < 0
+		return zhexrt.Cmp(keys[order[a]].number, keys[order[b]].number) < 0
 	})
 	sorted := make([]value, len(items))
 	for i, at := range order {
@@ -48,20 +49,20 @@ func failedCollection(pos position, code Code, operation, message string, detail
 }
 
 func listRead(pos position, list *listValue, index i128) value {
-	if !index.fits64() || index.int64() < 0 || index.int64() >= int64(len(list.items)) {
-		return failedCollection(pos, CodeListRange, "list.index", "list index is out of range", map[string]string{"index": i128string(index), "length": strconv.Itoa(len(list.items))})
+	if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() >= int64(len(list.items)) {
+		return failedCollection(pos, CodeListRange, "list.index", "list index is out of range", map[string]string{"index": zhexrt.Str(index), "length": strconv.Itoa(len(list.items))})
 	}
-	return value{result: &inputResult{value: list.items[index.int64()]}}
+	return value{result: &inputResult{value: list.items[index.AsInt64()]}}
 }
 
 func listWrite(pos position, list *listValue, index i128, item value) value {
 	if list.active > 0 {
 		return failedCollection(pos, CodeCollectionIterating, "list.set", "collection is being iterated", nil)
 	}
-	if !index.fits64() || index.int64() < 0 || index.int64() >= int64(len(list.items)) {
-		return failedCollection(pos, CodeListRange, "list.set", "list index is out of range", map[string]string{"index": i128string(index), "length": strconv.Itoa(len(list.items))})
+	if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() >= int64(len(list.items)) {
+		return failedCollection(pos, CodeListRange, "list.set", "list index is out of range", map[string]string{"index": zhexrt.Str(index), "length": strconv.Itoa(len(list.items))})
 	}
-	list.items[index.int64()] = item
+	list.items[index.AsInt64()] = item
 	return value{result: &inputResult{}}
 }
 
@@ -72,14 +73,14 @@ func arrayShape(pos position, dims *listValue, operation string) ([]int64, int, 
 	shape := make([]int64, len(dims.items))
 	zero := false
 	for i, v := range dims.items {
-		if v.number.negative() {
-			return nil, 0, failedCollection(pos, CodeArrayShape, operation, "array extents cannot be negative", map[string]string{"axis": strconv.Itoa(i), "extent": i128string(v.number)})
+		if v.number.Negative() {
+			return nil, 0, failedCollection(pos, CodeArrayShape, operation, "array extents cannot be negative", map[string]string{"axis": strconv.Itoa(i), "extent": zhexrt.Str(v.number)})
 		}
-		if !v.number.fits64() {
+		if !v.number.Fits64() {
 			return nil, 0, failedCollection(pos, CodeCollectionLimit, operation, "array exceeds element limit", map[string]string{"limit": strconv.Itoa(maxCollectionElements)})
 		}
-		shape[i] = v.number.int64()
-		zero = zero || v.number.isZero()
+		shape[i] = v.number.AsInt64()
+		zero = zero || v.number.IsZero()
 	}
 	if zero {
 		return shape, 0, value{}
@@ -117,10 +118,10 @@ func arrayIndex(pos position, a *arrayValue, indices []i128, item value, write b
 	}
 	offset := int64(0)
 	for i, index := range indices {
-		if !index.fits64() || index.int64() < 0 || index.int64() >= a.shape[i] {
-			return failedCollection(pos, CodeArrayRange, operation, "array coordinate is out of range", map[string]string{"axis": strconv.Itoa(i), "index": i128string(index), "extent": strconv.FormatInt(a.shape[i], 10)})
+		if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() >= a.shape[i] {
+			return failedCollection(pos, CodeArrayRange, operation, "array coordinate is out of range", map[string]string{"axis": strconv.Itoa(i), "index": zhexrt.Str(index), "extent": strconv.FormatInt(a.shape[i], 10)})
 		}
-		offset = offset*a.shape[i] + index.int64()
+		offset = offset*a.shape[i] + index.AsInt64()
 	}
 	if write {
 		a.items[offset] = item

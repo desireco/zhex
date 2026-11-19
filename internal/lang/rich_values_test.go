@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"bytes"
 	"fmt"
 	"strings"
@@ -316,13 +317,13 @@ func TestListLimitsAndActiveGuardLeaveDataUnchanged(t *testing.T) {
 	full := &listValue{items: make([]value, maxCollectionElements)}
 	r := runtime{}
 	call := &expression{text: "list.append", pos: position{file: "test.zhex", line: 1, column: 1}}
-	result, err := r.builtin(call, []value{{list: full}, {number: i128from64(1)}})
+	result, err := r.builtin(call, []value{{list: full}, {number: zhexrt.I64(1)}})
 	if err != nil || result.result == nil || result.result.err == nil || result.result.err.(*diagnostic).code != CodeCollectionLimit || len(full.items) != maxCollectionElements {
 		t.Fatalf("limit failure: %v %+v", err, result)
 	}
-	active := &listValue{items: []value{{number: i128from64(2)}}, active: 1}
-	result = listWrite(call.pos, active, i128from64(0), value{number: i128from64(9)})
-	if result.result.err == nil || result.result.err.(*diagnostic).code != CodeCollectionIterating || active.items[0].number != i128from64(2) {
+	active := &listValue{items: []value{{number: zhexrt.I64(2)}}, active: 1}
+	result = listWrite(call.pos, active, zhexrt.I64(0), value{number: zhexrt.I64(9)})
+	if result.result.err == nil || result.result.err.(*diagnostic).code != CodeCollectionIterating || active.items[0].number != zhexrt.I64(2) {
 		t.Fatal("iteration guard changed list")
 	}
 }

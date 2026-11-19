@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"strings"
 )
 
@@ -844,7 +845,7 @@ func (p *parser) unary() *expression {
 }
 
 func (p *parser) number(t token) *expression {
-	n, ok := i128parse(t.text)
+	n, ok := zhexrt.Parse(t.text)
 	if !ok {
 		panic(errorAt(t.pos, CodeIntegerLiteralRange, "integer literal is outside the signed 128-bit range"))
 	}

@@ -27,6 +27,41 @@ func TestCompileUsageErrors(t *testing.T) {
 	}
 }
 
+// The native target (#185): a directory of Go sources plus a built
+// binary whose run matches zhex run byte-for-byte — the CLI seam of the
+// M1 smoke.
+func TestCompileNativeTargetBuildsAndRuns(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go is not installed; skipping")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "program.zhex")
+	if err := os.WriteFile(path, []byte("print(\"native hi\")\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	outDir := filepath.Join(dir, "program")
+	var out, diagnostics bytes.Buffer
+	code := run([]string{"compile", path, "--target=native", "-o", outDir}, strings.NewReader(""), &out, &diagnostics)
+	if code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d stderr %q", code, diagnostics.String())
+	}
+	for _, name := range []string{"main.go", "go.mod", filepath.Join("zhexrt", "int.go")} {
+		if _, err := os.Stat(filepath.Join(outDir, name)); err != nil {
+			t.Fatalf("%s missing: %v", name, err)
+		}
+	}
+	binary := filepath.Join(outDir, "program")
+	var runOut bytes.Buffer
+	cmd := exec.Command(binary)
+	cmd.Stdout = &runOut
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("run built binary: %v", err)
+	}
+	if runOut.String() != "native hi\n" {
+		t.Fatalf("built binary output %q", runOut.String())
+	}
+}
+
 // Checker errors print through the existing renderer — position, excerpt,
 // caret, hint — and no artifact is written. This path needs no wasm-tools.
 func TestCompileCheckerErrorRendersPositionedDiagnostic(t *testing.T) {

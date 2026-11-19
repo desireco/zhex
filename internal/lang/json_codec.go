@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -200,9 +201,9 @@ func parseJSON(dec *json.Decoder, path string, depth int) (*jsonNode, error) {
 // exactJSONInt accepts only integer-form JSON tokens in the signed 128-bit range.
 func exactJSONInt(text string) (i128, bool) {
 	if strings.ContainsAny(text, ".eE") {
-		return i128{}, false
+		return zhexrt.Int{}, false
 	}
-	return i128parse(text)
+	return zhexrt.Parse(text)
 }
 
 type jsonClone struct {
@@ -539,7 +540,7 @@ func appendJSON(out *bytes.Buffer, v value, s *jsonSchema, path string, depth in
 	}
 	switch s.kind {
 	case "int":
-		out.WriteString(i128string(v.number))
+		out.WriteString(zhexrt.Str(v.number))
 	case "bool":
 		out.WriteString(strconv.FormatBool(v.boolean))
 	case "string":

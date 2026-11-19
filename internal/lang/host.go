@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"fmt"
 	"io"
 	"os"
@@ -48,7 +49,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "xml.decode":
 		return decodeXML(x.pos, args[0].text, args[1], x.jsonSchema), nil
 	case "map.length":
-		return value{number: i128from64(int64(len(args[0].mapping.entries)))}, nil
+		return value{number: zhexrt.I64(int64(len(args[0].mapping.entries)))}, nil
 	case "map.contains":
 		_, ok := args[0].mapping.index[args[0].mapping.key(args[1])]
 		return value{boolean: ok}, nil
@@ -93,13 +94,13 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "array.shape":
 		items := make([]value, len(args[0].array.shape))
 		for i, n := range args[0].array.shape {
-			items[i] = value{number: i128from64(n)}
+			items[i] = value{number: zhexrt.I64(n)}
 		}
 		return value{list: &listValue{items: items}}, nil
 	case "array.rank":
-		return value{number: i128from64(int64(len(args[0].array.shape)))}, nil
+		return value{number: zhexrt.I64(int64(len(args[0].array.shape)))}, nil
 	case "array.length":
-		return value{number: i128from64(int64(len(args[0].array.items)))}, nil
+		return value{number: zhexrt.I64(int64(len(args[0].array.items)))}, nil
 	case "array.select":
 		source := args[0].array
 		if len(source.shape) != 2 {
@@ -143,15 +144,15 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			return failedCollection(x.pos, CodeCollectionLimit, "list.insert", "list exceeds element limit", nil), nil
 		}
 		index := args[1].number
-		if !index.fits64() || index.int64() < 0 || index.int64() > int64(len(args[0].list.items)) {
-			return failedCollection(x.pos, CodeListRange, "list.insert", "list insert index is out of range", map[string]string{"index": i128string(index), "length": strconv.Itoa(len(args[0].list.items))}), nil
+		if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() > int64(len(args[0].list.items)) {
+			return failedCollection(x.pos, CodeListRange, "list.insert", "list insert index is out of range", map[string]string{"index": zhexrt.Str(index), "length": strconv.Itoa(len(args[0].list.items))}), nil
 		}
-		at := index.int64()
+		at := index.AsInt64()
 		rest := append([]value{args[2]}, args[0].list.items[at:]...)
 		args[0].list.items = append(args[0].list.items[:at], rest...)
 		return value{result: &inputResult{value: args[0]}}, nil
 	case "list.length":
-		return value{number: i128from64(int64(len(args[0].list.items)))}, nil
+		return value{number: zhexrt.I64(int64(len(args[0].list.items)))}, nil
 	case "list.map":
 		source := args[0].list
 		source.active++
@@ -298,27 +299,27 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "error.file":
 		return value{text: args[0].fault.(*diagnostic).pos.file}, nil
 	case "error.line":
-		return value{number: i128from64(int64(args[0].fault.(*diagnostic).pos.line))}, nil
+		return value{number: zhexrt.I64(int64(args[0].fault.(*diagnostic).pos.line))}, nil
 	case "error.column":
-		return value{number: i128from64(int64(args[0].fault.(*diagnostic).pos.column))}, nil
+		return value{number: zhexrt.I64(int64(args[0].fault.(*diagnostic).pos.column))}, nil
 	case "error.detail":
 		return value{text: args[0].fault.(*diagnostic).details[args[1].text]}, nil
 	case "print":
 		text := formatValue(args[0], x.inputType)
 		return value{}, r.write(x.pos, text+"\n")
 	case "int.to-string":
-		return value{text: i128string(args[0].number)}, nil
+		return value{text: zhexrt.Str(args[0].number)}, nil
 	case "int.mod-floor":
 		n, modulus := args[0].number, args[1].number
-		if modulus.isZero() {
+		if modulus.IsZero() {
 			return value{}, errorAt(x.pos, CodeDivisionZero, "int.mod-floor modulus is zero")
 		}
-		_, wrapped := i128divmod(n, modulus)
+		_, wrapped := zhexrt.DivMod(n, modulus)
 		// Floored semantics: a nonzero result takes the modulus's sign, so
 		// /'s truncation needs one adjustment; |wrapped| < |modulus| keeps
 		// the sum in Int range.
-		if !wrapped.isZero() && wrapped.negative() != modulus.negative() {
-			wrapped, _ = i128add(wrapped, modulus)
+		if !wrapped.IsZero() && wrapped.Negative() != modulus.Negative() {
+			wrapped, _ = zhexrt.AddOvf(wrapped, modulus)
 		}
 		return value{number: wrapped}, nil
 	case "text.reverse":
@@ -348,13 +349,13 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		return value{result: &inputResult{value: value{text: line}}}, nil
 	case "text.to-int":
-		number, ok := i128parse(args[0].text)
+		number, ok := zhexrt.Parse(args[0].text)
 		if !ok {
 			return value{result: &inputResult{err: errorAt(x.pos, CodeTextToInt, "%q is not a signed 128-bit decimal integer", args[0].text)}}, nil
 		}
 		return value{result: &inputResult{value: value{number: number}}}, nil
 	case "text.length":
-		return value{number: i128from64(int64(utf8.RuneCountInString(args[0].text)))}, nil
+		return value{number: zhexrt.I64(int64(utf8.RuneCountInString(args[0].text)))}, nil
 	case "text.line-count":
 		if args[0].text == "" {
 			return value{}, nil
@@ -363,9 +364,9 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		if !strings.HasSuffix(args[0].text, "\n") {
 			count++
 		}
-		return value{number: i128from64(count)}, nil
+		return value{number: zhexrt.I64(count)}, nil
 	case "text.word-count":
-		return value{number: i128from64(int64(len(strings.Fields(args[0].text))))}, nil
+		return value{number: zhexrt.I64(int64(len(strings.Fields(args[0].text))))}, nil
 	case "text.upper":
 		return value{text: strings.ToUpper(args[0].text)}, nil
 	case "text.lower":
@@ -377,23 +378,23 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "text.index-of":
 		at := strings.Index(args[0].text, args[1].text)
 		if at < 0 {
-			return value{number: i128from64(-1)}, nil
+			return value{number: zhexrt.I64(-1)}, nil
 		}
-		return value{number: i128from64(int64(utf8.RuneCountInString(args[0].text[:at])))}, nil
+		return value{number: zhexrt.I64(int64(utf8.RuneCountInString(args[0].text[:at])))}, nil
 	case "text.slice":
 		runes := []rune(args[0].text)
 		start, end := args[1].number, args[2].number
-		length := i128from64(int64(len(runes)))
-		if start.negative() {
-			start = i128from64(0)
+		length := zhexrt.I64(int64(len(runes)))
+		if start.Negative() {
+			start = zhexrt.I64(0)
 		}
-		if i128cmp(end, length) > 0 {
+		if zhexrt.Cmp(end, length) > 0 {
 			end = length
 		}
-		if i128cmp(start, end) >= 0 {
+		if zhexrt.Cmp(start, end) >= 0 {
 			return value{}, nil
 		}
-		return value{text: string(runes[start.int64():end.int64()])}, nil
+		return value{text: string(runes[start.AsInt64():end.AsInt64()])}, nil
 	case "text.replace":
 		if args[1].text == "" {
 			return value{}, errorAt(x.pos, CodeReplaceEmpty, "text.replace old text is empty")
@@ -428,7 +429,7 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		items := make([]value, 0, count)
 		for _, r := range args[0].text {
-			items = append(items, value{number: i128from64(int64(r))})
+			items = append(items, value{number: zhexrt.I64(int64(r))})
 		}
 		return value{list: &listValue{items: items}}, nil
 	case "text.from-code-points":
@@ -437,10 +438,10 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			cp := item.number
 			// Surrogate halves have no UTF-8 encoding; rune(cp) is safe past
 			// these guards because cp already fits a valid code point.
-			if cp.negative() || !cp.fits64() || cp.int64() > 0x10FFFF || cp.int64() >= 0xD800 && cp.int64() <= 0xDFFF {
-				return value{}, errorAt(x.pos, CodeTextCodePoint, "text.from-code-points code point %s is invalid", i128string(cp))
+			if cp.Negative() || !cp.Fits64() || cp.AsInt64() > 0x10FFFF || cp.AsInt64() >= 0xD800 && cp.AsInt64() <= 0xDFFF {
+				return value{}, errorAt(x.pos, CodeTextCodePoint, "text.from-code-points code point %s is invalid", zhexrt.Str(cp))
 			}
-			b.WriteRune(rune(cp.int64()))
+			b.WriteRune(rune(cp.AsInt64()))
 		}
 		return value{text: b.String()}, nil
 	case "text.starts-with":
@@ -453,19 +454,19 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		args[0].buffer.lines = append(args[0].buffer.lines, args[1].text)
 		return args[0], nil
 	case "buffer.line-count":
-		return value{number: i128from64(int64(len(args[0].buffer.lines)))}, nil
+		return value{number: zhexrt.I64(int64(len(args[0].buffer.lines)))}, nil
 	case "buffer.line":
 		i := args[1].number
-		if !i.fits64() || i.int64() < 0 || i.int64() >= int64(len(args[0].buffer.lines)) {
-			return value{result: &inputResult{err: errorAt(x.pos, CodeBufferRange, "buffer index %s is outside 0..%d", i128string(i), len(args[0].buffer.lines)-1)}}, nil
+		if !i.Fits64() || i.AsInt64() < 0 || i.AsInt64() >= int64(len(args[0].buffer.lines)) {
+			return value{result: &inputResult{err: errorAt(x.pos, CodeBufferRange, "buffer index %s is outside 0..%d", zhexrt.Str(i), len(args[0].buffer.lines)-1)}}, nil
 		}
-		return value{result: &inputResult{value: value{text: args[0].buffer.lines[i.int64()]}}}, nil
+		return value{result: &inputResult{value: value{text: args[0].buffer.lines[i.AsInt64()]}}}, nil
 	case "buffer.set-line":
 		i := args[1].number
-		if !i.fits64() || i.int64() < 0 || i.int64() >= int64(len(args[0].buffer.lines)) {
-			return value{result: &inputResult{err: errorAt(x.pos, CodeBufferRange, "buffer index %s is outside 0..%d", i128string(i), len(args[0].buffer.lines)-1)}}, nil
+		if !i.Fits64() || i.AsInt64() < 0 || i.AsInt64() >= int64(len(args[0].buffer.lines)) {
+			return value{result: &inputResult{err: errorAt(x.pos, CodeBufferRange, "buffer index %s is outside 0..%d", zhexrt.Str(i), len(args[0].buffer.lines)-1)}}, nil
 		}
-		args[0].buffer.lines[i.int64()] = args[2].text
+		args[0].buffer.lines[i.AsInt64()] = args[2].text
 		return value{result: &inputResult{value: args[0]}}, nil
 	case "buffer.to-text":
 		return value{text: strings.Join(args[0].buffer.lines, "\n")}, nil
@@ -520,14 +521,14 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		if !info.IsDir() {
 			size = int64(info.Size())
 		}
-		return value{result: &inputResult{value: value{number: i128from64(size)}}}, nil
+		return value{result: &inputResult{value: value{number: zhexrt.I64(size)}}}, nil
 	case "file.free-space":
 		path := args[0].text
 		avail, err := osFreeSpace(path)
 		if err != nil {
 			return value{result: &inputResult{err: inspectError(x.pos, CodeFileFreeSpace, "cannot get the free space for %q: %v", path, err)}}, nil
 		}
-		return value{result: &inputResult{value: value{number: i128from64(avail)}}}, nil
+		return value{result: &inputResult{value: value{number: zhexrt.I64(avail)}}}, nil
 	case "file.join":
 		return value{text: joinPath(args[0].text, args[1].text)}, nil
 	case "file.base":
@@ -549,18 +550,18 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{}, &ExitError{Status: 1}
 	case "console.exit":
 		status := args[0].number
-		if status.negative() || i128cmp(status, i128from64(255)) > 0 {
-			return value{}, errorAt(x.pos, CodeExitStatus, "console.exit status must be between 0 and 255, found %s", i128string(status))
+		if status.Negative() || zhexrt.Cmp(status, zhexrt.I64(255)) > 0 {
+			return value{}, errorAt(x.pos, CodeExitStatus, "console.exit status must be between 0 and 255, found %s", zhexrt.Str(status))
 		}
-		return value{}, &ExitError{Status: int(status.int64())}
+		return value{}, &ExitError{Status: int(status.AsInt64())}
 	case "console.arg":
 		i := args[0].number
-		if !i.fits64() || i.int64() < 0 || i.int64() >= int64(len(r.args)) {
-			return value{result: &inputResult{err: errorAt(x.pos, CodeArgumentMissing, "argument index %s is out of range; the program received %d", i128string(i), len(r.args))}}, nil
+		if !i.Fits64() || i.AsInt64() < 0 || i.AsInt64() >= int64(len(r.args)) {
+			return value{result: &inputResult{err: errorAt(x.pos, CodeArgumentMissing, "argument index %s is out of range; the program received %d", zhexrt.Str(i), len(r.args))}}, nil
 		}
-		return value{result: &inputResult{value: value{text: r.args[i.int64()]}}}, nil
+		return value{result: &inputResult{value: value{text: r.args[i.AsInt64()]}}}, nil
 	case "console.args-count":
-		return value{number: i128from64(int64(len(r.args)))}, nil
+		return value{number: zhexrt.I64(int64(len(r.args)))}, nil
 	case "env.get":
 		if text, ok := os.LookupEnv(args[0].text); ok {
 			return value{choice: &choiceValue{name: "Option.Some", variant: 1, fields: []value{{text: text}}}}, nil
@@ -612,7 +613,7 @@ func formatValue(v value, typ valueType) string {
 	}
 	switch typ {
 	case intType:
-		return i128string(v.number)
+		return zhexrt.Str(v.number)
 	case boolType:
 		return strconv.FormatBool(v.boolean)
 	case stringType:
@@ -630,7 +631,7 @@ func formatValue(v value, typ valueType) string {
 	case timeType:
 		return v.moment.Format("15:04:05.999999999")
 	case durationType:
-		return time.Duration(v.number.int64()).String()
+		return time.Duration(v.number.AsInt64()).String()
 	case instantType:
 		return v.moment.UTC().Format(time.RFC3339Nano)
 	case timezoneType:

@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"bufio"
 	"fmt"
 	"io"
@@ -269,7 +270,7 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			return value{}, err
 		}
 		// n stays below end, so the successor cannot overflow i128.
-		for n := v.number; i128cmp(n, end.number) < 0; n, _ = i128add(n, i128from64(1)) {
+		for n := v.number; zhexrt.Cmp(n, end.number) < 0; n, _ = zhexrt.AddOvf(n, zhexrt.I64(1)) {
 			env[s.binding] = value{number: n}
 			r.traceBinding(s.pos, s.binding, value{number: n})
 			if _, err := r.block(s.body, env); err != nil {
@@ -310,12 +311,12 @@ func (r *runtime) statement(s *statement, env frame) (value, error) {
 			first := item
 			if s.secondBinding != nil {
 				if v.list != nil {
-					first = value{number: i128from64(int64(index))}
+					first = value{number: zhexrt.I64(int64(index))}
 				} else {
 					coords := make([]value, len(v.array.shape))
 					n := int64(index)
 					for i := len(coords) - 1; i >= 0; i-- {
-						coords[i] = value{number: i128from64(n % v.array.shape[i])}
+						coords[i] = value{number: zhexrt.I64(n % v.array.shape[i])}
 						n /= v.array.shape[i]
 					}
 					first = value{list: &listValue{items: coords}}
@@ -591,7 +592,7 @@ func (r *runtime) expression(x *expression, env frame) (value, error) {
 		if x.text == "not" {
 			return value{boolean: !v.boolean}, nil
 		}
-		n, ok := i128neg(v.number)
+		n, ok := zhexrt.NegOvf(v.number)
 		if !ok {
 			d := errorAt(x.pos, CodeIntegerOverflow, "integer overflow").(*diagnostic)
 			d.operation = x.text
@@ -724,10 +725,10 @@ func (r *runtime) call(x *expression, args []value) (value, error) {
 				}
 				switch x.text {
 				case "buffer.line", "buffer.set-line":
-					d.details["index"] = i128string(args[1].number)
+					d.details["index"] = zhexrt.Str(args[1].number)
 					d.details["line-count"] = strconv.Itoa(len(args[0].buffer.lines))
 				case "console.arg":
-					d.details["index"] = i128string(args[0].number)
+					d.details["index"] = zhexrt.Str(args[0].number)
 					d.details["argument-count"] = strconv.Itoa(len(r.args))
 				case "file.read", "file.open":
 					d.details["path"] = args[0].text
@@ -833,23 +834,23 @@ func binary(x *expression, a, b value) (value, error) {
 		}
 		return value{boolean: equal}, nil
 	case "<":
-		return value{boolean: i128cmp(a.number, b.number) < 0}, nil
+		return value{boolean: zhexrt.Cmp(a.number, b.number) < 0}, nil
 	case "<=":
-		return value{boolean: i128cmp(a.number, b.number) <= 0}, nil
+		return value{boolean: zhexrt.Cmp(a.number, b.number) <= 0}, nil
 	case ">":
-		return value{boolean: i128cmp(a.number, b.number) > 0}, nil
+		return value{boolean: zhexrt.Cmp(a.number, b.number) > 0}, nil
 	case ">=":
-		return value{boolean: i128cmp(a.number, b.number) >= 0}, nil
+		return value{boolean: zhexrt.Cmp(a.number, b.number) >= 0}, nil
 	case "+":
 		if x.typ == stringType {
 			// The string-context Int exception renders an Int operand the
 			// way int.to-string does.
 			leftText, rightText := a.text, b.text
 			if x.left.typ == intType {
-				leftText = i128string(a.number)
+				leftText = zhexrt.Str(a.number)
 			}
 			if x.right.typ == intType {
-				rightText = i128string(b.number)
+				rightText = zhexrt.Str(b.number)
 			}
 			return value{text: leftText + rightText}, nil
 		}
@@ -858,23 +859,23 @@ func binary(x *expression, a, b value) (value, error) {
 	overflow := false
 	switch x.text {
 	case "+":
-		n, overflow = i128add(a.number, b.number)
+		n, overflow = zhexrt.AddOvf(a.number, b.number)
 	case "-":
-		n, overflow = i128sub(a.number, b.number)
+		n, overflow = zhexrt.SubOvf(a.number, b.number)
 	case "*":
-		n, overflow = i128mul(a.number, b.number)
+		n, overflow = zhexrt.MulOvf(a.number, b.number)
 	case "/", "%":
-		if b.number.isZero() {
+		if b.number.IsZero() {
 			return value{}, errorAt(x.pos, CodeDivisionZero, "division or remainder by zero")
 		}
-		if a.number == i128Min && b.number == i128from64(-1) {
+		if a.number == i128Min && b.number == zhexrt.I64(-1) {
 			if x.text == "%" {
-				return value{number: i128from64(0)}, nil
+				return value{number: zhexrt.I64(0)}, nil
 			}
 			return value{}, errorAt(x.pos, CodeIntegerOverflow, "integer overflow")
 		}
 		var rem i128
-		n, rem = i128divmod(a.number, b.number)
+		n, rem = zhexrt.DivMod(a.number, b.number)
 		if x.text == "%" {
 			n = rem
 		}

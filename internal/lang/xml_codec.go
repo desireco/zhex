@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"zhex/internal/zhexrt"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -128,12 +129,12 @@ var xmlIntegerForm = regexp.MustCompile(`^[+-]?[0-9]+$`)
 // anything else a type failure.
 func exactXMLInt(text, path string) (i128, error) {
 	trimmed := strings.TrimSpace(text)
-	n, ok := i128parse(trimmed)
+	n, ok := zhexrt.Parse(trimmed)
 	if !ok {
 		if xmlIntegerForm.MatchString(trimmed) {
-			return i128{}, &xmlFailure{path: path, message: "expected an integer-form signed 128-bit number", code: CodeXMLRange, expected: "Int", actual: trimmed}
+			return zhexrt.Int{}, &xmlFailure{path: path, message: "expected an integer-form signed 128-bit number", code: CodeXMLRange, expected: "Int", actual: trimmed}
 		}
-		return i128{}, &xmlFailure{path: path, message: "expected Int", code: CodeXMLType, expected: "Int", actual: "text"}
+		return zhexrt.Int{}, &xmlFailure{path: path, message: "expected Int", code: CodeXMLType, expected: "Int", actual: "text"}
 	}
 	return n, nil
 }
