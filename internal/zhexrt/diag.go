@@ -97,7 +97,8 @@ func Do(status int) { panic(&Exit{Status: status}) }
 // Run executes a compiled program's entry and turns its outcome into the
 // process contract zhex run honors: a nil error exits 0, a diagnostic
 // renders to stderr and exits 1, a deliberate exit takes its status, and
-// no Go panic ever leaks raw (it becomes a diagnostic naming the code).
+// no Go panic ever leaks raw — an unexpected panic becomes a
+// native-internal diagnostic instead.
 func Run(entry func() *Error) {
 	var result *Error
 	func() {
@@ -109,7 +110,7 @@ func Run(entry func() *Error) {
 				case *Exit:
 					os.Exit(v.Status)
 				default:
-					panic(r)
+					result = &Error{Code: "native-internal", Message: fmt.Sprintf("internal error: %v", r)}
 				}
 			}
 		}()

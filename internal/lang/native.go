@@ -956,8 +956,11 @@ func (e *nativeEmitter) emitForCollection(s *statement) {
 			if e.fn.refs[s.secondBinding] {
 				e.line("%s := __item", second)
 			}
-		} else {
+		} else if e.fn.refs[s.binding] {
 			e.line("for _, %s := range %s.Items {", name, temp)
+			e.depth++
+		} else {
+			e.line("for range %s.Items {", temp)
 			e.depth++
 		}
 		e.statements(s.body, "")
@@ -986,8 +989,14 @@ func (e *nativeEmitter) emitForCollection(s *statement) {
 			e.statements(s.body, "")
 			e.depth--
 			e.line("}")
-		} else {
+		} else if e.fn.refs[s.binding] {
 			e.line("for _, %s := range %s.Items {", name, temp)
+			e.depth++
+			e.statements(s.body, "")
+			e.depth--
+			e.line("}")
+		} else {
+			e.line("for range %s.Items {", temp)
 			e.depth++
 			e.statements(s.body, "")
 			e.depth--
@@ -1011,7 +1020,9 @@ func (e *nativeEmitter) emitForCollection(s *statement) {
 	} else {
 		e.line("for _, __entry := range %s.Entries {", temp)
 		e.depth++
-		e.line("%s := __entry.Value", name)
+		if e.fn.refs[s.binding] {
+			e.line("%s := __entry.Value", name)
+		}
 	}
 	e.statements(s.body, "")
 	e.depth--

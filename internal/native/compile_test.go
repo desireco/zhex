@@ -147,3 +147,23 @@ func TestNativeMissingGoWritesSources(t *testing.T) {
 		}
 	}
 }
+
+// TestNativeRuntimeDiagnostics pins the M4 contract on explicit failure
+// fixtures: runtime errors render exactly as zhex run's diagnostics —
+// first line, source excerpt, caret — never raw Go panics, and the exit
+// status matches. Each row diffs against the interpreter oracle.
+func TestNativeRuntimeDiagnostics(t *testing.T) {
+	for _, tc := range []struct{ name, source string }{
+		{"divzero", "let a = 1\nlet b = 0\nprint(a / b)\n"},
+		{"overflow", "print(170141183460469231731687303715884105727 + 1)\n"},
+		{"list-range", "let xs: List<Int> = [1]\nprint(xs[5])\n"},
+		{"array-range", "let g: Array<Int> = array.new([2, 2], 0)\nprint(g[9, 0])\n"},
+		{"collection-iterating", "word addup(values: List<Int>) -> Int\n    0\nlet xs: List<Int> = []\nlet _ = list.append(xs, 1)\nfor x in xs\n    let _ = list.append(xs, 2)\nprint(\"done\")\n"},
+		{"unhandled-to-int", "let n = text.to-int(\"x\") try\nprint(\"unreachable\")\n"},
+		{"text-slice-range", "print(text.slice(\"abc\", 9, 2))\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			diffCase(t, tc.name, tc.source, "")
+		})
+	}
+}
