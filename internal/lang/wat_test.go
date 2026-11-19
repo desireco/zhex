@@ -419,6 +419,27 @@ print(fallback())
 	}
 }
 
+// #181: catch in assignment and argument positions is the same catch node,
+// so it compiles through the same Result machinery instead of fencing.
+func TestWatCatchInAssignmentAndArgumentPositions(t *testing.T) {
+	wat := watOf(t, `
+var n = 0
+n = text.to-int("x") catch 7
+let xs: List<Int> = [1]
+let ys = list.append(xs, text.to-int("x") catch 0)
+print(n)
+print(ys[1])
+`)
+	for _, want := range []string{
+		"struct.get " + watTypeResult + " $tag",
+		"call " + watListAppend(watSpecI64),
+	} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
 // TestWatErrorInspectionWords pins #135: error.message and error.detail
 // compile to the prelude's err-value readers instead of fencing.
 func TestWatErrorInspectionWords(t *testing.T) {

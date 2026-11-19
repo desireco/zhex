@@ -122,6 +122,128 @@ func TestCatchOneLineRejectsMismatchedFallback(t *testing.T) {
 	}
 }
 
+// #181: catch also binds in assignment right-hand sides and inside call
+// arguments, evaluating identically to the let form. The one-line fallback
+// extends to the argument's boundary — the next comma, the closing paren,
+// or the statement newline.
+func TestCatchAssignmentFallbackEvaluates(t *testing.T) {
+	source := "var n = 0\nn = text.to-int(\"42\") catch 7\nprint(n)\nn = text.to-int(\"x\") catch 7\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "42\n7\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchAssignmentBlockFormBindsError(t *testing.T) {
+	source := "var n = 0\nn = text.to-int(\"x\") catch problem\n    print(error.code(problem))\n    7\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "text-to-int\n7\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchInCallArgumentEvaluates(t *testing.T) {
+	source := "let xs: List<Int> = [1]\nlet ys = list.append(xs, text.to-int(\"x\") catch 0)\nlet zs = list.append(ys, text.to-int(\"9\") catch 0)\nprint(list.length(zs))\nprint(zs[2])\nprint(zs[1])\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "3\n9\n0\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchInArgumentFallbackExtendsToBoundary(t *testing.T) {
+	source := "print(text.to-int(\"x\") catch 0 + 1)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "1\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchInGroupedExpressionEvaluates(t *testing.T) {
+	source := "let n = (text.to-int(\"x\") catch 3)\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "3\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+// The compat rule: a trailing ungrouped catch on the last argument of a
+// short-form call lifts to guard the whole call, exactly as trailing try does.
+func TestShortFormTrailingCatchGuardsWholeCall(t *testing.T) {
+	source := "word parse(s: String) -> Result<Int, ParseError>\n    ok(text.to-int(s) try)\nvar n = 0\nn = parse \"x\" catch 8\nprint(n)\nn = parse \"10\" catch 8\nprint(n)\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "8\n10\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+// Parenthesizing keeps a trailing catch inside the last argument of a
+// short-form call instead of lifting it to the whole call.
+func TestShortFormGroupedArgumentCatchStaysInside(t *testing.T) {
+	source := "word scale(n: Int) -> Int\n    n * 100\nprint(scale (text.to-int(\"x\") catch 5))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "500\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+// A catch on an earlier argument binds that argument (today the trailing
+// comma after a whole-call fallback is a syntax error).
+func TestCatchOnEarlierShortFormArgumentBindsArgument(t *testing.T) {
+	source := "word pair(a: Int, b: Int) -> Int\n    a * 10 + b\nprint(pair(text.to-int(\"x\") catch 1, 2))\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "12\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchInFlowStepArgumentEvaluates(t *testing.T) {
+	source := "let xs: List<Int> = []\nflow xs\n    list.append(text.to-int(\"x\") catch 0)\nprint(list.length(xs))\nprint(xs[0])\n"
+	var out bytes.Buffer
+	if err := Run("test.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "1\n0\n" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
+func TestCatchInArgumentRejectsMismatchedFallback(t *testing.T) {
+	source := "let xs: List<Int> = [1]\nlet ys = list.append(xs, text.to-int(\"x\") catch \"wrong\")\n"
+	if _, err := Compile("test.zhex", source); err == nil {
+		t.Fatal("accepted mismatched argument catch fallback")
+	}
+}
+
+func TestCatchAssignmentRequiresResult(t *testing.T) {
+	if _, err := Compile("test.zhex", "var n = 0\nn = int.to-string(1) catch \"x\"\n"); err == nil || !strings.Contains(err.Error(), "catch requires a Result") {
+		t.Fatalf("assignment catch accepted a non-Result: %v", err)
+	}
+}
+
 // The disambiguation rule: any same-line content after catch is a one-line
 // fallback expression, except a lone name before the newline, which stays the
 // block form's error binding.

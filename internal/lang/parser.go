@@ -441,12 +441,7 @@ func (p *parser) parseStatement() *statement {
 		s.kind = "assign"
 		s.name = p.take().text
 		p.require("=")
-		if p.at("if") || p.at("match") || p.at("flow") {
-			s.expr = p.statementExpression(false)
-		} else {
-			s.expr = p.wholeExpression()
-			p.require("newline")
-		}
+		s.expr = p.statementExpression(false)
 		s.expr = p.fusedWithStatementValue(s.expr)
 	default:
 		s.kind = "expression"
@@ -573,6 +568,36 @@ func trailingBareTry(x *expression) (*expression, *expression) {
 	return x, nil
 }
 
+// trailingBareCatch extracts an ungrouped one-line catch at the far right of
+// the final argument of a short-form call, so a trailing catch guards the
+// whole call exactly as a trailing try does. Parentheses preserve an
+// intentionally guarded argument.
+func trailingBareCatch(x *expression) (*expression, *expression) {
+	if x != nil && !x.grouped && x.kind == "catch" {
+		return x.left, x
+	}
+	return x, nil
+}
+
+// oneLineCatch wraps x in a catch whose fallback is the rest of the enclosing
+// boundary's expression (next comma, closing paren, or statement newline).
+// The statement-level block forms — a catch directly before the newline, or
+// its lone-name error binding — defer to statementExpression.
+func (p *parser) oneLineCatch(x *expression) *expression {
+	if !p.at("catch") {
+		return x
+	}
+	saved := p.index
+	t := p.take()
+	if p.current().kind == "newline" || p.current().kind == "name" && p.tokens[p.index+1].kind == "newline" {
+		p.index = saved
+		return x
+	}
+	fallback := p.expression(0)
+	return &expression{kind: "catch", pos: t.pos, end: t.end, left: x,
+		handler: []*statement{{kind: "expression", pos: fallback.pos, expr: fallback}}}
+}
+
 func (p *parser) argument() *expression {
 	if p.at("_") {
 		next := p.tokens[p.index+1]
@@ -581,7 +606,7 @@ func (p *parser) argument() *expression {
 			return &expression{kind: "hole", text: "_", pos: t.pos, end: t.end}
 		}
 	}
-	return p.expression(0)
+	return p.oneLineCatch(p.expression(0))
 }
 func (p *parser) bareArguments() []*expression {
 	var args []*expression
@@ -598,6 +623,11 @@ func (p *parser) wholeExpression() *expression {
 	if x.kind == "name" && p.bareArgumentStart() && p.current().pos.line == x.end.line && p.current().pos.column > x.end.column {
 		x.kind = "call"
 		x.args = p.bareArguments()
+		var caught *expression
+		if last, guard := trailingBareCatch(x.args[len(x.args)-1]); guard != nil {
+			x.args[len(x.args)-1] = last
+			caught = guard
+		}
 		last, guard := trailingBareTry(x.args[len(x.args)-1])
 		x.args[len(x.args)-1] = last
 		x.end = last.end
@@ -606,7 +636,11 @@ func (p *parser) wholeExpression() *expression {
 			guard = &expression{pos: t.pos, end: t.end}
 		}
 		if guard != nil {
-			return p.checkDepth(&expression{kind: "try", pos: guard.pos, end: guard.end, left: p.checkDepth(x)})
+			x = p.checkDepth(&expression{kind: "try", pos: guard.pos, end: guard.end, left: p.checkDepth(x)})
+		}
+		if caught != nil {
+			caught.left = x
+			return p.checkDepth(caught)
 		}
 		return p.checkDepth(x)
 	}
@@ -843,7 +877,7 @@ func (p *parser) primary() *expression {
 		return x
 	}
 	if p.accept("(") {
-		x := p.expression(0)
+		x := p.oneLineCatch(p.expression(0))
 		if p.accept("=") {
 			if x.kind != "index" {
 				panic(errorAt(x.pos, CodeExpectedExpression, "indexed assignment requires a collection index"))
