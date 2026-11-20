@@ -251,7 +251,7 @@ print(greet("you"))
         });
         // The REPL's empty state is the tour: a first arrival with nothing
         // typed fires it, exactly as shipped.
-        if (indexToSelect === 1 && transcript.childElementCount === 0 && engine && !sessionEnded) runTour();
+        if (indexToSelect === 1 && transcript.childElementCount === 0 && entry.value.trim() === "" && engine && !sessionEnded) runTour();
         if (focus) tabs[indexToSelect].focus();
       }
 
@@ -296,7 +296,7 @@ print(greet("you"))
           runButton.disabled = false;
           throw failure;
         }
-        if (readPastBox(source, result)) {
+        if (readPastBox(result)) {
           beginInteractive(source, suppliedLines(),
             "The program read past the input box, so it started again with the box's lines sent.");
           return;
@@ -312,8 +312,8 @@ print(greet("you"))
 
       // The one-shot run's exhausted-stdin signature: the console-input
       // end-of-input report, raised only when a read finds no input left.
-      function readPastBox(source, result) {
-        if (!result.report || !readsInput(source)) return false;
+      function readPastBox(result) {
+        if (!result.report) return false;
         try {
           const report = JSON.parse(result.report);
           return report.code === "console-input" && report.message === "end of input";
