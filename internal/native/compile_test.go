@@ -70,12 +70,15 @@ func interpret(t *testing.T, name, source, stdin string) (string, string, int) {
 	t.Helper()
 	var out, diag bytes.Buffer
 	err := lang.Run(name+".zhex", source, strings.NewReader(stdin), &out)
-	if err != nil {
-		fmt.Fprintln(&diag, err)
-	}
 	code := 0
 	if err != nil {
-		code = 1
+		var exit *lang.ExitError
+		if errors.As(err, &exit) {
+			code = exit.Status
+		} else {
+			code = 1
+			fmt.Fprintln(&diag, err)
+		}
 	}
 	return out.String(), diag.String(), code
 }

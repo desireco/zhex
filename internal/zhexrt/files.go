@@ -59,34 +59,41 @@ func FileOpen(pos Pos, path string) Result[*File] {
 
 // nextLine returns the next chomped, UTF-8-validated line; ok is false at
 // end of file.
-func (f *File) nextLine(pos Pos) (string, bool) {
+func (f *File) nextLine(pos Pos) (string, bool, *Error) {
 	if f.closed {
-		panic(fileErr(pos, "file-read", f.path, "closed", "file %q is closed", f.path))
+		return "", false, fileErr(pos, "file-read", f.path, "closed", "file %q is closed", f.path)
 	}
 	raw, rerr := f.reader.ReadString('\n')
 	if rerr != nil && rerr != io.EOF {
-		panic(fileErr(pos, "file-read", f.path, "read-failed", "reading %q failed: %v", f.path, rerr))
+		return "", false, fileErr(pos, "file-read", f.path, "read-failed", "reading %q failed: %v", f.path, rerr)
 	}
 	if rerr == io.EOF && len(raw) == 0 {
-		return "", false
+		return "", false, nil
 	}
 	line := Chomp(raw)
 	if !utf8.ValidString(line) {
-		panic(fileErr(pos, "file-utf8", f.path, "invalid-utf8", "file %q is not valid UTF-8", f.path))
+		return "", false, fileErr(pos, "file-utf8", f.path, "invalid-utf8", "file %q is not valid UTF-8", f.path)
 	}
-	return line, true
+	return line, true, nil
 }
 
 // StreamLine is file.stream's loop body: one chomped line, ok false at
 // end of file; failures are hard diagnostics (the stream always closes).
 func StreamLine(pos Pos, f *File) (string, bool) {
-	return f.nextLine(pos)
+	line, ok, err := f.nextLine(pos)
+	if err != nil {
+		panic(err)
+	}
+	return line, ok
 }
 
 // FileReadLineOf is file.read-line on an open file: end of file fails
 // inside the Result.
 func FileReadLineOf(pos Pos, f *File) Result[string] {
-	line, ok := f.nextLine(pos)
+	line, ok, err := f.nextLine(pos)
+	if err != nil {
+		return Result[string]{Err: err}
+	}
 	if !ok {
 		return Result[string]{Err: fileErr(pos, "file-read", f.path, "end-of-file", "end of file")}
 	}
@@ -94,12 +101,13 @@ func FileReadLineOf(pos Pos, f *File) Result[string] {
 }
 
 // FileClose releases the handle; closing again is a no-op.
-func FileClose(f *File) {
+func FileClose(f *File) Unit {
 	if f.closed {
-		return
+		return Unit{}
 	}
 	f.closed = true
 	f.handle.Close()
+	return Unit{}
 }
 
 // StreamOpen is file.stream's opener: failures are hard diagnostics

@@ -70,19 +70,22 @@ type nativeEmitter struct {
 	b     strings.Builder
 	depth int
 
-	words    []*word
-	seenWord map[*word]bool
-	records  []*recordType
-	byID     map[string]*recordType
+	words      []*word
+	seenWord   map[*word]bool
+	records    []*recordType
+	byID       map[string]*recordType
+	allRecords map[string]*recordType
 
 	goNames   map[string]string
 	usedNames map[string]bool
 
 	posVars map[string]string
 
-	tempCount int
-	flowFirst string
-	fn        *nativeFunc
+	tempCount         int
+	flowFirst         string
+	defaultRoots      map[*expression]bool
+	expandingDefaults map[*expression]bool
+	fn                *nativeFunc
 
 	// bindingRefs collects the bindings a function body reads, so lets
 	// Zhex never uses can evaluate for effect without a Go declaration
@@ -124,7 +127,7 @@ var goReserved = map[string]bool{
 	"int8": true, "rune": true, "string": true, "uint": true, "uint16": true,
 	"uint32": true, "uint64": true, "uint8": true, "uintptr": true, "true": true,
 	"false": true, "iota": true, "nil": true, "init": true, "main": true,
-	"zhexMain": true, "zero": true, "stringer": true,
+	"zhexMain": true, "zhexrt": true, "zero": true, "stringer": true,
 }
 
 // goMangle spells one Zhex name as a Go identifier: hyphens and dots
@@ -196,7 +199,7 @@ func (e *nativeEmitter) posVar(pos position) string {
 		return got
 	}
 	name := fmt.Sprintf("_p%d_%d", pos.line, pos.column)
-	for i := 2; e.usedNames[name]; i++ {
+	for i := 2; e.usedNames[name] || e.fn != nil && e.fn.localUsed[name]; i++ {
 		name = fmt.Sprintf("_p%d_%d_%d", pos.line, pos.column, i)
 	}
 	e.posVars[key] = name
@@ -217,10 +220,11 @@ func (e *nativeEmitter) writePosVars() {
 	}
 	sort.Slice(keys, func(i, j int) bool { return e.posVars[keys[i]] < e.posVars[keys[j]] })
 	for _, key := range keys {
-		parts := strings.SplitN(key, ":", 3)
-		line, _ := strconv.Atoi(parts[1])
-		column, _ := strconv.Atoi(parts[2])
-		e.line("var %s = zhexrt.At(%q, %d, %d)", e.posVars[key], parts[0], line, column)
+		columnSep := strings.LastIndexByte(key, ':')
+		lineSep := strings.LastIndexByte(key[:columnSep], ':')
+		line, _ := strconv.Atoi(key[lineSep+1 : columnSep])
+		column, _ := strconv.Atoi(key[columnSep+1:])
+		e.line("var %s = zhexrt.At(%q, %d, %d)", e.posVars[key], key[:lineSep], line, column)
 	}
 }
 
@@ -309,9 +313,15 @@ func anyResult(params []valueType) bool {
 func (e *nativeEmitter) collect() {
 	e.seenWord = map[*word]bool{}
 	e.byID = map[string]*recordType{}
+	e.allRecords = collectRecords(e.p.modules)
+	for _, r := range e.p.records {
+		e.allRecords[r.id()] = r
+	}
 	e.goNames = map[string]string{}
 	e.usedNames = map[string]bool{}
 	e.posVars = map[string]string{}
+	e.defaultRoots = map[*expression]bool{}
+	e.expandingDefaults = map[*expression]bool{}
 	e.recordFields = map[string][]string{}
 	e.byID[builtinJSON.id()] = builtinJSON
 	e.byID[builtinOption.id()] = builtinOption
@@ -322,8 +332,41 @@ func (e *nativeEmitter) collect() {
 		e.addWord(w)
 	}
 	e.walkStatements(e.p.body)
-	for i := 0; i < len(e.words); i++ {
-		e.walkStatements(e.words[i].body)
+	for wordIndex, recordIndex := 0, 0; wordIndex < len(e.words) || recordIndex < len(e.records); {
+		if wordIndex < len(e.words) {
+			w := e.words[wordIndex]
+			wordIndex++
+			e.addType(w.result)
+			e.walkStatements(w.body)
+			for _, param := range w.params {
+				e.addType(param.typ)
+				if param.defaultExpr != nil {
+					e.defaultRoots[param.defaultExpr] = true
+				}
+				e.walkExpression(param.defaultExpr)
+			}
+		}
+		if recordIndex < len(e.records) {
+			r := e.records[recordIndex]
+			recordIndex++
+			for _, field := range r.fields {
+				e.addType(field.typ)
+				if field.defaultExpr != nil {
+					e.defaultRoots[field.defaultExpr] = true
+				}
+				e.walkExpression(field.defaultExpr)
+			}
+			for _, variant := range r.variants {
+				for _, field := range variant.fields {
+					e.addType(field.typ)
+				}
+			}
+		}
+	}
+	// Reserve every function name before assigning locals, including words
+	// emitted later that share a spelling with a parameter or binding.
+	for _, w := range e.words {
+		e.packageName(wordKey(w), wordGoName(w))
 	}
 }
 
@@ -351,6 +394,27 @@ func (e *nativeEmitter) addRecord(r *recordType) {
 	}
 	e.records = append(e.records, r)
 	e.byID[r.id()] = r
+}
+
+// addType follows nominal types reachable through signatures and fields,
+// including module records that never appear in a constructor call.
+func (e *nativeEmitter) addType(t valueType) {
+	if record := e.allRecords[string(t)]; record != nil {
+		e.addRecord(record)
+		return
+	}
+	if params, result, ok := functionTypeParts(t); ok {
+		for _, param := range params {
+			e.addType(param)
+		}
+		e.addType(result)
+		return
+	}
+	if _, args, ok := typeApplication(t); ok {
+		for _, arg := range args {
+			e.addType(arg)
+		}
+	}
 }
 
 // walkStatements enqueues words and records referenced by expressions.
@@ -387,6 +451,7 @@ func (e *nativeEmitter) walkExpression(x *expression) {
 	if x == nil {
 		return
 	}
+	e.addType(x.typ)
 	if e.bindingRefs != nil && x.binding != nil && (x.kind == "name" || x.kind == "call") {
 		e.bindingRefs[x.binding] = true
 	}
@@ -741,6 +806,10 @@ func neverReturns(x *expression) bool {
 
 // emitExprStatement evaluates an expression for its value or effect.
 func (e *nativeEmitter) emitExprStatement(x *expression, target string) {
+	if x.kind == "statement-value" {
+		e.statement(x.statement, target)
+		return
+	}
 	if x.kind == "match" {
 		e.emitMatch(x, target)
 		return
@@ -771,14 +840,18 @@ func (e *nativeEmitter) emitBinding(s *statement) {
 	}
 	name := e.localName(s.name)
 	if s.expr != nil && s.expr.kind == "statement-value" {
-		e.line("var %s %s", name, e.goType(s.pos, s.binding.typ))
+		if s.kind != "assign" {
+			e.line("var %s %s", name, e.goType(s.pos, s.binding.typ))
+		}
 		e.statement(s.expr.statement, name)
 		return
 	}
 	// the parser hands a let-bound match straight to the expression
 	// grammar, unwrapped (statementExpression)
 	if s.expr != nil && s.expr.kind == "match" {
-		e.line("var %s %s", name, e.goType(s.pos, s.binding.typ))
+		if s.kind != "assign" {
+			e.line("var %s %s", name, e.goType(s.pos, s.binding.typ))
+		}
 		e.emitMatch(s.expr, name)
 		return
 	}
@@ -862,7 +935,7 @@ func (e *nativeEmitter) emitMatchBindings(x *expression, arm matchArm, temp stri
 	subjectType := x.left.typ
 	if subjectType == jsonType {
 		for _, b := range arm.bindings {
-			if b == nil {
+			if b == nil || !e.fn.refs[b] {
 				continue
 			}
 			field := map[int]string{1: "Bool", 2: "Text", 3: "Text", 4: "List", 5: "Object"}[arm.variant]
@@ -872,7 +945,7 @@ func (e *nativeEmitter) emitMatchBindings(x *expression, arm matchArm, temp stri
 	}
 	if e.optionInner(subjectType) != "" {
 		for _, b := range arm.bindings {
-			if b != nil {
+			if b != nil && e.fn.refs[b] {
 				e.line("%s := %s.Value", e.localName(b.name), temp)
 			}
 		}
@@ -882,7 +955,7 @@ func (e *nativeEmitter) emitMatchBindings(x *expression, arm matchArm, temp stri
 	names := e.recordFieldNames(record)
 	base := e.variantFieldBase(record, arm.variant)
 	for i, b := range arm.bindings {
-		if b != nil {
+		if b != nil && e.fn.refs[b] {
 			e.line("%s := %s.%s", e.localName(b.name), temp, names[base+i])
 		}
 	}
@@ -927,8 +1000,14 @@ func (e *nativeEmitter) emitWhile(s *statement) {
 func (e *nativeEmitter) emitForRange(s *statement) {
 	e.fn.pre = &strings.Builder{}
 	start := e.expr(s.expr)
+	e.flushPre()
+	startTemp := e.temp()
+	e.line("%s := %s", startTemp, start)
 	end := e.expr(s.end)
 	e.flushPre()
+	endTemp := e.temp()
+	e.line("%s := %s", endTemp, end)
+	start, end = startTemp, endTemp
 	name := e.localName(s.name)
 	e.line("for %s := %s; zhexrt.Cmp(%s, %s) < 0; %s, _ = zhexrt.AddOvf(%s, zhexrt.I64(1)) {", name, start, name, end, name, name)
 	e.depth++
@@ -953,22 +1032,25 @@ func (e *nativeEmitter) emitForCollection(s *statement) {
 	if kind, _, ok := collectionInner(s.expr.typ); ok && kind == "List" {
 		e.line("%s.Active++", temp)
 		e.pushCleanup(fmt.Sprintf("%s.Active--", temp))
+		index, item := "_", "_"
 		if second != "" {
-			// the first binding is the index, the second the item
-			e.line("for __i, __item := range %s.Items {", temp)
-			e.depth++
 			if e.fn.refs[s.binding] {
-				e.line("%s := zhexrt.I64(int64(__i))", name)
+				index = "__i"
 			}
 			if e.fn.refs[s.secondBinding] {
-				e.line("%s := __item", second)
+				item = second
 			}
 		} else if e.fn.refs[s.binding] {
-			e.line("for _, %s := range %s.Items {", name, temp)
-			e.depth++
-		} else {
+			item = name
+		}
+		if index == "_" && item == "_" {
 			e.line("for range %s.Items {", temp)
-			e.depth++
+		} else {
+			e.line("for %s, %s := range %s.Items {", index, item, temp)
+		}
+		e.depth++
+		if index != "_" {
+			e.line("%s := zhexrt.I64(int64(%s))", name, index)
 		}
 		e.statements(s.body, "")
 		e.depth--
@@ -979,13 +1061,27 @@ func (e *nativeEmitter) emitForCollection(s *statement) {
 	if kind, _, ok := collectionInner(s.expr.typ); ok && kind == "Array" {
 		e.line("%s.Active++", temp)
 		e.pushCleanup(fmt.Sprintf("%s.Active--", temp))
+		index, item := "_", "_"
 		if second != "" {
-			// the dual binding receives the coordinates as a fresh
-			// List<Int>, matching the interpreter's decomposition
-			e.line("for __i, %s := range %s.Items {", second, temp)
-			e.depth++
+			if e.fn.refs[s.binding] {
+				index = "__i"
+			}
+			if e.fn.refs[s.secondBinding] {
+				item = second
+			}
+		} else if e.fn.refs[s.binding] {
+			item = name
+		}
+		if index == "_" && item == "_" {
+			e.line("for range %s.Items {", temp)
+		} else {
+			e.line("for %s, %s := range %s.Items {", index, item, temp)
+		}
+		e.depth++
+		if index != "_" {
+			// Coordinates are a fresh list, matching the interpreter.
 			e.line("__coords := make([]zhexrt.Int, len(%s.Shape))", temp)
-			e.line("__n := int64(__i)")
+			e.line("__n := int64(%s)", index)
 			e.line("for __axis := len(%s.Shape) - 1; __axis >= 0; __axis-- {", temp)
 			e.depth++
 			e.line("__coords[__axis] = zhexrt.I64(__n %% %s.Shape[__axis])", temp)
@@ -993,29 +1089,20 @@ func (e *nativeEmitter) emitForCollection(s *statement) {
 			e.depth--
 			e.line("}")
 			e.line("%s := &zhexrt.List[zhexrt.Int]{Items: __coords}", name)
-			e.statements(s.body, "")
-			e.depth--
-			e.line("}")
-		} else if e.fn.refs[s.binding] {
-			e.line("for _, %s := range %s.Items {", name, temp)
-			e.depth++
-			e.statements(s.body, "")
-			e.depth--
-			e.line("}")
-		} else {
-			e.line("for range %s.Items {", temp)
-			e.depth++
-			e.statements(s.body, "")
-			e.depth--
-			e.line("}")
 		}
+		e.statements(s.body, "")
+		e.depth--
+		e.line("}")
 		e.popCleanup()
 		return
 	}
 	// map: single binding iterates values, dual binding key then value
 	e.line("%s.Active++", temp)
 	e.pushCleanup(fmt.Sprintf("%s.Active--", temp))
-	if second != "" {
+	if !e.fn.refs[s.binding] && (second == "" || !e.fn.refs[s.secondBinding]) {
+		e.line("for range %s.Entries {", temp)
+		e.depth++
+	} else if second != "" {
 		e.line("for _, __entry := range %s.Entries {", temp)
 		e.depth++
 		if e.fn.refs[s.binding] {
@@ -1050,14 +1137,19 @@ func (e *nativeEmitter) emitForLines(s *statement) {
 	linePos := e.posVar(s.pos)
 	e.line("for {")
 	e.depth++
-	next := e.temp()
+	next := "_"
+	if e.fn.refs[s.binding] {
+		next = e.temp()
+	}
 	e.line("%s, __ok := zhexrt.StreamLine(%s, %s)", next, linePos, file)
 	e.line("if !__ok {")
 	e.depth++
 	e.line("break")
 	e.depth--
 	e.line("}")
-	e.line("%s := %s", name, next)
+	if next != "_" {
+		e.line("%s := %s", name, next)
+	}
 	e.statements(s.body, "")
 	e.depth--
 	e.line("}")
@@ -1131,6 +1223,13 @@ func isCallShaped(x *expression) bool {
 // expr emits an expression, hoisting statements it needs into the
 // current preamble, and returns its Go expression string.
 func (e *nativeEmitter) expr(x *expression) string {
+	if e.defaultRoots[x] {
+		if e.expandingDefaults[x] {
+			nativeFence(x.pos, "recursive word defaults")
+		}
+		e.expandingDefaults[x] = true
+		defer delete(e.expandingDefaults, x)
+	}
 	switch x.kind {
 	case "int":
 		if x.number.Fits64() {
@@ -1143,6 +1242,8 @@ func (e *nativeEmitter) expr(x *expression) string {
 		return strconv.Quote(x.text)
 	case "name":
 		return e.nameExpr(x)
+	case "flow-value":
+		return e.flowFirst
 	case "field":
 		return e.fieldExpr(x)
 	case "list":
@@ -1156,7 +1257,7 @@ func (e *nativeEmitter) expr(x *expression) string {
 	case "unary":
 		v := e.expr(x.left)
 		if x.text == "not" {
-			return "!" + v
+			return "!(" + v + ")"
 		}
 		return fmt.Sprintf("zhexrt.Neg(%s, %s)", e.posVar(x.pos), v)
 	case "binary":
@@ -1172,6 +1273,32 @@ func (e *nativeEmitter) expr(x *expression) string {
 	}
 	nativeFence(x.pos, x.kind+" expressions")
 	return ""
+}
+
+// exprs preserves left-to-right evaluation when a later operand needs
+// hoisted statements. Earlier inline operands run before that preamble;
+// expressions without preambles keep their ordinary Go expression form.
+func (e *nativeEmitter) exprs(expressions []*expression) []string {
+	values := make([]string, 0, len(expressions))
+	pending := 0
+	for _, x := range expressions {
+		saved := e.fn.pre
+		e.fn.pre = &strings.Builder{}
+		value := e.expr(x)
+		pre := e.fn.pre.String()
+		e.fn.pre = saved
+		if pre != "" {
+			for i := pending; i < len(values); i++ {
+				temp := e.temp()
+				e.pre("%s := %s", temp, values[i])
+				values[i] = temp
+			}
+			pending = len(values)
+			e.fn.pre.WriteString(pre)
+		}
+		values = append(values, value)
+	}
+	return values
 }
 
 // nameExpr reads a binding (with optional field path) or a bare choice
@@ -1219,10 +1346,7 @@ func (e *nativeEmitter) fieldExpr(x *expression) string {
 func (e *nativeEmitter) listLiteral(x *expression) string {
 	_, inner, _ := collectionInner(x.typ)
 	elementType := e.goType(x.pos, inner)
-	var items []string
-	for _, item := range x.args {
-		items = append(items, e.expr(item))
-	}
+	items := e.exprs(x.args)
 	return fmt.Sprintf("&zhexrt.List[%s]{Items: []%s{%s}}", elementType, elementType, strings.Join(items, ", "))
 }
 
@@ -1233,8 +1357,9 @@ func (e *nativeEmitter) mapLiteral(x *expression) string {
 	}
 	temp := e.temp()
 	e.pre("%s := zhexrt.NewMap[%s, %s]()", temp, e.goType(x.pos, args[0]), e.goType(x.pos, args[1]))
-	for i := 0; i < len(x.args); i += 2 {
-		e.pre("zhexrt.MapPut(%s, %s, %s)", temp, e.expr(x.args[i]), e.expr(x.args[i+1]))
+	values := e.exprs(x.args)
+	for i := 0; i < len(values); i += 2 {
+		e.pre("zhexrt.MapPut(%s, %s, %s)", temp, values[i], values[i+1])
 	}
 	return temp
 }
@@ -1250,11 +1375,8 @@ func (e *nativeEmitter) mapKeyType(t valueType) string {
 // indexRead emits m[k] (an Option), and the plain or checked list/array
 // indexed read.
 func (e *nativeEmitter) indexRead(x *expression) string {
-	receiver := e.expr(x.left)
-	indices := make([]string, len(x.args))
-	for i, arg := range x.args {
-		indices[i] = e.expr(arg)
-	}
+	values := e.exprs(append([]*expression{x.left}, x.args...))
+	receiver, indices := values[0], values[1:]
 	if e.mapKeyType(x.left.typ) != "" {
 		return fmt.Sprintf("zhexrt.MapLookup(%s, %s)", receiver, indices[0])
 	}
@@ -1280,12 +1402,10 @@ func (e *nativeEmitter) indexWrite(x *expression) string {
 		nativeFence(x.pos, "checked indexed writes")
 	}
 	idx := x.left
-	receiver := e.expr(idx.left)
-	indices := make([]string, len(idx.args))
-	for i, arg := range idx.args {
-		indices[i] = e.expr(arg)
-	}
-	value := e.expr(x.right)
+	operands := append([]*expression{idx.left}, idx.args...)
+	values := e.exprs(append(operands, x.right))
+	receiver, indices := values[0], values[1:len(values)-1]
+	value := values[len(values)-1]
 	pos := e.posVar(x.pos)
 	if e.mapKeyType(idx.left.typ) != "" {
 		e.pre("zhexrt.MapSetHard(%s, %s, %s, %s)", pos, receiver, indices[0], value)
@@ -1339,9 +1459,9 @@ func rightNeedsParen(op string, right *expression) bool {
 }
 
 func (e *nativeEmitter) binary(x *expression) string {
-	left := e.expr(x.left)
 	switch x.text {
 	case "and", "or":
+		left := e.expr(x.left)
 		save := e.fn.pre
 		e.fn.pre = &strings.Builder{}
 		right := e.expr(x.right)
@@ -1355,7 +1475,7 @@ func (e *nativeEmitter) binary(x *expression) string {
 			if rightNeedsParen(x.text, x.right) {
 				right = "(" + right + ")"
 			}
-			return fmt.Sprintf("%s %s %s", left, op, right)
+			return fmt.Sprintf("(%s %s %s)", left, op, right)
 		}
 		// Short-circuit: the right side's preamble must not run when the
 		// left side already decides.
@@ -1371,17 +1491,18 @@ func (e *nativeEmitter) binary(x *expression) string {
 		e.pre("}")
 		return temp
 	}
-	right := e.expr(x.right)
+	values := e.exprs([]*expression{x.left, x.right})
+	left, right := values[0], values[1]
 	if rightNeedsParen(x.text, x.right) {
 		right = "(" + right + ")"
 	}
 	switch x.text {
 	case "==", "!=":
 		op := x.text
-		return fmt.Sprintf("%s %s %s", left, op, right)
+		return fmt.Sprintf("(%s %s %s)", left, op, right)
 	case "<", "<=", ">", ">=":
 		order := map[string]string{"<": "< 0", "<=": "<= 0", ">": "> 0", ">=": ">= 0"}[x.text]
-		return fmt.Sprintf("zhexrt.Cmp(%s, %s) %s", left, right, order)
+		return fmt.Sprintf("(zhexrt.Cmp(%s, %s) %s)", left, right, order)
 	case "+":
 		if x.typ == stringType {
 			if x.left.typ == intType {
@@ -1417,14 +1538,15 @@ func isFallibleCall(x *expression) bool {
 // defaults evaluate inline at the call site (they are closed
 // expressions).
 func (e *nativeEmitter) callValue(x *expression) (v, errv string) {
-	args := e.callArgs(x)
-	for i := len(args); i < len(x.word.params); i++ {
+	arguments := append([]*expression(nil), x.args...)
+	for i := len(arguments); i < len(x.word.params); i++ {
 		defaultExpr := x.word.params[i].defaultExpr
 		if defaultExpr == nil {
 			nativeFence(x.pos, "word parameter defaults")
 		}
-		args = append(args, e.expr(defaultExpr))
+		arguments = append(arguments, defaultExpr)
 	}
+	args := e.exprs(arguments)
 	name := e.packageName(wordKey(x.word), wordGoName(x.word))
 	call := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
 	if !x.word.inferred {
@@ -1438,18 +1560,13 @@ func (e *nativeEmitter) callValue(x *expression) (v, errv string) {
 // callArgs emits the argument expressions in order, substituting the flow
 // cursor for the synthetic flow-value placeholder.
 func (e *nativeEmitter) callArgs(x *expression) []string {
-	var args []string
+	var arguments []*expression
 	for _, arg := range x.args {
-		if arg.kind == "flow-value" {
-			args = append(args, e.flowFirst)
-			continue
+		if arg.kind != "hole" {
+			arguments = append(arguments, arg)
 		}
-		if arg.kind == "hole" {
-			continue
-		}
-		args = append(args, e.expr(arg))
 	}
-	return args
+	return e.exprs(arguments)
 }
 
 func (e *nativeEmitter) call(x *expression) string {
@@ -1463,13 +1580,7 @@ func (e *nativeEmitter) call(x *expression) string {
 	}
 	if x.record != nil {
 		if x.record.choice {
-			var args []string
-			for _, arg := range x.args {
-				if arg.kind != "hole" {
-					args = append(args, e.expr(arg))
-				}
-			}
-			return e.choiceConstructor(x.record, x.variant, args, x)
+			return e.choiceConstructor(x.record, x.variant, e.callArgs(x), x)
 		}
 		return e.recordConstructor(x)
 	}
@@ -1525,14 +1636,15 @@ func (e *nativeEmitter) choiceConstructor(r *recordType, variant int, args []str
 func (e *nativeEmitter) recordConstructor(x *expression) string {
 	r := x.record
 	name := e.packageName("t:"+r.id(), r.id())
-	fields := make([]string, len(r.fields))
+	arguments := append([]*expression(nil), x.args...)
+	indices := make([]int, 0, len(r.fields))
 	present := make([]bool, len(r.fields))
-	for i, arg := range x.args {
+	for i := range x.args {
 		index := i
 		if len(x.argNames) != 0 {
 			index = x.argFields[i]
 		}
-		fields[index] = e.recordFieldNames(r)[index] + ": " + e.expr(arg)
+		indices = append(indices, index)
 		present[index] = true
 	}
 	for i, field := range r.fields {
@@ -1542,7 +1654,14 @@ func (e *nativeEmitter) recordConstructor(x *expression) string {
 		if field.defaultExpr == nil {
 			nativeFence(x.pos, "record field defaults")
 		}
-		fields[i] = e.recordFieldNames(r)[i] + ": " + e.expr(field.defaultExpr)
+		arguments = append(arguments, field.defaultExpr)
+		indices = append(indices, i)
+	}
+	values := e.exprs(arguments)
+	fields := make([]string, 0, len(r.fields))
+	for i, value := range values {
+		index := indices[i]
+		fields = append(fields, e.recordFieldNames(r)[index]+": "+value)
 	}
 	return fmt.Sprintf("&%s{%s}", name, strings.Join(fields, ", "))
 }
@@ -1596,24 +1715,23 @@ func (e *nativeEmitter) partialExpr(x *expression) string {
 	var body string
 	if x.word != nil {
 		name := e.packageName(wordKey(x.word), wordGoName(x.word))
+		var defaults []*expression
+		for i := len(callArgs); i < len(x.word.params); i++ {
+			if x.word.params[i].defaultExpr == nil {
+				nativeFence(x.pos, "word parameter defaults")
+			}
+			defaults = append(defaults, x.word.params[i].defaultExpr)
+		}
+		// Omitted defaults run afresh when the closure is invoked.
+		savedPre := e.fn.pre
+		e.fn.pre = &strings.Builder{}
+		callArgs = append(callArgs, e.exprs(defaults)...)
+		defaultPre := e.fn.pre.String()
+		e.fn.pre = savedPre
 		if x.word.inferred {
-			// the word's Go form returns (value, error); the closure
-			// carries the Result
-			for i := len(callArgs); i < len(x.word.params); i++ {
-				if x.word.params[i].defaultExpr == nil {
-					nativeFence(x.pos, "word parameter defaults")
-				}
-				callArgs = append(callArgs, e.expr(x.word.params[i].defaultExpr))
-			}
-			body = fmt.Sprintf("__v, __e := %s(%s)\nreturn zhexrt.Result[%s]{Value: __v, Err: __e}", name, strings.Join(callArgs, ", "), e.goType(x.pos, x.word.success))
+			body = defaultPre + fmt.Sprintf("__v, __e := %s(%s)\nreturn zhexrt.Result[%s]{Value: __v, Err: __e}", name, strings.Join(callArgs, ", "), e.goType(x.pos, x.word.success))
 		} else {
-			for i := len(callArgs); i < len(x.word.params); i++ {
-				if x.word.params[i].defaultExpr == nil {
-					nativeFence(x.pos, "word parameter defaults")
-				}
-				callArgs = append(callArgs, e.expr(x.word.params[i].defaultExpr))
-			}
-			body = fmt.Sprintf("return %s(%s)", name, strings.Join(callArgs, ", "))
+			body = defaultPre + fmt.Sprintf("return %s(%s)", name, strings.Join(callArgs, ", "))
 		}
 	} else {
 		call := e.builtinCall(x, callArgs)
@@ -1698,9 +1816,23 @@ func (e *nativeEmitter) builtin(x *expression) string {
 	return call
 }
 
-// builtinCall resolves one builtin to its zhexrt call, or "" when the
-// name is outside the compiled vocabulary.
+// builtinCall preserves the interpreter's operation provenance on failed
+// builtin Results, including calls deferred by a partial application.
 func (e *nativeEmitter) builtinCall(x *expression, args []string) string {
+	call := e.rawBuiltinCall(x, args)
+	result := x.typ
+	if _, output, ok := functionTypeParts(result); ok {
+		result = output
+	}
+	if call != "" && (isResult(result) || isCheckedCollectionOperation(x.text)) {
+		return fmt.Sprintf("zhexrt.WithOperation(%s, %q)", call, x.text)
+	}
+	return call
+}
+
+// rawBuiltinCall resolves one builtin to its zhexrt call, or "" when the
+// name is outside the compiled vocabulary.
+func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 	pos := e.posVar(x.pos)
 	need := func(n int) {
 		if len(args) < n {
@@ -1904,7 +2036,7 @@ func (e *nativeEmitter) builtinCall(x *expression, args []string) string {
 		return fmt.Sprintf("zhexrt.MapRemove(%s, %q, %s, %s)", pos, x.text, args[0], args[1])
 	case "map.into":
 		need(2)
-		return fmt.Sprintf("zhexrt.MapInto(%s, %s, %s)", pos, args[1], args[0])
+		return fmt.Sprintf("zhexrt.MapInto(%s, %s, %s)", pos, args[0], args[1])
 	case "map.keys":
 		need(1)
 		return fmt.Sprintf("zhexrt.MapKeys(%s, %q, %s)", pos, x.text, args[0])

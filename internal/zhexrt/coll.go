@@ -98,9 +98,9 @@ func (m *Map[K, V]) guard(pos Pos, operation string) *Error {
 	return &Error{Pos: pos, Code: "collection-iterating", Operation: operation, Message: "collection is being iterated"}
 }
 
-// MapInto merges source into m (first key wins on collision with m's own)
+// MapInto merges source into m, replacing existing values on collisions,
 // and returns m.
-func MapInto[K comparable, V any](pos Pos, m *Map[K, V], source *Map[K, V]) *Map[K, V] {
+func MapInto[K comparable, V any](pos Pos, source *Map[K, V], m *Map[K, V]) *Map[K, V] {
 	if err := m.guard(pos, "map.into"); err != nil {
 		panic(err)
 	}
@@ -506,7 +506,7 @@ func ArraySelect[T any](pos Pos, a *Array[T], f func(*List[T]) bool) *Array[T] {
 func ArrayLength[T any](a *Array[T]) Int { return I64(int64(len(a.Items))) }
 func ArrayRank[T any](a *Array[T]) Int   { return I64(int64(len(a.Shape))) }
 
-func ArrayShape(a *Array[Int]) *List[Int] {
+func ArrayShape[T any](a *Array[T]) *List[Int] {
 	items := make([]Int, len(a.Shape))
 	for i, n := range a.Shape {
 		items[i] = I64(n)
@@ -531,14 +531,14 @@ func BufferLineCount(b *Buffer) Int { return I64(int64(len(b.Lines))) }
 
 func BufferLine(pos Pos, b *Buffer, index Int) Result[string] {
 	if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() >= int64(len(b.Lines)) {
-		return collectionFailure[string](pos, "buffer-range", "buffer.line", "buffer index "+Str(index)+" is outside 0.."+strconv.Itoa(len(b.Lines)-1), nil)
+		return collectionFailure[string](pos, "buffer-range", "buffer.line", "buffer index "+Str(index)+" is outside 0.."+strconv.Itoa(len(b.Lines)-1), map[string]string{"index": Str(index), "line-count": strconv.Itoa(len(b.Lines))})
 	}
 	return Ok(b.Lines[index.AsInt64()])
 }
 
 func BufferSetLine(pos Pos, b *Buffer, index Int, line string) Result[*Buffer] {
 	if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() >= int64(len(b.Lines)) {
-		return collectionFailure[*Buffer](pos, "buffer-range", "buffer.set-line", "buffer index "+Str(index)+" is outside 0.."+strconv.Itoa(len(b.Lines)-1), nil)
+		return collectionFailure[*Buffer](pos, "buffer-range", "buffer.set-line", "buffer index "+Str(index)+" is outside 0.."+strconv.Itoa(len(b.Lines)-1), map[string]string{"index": Str(index), "line-count": strconv.Itoa(len(b.Lines))})
 	}
 	b.Lines[index.AsInt64()] = line
 	return Ok(b)

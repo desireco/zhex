@@ -13,6 +13,15 @@ type Result[T any] struct {
 
 func Ok[T any](value T) Result[T] { return Result[T]{Value: value} }
 
+// WithOperation records the builtin that produced a failure, preserving
+// the original operation when an error has already been propagated.
+func WithOperation[T any](result Result[T], operation string) Result[T] {
+	if result.Err != nil && result.Err.Operation == "" {
+		result.Err.Operation = operation
+	}
+	return result
+}
+
 // Zero is the zero of T, for pairing an early error return with the
 // fallible-word signature shape.
 func Zero[T any]() T { var z T; return z }

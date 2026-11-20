@@ -66,3 +66,15 @@ func TestNativeCheckerErrorsPassThrough(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestNativeRecursiveDefaultsFence(t *testing.T) {
+	for _, source := range []string{
+		"word recur(n: Int = recur()) -> Int\n    n\nprint(recur())\n",
+		"word recur(n: Int, other: Int = recur(1)) -> Int\n    other\nlet f = recur(_)\nprint(f(1))\n",
+	} {
+		_, err := compileNative(t, source)
+		if err == nil || !strings.Contains(err.Error(), "recursive word defaults is not available in this build") {
+			t.Fatalf("expected positioned recursive-default fence, got %v", err)
+		}
+	}
+}

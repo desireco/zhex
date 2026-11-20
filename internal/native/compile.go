@@ -59,7 +59,7 @@ func Compile(path, source, outDir string, resolve func(string) (lang.ModuleSourc
 	if err != nil {
 		return &MissingToolError{Dir: outDir}
 	}
-	binary := filepath.Join(outDir, filepath.Base(filepath.Clean(outDir)))
+	binary := filepath.Base(filepath.Clean(outDir))
 	build := exec.Command(tool, "build", "-o", binary, ".")
 	build.Dir = outDir
 	if out, err := build.CombinedOutput(); err != nil {

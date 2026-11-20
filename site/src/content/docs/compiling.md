@@ -49,7 +49,7 @@ go is not installed; the program source is in examples/collatz — build it with
 
 Native binaries keep the interpreter's full signed 128-bit integers — there is no 64-bit limit and no fencing of wide values.
 
-The native compiler covers a different subset than WebAssembly: it has console arguments and exits, `error.*` inspection, and word parameter and record field defaults, while it fences generic choices, typed `json.decode` and `xml.decode` (the `Json` tree words `json.parse` and `json.encode` compile), the temporal words, `file.free-space`, `error.set-reporter`, constructor partials, checked indexed writes, and callbacks that can fail — each with the same `not-available-in-build` diagnostic naming the construct.
+The native compiler covers a different subset than WebAssembly: it has console arguments and exits, `error.*` inspection, and word parameter and record field defaults, while it fences recursive word defaults, generic choices, typed `json.decode` and `xml.decode` (the `Json` tree words `json.parse` and `json.encode` compile), the temporal words, `file.free-space`, `error.set-reporter`, constructor partials, checked indexed writes, and callbacks that can fail — each with the same `not-available-in-build` diagnostic naming the construct.
 
 Measured across the benchmark workloads, native binaries run at a 10.6× geometric-mean speedup over the interpreter, 3.9–70× per workload ([measurements](https://github.com/desireco/zhex/blob/main/docs/measurements.md)).
 

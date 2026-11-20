@@ -13,7 +13,7 @@ var Args = os.Args[1:]
 // ArgsAt is console.arg: an out-of-range index fails inside the Result.
 func ArgsAt(pos Pos, index Int) Result[string] {
 	if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() >= int64(len(Args)) {
-		return ErrAt[string](pos, "argument-missing", fmt.Sprintf("argument index %s is out of range; the program received %d", Str(index), len(Args)), nil)
+		return ErrAt[string](pos, "argument-missing", fmt.Sprintf("argument index %s is out of range; the program received %d", Str(index), len(Args)), map[string]string{"index": Str(index), "argument-count": fmt.Sprint(len(Args))})
 	}
 	return Ok(Args[index.AsInt64()])
 }
