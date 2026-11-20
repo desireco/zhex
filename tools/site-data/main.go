@@ -806,9 +806,7 @@ type cacheEntry struct {
 }
 
 // wasmCache reuses artifacts whose full input set is unchanged: the source,
-// every sibling module beside it (over-inclusive by design — a directory
-// rename or an unrelated module edit recompiles that entry's artifact,
-// never a stale one), the entry path and skin, the compiler packages'
+// every transitively imported sibling module, the entry path, the compiler packages'
 // sources, and the Go toolchain version. A hash miss, a missing or empty
 // artifact, or any manifest doubt recompiles.
 type wasmCache struct {
@@ -893,7 +891,7 @@ func artifactFresh(path string) bool {
 func compilerFingerprint() (string, error) {
 	h := sha256.New()
 	fmt.Fprintf(h, "go %s\n", runtime.Version())
-	for _, root := range []string{"internal/lang", "internal/wasm", "tools/site-data"} {
+	for _, root := range []string{"internal/lang", "internal/wasm", "internal/zhexrt", "tools/site-data"} {
 		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -918,6 +916,7 @@ func compilerFingerprint() (string, error) {
 // useLine extracts the module name from a `use <name>` statement line, the
 // language's only import mechanism; any other line yields "".
 func useLine(line string) string {
+	line, _, _ = strings.Cut(line, "#")
 	line = strings.TrimSpace(line)
 	if !strings.HasPrefix(line, "use ") {
 		return ""

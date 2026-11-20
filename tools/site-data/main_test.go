@@ -632,16 +632,82 @@ func TestArtifactHashTracksSourcesModulesAndCompiler(t *testing.T) {
 	}
 }
 
+func TestCompilerFingerprintTracksSharedRuntime(t *testing.T) {
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for _, path := range []string{"internal/lang", "internal/wasm", "internal/zhexrt", "tools/site-data"} {
+		if err := os.MkdirAll(filepath.Join(dir, path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runtimePath := filepath.Join(dir, "internal/zhexrt/int.go")
+	if err := os.WriteFile(runtimePath, []byte("package zhexrt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(original)
+	before, err := compilerFingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(runtimePath, []byte("package zhexrt\n// changed integer semantics\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, err := compilerFingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("changing the compiler's shared integer runtime did not invalidate its artifacts")
+	}
+}
+
 func TestUseLineReadsOnlyImportStatements(t *testing.T) {
 	for line, want := range map[string]string{
-		"use math":        "math",
-		"  use math  ":    "math",
-		"# use math":      "",
-		"print \"use x\"": "",
-		"use":             "",
+		"use math":           "math",
+		"  use math  ":       "math",
+		"use math # helpers": "math",
+		"use math#helpers":   "math",
+		"# use math":         "",
+		"print \"use x\"":    "",
+		"use":                "",
 	} {
 		if got := useLine(line); got != want {
 			t.Fatalf("useLine(%q) = %q, want %q", line, got, want)
 		}
+	}
+}
+
+func TestArtifactHashTracksCommentedTransitiveImports(t *testing.T) {
+	dir := t.TempDir()
+	source := "use helper # public words\nprint(helper.answer())\n"
+	for name, text := range map[string]string{
+		"main.zhex":   source,
+		"helper.zhex": "use nested# implementation\nword answer() -> Int\n    nested.answer()\n",
+		"nested.zhex": "word answer() -> Int\n    1\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(dir, "main.zhex")
+	before, err := artifactHash(path, source, "fp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "nested.zhex"), []byte("word answer() -> Int\n    2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, err := artifactHash(path, source, "fp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("changing a module imported beside a comment did not invalidate the artifact")
 	}
 }
