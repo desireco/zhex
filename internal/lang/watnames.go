@@ -42,6 +42,7 @@ const (
 	watMul         = "$zhex_mul"
 	watNeg         = "$zhex_neg"
 	watDiv         = "$zhex_div"
+	watRem         = "$zhex_rem"
 	watIntToString = "$zhex_int_to_string"
 	watStrEq       = "$zhex_str_eq"
 	watStrConcat   = "$zhex_str_concat"
@@ -54,17 +55,18 @@ const (
 // strings in DESIGN.md §6a. The codes are the artifact's runtime contract;
 // never renumber.
 const (
-	watFailOverflow   = 1  // integer-overflow
-	watFailDepth      = 2  // depth-limit
-	watFailListRange  = 3  // list-range
-	watFailArrayRange = 4  // array-range
-	watFailArrayRank  = 5  // array-rank (rank outside 2..32)
-	watFailArrayShape = 6  // array-shape (negative extent)
-	watFailArrayIndex = 7  // array-rank (index has the wrong rank)
-	watFailListLimit  = 8  // collection-limit (list)
-	watFailArrayLimit = 9  // collection-limit (array)
-	watFailIterating  = 10 // collection-iterating
-	watFailUnhandled  = 11 // unhandled-result
+	watFailOverflow     = 1  // integer-overflow
+	watFailDepth        = 2  // depth-limit
+	watFailListRange    = 3  // list-range
+	watFailArrayRange   = 4  // array-range
+	watFailArrayRank    = 5  // array-rank (rank outside 1..32)
+	watFailArrayShape   = 6  // array-shape (negative extent)
+	watFailArrayIndex   = 7  // array-rank (index has the wrong rank)
+	watFailListLimit    = 8  // collection-limit (list)
+	watFailArrayLimit   = 9  // collection-limit (array)
+	watFailIterating    = 10 // collection-iterating
+	watFailUnhandled    = 11 // unhandled-result
+	watFailDivisionZero = 19 // division-zero
 )
 
 // watSpec is the element specialization of a collection or Option payload:

@@ -694,6 +694,133 @@ func TestDifferentialStreamIO(t *testing.T) {
 	}
 }
 
+func TestWASIOutputScratchIsolation(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, tc := range []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{"long-print", fmt.Sprintf("print(%q)\n", strings.Repeat("a", 9000)), strings.Repeat("a", 9000) + "\n"},
+		{"multiple-flushes", fmt.Sprintf("print(\"before\")\nprint(%q)\nprint(\"after\")\n", strings.Repeat("abé", 30000)), "before\n" + strings.Repeat("abé", 30000) + "\nafter\n"},
+		{"file-scratch", "print(\"before\")\nlet contents = file.read(\"large.txt\") try\nprint(text.length(contents))\nprint(\"after\")\n", "before\n9000\nafter\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "large.txt"), []byte(strings.Repeat("x", 9000)), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			outPath := filepath.Join(t.TempDir(), "out.wasm")
+			if err := Compile("output.zhex", tc.source, outPath, nil, lang.WatSkinWASI); err != nil {
+				t.Fatal(err)
+			}
+			out, stderr, code := runWasmtime(t, outPath, dir, "", nil)
+			if code != 0 || out != tc.want {
+				t.Fatalf("code=%d, output bytes=%d (want %d), stderr=%s", code, len(out), len(tc.want), stderr)
+			}
+		})
+	}
+}
+
+func TestBufferedStdinScratchIsolation(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	source := `let first = read-line("") try
+var padding = "x"
+for i in range(0, 24)
+    padding = padding + padding
+print(padding)
+let second = read-line("") try
+print(second)
+`
+	dir := t.TempDir()
+	stdinPath := filepath.Join(dir, "stdin.txt")
+	if err := os.WriteFile(stdinPath, []byte("a\nb\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Repeat("x", 1<<24) + "\nb\n"
+	for _, skin := range []lang.WatSkin{lang.WatSkinBrowser, lang.WatSkinWASI} {
+		t.Run(fmt.Sprint(skin), func(t *testing.T) {
+			outPath := filepath.Join(t.TempDir(), "out.wasm")
+			if err := Compile("input.zhex", source, outPath, nil, skin); err != nil {
+				t.Fatal(err)
+			}
+			var out, stderr string
+			var code int
+			if skin == lang.WatSkinBrowser {
+				out, stderr, code = runNode(t, outPath, "--stdin", stdinPath)
+			} else {
+				out, stderr, code = runWasmtime(t, outPath, dir, stdinPath, nil)
+			}
+			if code != 0 || out != want {
+				t.Fatalf("code=%d, output bytes=%d (want %d), stderr=%s", code, len(out), len(want), stderr)
+			}
+		})
+	}
+}
+
+func TestWASIFileBufferScratchIsolation(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, tc := range []struct {
+		name    string
+		padding int
+		first   string
+	}{
+		{"handle-state", 14, "one"},
+		{"pending-bytes", 21, "one"},
+		{"long-line", 0, strings.Repeat("a", 1100000)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "lines.txt"), []byte(tc.first+"\ntwo\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			source := fmt.Sprintf(`let input = file.open("lines.txt") try
+print(text.length(file.read-line(input) try))
+var padding = "x"
+for i in range(0, %d)
+    padding = padding + padding
+print(padding)
+print(file.read-line(input) try)
+file.close(input)
+`, tc.padding)
+			outPath := filepath.Join(t.TempDir(), "out.wasm")
+			if err := Compile("input.zhex", source, outPath, nil, lang.WatSkinWASI); err != nil {
+				t.Fatal(err)
+			}
+			out, stderr, code := runWasmtime(t, outPath, dir, "", nil)
+			want := fmt.Sprintf("%d\n", len(tc.first)) + strings.Repeat("x", 1<<tc.padding) + "\ntwo\n"
+			if code != 0 || out != want {
+				t.Fatalf("code=%d, output bytes=%d (want %d), stderr=%s", code, len(out), len(want), stderr)
+			}
+		})
+	}
+}
+
+func TestCompiledZeroDivisorPreservesOutput(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, op := range []string{"/", "%"} {
+		t.Run(op, func(t *testing.T) {
+			source := "print(\"before\")\nprint(1 " + op + " 0)\n"
+			for _, skin := range []lang.WatSkin{lang.WatSkinBrowser, lang.WatSkinWASI} {
+				outPath := filepath.Join(t.TempDir(), "zero.wasm")
+				if err := Compile("zero.zhex", source, outPath, nil, skin); err != nil {
+					t.Fatal(err)
+				}
+				var out, stderr string
+				var code int
+				if skin == lang.WatSkinBrowser {
+					out, stderr, code = runNode(t, outPath)
+				} else {
+					out, stderr, code = runWasmtime(t, outPath, t.TempDir(), "", nil)
+				}
+				if code != 1 || out != "before\n" || stderr != "runtime error: division or remainder by zero\n" {
+					t.Fatalf("skin %v: code=%d, stdout=%q, stderr=%s", skin, code, out, stderr)
+				}
+			}
+		})
+	}
+}
+
 // m3Case is one milestone-3 differential fixture (DESIGN-M3 §9): a program
 // plus the working tree it observes — seed files, a stdin string, and
 // injected environment pairs. The same tree backs all three runs: the
@@ -722,12 +849,33 @@ func m3DifferentialCases() []m3Case {
 		{name: "readline", stdin: "Ada\nGrace\n"},
 		{name: "readline-blank", stdin: "Ada\n\nGrace\n"},
 		{name: "readline-detail", stdin: "Ada\n\nGrace\n"},
+		{name: "grow-stream", stdin: "\r\n" + strings.Repeat("é", 5000) + "\r\npartial\r"},
 		{name: "buffers"},
 		{name: "duration"},
 		{name: "json"},
 		{name: "env", env: [][2]string{{"ZHEX_TEST_INJECTED", "from-runner"}}},
 		{name: "text-stats-wasm", seeds: map[string]string{"sample.txt": string(sample)}},
 		{name: "file-work-wasm"},
+	}
+}
+
+func TestSiteArrayRankDiagnostic(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	requireTool(t, "node")
+	outPath := filepath.Join(t.TempDir(), "rank.wasm")
+	source := "let shape: List<Int> = []\nlet values = array.new(shape, 0)\n"
+	if err := Compile("rank.zhex", source, outPath, nil, lang.WatSkinBrowser); err != nil {
+		t.Fatal(err)
+	}
+	script := `import { readFileSync } from "node:fs";
+import { runZhex } from "../../site/src/scripts/zhex-run.mjs";
+console.log(runZhex(readFileSync(process.argv[1])).error);`
+	out, err := exec.Command("node", "--input-type=module", "-e", script, outPath).CombinedOutput()
+	if err != nil {
+		t.Fatalf("site runner: %v: %s", err, out)
+	}
+	if want := "runtime error: array rank must be between 1 and 32\n"; string(out) != want {
+		t.Fatalf("site runner error = %q, want %q", out, want)
 	}
 }
 

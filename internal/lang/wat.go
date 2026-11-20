@@ -1330,7 +1330,7 @@ func (e *watEmitter) binaryExpr(x *expression) {
 	case "%":
 		e.expr(x.left)
 		e.expr(x.right)
-		e.line("i64.rem_s")
+		e.line("call " + watRem)
 	default:
 		watFence(x.pos, x.text)
 	}

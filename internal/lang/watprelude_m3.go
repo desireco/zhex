@@ -175,10 +175,10 @@ const watM3Types = `
             (field $get (ref null $zjson_get_fn))))
   (type $zjson_field (struct (field $name (ref $zhex_string)) (field $schema (ref null $zjson_schema))))
   (type $zjson_memo (struct (field $srcs (mut (ref null $zhex_arr_ref))) (field $dsts (mut (ref null $zhex_arr_ref))))))
-;; the persistent stdin buffer (#187): pending bytes live in linear memory
-;; at 0x900000 (past every adapter allocation), filled in large chunks and
-;; drained line by line with memory.copy compaction — the old GC i32-array
-;; pending buffer moved every remaining chunk byte per line
+;; Pending stdin lives in a GC array so unrelated linear-memory staging
+;; cannot overwrite unread bytes. Positions advance per line; compaction
+;; happens only on refill and capacity doubles for long lines.
+(global $zhex_stdin_buf (mut (ref null $zhex_arr_i32)) (ref.null $zhex_arr_i32))
 (global $zhex_stdin_buflen (mut i32) (i32.const 0))
 (global $zhex_stdin_bufpos (mut i32) (i32.const 0))
 (global $zhex_stdin_cap (mut i32) (i32.const 4096))
@@ -964,20 +964,35 @@ const watM3Buffer = `
   (ref.as_non_null (local.get $r)))
 `
 
-// watM3Readline: read-line(prompt) (§4) - the prompt goes out raw, then
-// the prelude drains lines from a persistent stdin buffer in linear memory
-// at 0x900000 (#187): stdin_read refills it in large chunks (doubling when
-// a line outgrows it) and consumption is a memory.copy compaction, where
-// the old GC i32-array pending buffer moved every remaining chunk byte per
-// line. Chomp strips one "\n" then one "\r" only when the newline was
-// present; a partial final line at EOF is delivered unchomped.
+// watM3Readline: read-line(prompt) (§4) - pending bytes stay in a GC
+// buffer, compacted only on refill with amortized growth for long lines.
+// Linear memory at 65536 is transient host-read and UTF-8 decoding scratch.
+// Chomp strips one "\n" then one "\r" only when the newline was present;
+// a partial final line at EOF is delivered unchomped.
 const watM3Readline = `
-;; grow memory to cover the stdin buffer region on demand
 (func $m3_stdin_ensure (param $end i32)
   (local $pages i32)
   (local.set $pages (i32.div_u (i32.add (local.get $end) (i32.const 65535)) (i32.const 65536)))
   (if (i32.gt_u (local.get $pages) (memory.size))
     (then (drop (memory.grow (i32.sub (local.get $pages) (memory.size)))))))
+
+(func $m3_stdin_deliver (param $base i32) (param $len i32) (result (ref $zhex_result))
+  (local $i i32)
+  (call $m3_stdin_ensure (i32.add (i32.const 65536) (local.get $len)))
+  (block $staged
+    (loop $stage
+      (br_if $staged (i32.ge_u (local.get $i) (local.get $len)))
+      (i32.store8 (i32.add (i32.const 65536) (local.get $i))
+        (array.get $zhex_arr_i32 (ref.as_non_null (global.get $zhex_stdin_buf))
+          (i32.add (local.get $base) (local.get $i))))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $stage)))
+  (if (i32.eqz (call $zhex_bytes_utf8_ok (i32.const 65536) (local.get $len)))
+    (then
+      (return (struct.new $zhex_result (i32.const 1)
+        (call $zhex_errv (i32.const 2) (call $m3_input_utf8))))))
+  (struct.new $zhex_result (i32.const 0)
+    (call $zhex_bytes_to_string (i32.const 65536) (local.get $len))))
 
 (func $zhex_read_line (param $prompt (ref $zhex_string)) (result (ref $zhex_result))
   (local $plen i32)
@@ -985,33 +1000,41 @@ const watM3Readline = `
   (local $k i32)
   (local $m i32)
   (local $got i32)
-  (local $line (ref null $zhex_string))
+  (local $i i32)
+  (local $fresh (ref null $zhex_arr_i32))
   (local.set $plen (call $zhex_stage_utf8_at (local.get $prompt) (i32.const 0)))
   (call $zhex_host_print (i32.const 0) (local.get $plen))
+  (if (ref.is_null (global.get $zhex_stdin_buf))
+    (then (global.set $zhex_stdin_buf
+      (array.new_default $zhex_arr_i32 (global.get $zhex_stdin_cap)))))
   (block $delivered
     (loop $again
       (local.set $k (global.get $zhex_stdin_bufpos))
       (block $miss
         (loop $cmp
           (br_if $miss (i32.ge_u (local.get $k) (global.get $zhex_stdin_buflen)))
-          (br_if $delivered (i32.eq (i32.load8_u (i32.add (i32.const 9437184) (local.get $k))) (i32.const 10)))
+          (br_if $delivered (i32.eq
+            (array.get $zhex_arr_i32 (ref.as_non_null (global.get $zhex_stdin_buf)) (local.get $k)) (i32.const 10)))
           (local.set $k (i32.add (local.get $k) (i32.const 1)))
           (br $cmp)))
-      ;; exhausted: compact pending bytes to the front, then refill
+      ;; Compact only on refill, rather than after every delivered line.
       (if (i32.gt_u (global.get $zhex_stdin_bufpos) (i32.const 0))
         (then
-          (memory.copy (i32.const 9437184)
-            (i32.add (i32.const 9437184) (global.get $zhex_stdin_bufpos))
+          (array.copy $zhex_arr_i32 $zhex_arr_i32
+            (ref.as_non_null (global.get $zhex_stdin_buf)) (i32.const 0)
+            (ref.as_non_null (global.get $zhex_stdin_buf)) (global.get $zhex_stdin_bufpos)
             (i32.sub (global.get $zhex_stdin_buflen) (global.get $zhex_stdin_bufpos)))
           (global.set $zhex_stdin_buflen (i32.sub (global.get $zhex_stdin_buflen) (global.get $zhex_stdin_bufpos)))
           (global.set $zhex_stdin_bufpos (i32.const 0))))
-      ;; full without a newline: the line is longer than the capacity
       (if (i32.ge_u (global.get $zhex_stdin_buflen) (global.get $zhex_stdin_cap))
         (then
-          (global.set $zhex_stdin_cap (i32.add (global.get $zhex_stdin_cap) (global.get $zhex_stdin_cap)))))
-      (call $m3_stdin_ensure (i32.add (i32.const 9437184) (global.get $zhex_stdin_cap)))
-      (local.set $got (call $zhex_host_stdin_read
-        (i32.add (i32.const 9437184) (global.get $zhex_stdin_buflen))
+          (global.set $zhex_stdin_cap (i32.add (global.get $zhex_stdin_cap) (global.get $zhex_stdin_cap)))
+          (local.set $fresh (array.new_default $zhex_arr_i32 (global.get $zhex_stdin_cap)))
+          (array.copy $zhex_arr_i32 $zhex_arr_i32 (ref.as_non_null (local.get $fresh)) (i32.const 0)
+            (ref.as_non_null (global.get $zhex_stdin_buf)) (i32.const 0) (global.get $zhex_stdin_buflen))
+          (global.set $zhex_stdin_buf (local.get $fresh))))
+      (call $m3_stdin_ensure (i32.add (i32.const 65536) (global.get $zhex_stdin_cap)))
+      (local.set $got (call $zhex_host_stdin_read (i32.const 65536)
         (i32.sub (global.get $zhex_stdin_cap) (global.get $zhex_stdin_buflen))))
       (if (i32.eq (local.get $got) (i32.const -1))
         (then
@@ -1019,37 +1042,33 @@ const watM3Readline = `
             (call $zhex_errv_reason (i32.const 2) (call $m3_input_failed) (call $m3_d_read_failed))))))
       (if (i32.eqz (local.get $got))
         (then
-          ;; EOF: empty pending is end-of-input, a prefix is the final line
           (if (i32.eqz (global.get $zhex_stdin_buflen))
             (then
               (return (struct.new $zhex_result (i32.const 1)
                 (call $zhex_errv_reason (i32.const 2) (call $m3_end_of_input) (call $m3_d_end_of_file))))))
-          (if (i32.eqz (call $zhex_bytes_utf8_ok (i32.const 9437184) (global.get $zhex_stdin_buflen)))
-            (then
-              (global.set $zhex_stdin_buflen (i32.const 0))
-              (return (struct.new $zhex_result (i32.const 1)
-                (call $zhex_errv (i32.const 2) (call $m3_input_utf8))))))
-          (local.set $line (call $zhex_bytes_to_string (i32.const 9437184) (global.get $zhex_stdin_buflen)))
+          (local.set $m (global.get $zhex_stdin_buflen))
           (global.set $zhex_stdin_buflen (i32.const 0))
-          (return (struct.new $zhex_result (i32.const 0) (local.get $line)))))
+          (return (call $m3_stdin_deliver (i32.const 0) (local.get $m)))))
+      (local.set $i (i32.const 0))
+      (block $copied
+        (loop $copy
+          (br_if $copied (i32.ge_u (local.get $i) (local.get $got)))
+          (array.set $zhex_arr_i32 (ref.as_non_null (global.get $zhex_stdin_buf))
+            (i32.add (global.get $zhex_stdin_buflen) (local.get $i))
+            (i32.load8_u (i32.add (i32.const 65536) (local.get $i))))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $copy)))
       (global.set $zhex_stdin_buflen (i32.add (global.get $zhex_stdin_buflen) (local.get $got)))
       (br $again)))
-  ;; newline at k: deliver the chomped prefix, consume through the newline
   (local.set $base (global.get $zhex_stdin_bufpos))
   (local.set $m (i32.sub (local.get $k) (local.get $base)))
-  ;; nested ifs, not i32.and: and evaluates both arms, so a zero-length
-  ;; line would read the byte at index -1 and trap
   (if (i32.gt_u (local.get $m) (i32.const 0))
     (then
-      (if (i32.eq (i32.load8_u (i32.add (i32.const 9437184) (i32.sub (local.get $k) (i32.const 1)))) (i32.const 13))
+      (if (i32.eq (array.get $zhex_arr_i32 (ref.as_non_null (global.get $zhex_stdin_buf))
+            (i32.sub (local.get $k) (i32.const 1))) (i32.const 13))
         (then (local.set $m (i32.sub (local.get $m) (i32.const 1)))))))
   (global.set $zhex_stdin_bufpos (i32.add (local.get $k) (i32.const 1)))
-  (if (i32.eqz (call $zhex_bytes_utf8_ok (i32.add (i32.const 9437184) (local.get $base)) (local.get $m)))
-    (then
-      (return (struct.new $zhex_result (i32.const 1)
-        (call $zhex_errv (i32.const 2) (call $m3_input_utf8))))))
-  (struct.new $zhex_result (i32.const 0)
-    (call $zhex_bytes_to_string (i32.add (i32.const 9437184) (local.get $base)) (local.get $m))))
+  (call $m3_stdin_deliver (local.get $base) (local.get $m)))
 `
 
 // watM3ErrorInspect (#135): the error.* inspection readers over the §2 err

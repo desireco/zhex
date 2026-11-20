@@ -455,15 +455,7 @@ t('neg min traps 1', () => { fresh(); trap(() => exports.neg(MIN), 1); });
 t('div truncates toward zero', () => { fresh(); eq(exports.div(-7n, 2n), -3n, 'div'); });
 t('div truncates toward zero neg', () => { fresh(); eq(exports.div(7n, -2n), -3n, 'div'); });
 t('div min/-1 traps 1', () => { fresh(); trap(() => exports.div(MIN, -1n), 1); });
-t('div by zero native trap', () => {
-  fresh();
-  try { exports.div(1n, 0n); } catch (e) {
-    if (!/divide/i.test(e.message)) throw new Error('unexpected native message: ' + e.message);
-    eq(Number(exports.zhex_last_error()), 0, 'native trap must not set a fail code');
-    return;
-  }
-  throw new Error('expected a native divide trap');
-});
+t('div by zero deliberate failure', () => { fresh(); trap(() => exports.div(1n, 0n), 19); });
 t('rem min%-1 is 0 natively', () => { fresh(); eq(exports.rem_native(MIN, -1n), 0n, 'rem'); });
 t('rem negative', () => { fresh(); eq(exports.rem_native(-7n, 2n), -1n, 'rem'); });
 

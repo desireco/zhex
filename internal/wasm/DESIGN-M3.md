@@ -39,8 +39,8 @@ Only the delta from M2 is specified.
 8. **Traps cannot carry staged messages under the wasmtime CLI** (the process dies before anyone
    reads `zhex_msg_len`). The WASI skin's `$zhex_fail`/`$zhex_fail_msg` write the pinned stderr
    line via `fd_write`(fd 2) and exit through `proc_exit(1)`; the browser skin keeps the M1
-   trap. Native-trap diagnostics (division by zero) stay browser-only fixtures; WASI fixtures
-   avoid native traps.
+   trap. Division/remainder by zero explicitly calls fail 19 on both skins, so
+   the WASI adapter flushes buffered stdout before reporting it (DESIGN §6b).
 9. **M2's top-level unhandled-result path reused fail code 12**; M3 mints 16 for it (staged) so
    12 stays the to-int mint. Staged bytes unchanged.
 10. **`buffer.*` has no element limit** in the interpreter — none is compiled. `file.list`'s

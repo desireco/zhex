@@ -24,18 +24,11 @@ import (
 //	4096..8191     adapter path copies (two slots, 2KB each)
 //	8192..8255     fd_filestat_get buffer
 //	8256..8271     iovec {ptr,len} + nwritten/nread
-//	8272..8399     eight read-line handle slots {fd, buflen, bufpos, _}
-//	8400           stdout buffer fill (outlen)
 //	8448..8479     misc state (fd out, rd_len, dirent bytes, readdir cookie)
-//	8480..41151    stdout buffer (32KB, #187: batched fd_write)
-//	65536..0x100000  transient bulk (read_file relay, environ, readdir)
-//	0x100000+slot*0x100000  per-handle read-line buffers (grown lazily)
-//	0x900000..     the module's persistent stdin buffer (#187; the adapter
-//	               never allocates past the last handle slot)
+//	65536..0x100000  transient bulk (stdout flush, read_file relay, environ, readdir)
 //
-// shortcut: transient bulk over ~960KB collides with handle 0's buffer only
-// when a program mixes read-line handles with large whole-file reads;
-// fixtures never do (upgrade: dynamic placement on demand).
+// Persistent file handles, pending input, and stdout live in GC objects;
+// linear memory is reusable staging for synchronous host calls only.
 
 // watWasiImports: the thirteen wasi_snapshot_preview1 imports (§1c).
 const watWasiImports = `
@@ -78,9 +71,24 @@ const watWasiCore = `
   (i32.store (i32.const 8260) (local.get $len))
   (call $wasi.fd_write (local.get $fd) (i32.const 8256) (i32.const 1) (i32.const 8264)))
 
-(func $wasi_slot_save (param $slot i32) (param $buflen i32) (param $bufpos i32)
-  (i32.store (i32.add (i32.const 8276) (i32.mul (local.get $slot) (i32.const 16))) (local.get $buflen))
-  (i32.store (i32.add (i32.const 8280) (i32.mul (local.get $slot) (i32.const 16))) (local.get $bufpos)))
+(type $wasi_file_slot (struct (field $fd i32)
+  (field $buf (mut (ref null $zhex_arr_i32)))
+  (field $len (mut i32)) (field $pos (mut i32))))
+(type $wasi_file_slots (array (mut (ref null $wasi_file_slot))))
+(global $wasi_files (mut (ref null $wasi_file_slots)) (ref.null $wasi_file_slots))
+
+(func $wasi_file_emit (param $slot (ref $wasi_file_slot)) (param $start i32) (param $len i32)
+  (local $i i32)
+  (call $wasi_ensure (i32.add (i32.const 4) (local.get $len)))
+  (i32.store (i32.const 0) (local.get $len))
+  (block $staged
+    (loop $stage
+      (br_if $staged (i32.ge_u (local.get $i) (local.get $len)))
+      (i32.store8 (i32.add (i32.const 4) (local.get $i))
+        (array.get $zhex_arr_i32 (ref.as_non_null (struct.get $wasi_file_slot $buf (local.get $slot)))
+          (i32.add (local.get $start) (local.get $i))))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $stage))))
 
 ;; $wasi_bytes_eq compares len bytes; $wasi_name_lt is byte-wise unsigned
 ;; lexicographic with the shorter prefix first (fs_list's sorted order).
@@ -226,31 +234,72 @@ const watWasiCore = `
   (call $wasi.path_remove_directory (i32.const 3) (local.get $ptr) (local.get $len)))
 
 ;; ---- batched stdout (#187) ----
-;; print bytes accumulate at 8480 and cross to fd_write only when the
-;; 32KB buffer fills, before stderr diagnostics, before a stdin read
+;; Buffered bytes and their fill count live outside linear scratch memory:
+;; print/file staging can overwrite any prefix of that memory. Bytes cross
+;; to fd_write when the 32KB buffer fills, before stderr diagnostics, before a stdin read
 ;; (prompt visibility), and at _start's end — stdout ordering is
-;; unchanged. shortcut: a native trap (divide by zero, failed cast) loses
+;; unchanged. shortcut: an unexpected native trap (failed cast) loses
 ;; at most the pending 32KB; the staged fail codes all flush (upgrade:
 ;; wasm EH to flush on trap).
 
+(global $wasi_out_buf (mut (ref null $zhex_arr_i32)) (ref.null $zhex_arr_i32))
+(global $wasi_out_len (mut i32) (i32.const 0))
+
 (func $wasi_out_flush
-  (if (i32.load (i32.const 8400))
+  (local $i i32)
+  (if (global.get $wasi_out_len)
     (then
-      (drop (call $wasi_write (i32.const 1) (i32.const 8480) (i32.load (i32.const 8400))))
-      (i32.store (i32.const 8400) (i32.const 0)))))
+      (call $wasi_ensure (i32.add (i32.const 65536) (global.get $wasi_out_len)))
+      (block $staged
+        (loop $stage
+          (br_if $staged (i32.ge_u (local.get $i) (global.get $wasi_out_len)))
+          (i32.store8 (i32.add (i32.const 65536) (local.get $i))
+            (array.get $zhex_arr_i32 (ref.as_non_null (global.get $wasi_out_buf)) (local.get $i)))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $stage)))
+      (drop (call $wasi_write (i32.const 1) (i32.const 65536) (global.get $wasi_out_len)))
+      (global.set $wasi_out_len (i32.const 0)))))
 
 (func $wasi_out_write (param $ptr i32) (param $len i32)
   (local $space i32)
+  (local $i i32)
+  (local $offset i32)
+  (local $snapshot (ref null $zhex_arr_i32))
+  (if (ref.is_null (global.get $wasi_out_buf))
+    (then (global.set $wasi_out_buf (array.new_default $zhex_arr_i32 (i32.const 32768)))))
+  ;; A flush reuses linear staging, so preserve the current payload first
+  ;; whenever this call will cross a buffer boundary. Small writes that
+  ;; fit need no allocation.
+  (if (i32.gt_u (local.get $len) (i32.sub (i32.const 32768) (global.get $wasi_out_len)))
+    (then
+      (local.set $snapshot (array.new_default $zhex_arr_i32 (local.get $len)))
+      (block $saved
+        (loop $save
+          (br_if $saved (i32.ge_u (local.get $i) (local.get $len)))
+          (array.set $zhex_arr_i32 (ref.as_non_null (local.get $snapshot)) (local.get $i)
+            (i32.load8_u (i32.add (local.get $ptr) (local.get $i))))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $save)))))
   (block $done
     (loop $again
       (br_if $done (i32.eqz (local.get $len)))
-      (local.set $space (i32.sub (i32.const 32768) (i32.load (i32.const 8400))))
+      (local.set $space (i32.sub (i32.const 32768) (global.get $wasi_out_len)))
       (if (i32.ge_u (local.get $space) (local.get $len))
         (then (local.set $space (local.get $len))))
-      (memory.copy (i32.add (i32.const 8480) (i32.load (i32.const 8400)))
-        (local.get $ptr) (local.get $space))
-      (i32.store (i32.const 8400) (i32.add (i32.load (i32.const 8400)) (local.get $space)))
-      (local.set $ptr (i32.add (local.get $ptr) (local.get $space)))
+      (local.set $i (i32.const 0))
+      (block $copied
+        (loop $copy
+          (br_if $copied (i32.ge_u (local.get $i) (local.get $space)))
+          (array.set $zhex_arr_i32 (ref.as_non_null (global.get $wasi_out_buf))
+            (i32.add (global.get $wasi_out_len) (local.get $i))
+            (if (result i32) (ref.is_null (local.get $snapshot))
+              (then (i32.load8_u (i32.add (local.get $ptr) (i32.add (local.get $offset) (local.get $i)))))
+              (else (array.get $zhex_arr_i32 (ref.as_non_null (local.get $snapshot))
+                (i32.add (local.get $offset) (local.get $i))))))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $copy)))
+      (global.set $wasi_out_len (i32.add (global.get $wasi_out_len) (local.get $space)))
+      (local.set $offset (i32.add (local.get $offset) (local.get $space)))
       (local.set $len (i32.sub (local.get $len) (local.get $space)))
       (br_if $done (i32.eqz (local.get $len)))
       (call $wasi_out_flush)
@@ -329,93 +378,111 @@ const watWasiCore = `
 
 (func $zhex_host_fs_open_read (param $pptr i32) (param $plen i32) (result i32)
   (local $e i32) (local $slot i32)
+  (if (ref.is_null (global.get $wasi_files))
+    (then (global.set $wasi_files (array.new_default $wasi_file_slots (i32.const 8)))))
+  (block $found
+    (loop $scan
+      (br_if $found (ref.is_null (array.get $wasi_file_slots
+        (ref.as_non_null (global.get $wasi_files)) (local.get $slot))))
+      (local.set $slot (i32.add (local.get $slot) (i32.const 1)))
+      (if (i32.lt_u (local.get $slot) (i32.const 8)) (then (br $scan)))
+      (return (i32.const -33))))
   (memory.copy (i32.const 4096) (local.get $pptr) (local.get $plen))
   (local.set $e (call $wasi.path_open (i32.const 3) (i32.const 0) (i32.const 4096) (local.get $plen)
     (i32.const 0) (i64.const 0x40006) (i64.const 0x40006) (i32.const 0) (i32.const 8448)))
   (if (i32.ne (local.get $e) (i32.const 0)) (then (return (i32.sub (i32.const 0) (local.get $e)))))
-  (block $found
-    (loop $scan
-      (br_if $found (i32.lt_s (i32.load (i32.add (i32.const 8272) (i32.mul (local.get $slot) (i32.const 16)))) (i32.const 0)))
-      (local.set $slot (i32.add (local.get $slot) (i32.const 1)))
-      (if (i32.lt_u (local.get $slot) (i32.const 8)) (then (br $scan)))
-      (return (i32.const -33))))
-  (i32.store (i32.add (i32.const 8272) (i32.mul (local.get $slot) (i32.const 16))) (i32.load (i32.const 8448)))
-  (call $wasi_slot_save (local.get $slot) (i32.const 0) (i32.const 0))
+  (array.set $wasi_file_slots (ref.as_non_null (global.get $wasi_files)) (local.get $slot)
+    (struct.new $wasi_file_slot (i32.load (i32.const 8448))
+      (array.new_default $zhex_arr_i32 (i32.const 65536)) (i32.const 0) (i32.const 0)))
   (local.get $slot))
 
-;; $zhex_host_fs_read_line buffers raw bytes through the next "\n" (partial
-;; final line included) per §2; the line lands in the scratch slot with its
-;; trailing newline. shortcut: a line longer than the 1 MiB slot is emitted
-;; as-is and buffering restarts (fixtures' lines are short).
+;; Pending bytes stay in a GC buffer per handle. Linear memory holds only
+;; one synchronous fd_read payload or the returned scratch line.
 (func $zhex_host_fs_read_line (param $handle i32) (result i32)
-  (local $fd i32) (local $buflen i32) (local $bufpos i32) (local $base i32)
-  (local $k i32) (local $e i32) (local $n i32) (local $cap i32)
-  (if (i32.ge_u (local.get $handle) (i32.const 8))
-    (then (return (i32.const -9))))
-  (local.set $fd (i32.load (i32.add (i32.const 8272) (i32.mul (local.get $handle) (i32.const 16)))))
-  (if (i32.lt_s (local.get $fd) (i32.const 0)) (then (return (i32.const -9))))
-  (local.set $buflen (i32.load (i32.add (i32.const 8276) (i32.mul (local.get $handle) (i32.const 16)))))
-  (local.set $bufpos (i32.load (i32.add (i32.const 8280) (i32.mul (local.get $handle) (i32.const 16)))))
-  (local.set $base (i32.add (i32.const 1048576) (i32.mul (local.get $handle) (i32.const 1048576))))
+  (local $slot (ref null $wasi_file_slot))
+  (local $buf (ref null $zhex_arr_i32)) (local $fresh (ref null $zhex_arr_i32))
+  (local $fd i32) (local $buflen i32) (local $bufpos i32)
+  (local $k i32) (local $e i32) (local $n i32) (local $cap i32) (local $i i32)
+  (if (i32.ge_u (local.get $handle) (i32.const 8)) (then (return (i32.const -9))))
+  (if (ref.is_null (global.get $wasi_files)) (then (return (i32.const -9))))
+  (local.set $slot (array.get $wasi_file_slots (ref.as_non_null (global.get $wasi_files)) (local.get $handle)))
+  (if (ref.is_null (local.get $slot)) (then (return (i32.const -9))))
+  (local.set $fd (struct.get $wasi_file_slot $fd (ref.as_non_null (local.get $slot))))
+  (local.set $buf (struct.get $wasi_file_slot $buf (ref.as_non_null (local.get $slot))))
+  (local.set $buflen (struct.get $wasi_file_slot $len (ref.as_non_null (local.get $slot))))
+  (local.set $bufpos (struct.get $wasi_file_slot $pos (ref.as_non_null (local.get $slot))))
   (block $newline
     (loop $scan
       (local.set $k (local.get $bufpos))
       (block $miss
         (loop $cmp
           (br_if $miss (i32.ge_u (local.get $k) (local.get $buflen)))
-          (br_if $newline (i32.eq (i32.load8_u (i32.add (local.get $base) (local.get $k))) (i32.const 10)))
+          (br_if $newline (i32.eq (array.get $zhex_arr_i32 (ref.as_non_null (local.get $buf)) (local.get $k)) (i32.const 10)))
           (local.set $k (i32.add (local.get $k) (i32.const 1)))
           (br $cmp)))
-      ;; compact pending bytes, then refill
       (if (i32.gt_u (local.get $bufpos) (i32.const 0))
         (then
-          (memory.copy (local.get $base) (i32.add (local.get $base) (local.get $bufpos))
+          (array.copy $zhex_arr_i32 $zhex_arr_i32
+            (ref.as_non_null (local.get $buf)) (i32.const 0)
+            (ref.as_non_null (local.get $buf)) (local.get $bufpos)
             (i32.sub (local.get $buflen) (local.get $bufpos)))
           (local.set $buflen (i32.sub (local.get $buflen) (local.get $bufpos)))
           (local.set $bufpos (i32.const 0))))
-      (if (i32.ge_u (local.get $buflen) (i32.const 1048576))
+      (local.set $cap (array.len (ref.as_non_null (local.get $buf))))
+      (if (i32.ge_u (local.get $buflen) (local.get $cap))
         (then
-          (i32.store (i32.const 0) (local.get $buflen))
-          (memory.copy (i32.const 4) (local.get $base) (local.get $buflen))
-          (call $wasi_slot_save (local.get $handle) (i32.const 0) (i32.const 0))
-          (return (i32.const 1))))
-      (local.set $cap (i32.sub (i32.const 1048576) (local.get $buflen)))
+          (local.set $cap (i32.add (local.get $cap) (local.get $cap)))
+          (local.set $fresh (array.new_default $zhex_arr_i32 (local.get $cap)))
+          (array.copy $zhex_arr_i32 $zhex_arr_i32 (ref.as_non_null (local.get $fresh)) (i32.const 0)
+            (ref.as_non_null (local.get $buf)) (i32.const 0) (local.get $buflen))
+          (local.set $buf (local.get $fresh))
+          (struct.set $wasi_file_slot $buf (ref.as_non_null (local.get $slot)) (local.get $buf))))
+      (local.set $cap (i32.sub (local.get $cap) (local.get $buflen)))
       (if (i32.gt_u (local.get $cap) (i32.const 65536)) (then (local.set $cap (i32.const 65536))))
-      (call $wasi_ensure (i32.add (local.get $base) (i32.add (local.get $buflen) (local.get $cap))))
-      (i32.store (i32.const 8256) (i32.add (local.get $base) (local.get $buflen)))
+      (call $wasi_ensure (i32.add (i32.const 65536) (local.get $cap)))
+      (i32.store (i32.const 8256) (i32.const 65536))
       (i32.store (i32.const 8260) (local.get $cap))
       (local.set $e (call $wasi.fd_read (local.get $fd) (i32.const 8256) (i32.const 1) (i32.const 8264)))
       (if (i32.ne (local.get $e) (i32.const 0))
-        (then (return (i32.sub (i32.const 0) (local.get $e)))))
+        (then
+          (struct.set $wasi_file_slot $len (ref.as_non_null (local.get $slot)) (local.get $buflen))
+          (struct.set $wasi_file_slot $pos (ref.as_non_null (local.get $slot)) (local.get $bufpos))
+          (return (i32.sub (i32.const 0) (local.get $e)))))
       (local.set $n (i32.load (i32.const 8264)))
       (if (i32.eqz (local.get $n))
         (then
+          (struct.set $wasi_file_slot $len (ref.as_non_null (local.get $slot)) (i32.const 0))
+          (struct.set $wasi_file_slot $pos (ref.as_non_null (local.get $slot)) (i32.const 0))
           (if (i32.gt_u (local.get $buflen) (local.get $bufpos))
             (then
-              (i32.store (i32.const 0) (i32.sub (local.get $buflen) (local.get $bufpos)))
-              (memory.copy (i32.const 4) (i32.add (local.get $base) (local.get $bufpos))
+              (call $wasi_file_emit (ref.as_non_null (local.get $slot)) (local.get $bufpos)
                 (i32.sub (local.get $buflen) (local.get $bufpos)))
-              (call $wasi_slot_save (local.get $handle) (i32.const 0) (i32.const 0))
               (return (i32.const 1)))
-            (else
-              (call $wasi_slot_save (local.get $handle) (local.get $buflen) (local.get $bufpos))
-              (return (i32.const 0))))))
+            (else (return (i32.const 0))))))
+      (local.set $i (i32.const 0))
+      (block $copied
+        (loop $copy
+          (br_if $copied (i32.ge_u (local.get $i) (local.get $n)))
+          (array.set $zhex_arr_i32 (ref.as_non_null (local.get $buf)) (i32.add (local.get $buflen) (local.get $i))
+            (i32.load8_u (i32.add (i32.const 65536) (local.get $i))))
+          (local.set $i (i32.add (local.get $i) (i32.const 1)))
+          (br $copy)))
       (local.set $buflen (i32.add (local.get $buflen) (local.get $n)))
       (br $scan)))
-  (i32.store (i32.const 0) (i32.add (i32.sub (local.get $k) (local.get $bufpos)) (i32.const 1)))
-  (memory.copy (i32.const 4) (i32.add (local.get $base) (local.get $bufpos))
+  (call $wasi_file_emit (ref.as_non_null (local.get $slot)) (local.get $bufpos)
     (i32.add (i32.sub (local.get $k) (local.get $bufpos)) (i32.const 1)))
-  (call $wasi_slot_save (local.get $handle) (local.get $buflen) (i32.add (local.get $k) (i32.const 1)))
+  (struct.set $wasi_file_slot $len (ref.as_non_null (local.get $slot)) (local.get $buflen))
+  (struct.set $wasi_file_slot $pos (ref.as_non_null (local.get $slot)) (i32.add (local.get $k) (i32.const 1)))
   (i32.const 1))
 
 (func $zhex_host_fs_close (param $handle i32) (result i32)
-  (local $fd i32)
+  (local $slot (ref null $wasi_file_slot))
   (if (i32.ge_u (local.get $handle) (i32.const 8)) (then (return (i32.const 0))))
-  (local.set $fd (i32.load (i32.add (i32.const 8272) (i32.mul (local.get $handle) (i32.const 16)))))
-  (if (i32.lt_s (local.get $fd) (i32.const 0)) (then (return (i32.const 0))))
-  (i32.store (i32.add (i32.const 8272) (i32.mul (local.get $handle) (i32.const 16))) (i32.const -1))
-  (call $wasi_slot_save (local.get $handle) (i32.const 0) (i32.const 0))
-  (drop (call $wasi.fd_close (local.get $fd)))
+  (if (ref.is_null (global.get $wasi_files)) (then (return (i32.const 0))))
+  (local.set $slot (array.get $wasi_file_slots (ref.as_non_null (global.get $wasi_files)) (local.get $handle)))
+  (if (ref.is_null (local.get $slot)) (then (return (i32.const 0))))
+  (array.set $wasi_file_slots (ref.as_non_null (global.get $wasi_files)) (local.get $handle) (ref.null $wasi_file_slot))
+  (drop (call $wasi.fd_close (struct.get $wasi_file_slot $fd (ref.as_non_null (local.get $slot)))))
   (i32.const 0))
 
 (func $zhex_host_fs_stat (param $pptr i32) (param $plen i32) (result i32)
@@ -725,9 +792,7 @@ const watWasiCore = `
   (call $zhex_main)
   (call $wasi_out_flush))
 
-;; handle slots start closed (fd = -1)
-(data (i32.const 8272)
-  "\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00\ff\ff\ff\ff\00\00\00\00\00\00\00\00")
+
 `
 
 // watWasiFailTexts renders the runner's fixed fail strings (M1 §6a + M2 §2c)
@@ -748,11 +813,12 @@ func watWasiFailTexts() string {
 		11: "unhandled failure",
 		13: "text.replace old text is empty",
 		14: "text.split exceeds element limit",
+		19: "division or remainder by zero",
 	}
 	var b strings.Builder
 	b.WriteString("\n;; fixed fail messages (M1 6a + M2 2c), committed literals\n")
 	b.WriteString(watStrFn("$wasi_fail_prefix", "runtime error: "))
-	for code := 1; code <= 14; code++ {
+	for code := 1; code <= 19; code++ {
 		msg, ok := messages[code]
 		if !ok {
 			continue // 12 and 15 stage dynamic messages via $zhex_fail_msg
@@ -760,7 +826,7 @@ func watWasiFailTexts() string {
 		b.WriteString(watStrFn("$wasi_msg_"+itoa(code), msg))
 	}
 	b.WriteString("(func $wasi_fail_text (param $code i32) (result (ref $zhex_string))\n")
-	for code := 1; code <= 14; code++ {
+	for code := 1; code <= 19; code++ {
 		if _, ok := messages[code]; !ok {
 			continue
 		}

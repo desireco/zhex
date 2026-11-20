@@ -62,8 +62,8 @@ const watPreludeBase = `
 `
 
 // watPreludeArith: checked integer helpers mirroring eval.binary §6d (fail 1
-// on overflow) and §6b ($zhex_div pre-checks MinInt64/-1 because the native
-// trap wording varies; division by zero keeps its native trap).
+// on overflow) and §6b (fail 19 on a zero divisor, with MinInt64/-1 checked
+// explicitly because native overflow wording varies).
 const watPreludeArith = `
 (func $zhex_add (param $a i64) (param $b i64) (result i64)
   (if (i64.gt_s (local.get $b) (i64.const 0))
@@ -109,11 +109,16 @@ const watPreludeArith = `
   (i64.sub (i64.const 0) (local.get $a)))
 
 (func $zhex_div (param $a i64) (param $b i64) (result i64)
+  (if (i64.eqz (local.get $b)) (then (call $zhex_fail (i32.const 19))))
   (if (i64.eq (local.get $b) (i64.const -1))
     (then
       (if (i64.eq (local.get $a) (i64.const -9223372036854775808))
         (then (call $zhex_fail (i32.const 1))))))
   (i64.div_s (local.get $a) (local.get $b)))
+
+(func $zhex_rem (param $a i64) (param $b i64) (result i64)
+  (if (i64.eqz (local.get $b)) (then (call $zhex_fail (i32.const 19))))
+  (i64.rem_s (local.get $a) (local.get $b)))
 `
 
 // watPreludeText: strings are arrays of i32 code points (§2).

@@ -176,14 +176,16 @@ Inventory:
 | 9 | collection-limit | `runtime error: array exceeds element limit` |
 | 10 | collection-iterating | `runtime error: collection is being iterated` |
 | 11 | unhandled-result | `runtime error: unhandled failure` |
+| 19 | division-zero | `runtime error: division or remainder by zero` |
 
 Messages mirror `eval.go`/`collections.go` phrasing; the `runtime error: ` prefix replaces the
 interpreter's `file:line:column:` position, which the artifact does not carry in M1. After
 catching a `RuntimeError` the runner reads `zhex_last_error()`; 0 means a native trap.
 
-**(b) Native traps.** Division/remainder by zero traps natively per the ratified plan (no
-pre-check); the runner maps `/divide by zero|remainder by zero/` →
-`runtime error: division or remainder by zero`.
+**(b) Arithmetic failures.** Division/remainder by zero explicitly calls fail 19,
+so the WASI adapter flushes earlier stdout and prints the same diagnostic as the
+browser runner before exiting 1. The runner retains its native-zero-trap mapping
+for older artifacts.
 `MinInt64 / -1` gets an **explicit** check → fail 1 (native wording "divide result unrepresentable"
 varies by engine; the interpreter calls it integer overflow). `MinInt64 % -1` returns 0 natively.
 

@@ -28,6 +28,7 @@ const failMessages = {
   11: "unhandled failure",
   13: "text.replace old text is empty",
   14: "text.split exceeds element limit",
+  19: "division or remainder by zero",
 };
 
 // Dynamic-message codes stage their message as UTF-8 at memory offset 0;
