@@ -3,6 +3,7 @@ package lang
 import (
 	_ "embed"
 	"sort"
+	"zhex/internal/zhexrt"
 )
 
 // Code is a diagnostic's stable identity: kebab-case, never renamed or
@@ -146,6 +147,26 @@ var diagnosticCodes = []Code{
 
 //go:embed catalog.md
 var catalogMarkdown string
+
+// catalogCodes distinguishes built-in codes from application error.new
+// codes: only the former carry a learn URL.
+var catalogCodes = func() map[Code]bool {
+	set := make(map[Code]bool, len(diagnosticCodes))
+	for _, code := range diagnosticCodes {
+		set[code] = true
+	}
+	return set
+}()
+
+// DocsURL returns the errors-page anchor for the code — the catalog's
+// section the learn line and the JSON report's url field point at — or ""
+// for codes outside the catalog, which own their own namespaces.
+func (c Code) DocsURL() string {
+	if !catalogCodes[c] {
+		return ""
+	}
+	return zhexrt.LearnURL(string(c))
+}
 
 // DiagnosticCodes lists every code the language can raise, sorted.
 func DiagnosticCodes() []string {

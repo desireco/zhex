@@ -30,6 +30,32 @@ func TestDiagnosticsShowExcerptCaretAndHyphenHint(t *testing.T) {
 	}
 }
 
+// TestDiagnosticsEndWithLearnURL pins the additive learn line: every text
+// diagnostic for a catalog code ends with its errors-page URL after the
+// hint, and an application error.new code renders none.
+func TestDiagnosticsEndWithLearnURL(t *testing.T) {
+	const base = "https://desireco.github.io/zhex/errors.html"
+	for _, tc := range []struct{ name, source, code string }{
+		{"checker", "print(a-b)\n", "unknown-name"},
+		{"runtime", "print(1 / 0)\n", "division-zero"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := runError(t, tc.source)
+			if !strings.HasSuffix(got, "\nlearn: "+base+"#"+tc.code) {
+				t.Fatalf("missing learn line: %q", got)
+			}
+		})
+	}
+	checker := runError(t, "print(a-b)\n")
+	if hint, learn := strings.Index(checker, "\nhint: "), strings.Index(checker, "\nlearn: "); learn < hint {
+		t.Fatalf("learn line must follow the hint: %q", checker)
+	}
+	app := runError(t, "word fail() -> Result<Int, Error>\n    return err(error.new(\"app-code\", \"boom\"))\nlet n = fail() try\nprint(n)\n")
+	if !strings.HasPrefix(app, "bad.zhex:2:16: boom") || strings.Contains(app, "learn:") {
+		t.Fatalf("application code must render no learn line: %q", app)
+	}
+}
+
 func TestDiagnosticsSuggestCloseNamesAndWords(t *testing.T) {
 	if got := runError(t, "let fibo = 3\nprint(fib)\n"); !strings.Contains(got, `did you mean "fibo"?`) {
 		t.Fatalf("missing name suggestion: %q", got)
@@ -178,7 +204,7 @@ func TestCaretSpansWholeExpressions(t *testing.T) {
 			if !strings.HasPrefix(got, tc.wantFirstLinePrefix) {
 				t.Fatalf("first line changed: %q", got)
 			}
-			if !strings.Contains(got, tc.wantCaretLine+"\nhint:") && !strings.HasSuffix(got, tc.wantCaretLine) {
+			if !strings.Contains(got, tc.wantCaretLine+"\nhint:") && !strings.Contains(got, tc.wantCaretLine+"\nlearn:") && !strings.HasSuffix(got, tc.wantCaretLine) {
 				t.Fatalf("missing caret rung %q: %q", tc.wantCaretLine, got)
 			}
 		})

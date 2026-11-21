@@ -55,7 +55,7 @@ func TestRunCommandReportsJSON(t *testing.T) {
 			if code != 1 || out.String() != tc.output {
 				t.Fatalf("code %d, output %q", code, out.String())
 			}
-			for _, want := range []string{`"code":"` + tc.wantCode + `"`, `"severity":"error"`, `"file":"`, `"hint":`} {
+			for _, want := range []string{`"code":"` + tc.wantCode + `"`, `"severity":"error"`, `"file":"`, `"hint":`, `"url":"https://desireco.github.io/zhex/errors.html#` + tc.wantCode + `"`} {
 				if !strings.Contains(diagnostics.String(), want) {
 					t.Fatalf("stderr %q misses %s", diagnostics.String(), want)
 				}
@@ -122,6 +122,7 @@ func TestRunCommandTraceErrorPath(t *testing.T) {
 		path + ":5:9: division or remainder by zero",
 		"    print(1 / 0)",
 		"            ^",
+		"learn: https://desireco.github.io/zhex/errors.html#division-zero",
 	}, "\n") + "\n"
 	if diagnostics.String() != want {
 		t.Fatalf("stderr:\n%s\nwant:\n%s", diagnostics.String(), want)
@@ -638,6 +639,7 @@ func TestDoctestsCommandMismatch(t *testing.T) {
 		"    ## > double(2)",
 		"    ^^^^^^^^^^^^^^",
 		`hint: update the expected output after "## > ", or fix the word`,
+		"learn: https://desireco.github.io/zhex/errors.html#doctest-mismatch",
 	}, "\n") + "\n"
 	if diagnostics.String() != want {
 		t.Fatalf("stderr:\n%s\nwant:\n%s", diagnostics.String(), want)

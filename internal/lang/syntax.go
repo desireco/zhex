@@ -30,15 +30,15 @@ type diagnostic struct {
 
 // Error keeps the first line stable — file:line:column: message — so
 // scripts and agents parsing it keep working; the source excerpt with a
-// caret and the hint are additive lines. The formatting lives in zhexrt
-// (RenderDiag) so the native target's runtime diagnostics render
-// byte-identically.
+// caret, the hint, and the learn URL are additive lines. The formatting
+// lives in zhexrt (RenderDiag) so the native target's runtime diagnostics
+// render byte-identically.
 func (d *diagnostic) Error() string {
 	spanStart, spanEnd := 0, 0
 	if d.spanStart.line == d.spanEnd.line {
 		spanStart, spanEnd = d.spanStart.column, d.spanEnd.column
 	}
-	return zhexrt.RenderDiag(d.pos.file, d.pos.line, d.pos.column, d.message, d.hint, d.line, spanStart, spanEnd)
+	return zhexrt.RenderDiag(d.pos.file, d.pos.line, d.pos.column, d.message, d.hint, d.line, spanStart, spanEnd, d.code.DocsURL())
 }
 
 func errorAt(pos position, code Code, format string, args ...any) error {
@@ -63,7 +63,8 @@ func Report(err error) (string, bool) {
 		Hint            string `json:"hint"`
 		SpanStartColumn int    `json:"span_start_column,omitempty"`
 		SpanEndColumn   int    `json:"span_end_column,omitempty"`
-	}{string(d.code), d.severity, d.pos.file, d.pos.line, d.pos.column, d.message, d.hint, d.spanStart.column, d.spanEnd.column}
+		URL             string `json:"url,omitempty"`
+	}{string(d.code), d.severity, d.pos.file, d.pos.line, d.pos.column, d.message, d.hint, d.spanStart.column, d.spanEnd.column, d.code.DocsURL()}
 	out, err := json.Marshal(report)
 	if err != nil {
 		return "", false

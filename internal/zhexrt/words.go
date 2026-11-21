@@ -80,11 +80,11 @@ func EnvLoad(pos Pos, path string) Result[Unit] {
 // error.wrap build fresh ones at the call site's position.
 
 func ErrorNew(pos Pos, code, message string) *Error {
-	return &Error{Pos: pos, Code: code, Message: message, Operation: "error.new"}
+	return &Error{Pos: pos, Code: code, Message: message, Operation: "error.new", uncataloged: true}
 }
 
 func ErrorWrap(pos Pos, code, message string, cause *Error) *Error {
-	return &Error{Pos: cause.Pos, Code: code, Message: message, Operation: cause.Operation, Details: nil, Cause: cause}
+	return &Error{Pos: cause.Pos, Code: code, Message: message, Operation: cause.Operation, Details: nil, Cause: cause, uncataloged: true}
 }
 
 func ErrorHasCause(e *Error) bool { return e.Cause != nil }

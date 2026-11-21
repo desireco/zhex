@@ -73,6 +73,7 @@ word double(n: Int) -> Int
 		`    ## > double(2)`,
 		`    ^^^^^^^^^^^^^^`,
 		`hint: update the expected output after "## > ", or fix the word`,
+		"learn: https://desireco.github.io/zhex/errors.html#doctest-mismatch",
 	}, "\n")
 	if got[0] != want {
 		t.Fatalf("diagnostic:\n%s\nwant:\n%s", got[0], want)
@@ -118,6 +119,7 @@ word len-doc(s: String) -> Int
 		`    ## > text.length("héllo")`,
 		`    ` + strings.Repeat("^", 25),
 		`hint: update the expected output after "## > ", or fix the word`,
+		"learn: https://desireco.github.io/zhex/errors.html#doctest-mismatch",
 	}, "\n")
 	if got != want {
 		t.Fatalf("diagnostic:\n%s\nwant:\n%s", got, want)

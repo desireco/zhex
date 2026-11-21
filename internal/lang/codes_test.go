@@ -46,6 +46,30 @@ func TestEveryCodeHasACatalogSectionAndViceVersa(t *testing.T) {
 	}
 }
 
+// TestEveryCatalogCodeProducesItsLearnURL drift-gates the per-code learn
+// URL: every catalog code renders the errors-page anchor the site emits
+// (errors.astro gives each catalog entry id={code}), and no code outside
+// the catalog — application error.new codes, the runtime's
+// native-internal — renders one at all.
+func TestEveryCatalogCodeProducesItsLearnURL(t *testing.T) {
+	const wantBase = "https://desireco.github.io/zhex/errors.html"
+	for _, code := range DiagnosticCodes() {
+		if got := Code(code).DocsURL(); got != wantBase+"#"+code {
+			t.Errorf("code %q renders learn URL %q, want %s#%s", code, got, wantBase, code)
+		}
+	}
+	for code := range catalogSections(t) {
+		if got := Code(code).DocsURL(); got != wantBase+"#"+code {
+			t.Errorf("catalog section %q renders learn URL %q", code, got)
+		}
+	}
+	for _, code := range []string{"app-code", "native-internal", ""} {
+		if got := Code(code).DocsURL(); got != "" {
+			t.Errorf("uncataloged code %q must render no learn URL, got %q", code, got)
+		}
+	}
+}
+
 func TestDiagnosticCodesAreSortedAndUnique(t *testing.T) {
 	codes := DiagnosticCodes()
 	seen := map[string]bool{}
@@ -198,6 +222,46 @@ func TestReportAddsSpanFieldsAdditively(t *testing.T) {
 	}
 	if strings.Contains(runtimeReport, "span_") {
 		t.Fatalf("runtime report must not carry span fields: %s", runtimeReport)
+	}
+}
+
+// TestReportCarriesURLAdditively pins the additive url field: present for
+// checker and runtime diagnostics carrying catalog codes, absent for an
+// application error.new code that owns its own namespace.
+func TestReportCarriesURLAdditively(t *testing.T) {
+	const base = "https://desireco.github.io/zhex/errors.html"
+	for _, tc := range []struct{ name, source, wantURL string }{
+		{"checker", "print(1 - \"a\")\n", base + "#operand-types"},
+		{"runtime", "print(1 / 0)\n", base + "#division-zero"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := Run("bad.zhex", tc.source, strings.NewReader(""), &strings.Builder{})
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			report, ok := Report(err)
+			if !ok {
+				t.Fatal("error is not a diagnostic")
+			}
+			var fields map[string]any
+			if err := json.Unmarshal([]byte(report), &fields); err != nil {
+				t.Fatalf("report is not JSON: %v", err)
+			}
+			if fields["url"] != tc.wantURL {
+				t.Fatalf("url field is %q, want %q: %s", fields["url"], tc.wantURL, report)
+			}
+		})
+	}
+	err := Run("bad.zhex", "word fail() -> Result<Int, Error>\n    return err(error.new(\"app-code\", \"boom\"))\nlet n = fail() try\nprint(n)\n", strings.NewReader(""), &strings.Builder{})
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	report, ok := Report(err)
+	if !ok {
+		t.Fatal("error is not a diagnostic")
+	}
+	if strings.Contains(report, "url") {
+		t.Fatalf("application code must not carry a url field: %s", report)
 	}
 }
 

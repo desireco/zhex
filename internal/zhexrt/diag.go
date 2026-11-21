@@ -23,16 +23,25 @@ func At(file string, line, col int) Pos { return Pos{File: file, Line: line, Col
 // generated program assigns it in init.
 var Sources = map[string]string{}
 
+// DocsBaseURL anchors every diagnostic code to its errors-page section;
+// the site renders one id={code} section per catalog entry. The one place
+// the catalog's address is spelled.
+const DocsBaseURL = "https://desireco.github.io/zhex/errors.html"
+
+// LearnURL returns the errors-page anchor for a built-in code.
+func LearnURL(code string) string { return DocsBaseURL + "#" + code }
+
 // Error is a Zhex diagnostic at runtime: the same first line, excerpt,
 // caret, and hint shape zhex run prints, rendered by Run at the boundary.
 type Error struct {
-	Pos       Pos
-	Code      string
-	Message   string
-	Hint      string
-	Operation string
-	Details   map[string]string
-	Cause     *Error
+	Pos         Pos
+	Code        string
+	Message     string
+	Hint        string
+	Operation   string
+	Details     map[string]string
+	Cause       *Error
+	uncataloged bool // the code owns no catalog section: no learn line
 }
 
 func (e *Error) Error() string {
@@ -40,9 +49,10 @@ func (e *Error) Error() string {
 }
 
 // RenderDiag formats the stable diagnostic text — first line, optional
-// excerpt with caret line, optional hint — shared by the interpreter's
-// checker errors and this runtime's failures so the two never diverge.
-func RenderDiag(file string, line, column int, message, hint, sourceLine string, spanStart, spanEnd int) string {
+// excerpt with caret line, optional hint, optional learn URL — shared by
+// the interpreter's checker errors and this runtime's failures so the two
+// never diverge.
+func RenderDiag(file string, line, column int, message, hint, sourceLine string, spanStart, spanEnd int, learn string) string {
 	out := fmt.Sprintf("%s:%d:%d: %s", file, line, column, message)
 	if sourceLine != "" {
 		out += "\n    " + sourceLine + "\n    "
@@ -61,6 +71,9 @@ func RenderDiag(file string, line, column int, message, hint, sourceLine string,
 	if hint != "" {
 		out += "\nhint: " + hint
 	}
+	if learn != "" {
+		out += "\nlearn: " + learn
+	}
 	return out
 }
 
@@ -71,7 +84,11 @@ func (e *Error) render() string {
 			line = strings.TrimSuffix(lines[e.Pos.Line-1], "\r")
 		}
 	}
-	return RenderDiag(e.Pos.File, e.Pos.Line, e.Pos.Col, e.Message, e.Hint, line, 0, 0)
+	learn := ""
+	if e.Code != "" && !e.uncataloged {
+		learn = LearnURL(e.Code)
+	}
+	return RenderDiag(e.Pos.File, e.Pos.Line, e.Pos.Col, e.Message, e.Hint, line, 0, 0, learn)
 }
 
 // Fail raises a runtime diagnostic as a panic; Run recovers it, renders
@@ -110,7 +127,7 @@ func Run(entry func() *Error) {
 				case *Exit:
 					os.Exit(v.Status)
 				default:
-					result = &Error{Code: "native-internal", Message: fmt.Sprintf("internal error: %v", r)}
+					result = &Error{Code: "native-internal", Message: fmt.Sprintf("internal error: %v", r), uncataloged: true}
 				}
 			}
 		}()
