@@ -9,18 +9,21 @@ The checker validates names, types, and word connections across the whole progra
 
 ## Read a diagnostic
 
-Text diagnostics start with `file:line:column: message`. The source line follows, with a caret under the failing expression. When the checker knows a concrete fix, it adds a `hint:` line.
+Text diagnostics start with `file:line:column: message`. The source line follows, with a caret under the failing expression. When the checker knows a concrete fix, it adds a `hint:` line. Diagnostics for built-in catalog codes end with a `learn:` line pointing at that code's section on the [errors page](../errors.html).
 
 ```text
 bad.zhex:1:1: print does not support type Result<String, InputError>
     print(read-line("Name: "))
           ^^^^^^^^^^^^^^^^^^^
 hint: this value is a Result; add postfix try to unwrap it, as in text.to-int("N: ") try
+learn: https://desireco.github.io/zhex/errors.html#print-type
 ```
 
 Type errors may say where a value came from. This can point to the operation that produced an unexpected result. Hints describe a specific action only when the checker knows a fix.
 
-The [error catalog](../errors.html) lists stable built-in diagnostic codes and their meanings. Codes supplied by `error.new` and `error.wrap` are application data and do not each have a catalog entry. On a language error, `zhex run file.zhex --report=json` emits a JSON object with `code`, `severity`, `file`, `line`, `column`, `message`, and `hint`. Checker diagnostics with an expression span can also include `span_start_column` and `span_end_column`; runtime diagnostics do not include these fields. A successful run emits no report.
+The [error catalog](../errors.html) lists stable built-in diagnostic codes and their meanings. Codes supplied by `error.new` and `error.wrap` are application data and do not each have a catalog entry. On a language error, `zhex run file.zhex --report=json` emits a JSON object with `code`, `severity`, `file`, `line`, `column`, `message`, and `hint`. Checker diagnostics with an expression span can also include `span_start_column` and `span_end_column`; runtime diagnostics do not include these fields. Built-in catalog codes also carry `url`, that code's errors-page address. A successful run emits no report.
+
+The same catalog ships inside the binary: `zhex errors` lists every code with its one-line meaning, `zhex errors <code>` prints the full entry with its learn URL (an unknown code suggests the closest and exits nonzero), and `zhex errors --json` emits the whole catalog as `[{code, text, url}]`.
 
 ## Trace a run
 
