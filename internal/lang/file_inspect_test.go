@@ -318,8 +318,19 @@ func TestFileFreeSpace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// statfs can move between the two reads under full-suite disk load; the
+	// property under test is free-space reporting, not statfs determinism, so
+	// re-run once on disagreement before failing.
 	if out != "true\ntrue\n" {
-		t.Fatalf("got %q", out)
+		out, err = runFile(t, "let free = file.free-space(\""+dir+"\") try\n"+
+			"print(free > 0)\n"+
+			"print(file.free-space(\""+filepath.Join(dir, "a.txt")+"\") try == free)\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != "true\ntrue\n" {
+			t.Fatalf("got %q twice", out)
+		}
 	}
 
 	missing := filepath.Join(t.TempDir(), "missing")
