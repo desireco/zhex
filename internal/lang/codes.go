@@ -3,6 +3,7 @@ package lang
 import (
 	_ "embed"
 	"sort"
+	"strings"
 	"zhex/internal/zhexrt"
 )
 
@@ -180,3 +181,31 @@ func DiagnosticCodes() []string {
 
 // CatalogMarkdown returns the full catalog: one "## code" section per code.
 func CatalogMarkdown() string { return catalogMarkdown }
+
+// CatalogEntry is one cataloged code with its catalog prose — the same
+// entry the site's errors page renders from CatalogMarkdown.
+type CatalogEntry struct {
+	Code, Text string
+}
+
+// CatalogEntries splits the embedded catalog into one entry per
+// "## code" section, in sorted DiagnosticCodes order: the data source
+// for `zhex errors`, so the shipped guide cannot drift from the codes
+// the tool raises.
+func CatalogEntries() []CatalogEntry {
+	var entries []CatalogEntry
+	for i, section := range strings.Split(strings.TrimSpace(catalogMarkdown), "\n## ") {
+		if i == 0 {
+			continue // the intro before the first section
+		}
+		code, text, _ := strings.Cut(section, "\n")
+		entries = append(entries, CatalogEntry{strings.TrimSpace(code), strings.TrimSpace(text)})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Code < entries[j].Code })
+	return entries
+}
+
+// CodeHint returns the did-you-mean line for an unknown diagnostic code
+// over the catalog's code names — the same closest-name machinery name
+// and word hints use.
+func CodeHint(code string) string { return suggestHint(code, DiagnosticCodes()) }

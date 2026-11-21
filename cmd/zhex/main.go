@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"zhex/internal/lang"
 	"zhex/internal/native"
 	"zhex/internal/wasm"
+	"zhex/internal/zhexrt"
 )
 
 // readModule loads a sibling module file — the resolution rule for use.
@@ -24,7 +26,7 @@ func readModule(dir, name string) (lang.ModuleSource, bool) {
 	return lang.ModuleSource{Path: path, Source: string(source)}, true
 }
 
-const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out>] [--target=browser|wasi|native] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]"
+const usage = "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out>] [--target=browser|wasi|native] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps] | zhex errors [code] [--json]"
 
 func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
 
@@ -44,6 +46,9 @@ func run(args []string, input io.Reader, output, diagnostics io.Writer) int {
 	}
 	if len(args) >= 1 && args[0] == "test" {
 		return testCommand(args[1:], input, output, diagnostics)
+	}
+	if len(args) >= 1 && args[0] == "errors" {
+		return errorsCmd(args[1:], output, diagnostics)
 	}
 	if len(args) < 2 || args[0] != "run" {
 		fmt.Fprintln(diagnostics, usage)
@@ -223,6 +228,87 @@ func doctests(args []string, input io.Reader, output, diagnostics io.Writer) int
 		return 1
 	}
 	return 0
+}
+
+// errorDoc is one catalog entry in `zhex errors --json` output.
+type errorDoc struct {
+	Code string `json:"code"`
+	Text string `json:"text"`
+	URL  string `json:"url"`
+}
+
+// errorsCmd implements `zhex errors [code] [--json]`: the repair guide
+// shipped inside the binary. It renders no content of its own — the
+// entries come from the same go:embed catalog the diagnostics raise
+// codes from, so the guide cannot drift from the tool. An unknown code
+// exits 1 suggesting the closest catalog code; malformed invocations
+// are usage errors.
+func errorsCmd(args []string, output, diagnostics io.Writer) int {
+	code, asJSON := "", false
+	for _, arg := range args {
+		switch {
+		case arg == "--json":
+			asJSON = true
+		case strings.HasPrefix(arg, "-"):
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		case code == "":
+			code = arg
+		default:
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		}
+	}
+	entries := lang.CatalogEntries()
+	if asJSON {
+		if code != "" {
+			fmt.Fprintln(diagnostics, usage)
+			return 2
+		}
+		docs := make([]errorDoc, len(entries))
+		for i, entry := range entries {
+			docs[i] = errorDoc{Code: entry.Code, Text: entry.Text, URL: lang.Code(entry.Code).DocsURL()}
+		}
+		out, err := json.Marshal(docs)
+		if err != nil {
+			fmt.Fprintln(diagnostics, err)
+			return 1
+		}
+		fmt.Fprintln(output, string(out))
+		return 0
+	}
+	if code == "" {
+		fmt.Fprintf(output, "%d diagnostic codes — full entry: zhex errors <code> — %s\n", len(entries), zhexrt.DocsBaseURL)
+		for _, entry := range entries {
+			fmt.Fprintf(output, "%s  %s\n", entry.Code, firstSentence(entry.Text))
+		}
+		return 0
+	}
+	for _, entry := range entries {
+		if entry.Code != code {
+			continue
+		}
+		fmt.Fprintln(output, entry.Code)
+		fmt.Fprintln(output, entry.Text)
+		fmt.Fprintln(output, "learn: "+lang.Code(entry.Code).DocsURL())
+		return 0
+	}
+	fmt.Fprintf(diagnostics, "unknown code %q\n", code)
+	if hint := lang.CodeHint(code); hint != "" {
+		fmt.Fprintln(diagnostics, "hint: "+hint)
+	}
+	return 1
+}
+
+// firstSentence flattens a catalog entry to its first sentence — the
+// one-line listing form. Section prose can wrap lines, so join before
+// cutting at the sentence boundary.
+func firstSentence(text string) string {
+	flat := strings.Join(strings.Fields(text), " ")
+	if i := strings.Index(flat, ". "); i >= 0 {
+		return flat[:i+1]
+	}
+	return flat
 }
 
 // repl reads entries from input until EOF. A first line whose compile is

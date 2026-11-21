@@ -84,6 +84,26 @@ func TestDiagnosticCodesAreSortedAndUnique(t *testing.T) {
 	}
 }
 
+// TestCatalogEntriesStayABijectionWithTheCodes pins zhex errors' data
+// source: CatalogEntries renders every catalog section exactly once, in
+// sorted DiagnosticCodes order, with the section prose verbatim.
+func TestCatalogEntriesStayABijectionWithTheCodes(t *testing.T) {
+	sections := catalogSections(t)
+	entries := CatalogEntries()
+	codes := DiagnosticCodes()
+	if len(entries) != len(codes) || len(sections) != len(codes) {
+		t.Fatalf("catalog has %d sections and %d codes, CatalogEntries returns %d entries", len(sections), len(codes), len(entries))
+	}
+	for i, entry := range entries {
+		if entry.Code != codes[i] {
+			t.Fatalf("entry %d is %q, want %q — CatalogEntries must follow DiagnosticCodes order", i, entry.Code, codes[i])
+		}
+		if entry.Text != sections[entry.Code] {
+			t.Errorf("entry %q renders %q, want the catalog section %q", entry.Code, entry.Text, sections[entry.Code])
+		}
+	}
+}
+
 // TestRaiseSitesUseTheirCodes pins which code each raise site produces, so
 // a future edit cannot swap codes at a site while catalog and tests stay
 // green. unsupported-code and console-output are internal/failure-injection

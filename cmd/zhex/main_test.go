@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -164,7 +165,7 @@ func TestRunCommandRejectsMalformedTraceFlag(t *testing.T) {
 		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 {
 			t.Fatalf("args %v: code %d stderr %q", args, code, diagnostics.String())
 		}
-		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out>] [--target=browser|wasi|native] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps]\n" {
+		if diagnostics.String() != "usage: zhex run <file.zhex> [--report=text|json] [--trace] [args...] | zhex compile <file.zhex> [-o <out>] [--target=browser|wasi|native] | zhex repl [--trace] | zhex doctests <file.zhex> [--report=text|json] | zhex test [path] [--report=text|json] [--gaps] | zhex errors [code] [--json]\n" {
 			t.Fatalf("usage %q", diagnostics.String())
 		}
 	}
@@ -701,5 +702,97 @@ func TestRunCommandIgnoresDoctests(t *testing.T) {
 	var out, diagnostics bytes.Buffer
 	if code := run([]string{"run", path}, strings.NewReader(""), &out, &diagnostics); code != 0 || out.String() != "4\n" || diagnostics.Len() != 0 {
 		t.Fatalf("code %d, stdout %q, stderr %q", code, out.String(), diagnostics.String())
+	}
+}
+
+// TestErrorsCommandListsEveryCatalogCode pins the listing bijection: one
+// header line carrying the errors-page URL, then exactly one line per
+// catalog code, in DiagnosticCodes order with the code first.
+func TestErrorsCommandListsEveryCatalogCode(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	if code := run([]string{"errors"}, strings.NewReader(""), &out, &diagnostics); code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	codes := lang.DiagnosticCodes()
+	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+	if len(lines) != len(codes)+1 {
+		t.Fatalf("want a header plus %d code lines, got %d lines", len(codes), len(lines))
+	}
+	if !strings.Contains(lines[0], "https://desireco.github.io/zhex/errors.html") {
+		t.Fatalf("header lacks the catalog URL: %q", lines[0])
+	}
+	for i, want := range codes {
+		if !strings.HasPrefix(lines[i+1], want+"  ") {
+			t.Fatalf("line %d is %q, want code %q first", i+1, lines[i+1], want)
+		}
+	}
+}
+
+func TestErrorsCommandPrintsOneCode(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	if code := run([]string{"errors", "division-zero"}, strings.NewReader(""), &out, &diagnostics); code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	want := "division-zero\nDivision or remainder by zero. Guard the divisor with a condition first.\nlearn: https://desireco.github.io/zhex/errors.html#division-zero\n"
+	if out.String() != want {
+		t.Fatalf("got %q, want %q", out.String(), want)
+	}
+}
+
+// TestErrorsCommandSuggestsTheClosestCode pins the unknown-code path: a
+// near miss suggests the closest catalog code, a code nothing resembles
+// stays suggestion-free, and both exit 1.
+func TestErrorsCommandSuggestsTheClosestCode(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	if code := run([]string{"errors", "division-zer"}, strings.NewReader(""), &out, &diagnostics); code != 1 || out.Len() != 0 {
+		t.Fatalf("code %d, stdout %q", code, out.String())
+	}
+	if want := "unknown code \"division-zer\"\nhint: did you mean \"division-zero\"?\n"; diagnostics.String() != want {
+		t.Fatalf("got %q, want %q", diagnostics.String(), want)
+	}
+	diagnostics.Reset()
+	if code := run([]string{"errors", "zzzzzz"}, strings.NewReader(""), &out, &diagnostics); code != 1 {
+		t.Fatalf("code %d", code)
+	}
+	if strings.Contains(diagnostics.String(), "did you mean") {
+		t.Fatalf("a code nothing resembles must not suggest: %q", diagnostics.String())
+	}
+}
+
+// TestErrorsCommandEmitsTheCatalogAsJSON pins the --json shape: one
+// {code, text, url} object per catalog code, in listing order.
+func TestErrorsCommandEmitsTheCatalogAsJSON(t *testing.T) {
+	var out, diagnostics bytes.Buffer
+	if code := run([]string{"errors", "--json"}, strings.NewReader(""), &out, &diagnostics); code != 0 || diagnostics.Len() != 0 {
+		t.Fatalf("code %d, stderr %q", code, diagnostics.String())
+	}
+	codes := lang.DiagnosticCodes()
+	if !strings.HasPrefix(out.String(), `[{"code":"`+codes[0]+`","text":`) {
+		t.Fatalf("JSON must open with the first entry's code and text: %s", out.String()[:80])
+	}
+	var docs []struct {
+		Code string `json:"code"`
+		Text string `json:"text"`
+		URL  string `json:"url"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &docs); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if len(docs) != len(codes) {
+		t.Fatalf("want %d entries, got %d", len(codes), len(docs))
+	}
+	for i, doc := range docs {
+		if doc.Code != codes[i] || doc.URL != "https://desireco.github.io/zhex/errors.html#"+doc.Code || doc.Text == "" {
+			t.Fatalf("entry %d is %+v, want code %q with text and its learn URL", i, doc, codes[i])
+		}
+	}
+}
+
+func TestErrorsCommandUsage(t *testing.T) {
+	for _, args := range [][]string{{"errors", "one", "two"}, {"errors", "--bogus"}, {"errors", "division-zero", "--json"}} {
+		var out, diagnostics bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &diagnostics); code != 2 || out.Len() != 0 || !strings.Contains(diagnostics.String(), "usage:") {
+			t.Fatalf("args %v: code %d, stdout %q, stderr %q", args, code, out.String(), diagnostics.String())
+		}
 	}
 }
