@@ -385,8 +385,8 @@ const watPreludeM3TestExports = `
         (struct.get $zhex_list_ref $items (struct.get $zt_Json_List $f0 (ref.cast (ref $zt_Json_List) (local.get $p))))))))))
   (if (ref.test (ref $zt_Json_Object) (local.get $p))
     (then
-      (return (i64.extend_i32_u (array.len (struct.get $zhex_map_str_ref $keys
-        (struct.get $zt_Json_Object $f0 (ref.cast (ref $zt_Json_Object) (local.get $p)))))))))
+      (return (i64.extend_i32_u (struct.get $zhex_map_str_ref $len
+        (struct.get $zt_Json_Object $f0 (ref.cast (ref $zt_Json_Object) (local.get $p))))))))
   (i64.const -1))
 
 ;; recursive node counter and innermost literal: prove deep trees walk
@@ -407,8 +407,8 @@ const watPreludeM3TestExports = `
       (return (i64.add (local.get $total) (i64.const 1)))))
   (if (ref.test (ref $zt_Json_Object) (local.get $v))
     (then
-      (local.set $n (array.len (struct.get $zhex_map_str_ref $keys
-        (struct.get $zt_Json_Object $f0 (ref.cast (ref $zt_Json_Object) (local.get $v))))))
+      (local.set $n (struct.get $zhex_map_str_ref $len
+        (struct.get $zt_Json_Object $f0 (ref.cast (ref $zt_Json_Object) (local.get $v)))))
       (local.set $items (struct.get $zhex_map_str_ref $vals
         (struct.get $zt_Json_Object $f0 (ref.cast (ref $zt_Json_Object) (local.get $v)))))
       (block $done

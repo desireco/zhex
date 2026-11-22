@@ -905,8 +905,8 @@ func (e *watEmitter) forMap(s *statement, keyType, valType valueType) {
 	e.line("loop $loop" + k)
 	e.depth++
 	e.line("local.get " + i)
-	e.line("local.get " + keys)
-	e.line("array.len")
+	e.line("local.get " + recv)
+	e.line("struct.get " + mapT + " $len")
 	e.line("i32.lt_u")
 	e.line("if")
 	e.depth++

@@ -1,0 +1,65 @@
+# Map-heavy fixture (#188): 100k-entry maps built by map.put (the shape the
+# #6 benchmark caught growing its storage by one entry per insert), with
+# removes, re-puts, into, and insertion-order digests under iteration.
+
+word main()
+    var seen: Map<String, Int> = {}
+    var i = 0
+    while i < 100000
+        map.put(seen, int.to-string((i * 7919) % 199981), i)
+        i = i + 1
+    print(int.to-string(map.length(seen)))
+    match seen["0"]
+        case Option.Some(v)
+            print("hit " + int.to-string(v))
+        case Option.None
+            print("miss")
+
+    var total = 0
+    var first = 0
+    var counted = 0
+    for name, score in seen
+        if counted < 3
+            first = first + text.length(name) + score % 7
+        total = total + score % 13
+        counted = counted + 1
+    print(int.to-string(counted) + " " + int.to-string(first) + " " + int.to-string(total))
+
+    var removed = 0
+    var r = 0
+    while r < 100000
+        if r % 97 == 0
+            map.remove(seen, int.to-string((r * 7919) % 199981))
+            removed = removed + 1
+        r = r + 1
+    print(int.to-string(map.length(seen)) + " " + int.to-string(removed))
+    if map.contains(seen, "0")
+        print("still there")
+    else
+        print("gone")
+
+    var extra: Map<String, Int> = {}
+    var s = 0
+    while s < 5000
+        map.put(extra, int.to-string((s * 7919) % 199981), s + 900000)
+        map.put(extra, "fresh-" + int.to-string(s), s)
+        s = s + 1
+    map.into(extra, seen)
+    print(int.to-string(map.length(seen)))
+    match seen["fresh-4999"]
+        case Option.Some(v)
+            print("fresh " + int.to-string(v))
+        case Option.None
+            print("no fresh")
+
+    var codes: Map<Int, String> = {}
+    var c = 0
+    while c < 50000
+        map.put(codes, (c * 7919) % 149983, int.to-string(c % 977))
+        c = c + 1
+    var digest = 0
+    var cn = 0
+    for code, label in codes
+        digest = digest + code % 17 + text.length(label)
+        cn = cn + 1
+    print(int.to-string(cn) + " " + int.to-string(digest))

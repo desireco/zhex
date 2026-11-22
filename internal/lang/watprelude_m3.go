@@ -3026,8 +3026,8 @@ const watM3JsonEncode = `
         (call $zhex_str_concat (ref.as_non_null (local.get $acc)) (array.new_fixed $zhex_string 1 (i32.const 93)))))))
   ;; Object
   (local.set $acc (array.new_fixed $zhex_string 1 (i32.const 123)))
-  (local.set $n (array.len (struct.get $zhex_map_str_ref $keys
-    (struct.get $zt_Json_Object $f0 (ref.cast (ref $zt_Json_Object) (local.get $v))))))
+  (local.set $n (struct.get $zhex_map_str_ref $len
+    (struct.get $zt_Json_Object $f0 (ref.cast (ref $zt_Json_Object) (local.get $v)))))
   (block $joined
     (loop $jl
       (br_if $joined (i32.ge_u (local.get $i) (local.get $n)))
@@ -3167,7 +3167,7 @@ const watM3JsonEncode = `
       (if (i32.eq (struct.get $zjson_schema $kind (local.get $elem)) (i32.const 0))
         (then
           (local.set $i64v (ref.cast (ref $zhex_map_str_i64) (local.get $v)))
-          (local.set $n (array.len (struct.get $zhex_map_str_i64 $keys (local.get $i64v))))
+          (local.set $n (struct.get $zhex_map_str_i64 $len (local.get $i64v)))
           (block $joined
             (loop $jl
               (br_if $joined (i32.ge_u (local.get $i) (local.get $n)))
@@ -3192,7 +3192,7 @@ const watM3JsonEncode = `
       (if (i32.eq (struct.get $zjson_schema $kind (local.get $elem)) (i32.const 1))
         (then
           (local.set $i32v (ref.cast (ref $zhex_map_str_i32) (local.get $v)))
-          (local.set $n (array.len (struct.get $zhex_map_str_i32 $keys (local.get $i32v))))
+          (local.set $n (struct.get $zhex_map_str_i32 $len (local.get $i32v)))
           (block $joined
             (loop $jl
               (br_if $joined (i32.ge_u (local.get $i) (local.get $n)))
@@ -3215,7 +3215,7 @@ const watM3JsonEncode = `
           (return (struct.new $zhex_result (i32.const 0)
             (call $zhex_str_concat (ref.as_non_null (local.get $acc)) (array.new_fixed $zhex_string 1 (i32.const 125)))))))
       (local.set $map (ref.cast (ref $zhex_map_str_ref) (local.get $v)))
-      (local.set $n (array.len (struct.get $zhex_map_str_ref $keys (local.get $map))))
+      (local.set $n (struct.get $zhex_map_str_ref $len (local.get $map)))
       (block $joined
         (loop $jl
           (br_if $joined (i32.ge_u (local.get $i) (local.get $n)))
@@ -3410,7 +3410,7 @@ const watM3JsonDecode = `
           (local.set $m64 (call $zhex_map_new_str_i64))
           (local.set $r (local.get $m64))
           (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
-          (local.set $n (array.len (struct.get $zhex_map_str_i64 $keys (ref.cast (ref $zhex_map_str_i64) (local.get $v)))))
+          (local.set $n (struct.get $zhex_map_str_i64 $len (ref.cast (ref $zhex_map_str_i64) (local.get $v))))
           (block $cp (loop $cl
             (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
             (drop (call $zhex_map_put_str_i64 (ref.as_non_null (local.get $m64))
@@ -3427,7 +3427,7 @@ const watM3JsonDecode = `
           (local.set $m32 (call $zhex_map_new_str_i32))
           (local.set $r (local.get $m32))
           (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
-          (local.set $n (array.len (struct.get $zhex_map_str_i32 $keys (ref.cast (ref $zhex_map_str_i32) (local.get $v)))))
+          (local.set $n (struct.get $zhex_map_str_i32 $len (ref.cast (ref $zhex_map_str_i32) (local.get $v))))
           (block $cp (loop $cl
             (br_if $cp (i32.ge_u (local.get $i) (local.get $n)))
             (drop (call $zhex_map_put_str_i32 (ref.as_non_null (local.get $m32))
@@ -3463,7 +3463,7 @@ const watM3JsonDecode = `
       (local.set $map (call $zhex_map_new_str_ref))
       (local.set $r (local.get $map))
       (call $zjson_memo_push (local.get $m) (local.get $v) (local.get $r))
-      (local.set $n (array.len (struct.get $zhex_map_str_ref $keys (ref.cast (ref $zhex_map_str_ref) (local.get $v)))))
+      (local.set $n (struct.get $zhex_map_str_ref $len (ref.cast (ref $zhex_map_str_ref) (local.get $v))))
       (block $cl
         (loop $clp
           (br_if $cl (i32.ge_u (local.get $i) (local.get $n)))
