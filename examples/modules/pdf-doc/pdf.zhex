@@ -99,3 +99,125 @@ word document(objects: List<String>) -> String
     for off in offsets
         xref = xref + _pad10(off) + " 00000 n \n"
     out + xref + "trailer\n<< /Size " + (list.length(objects) + 1) + " /Root 1 0 R >>\nstartxref\n" + xref-at + "\n%%EOF\n"
+
+# The chapter layer over the emitter: a chapter is a title plus body
+# paragraphs as plain data — the caller (the demo or a future md bridge)
+# renders or prepares, the module never imports.
+
+type Chapter = record
+    title: String
+    paragraphs: List<String>
+
+## Word-by-word greedy wrap at a character width: a line breaks at the
+## last word that fits, an over-long word overflows alone rather than
+## breaking mid-word, and an empty line wraps to one empty line. Width
+## counts characters — a monospace approximation of Helvetica and the
+## local stand-in until a host text.wrap word lands (#196 decides it).
+word _wrap(line: String, width: Int) -> List<String>
+    var out: List<String> = list.new()
+    var cur = ""
+    var any = false
+    for w in text.split(line, " ")
+        if text.length(w) > 0
+            if not any
+                cur = w
+                any = true
+            elif text.length(cur) + 1 + text.length(w) <= width
+                cur = cur + " " + w
+            else
+                out = list.append(out, cur)
+                cur = w
+    if any
+        list.append(out, cur)
+    else
+        list.append(out, "")
+
+## One chapter as a flat line list: the escaped title, a blank, then
+## each paragraph wrapped at the width and escaped, blanks between
+## paragraphs. Escaping here is where the Latin-1 fence meets the
+## chapter path — a paragraph outside the fence fails pdf-latin1.
+word chapter-lines(c: Chapter, width: Int) -> Result<List<String>, Error>
+    var lines: List<String> = list.new()
+    lines = list.append(lines, escape(c.title) try)
+    lines = list.append(lines, "")
+    var first = true
+    for para in c.paragraphs
+        if not first
+            lines = list.append(lines, "")
+        first = false
+        for piece in _wrap(para, width)
+            lines = list.append(lines, escape(piece) try)
+    ok(lines)
+
+## A chapter's first page: the 24pt title at the top, then the body
+## switched down to 12pt one deeper step below it (title and lines
+## arrive already escaped from chapter-lines).
+word _title-page(title: String, lines: List<String>) -> String
+    var ops = "BT\n/F1 24 Tf\n72 770 Td\n(" + title + ") Tj\n"
+    var i = 0
+    while i < list.length(lines)
+        if i == 0
+            ops = ops + "/F1 12 Tf\n0 -26 TD\n"
+        else
+            ops = ops + "0 -14 TD\n"
+        ops = ops + "(" + lines[i] + ") Tj\n"
+        i = i + 1
+    ops + "ET"
+
+## Chapters to pages: every chapter starts on a fresh page — its first
+## page draws the 24pt title with the first body-lines - 2 wrapped lines
+## beside it (the title's height rides above the budget), and continuation
+## pages are plain 12pt text-blocks of body-lines lines each. Returns one
+## content-ops string per page, escaping already applied.
+word book-pages(chapters: List<Chapter>, width: Int, body-lines: Int) -> Result<List<String>, Error>
+    var pages: List<String> = list.new()
+    var body: List<String> = list.new()
+    var page-lines: List<String> = list.new()
+    for c in chapters
+        let lines = chapter-lines(c, width) try
+        body = list.new()
+        var i = 2
+        while i < list.length(lines)
+            body = list.append(body, lines[i])
+            i = i + 1
+        var at = 0
+        var title-page = true
+        while title-page or at < list.length(body)
+            var room = body-lines
+            if title-page
+                room = body-lines - 2
+            if room < 0
+                room = 0
+            page-lines = list.new()
+            var n = 0
+            while n < room and at < list.length(body)
+                page-lines = list.append(page-lines, body[at])
+                at = at + 1
+                n = n + 1
+            if title-page
+                pages = list.append(pages, _title-page(lines[0], page-lines))
+                title-page = false
+            else
+                pages = list.append(pages, text-block(12, 14, page-lines) try)
+    ok(pages)
+
+## The whole book as one document string: catalog, page tree with every
+## kid, the shared Helvetica font, then page and content objects pairwise
+## (page 4+2i, contents 5+2i) — document() pins the xref law.
+word book(chapters: List<Chapter>, width: Int, body-lines: Int) -> Result<String, Error>
+    let pages = book-pages(chapters, width, body-lines) try
+    var kids: List<Int> = list.new()
+    var objects: List<String> = list.new()
+    var i = 0
+    while i < list.length(pages)
+        kids = list.append(kids, 4 + i * 2)
+        i = i + 1
+    objects = list.append(objects, obj(1, catalog-body()))
+    objects = list.append(objects, obj(2, pages-body(kids)))
+    objects = list.append(objects, obj(3, font-body()))
+    i = 0
+    while i < list.length(pages)
+        objects = list.append(objects, obj(4 + i * 2, page-body(2, 5 + i * 2)))
+        objects = list.append(objects, obj(5 + i * 2, content-body(pages[i])))
+        i = i + 1
+    ok(document(objects))

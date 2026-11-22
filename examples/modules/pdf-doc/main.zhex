@@ -1,37 +1,35 @@
-# A two-page PDF emitted by hand: the pdf module assembles catalog, page
-# tree, font, and the two page content streams as ASCII strings; the
-# demo writes the file, prints its structural facts, and removes it, so
-# the example's output stays deterministic at build time.
+# A three-chapter PDF book: the pdf module wraps paragraphs, breaks
+# pages, and assembles catalog, page tree, font, and per-page content
+# streams as ASCII strings; the demo writes the file, prints its
+# structural facts, and removes it, so the example's output stays
+# deterministic at build time.
 use pdf
 
-# page 1: a heading plus body lines in Helvetica
-let ops1 = pdf.text-block(24, 16, [
-    "Zhex PDF spike",
-    "",
-    "This document is a plain ASCII string built by Zhex words:",
-    "objects, an xref table, and a trailer, concatenated in order.",
-    "Page two proves the page-break machinery."
-]) try
+let chapters = [
+    pdf.Chapter("The Zhex PDF book", [
+        "This book is a plain ASCII string built by Zhex words.",
+        "Chapters arrive as records: a title and body paragraphs.",
+        "The module wraps the paragraphs and breaks pages itself."
+    ]),
+    pdf.Chapter("Long chapter", [
+        "This chapter is deliberately long enough to overflow its first page, so the book exercises the page-break machinery beyond the two-page spike.",
+        "Each paragraph wraps at the width the caller passes; the module never guesses a layout.",
+        "A chapter always starts on a fresh page: its title draws at 24pt with the first wrapped lines beside it, and the rest flows onto plain 12pt continuation pages.",
+        "Nothing here depends on a viewer: the page tree counts the pages, each content stream pins its own /Length, and the xref table counts characters, which the ASCII law makes identical to bytes.",
+        "The Latin-1 fence still holds: any character above code point 255 fails pdf-latin1 instead of being stripped or mangled.",
+        "The escape word turns ( ) and \\ into backslash escapes and 128..255 into octal, so the emitted file is ASCII end to end."
+    ]),
+    pdf.Chapter("The last export", [
+        "With HTML, EPUB, and PDF all landing, the export stories are complete.",
+        "One module per format, plain data in, bytes or text out."
+    ])
+]
 
-# page 2: the page-break proof — a second page object and stream
-let ops2 = pdf.text-block(12, 16, [
-    "Page 2",
-    "",
-    "Two page objects share one font resource and one page tree;",
-    "each carries its own content stream with its own /Length.",
-    "The viewer paginates from the Kids list, nothing more."
-]) try
+let pages = pdf.book-pages(chapters, 64, 16) try
+let doc = pdf.book(chapters, 64, 16) try
 
-let doc = pdf.document([
-    pdf.obj(1, pdf.catalog-body()),
-    pdf.obj(2, pdf.pages-body([4, 6])),
-    pdf.obj(3, pdf.font-body()),
-    pdf.obj(4, pdf.page-body(2, 5)),
-    pdf.obj(5, pdf.content-body(ops1)),
-    pdf.obj(6, pdf.page-body(2, 7)),
-    pdf.obj(7, pdf.content-body(ops2))
-])
-
+print "chapters: " + list.length(chapters)
+print "pages: " + list.length(pages)
 print "pdf chars (= bytes, the ASCII law): " + text.length(doc)
 print "header: " + text.slice(doc, 0, 8)
 if text.ends-with(doc, "%%EOF\n")
@@ -39,6 +37,6 @@ if text.ends-with(doc, "%%EOF\n")
 if text.contains(pdf.font-body(), "/Helvetica")
     print "font: Helvetica base-14"
 
-let written = file.write(doc, "pdf-spike.pdf") try
-print "wrote pdf-spike.pdf"
-let removed = file.delete("pdf-spike.pdf") try
+let written = file.write(doc, "pdf-book.pdf") try
+print "wrote pdf-book.pdf"
+let removed = file.delete("pdf-book.pdf") try

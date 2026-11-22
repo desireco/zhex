@@ -1,9 +1,10 @@
 # PDF module tests: the escape law (ASCII literal, punctuation escaped,
 # Latin-1 in octal, over-fence failure), the text-block operators, the
-# content /Length, and the assembled document's header, xref offsets,
-# and trailer. The viewer verification — pdfinfo and qpdf --check on the
-# written file — runs in the ticket's gate, not here; this file pins
-# structure.
+# content /Length, the assembled document's header, xref offsets, and
+# trailer, plus the chapter vocabulary: the wrap stand-in's boundaries
+# through chapter-lines, multi-page assembly, and page-break placement.
+# The viewer verification — pdfinfo and qpdf --check on the written
+# file — runs in the ticket's gate, not here; this file pins structure.
 use pdf
 use test
 
@@ -53,5 +54,69 @@ let digits = text.slice(tail, 0, text.index-of(tail, "\n"))
 let xref-offset = text.to-int(digits) try
 test.check(text.slice(doc, xref-offset, xref-offset + 4) == "xref", "startxref points at the xref table")
 test.check(text.ends-with(doc, "%%EOF\n"), "the trailer ends the file")
+
+# the wrap stand-in's boundaries, observed through chapter-lines:
+# an exact-width line fits unbroken, a wider pair wraps at the width,
+# an over-long word overflows alone rather than breaking mid-word,
+# and an empty paragraph renders as one empty line
+let exact = pdf.chapter-lines(pdf.Chapter("T", ["aaaa bb"]), 7) try
+test.check(text.join(exact, "|") == "T||aaaa bb", "an exact-width line stays one line")
+let wrapped = pdf.chapter-lines(pdf.Chapter("T", ["aaa bbb ccc"]), 7) try
+test.check(text.join(wrapped, "|") == "T||aaa bbb|ccc", "words wrap at the width")
+let long-word = pdf.chapter-lines(pdf.Chapter("T", ["abcdefghij xy"]), 4) try
+test.check(text.join(long-word, "|") == "T||abcdefghij|xy", "an over-long word overflows alone")
+let empty-para = pdf.chapter-lines(pdf.Chapter("T", [""]), 10) try
+test.check(text.join(empty-para, "|") == "T||", "an empty paragraph renders one empty line")
+
+# chapter-lines escapes through the chapter path and a blank line
+# separates paragraphs
+let escaped = pdf.chapter-lines(pdf.Chapter("a(b)", ["c\\d", "second"]), 20) try
+test.check(text.join(escaped, "|") == "a\\(b\\)||c\\\\d||second", "chapter lines arrive escaped")
+
+# the Latin-1 fence fails through the chapter path too
+let fenced = text.join(pdf.chapter-lines(pdf.Chapter("T", [text.from-code-points([20320]) + "!"]), 10) catch ["failed"], "|")
+test.check(fenced == "failed", "a chapter paragraph outside the fence fails pdf-latin1")
+
+# multi-page assembly: width 20, four body lines per page (two on a
+# chapter's first page beside the 24pt title); chapter two runs long
+# enough to break onto continuation pages
+let chapters = [
+    pdf.Chapter("One", ["aaa bbb ccc ddd eee fff ggg hhh"]),
+    pdf.Chapter("Two", [
+        "p1 aa bb",
+        "p2 cc dd",
+        "p3 ee ff",
+        "p4 gg hh"
+    ]),
+    pdf.Chapter("Three", ["short body"])
+]
+let pages = pdf.book-pages(chapters, 20, 4) try
+
+# chapter one: one paragraph wraps to two lines, both fit the title page;
+# chapter two: four paragraphs plus separator blanks = seven body lines —
+# two on the title page, then four, then one spills to a third page;
+# chapter three starts fresh — pins below fix the exact placement
+test.check(list.length(pages) == 5, "the book runs to five pages")
+test.check(text.contains(pages[0], "/F1 24 Tf"), "a chapter's first page sets the 24pt title size")
+test.check(text.contains(pages[0], "(One) Tj"), "the title page draws the chapter title")
+test.check(text.contains(pages[1], "(Two) Tj"), "chapter two follows on the next page")
+test.check(text.starts-with(pages[2], "BT\n/F1 12 Tf"), "a continuation page is a plain 12pt text-block")
+test.check(text.contains(pages[4], "/F1 24 Tf") and text.contains(pages[4], "(Three) Tj"), "chapter three starts on its own fresh page")
+var title-pages = 0
+for p in pages
+    if text.contains(p, "/F1 24 Tf")
+        title-pages = title-pages + 1
+test.check(title-pages == 3, "one title page per chapter, three chapters")
+
+# the whole book: page tree counts the pages, and the xref law holds
+let book = pdf.book(chapters, 20, 4) try
+test.check(text.contains(book, "/Count 5"), "the page tree counts five pages")
+test.check(text.starts-with(book, "%PDF-1.4\n"), "the book header comes first")
+let book-at = text.index-of(book, "startxref\n")
+let book-tail = text.slice(book, book-at + 10, text.length(book))
+let book-digits = text.slice(book-tail, 0, text.index-of(book-tail, "\n"))
+let book-xref = text.to-int(book-digits) try
+test.check(text.slice(book, book-xref, book-xref + 4) == "xref", "startxref points at the book's xref table")
+test.check(text.ends-with(book, "%%EOF\n"), "the book trailer ends the file")
 
 print "pdf module tests passed"
