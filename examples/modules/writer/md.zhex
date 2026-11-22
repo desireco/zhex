@@ -1,0 +1,1132 @@
+# A Markdown report library. Every word returns one String fragment and
+# never touches a Buffer — the caller accumulates fragments and joins
+# them with blank lines: text.join(fragments, "\n\n").
+#
+# Pinned contracts:
+# - md.paragraph emits caller text verbatim apart from escaping; no
+#   trimming or rewrapping.
+# - Text positions (headings, paragraphs, list items, table cells, link
+#   text) backslash-escape every ASCII CommonMark punctuation character;
+#   non-ASCII text passes through untouched.
+# - Link targets always percent-encode spaces and parentheses; when the
+#   lowercased target starts with javascript: or data:, every colon is
+#   percent-encoded too, which renders the scheme inert.
+# - md.code-block scans its lines for the longest backtick run and emits
+#   a fence of max(3, run + 1) backticks; nothing inside is escaped and
+#   the language tag is emitted verbatim after the opening fence.
+# - md.heading clamps its level into 1..6.
+# - md.table requires every row to match the header's cell count; the
+#   deliberate read past a mismatching row reports it as the interpreter's
+#   out-of-range diagnostic, so a malformed table never renders silently.
+# - Empty input renders to the empty fragment "".
+# - Dialect: CommonMark core subset; footnotes and task lists excluded.
+#
+# Parse side (md.parse, md.render):
+# - Block is the flat block choice (Heading(level, text), Paragraph(text),
+#   Rule, BulletItem(marker, text, indent), OrderedItem(marker, text,
+#   indent), Quote(text, indent), Code(fence, info, lines),
+#   Table(header, rows)) and Doc is the record over List<Block>;
+#   the list carries heading levels and item indents inline, never nested
+#   children — the hierarchy is derived later.
+# - md.parse is total: every input is some block sequence, so it returns a
+#   plain Doc, not a Result. Recognized subset: ATX headings are 1-6 #'s
+#   followed by a space or the line's end (7+ #'s or a missing space is
+#   paragraph text); paragraphs are runs of non-blank lines joined with
+#   newlines, separated by one or more blank lines, leading and trailing
+#   blank lines ignored; a rule is 3 or more of one marker character
+#   (-, *, or _) alone on its line. Bullet items start with -, *, or +
+#   followed by a space or the line's end; ordered items start with one to
+#   nine digits then . or ) followed by a space or the line's end; the
+#   marker is kept verbatim and the item text is the trimmed rest of that
+#   one line. A quote line starts with > and its text is the trimmed rest.
+#   Indent is floor(leading spaces / 2) — two spaces per level, odd counts
+#   floor — on lists and quotes only. Lazy continuation is out: one line
+#   per item or quote, and a non-blank follower without a marker is
+#   paragraph text. Setext headings, indented headings and rules, nested
+#   quote markers (the inner > stays in the text), and rules with inner
+#   spaces are excluded.
+# - Fenced code: an opening fence is 3 or more backticks at the start of
+#   a line (tildes are not fences; an indented fence is paragraph text),
+#   the info string is the trimmed rest of that line kept verbatim, and
+#   the closing fence is a line of only backticks at least as long as
+#   the opening one — everything between is content verbatim, blank
+#   lines and indentation included, and an unclosed block simply closes
+#   at the end of the text. md.render re-fences through md.code-block's
+#   max(3, longest inner run + 1) law, so the parsed fence is advisory.
+# - Tables: a line starting with | whose next line is a delimiter row —
+#   pipe-led cells of dashes with optional outer : markers, cell count
+#   matching the header — starts a table; alignment markers are dropped
+#   on purpose (the write side emits plain dashes). Cells are trimmed
+#   and split on pipes not preceded by a backslash; the backslash stays
+#   verbatim, no unescaping. Data rows are the following pipe-led lines:
+#   a short row pads with empty cells, an overlong row drops its excess
+#   cells, and any other line ends the table.
+# - md.outline is a derived view of the flat list: every Heading block as
+#   a Section(index, level, text) row in source order — index is the block
+#   index md.section slices from; nothing is nested.
+# - md.section(doc, index) slices blocks from the heading at that index up
+#   to (not including) the next heading of level <= its own, so nested
+#   subsections ride along; it returns Result<Doc, Error> because slicing
+#   can fail where md.parse is total — a non-heading or out-of-range index
+#   reports the interpreter's checked out-of-range diagnostic through a
+#   deliberate read past the end, the same channel as md.table's strict
+#   rows, never a silent shape. md.section-text is that slice rendered,
+#   one composition away.
+# - Section editing is the writer's story over the same flat list: every
+#   op is keyed by the Section index md.outline reports and returns a
+#   fresh Doc — Doc is a value here like parse and render, never a mutated
+#   receiver. md.remove-section drops the heading's whole slice (its
+#   subsections with it); md.replace-section swaps the slice for another
+#   Doc's blocks; md.insert-section splices another Doc's blocks in before
+#   the block index `at` (0..block count inclusive); md.move-section lifts
+#   the slice out and splices it before block index `to` — a `to` inside
+#   the section's own slice is the identity, the smallest honest rule (the
+#   section already sits before that block). Those four fail through
+#   md.section's checked read channel when the index is out of range or
+#   not a heading. md.promote and md.demote shift every Heading in the
+#   section's slice by one level, clamped at 1 and 6, and are total on
+#   purpose: a level shift can never fail (the clamp absorbs the edge)
+#   and an index that selects no heading selects no slice — nothing
+#   shifts and the Doc comes back unchanged, the same answer md.outline
+#   gives that index, never a silent shape change.
+# - Block-grain editing is the finest layer beneath the section ops: the
+#   same flat list, one block at a time. md.insert-block splices one block
+#   in before block index `at` (0..block count inclusive — `at` == count
+#   appends, list.insert's law); md.replace-block and md.remove-block
+#   validate their index through the checked read channel (a deliberate
+#   read naming the offending index, never a silent shape); md.set-blocks
+#   swaps the whole list and is total. The section ops are these verbs'
+#   convenience layer — remove-section(doc, i) is remove-block repeated
+#   over the section's slice.
+# - Stats is the per-chunk counting record: blocks, headings, paragraphs,
+#   list-items, code-blocks, tables, plus words and characters measured on
+#   each block's own text — heading, paragraph, item, and quote text
+#   verbatim, code lines joined with newlines, table cells joined with
+#   newlines, a rule contributing none. md.stats folds it over a Doc;
+#   md.section-stats is that fold over md.section's slice (Result like
+#   md.section).
+# - CRLF line endings are normalized to LF first,
+#   and inline content is kept verbatim — no unescaping, inline parsing
+#   is a later story.
+# - md.render writes a Doc back through the write-side words above (so
+#   heading and paragraph text escape as they pin; item and quote text is
+#   verbatim, matching the parse) and joins blocks with blank lines,
+#   except that a run of consecutive same-kind items or quotes joins with
+#   single newlines as one list — every parsed list is tight, so a blank
+#   line inside a list is dropped and loose lists tighten on the round
+#   trip; rules render as ---.
+# - The round-trip law, pinned in md.test.zhex: render(parse(text)) ==
+#   text holds for canonical text — no escapable ASCII punctuation in
+#   heading, paragraph, or table-cell text (item, quote, and code text
+#   is verbatim and unrestricted), tight lists, and tables already in
+#   the write side's normalized shape. The looser canonicalization law,
+#   render(parse(render(parse(text)))) == render(parse(text)), holds for
+#   any text whose rendered positions are punctuation-free: one pass
+#   absorbs the shape divergences — loose lists tightening, alignment
+#   markers dropping, cell padding normalizing, CRLF reducing to LF —
+#   after which the equality law holds. Escapable punctuation in a
+#   rendered position escapes on every pass (parse never unescapes), so
+#   it is excluded from both laws; md.test.zhex pins that edge too.
+#
+# Export side (md.to-html, md.to-html-page):
+# - Every block kind renders as escaped HTML, blocks joined with single
+#   newlines; the fragment is the fragment deliverable, and
+#   md.to-html-page wraps it in the full document form.
+# - Text positions (headings, paragraphs, list items, quotes, table
+#   cells) entity-escape & < > ' " through _html-esc, a pinned twin of
+#   html.escape-text in the html module — use resolves siblings only, so
+#   the modules cannot import each other; the bytes are pinned identical
+#   on both sides, and drift is the known risk of that split.
+# - Code blocks escape their content verbatim inside <pre><code> with no
+#   fence in the output; a non-empty info string becomes the class
+#   attribute (entity-escaped).
+# - A run of one list kind is one <ul>/<ol>; indent fields nest a list
+#   inside the previous item's <li>, and an indent jump deeper than one
+#   level nests once (indents normalize stepwise). A run of quote lines
+#   is one <blockquote> of <p> lines, rendered flat. Table header and
+#   data rows are plain <td> cells — alignment was dropped at parse.
+# - Inline markup is not parsed (spans are the v2 story): raw markdown
+#   links and emphasis render as escaped text, no anchor is ever
+#   emitted, the html.link scheme gate cannot fire, and to-html is
+#   total — a plain String, never a Result. When spans land, link
+#   targets must pass that gate.
+
+word heading(level: Int, text: String) -> String
+    _repeat("#", _clamped(level)) + " " + _esc(text)
+
+word paragraph(text: String) -> String
+    _esc(text)
+
+word bullet-list(items: List<String>) -> String
+    var lines: List<String> = list.new()
+    for item in items
+        list.append(lines, "- " + _esc(item))
+    text.join(lines, "\n")
+
+word ordered-list(items: List<String>) -> String
+    var lines: List<String> = list.new()
+    var n = 0
+    for item in items
+        n = n + 1
+        list.append(lines, int.to-string(n) + ". " + _esc(item))
+    text.join(lines, "\n")
+
+word link(text: String, target: String) -> String
+    "[" + _esc(text) + "](" + _target(target) + ")"
+
+word code-block(language: String, lines: List<String>) -> String
+    let mark = _repeat("`", _fence-length(lines))
+    if text.length(language) > 0
+        mark + language + "\n" + text.join(lines, "\n") + "\n" + mark
+    else
+        mark + "\n" + text.join(lines, "\n") + "\n" + mark
+
+word table(headers: List<String>, rows: List<List<String>>) -> String
+    let width = list.length(headers)
+    # shortcut: strict rows — a row that misses or exceeds the header
+    # width is reported by the out-of-range read, upgrade: none.
+    for row in rows
+        if list.length(row) != width
+            let _short-or-long = row[list.length(row)]
+    let esc-headers = list.map(headers, _esc(_))
+    var esc-rows: List<List<String>> = list.new()
+    for row in rows
+        list.append(esc-rows, list.map(row, _esc(_)))
+    var widths: List<Int> = list.new()
+    for j in range(0, width)
+        var w = text.length(esc-headers[j])
+        for row in esc-rows
+            if text.length(row[j]) > w
+                w = text.length(row[j])
+        list.append(widths, w)
+    var lines: List<String> = list.new()
+    list.append(lines, _table-row(esc-headers, widths))
+    list.append(lines, _table-separator(widths))
+    for row in esc-rows
+        list.append(lines, _table-row(row, widths))
+    text.join(lines, "\n")
+
+# One block in the flat Doc: a heading with its ATX level, a paragraph's
+# verbatim text, a horizontal rule, a list item with its verbatim marker
+# and indent, a quote line with its indent, a fenced code block with its
+# opening fence, info string, and verbatim lines, or a pipe table with
+# its header and rows. Nesting is the indent field on the flat list,
+# never children.
+type Block = choice
+    Heading(level: Int, text: String)
+    Paragraph(text: String)
+    Rule
+    BulletItem(marker: String, text: String, indent: Int)
+    OrderedItem(marker: String, text: String, indent: Int)
+    Quote(text: String, indent: Int)
+    Code(fence: String, info: String, lines: List<String>)
+    Table(header: List<String>, rows: List<List<String>>)
+
+# A parsed document: the block list in source order, nothing nested.
+type Doc = record
+    blocks: List<Block>
+
+# One outline row: a heading's place in the flat block list. index is the
+# block index md.section slices from; level and text mirror the Heading.
+type Section = record
+    index: Int
+    level: Int
+    text: String
+
+# Per-chunk statistics: block-kind counts plus words and characters
+# measured on each block's own text (see _block-text).
+type Stats = record
+    blocks: Int
+    headings: Int
+    paragraphs: Int
+    list-items: Int
+    code-blocks: Int
+    tables: Int
+    words: Int
+    characters: Int
+
+## Parses Markdown text into a flat Doc of blocks; total, never a Result.
+## > render(parse("## Notes"))
+## ## Notes
+## > render(parse("one\ntwo"))
+## one
+## two
+## > render(parse("---"))
+## ---
+## > render(parse("- one\n  - two"))
+## - one
+##   - two
+## > render(parse("```zhex\nlet x = 1\n```"))
+## ```zhex
+## let x = 1
+## ```
+## > render(parse("| a | b |\n| --- | --- |\n| 1 | 2 |"))
+## | a | b |
+## | --- | --- |
+## | 1 | 2 |
+word parse(text: String) -> Doc
+    var blocks: List<Block> = list.new()
+    var pending: List<String> = list.new()
+    let lines = text.split(text.replace(text, "\r\n", "\n"), "\n")
+    var i = 0
+    while i < list.length(lines)
+        let line = lines[i]
+        var next = i + 1
+        let fence = _fence-open(line)
+        if fence != ""
+            pending = _absorb(blocks, pending)
+            var body: List<String> = list.new()
+            var j = i + 1
+            var closed = false
+            while j < list.length(lines) and not closed
+                if _fence-close(lines[j], fence)
+                    closed = true
+                else
+                    let _body = list.append(body, lines[j])
+                j = j + 1
+            let info = text.trim(text.slice(line, text.length(fence), text.length(line)))
+            let _code = list.append(blocks, Block.Code(fence, info, body))
+            next = j
+        elif text.trim(line) == ""
+            pending = _absorb(blocks, pending)
+        elif _is-rule(line)
+            pending = _absorb(blocks, pending)
+            let _rule = list.append(blocks, Block.Rule)
+        elif _table-at(lines, i)
+            pending = _absorb(blocks, pending)
+            let header = _table-cells(line)
+            var rows: List<List<String>> = list.new()
+            var j = i + 2
+            while j < list.length(lines) and text.starts-with(lines[j], "|")
+                let _row = list.append(rows, _fit-row(_table-cells(lines[j]), list.length(header)))
+                j = j + 1
+            let _table = list.append(blocks, Block.Table(header, rows))
+            next = j
+        else
+            let level = _heading-level(line)
+            if level > 0
+                pending = _absorb(blocks, pending)
+                let body = text.trim(text.slice(line, level, text.length(line)))
+                let _heading = list.append(blocks, Block.Heading(level, body))
+            else
+                let rest = _strip-indent(line)
+                let ind = _indent-of(line)
+                let bullet = _bullet-marker(rest)
+                let ordered = _ordered-marker(rest)
+                if text.starts-with(rest, ">")
+                    pending = _absorb(blocks, pending)
+                    let _quote = list.append(blocks, Block.Quote(text.trim(text.slice(rest, 1, text.length(rest))), ind))
+                elif bullet != ""
+                    pending = _absorb(blocks, pending)
+                    let _item = list.append(blocks, Block.BulletItem(bullet, _item-text(rest, bullet), ind))
+                elif ordered != ""
+                    pending = _absorb(blocks, pending)
+                    let _item = list.append(blocks, Block.OrderedItem(ordered, _item-text(rest, ordered), ind))
+                else
+                    let _line = list.append(pending, line)
+        i = next
+    _absorb(blocks, pending)
+    Doc(blocks)
+
+## Renders a Doc back to Markdown text through the write-side words.
+## > render(Doc([Block.Rule]))
+## ---
+## > render(Doc([Block.BulletItem("-", "a", 0), Block.BulletItem("-", "b", 1)]))
+## - a
+##   - b
+word render(doc: Doc) -> String
+    var fragments: List<String> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        let kind = _run-kind(doc.blocks[i])
+        if kind == "none"
+            _render-plain(fragments, doc.blocks[i])
+            i = i + 1
+        else
+            var lines: List<String> = list.new()
+            while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == kind
+                let _line = list.append(lines, _item-line(doc.blocks[i]))
+                i = i + 1
+            let _list = list.append(fragments, text.join(lines, "\n"))
+    text.join(fragments, "\n\n")
+
+## Lists every Heading block as a Section row (index, level, text) in
+## source order — a derived view of the flat list, never nested children.
+## > list.length(outline(parse("# A\n\npara\n\n## B")))
+## 2
+word outline(doc: Doc) -> List<Section>
+    var rows: List<Section> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        match doc.blocks[i]
+            case Block.Heading(level, text)
+                let _row = list.append(rows, Section(i, level, text))
+            case _
+                let _skip = ""
+        i = i + 1
+    rows
+
+## Slices the section starting at the heading at block index: the slice
+## runs to the next heading of level <= its own (nested subsections ride
+## along) and renders or fails as one composition —
+## render(section(doc, index) try).
+## > render(section(parse("# A\n\n## B"), 1) try)
+## ## B
+word section(doc: Doc, index: Int) -> Result<Doc, Error>
+    let level = _heading-level-at(doc, index) try
+    ok(Doc(_section-blocks(doc, index, level)))
+
+## Renders the section at a heading's block index to text — section and
+## render composed once.
+## > section-text(parse("# A\n\n## B"), 1) try
+## ## B
+word section-text(doc: Doc, index: Int) -> Result<String, Error>
+    ok(render(section(doc, index) try))
+
+## Drops the section starting at the heading at block index — its whole
+## slice, nested subsections with it — and returns the fresh Doc without
+## it. Fails through md.section's checked read channel on a non-heading
+## or out-of-range index.
+## > render(remove-section(parse("# A\n\n## B"), 1) try)
+## # A
+word remove-section(doc: Doc, index: Int) -> Result<Doc, Error>
+    let level = _heading-level-at(doc, index) try
+    ok(Doc(_blocks-without(doc, index, _section-end(doc, index, level))))
+
+## Swaps the section at the heading's block index for another Doc's
+## blocks, subsections and all. Fails through md.section's checked read
+## channel on a non-heading or out-of-range index.
+## > render(replace-section(parse("## B"), 0, parse("# C")) try)
+## # C
+word replace-section(doc: Doc, index: Int, replacement: Doc) -> Result<Doc, Error>
+    let level = _heading-level-at(doc, index) try
+    ok(Doc(_splice(_blocks-without(doc, index, _section-end(doc, index, level)), index, replacement.blocks)))
+
+## Splices another Doc's blocks in before block index `at`
+## (0..block count inclusive). Fails through the checked read channel
+## naming the offending index.
+## > render(insert-section(parse(""), 0, parse("# C")) try)
+## # C
+word insert-section(doc: Doc, at: Int, addition: Doc) -> Result<Doc, Error>
+    let _checked = _check-at(doc, at) try
+    ok(Doc(_splice(doc.blocks, at, addition.blocks)))
+
+## Shifts every Heading in the section's slice one level up, clamped at 1
+## — a level-one heading stays level one while its inner headings still
+## shift. Total on purpose: a level shift can never fail (the clamp
+## absorbs the edge) and an index that selects no heading selects no
+## slice, so nothing shifts and the Doc comes back unchanged — the same
+## answer md.outline gives that index, never a silent shape change.
+## > render(promote(parse("## B"), 0))
+## # B
+word promote(doc: Doc, index: Int) -> Doc
+    _shift(doc, index, -1)
+
+## Shifts every Heading in the section's slice one level down, clamped at
+## 6. Total for the same reason as md.promote.
+## > render(demote(parse("# A"), 0))
+## ## A
+word demote(doc: Doc, index: Int) -> Doc
+    _shift(doc, index, 1)
+
+## Lifts the section at the heading's block index out and splices it
+## before block index `to` (0..block count inclusive). A `to` inside the
+## section's own slice is the identity — the section already sits before
+## that block — so the Doc comes back unchanged. Fails through the
+## checked read channel on a bad index or destination.
+## > render(move-section(parse("# A"), 0, 0) try)
+## # A
+word move-section(doc: Doc, index: Int, to: Int) -> Result<Doc, Error>
+    let level = _heading-level-at(doc, index) try
+    let end = _section-end(doc, index, level)
+    if to >= index and to < end
+        ok(doc)
+    else
+        let _checked = _check-at(doc, to) try
+        var pos = to
+        if to > index
+            pos = to - (end - index)
+        ok(Doc(_splice(_blocks-without(doc, index, end), pos, _slice-blocks(doc, index, end))))
+
+## Inserts one block before block index `at` (0..block count inclusive —
+## `at` == count appends, list.insert's law at single-block grain).
+## Fails through the checked read channel naming the offending index.
+## > list.length((insert-block(parse("# A"), 1, Block.Paragraph("tail")) try).blocks)
+## 2
+word insert-block(doc: Doc, at: Int, block: Block) -> Result<Doc, Error>
+    let _checked = _check-at(doc, at) try
+    ok(Doc(_splice(doc.blocks, at, [block])))
+
+## Swaps the block at index `at` for the given block, in place. The
+## section layer above: replace-section(doc, i, repl) is this verb over
+## the section's slice — the same flat list at coarser grain.
+## > render(replace-block(parse("# A"), 0, Block.Heading(2, "B")) try)
+## ## B
+word replace-block(doc: Doc, at: Int, block: Block) -> Result<Doc, Error>
+    let _old = doc.blocks[at] catch problem
+        return err(problem)
+    var blocks: List<Block> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        if i == at
+            let _swapped = list.append(blocks, block)
+        else
+            let _kept = list.append(blocks, doc.blocks[i])
+        i = i + 1
+    ok(Doc(blocks))
+
+## Drops the block at index `at`. The layering idiom: remove-section(doc,
+## i) is this verb repeated over the section's slice — the section ops are
+## the block verbs' convenience layer, not a separate mechanism.
+## > render(remove-block(parse("# A\n\n## B"), 1) try)
+## # A
+word remove-block(doc: Doc, at: Int) -> Result<Doc, Error>
+    let _old = doc.blocks[at] catch problem
+        return err(problem)
+    ok(Doc(_blocks-without(doc, at, at + 1)))
+
+## Replaces the whole block list — the Buffer's to-text moment mirrored:
+## the Doc over exactly these blocks, total, no failure channel.
+## > render(set-blocks(parse("old"), [Block.Paragraph("new")]))
+## new
+word set-blocks(doc: Doc, blocks: List<Block>) -> Doc
+    Doc(blocks)
+
+## Folds the Stats record over a Doc: block-kind counts plus words and
+## characters measured on each block's own text.
+## > stats(parse("one two three")).words
+## 3
+## > stats(parse("---")).characters
+## 0
+word stats(doc: Doc) -> Stats
+    var headings = 0
+    var paragraphs = 0
+    var list-items = 0
+    var code-blocks = 0
+    var tables = 0
+    var words = 0
+    var characters = 0
+    for block in doc.blocks
+        match block
+            case Block.Heading(_level, _body)
+                headings = headings + 1
+            case Block.Paragraph(_body)
+                paragraphs = paragraphs + 1
+            case Block.BulletItem(_marker, _body, _indent)
+                list-items = list-items + 1
+            case Block.OrderedItem(_marker, _body, _indent)
+                list-items = list-items + 1
+            case Block.Code(_fence, _info, _lines)
+                code-blocks = code-blocks + 1
+            case Block.Table(_header, _rows)
+                tables = tables + 1
+            case _
+                let _skip = ""
+        let body = _block-text(block)
+        words = words + text.word-count(body)
+        characters = characters + text.length(body)
+    Stats(list.length(doc.blocks), headings, paragraphs, list-items, code-blocks, tables, words, characters)
+
+## A section's stats: md.stats folded over md.section's slice — the
+## per-chunk reachability the Stats record exists for. Fails through
+## md.section's checked read channel.
+## > (section-stats(parse("# A\n\none two"), 0) try).words
+## 3
+word section-stats(doc: Doc, index: Int) -> Result<Stats, Error>
+    ok(stats(section(doc, index) try))
+
+## Renders a Doc to an HTML fragment: every block as escaped markup,
+## blocks joined with single newlines (the page form is a later story).
+## Text positions entity-escape & < > ' " through _html-esc, a pinned
+## twin of html.escape-text in the html module — use resolves siblings
+## only, so the two modules cannot import each other; the bytes are
+## pinned identical in both modules' tests, and drift is the known risk
+## of that split. Code blocks escape their content verbatim inside
+## <pre><code> (no fence in the output, the info string becomes the
+## class attribute); a run of one list kind is one <ul>/<ol> whose
+## indent fields nest (an indent jump deeper than one level nests
+## once); a run of quote lines is one <blockquote> of <p> lines,
+## rendered flat; table header and data rows are plain <td> cells —
+## alignment markers were dropped at parse. Inline markup is not
+## parsed (spans are the v2 story), so raw markdown links and emphasis
+## render as escaped text: no anchor is ever emitted, the html.link
+## scheme gate cannot fire, and to-html is total — a plain String,
+## never a Result. When spans land, link targets must pass that gate.
+## > to-html(parse("# T"))
+## <h1>T</h1>
+## > to-html(parse("- a\n  - b"))
+## <ul>
+## <li>a
+## <ul>
+## <li>b</li>
+## </ul></li>
+## </ul>
+## > to-html(parse("```zhex\nlet x = 1\n```"))
+## <pre><code class="zhex">let x = 1</code></pre>
+word to-html(doc: Doc) -> String
+    var fragments: List<String> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        let kind = _run-kind(doc.blocks[i])
+        if kind == "bullet" or kind == "ordered"
+            var run: List<Block> = list.new()
+            while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == kind
+                let _item = list.append(run, doc.blocks[i])
+                i = i + 1
+            let _list = list.append(fragments, _list-at(run, _norm-indents(run), [0], _indent-of-block(run[0]), _list-tag(kind)))
+        elif kind == "quote"
+            var paras: List<String> = list.new()
+            while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == "quote"
+                let _line = list.append(paras, "<p>" + _html-esc(_quote-text(doc.blocks[i])) + "</p>")
+                i = i + 1
+            let _quote = list.append(fragments, "<blockquote>\n" + text.join(paras, "\n") + "\n</blockquote>")
+        else
+            _html-plain(fragments, doc.blocks[i])
+            i = i + 1
+    text.join(fragments, "\n")
+
+## Renders a Doc to a complete HTML document: md.to-html's fragment as
+## the body of the html module's html.page shape, inlined byte-for-byte
+## (use resolves siblings only, so md cannot import html — the same
+## known-risk split as _html-esc, and md.test.zhex pins the bytes):
+## doctype, head, entity-escaped title, body, each on its own line. Total
+## like to-html — a plain String, never a Result. The title is explicit
+## per html.page's shape; the outline-derived default is the caller's
+## one-line idiom — the first Heading's text through md.outline, the
+## indexed read's catch supplying a zero Section (whose text is the empty
+## string) when the document opens on no heading:
+## to-html-page(doc, (outline(doc)[0] catch Section(0, 0, "")).text).
+## > to-html-page(parse("# T"), "T")
+## <!DOCTYPE html>
+## <html>
+## <head>
+## <title>T</title>
+## </head>
+## <body>
+## <h1>T</h1>
+## </body>
+## </html>
+## > to-html-page(parse("para"), (outline(parse("para"))[0] catch Section(0, 0, "")).text)
+## <!DOCTYPE html>
+## <html>
+## <head>
+## <title></title>
+## </head>
+## <body>
+## <p>para</p>
+## </body>
+## </html>
+word to-html-page(doc: Doc, title: String) -> String
+    "<!DOCTYPE html>\n<html>\n<head>\n<title>" + _html-esc(title) + "</title>\n</head>\n<body>\n" + to-html(doc) + "\n</body>\n</html>"
+
+word _shift(doc: Doc, index: Int, delta: Int) -> Doc
+    var end = index
+    if index >= 0 and index < list.length(doc.blocks)
+        match doc.blocks[index]
+            case Block.Heading(level, _t)
+                end = _section-end(doc, index, level)
+            case _
+                end = index
+    var blocks: List<Block> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        if i >= index and i < end
+            let _shifted = list.append(blocks, _shifted-heading(doc.blocks[i], delta))
+        else
+            let _kept = list.append(blocks, doc.blocks[i])
+        i = i + 1
+    Doc(blocks)
+
+word _shifted-heading(block: Block, delta: Int) -> Block
+    match block
+        case Block.Heading(level, text)
+            Block.Heading(_clamped(level + delta), text)
+        case _
+            block
+
+word _section-blocks(doc: Doc, index: Int, level: Int) -> List<Block>
+    _slice-blocks(doc, index, _section-end(doc, index, level))
+
+# The heading's level at a block index, or the failure md.section and the
+# editing ops share: an out-of-range index errs through the checked read
+# naming the offending index; a non-heading index errs through the same
+# deliberate read past the end — md.table's channel, never a silent shape.
+word _heading-level-at(doc: Doc, index: Int) -> Result<Int, Error>
+    let head = doc.blocks[index] catch problem
+        return err(problem)
+    match head
+        case Block.Heading(level, _text)
+            ok(level)
+        case _
+            # shortcut: reads one past the end on purpose so the failure
+            # is the checked out-of-range diagnostic — md.table's channel
+            # for malformed input — never a silent shape; upgrade: error.new
+            let _past = doc.blocks[list.length(doc.blocks)] try
+            ok(0)
+
+# The exclusive end of the section starting at a heading's block index:
+# the next heading of level <= its own, or the end of the document.
+word _section-end(doc: Doc, index: Int, level: Int) -> Int
+    var i = index
+    var open = true
+    while i < list.length(doc.blocks) and open
+        match doc.blocks[i]
+            case Block.Heading(next, _t)
+                if i != index and next <= level
+                    open = false
+            case _
+                let _skip = ""
+        if open
+            i = i + 1
+    i
+
+word _slice-blocks(doc: Doc, start: Int, end: Int) -> List<Block>
+    var out: List<Block> = list.new()
+    var i = start
+    while i < end
+        let _kept = list.append(out, doc.blocks[i])
+        i = i + 1
+    out
+
+word _blocks-without(doc: Doc, start: Int, end: Int) -> List<Block>
+    var out: List<Block> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        if i < start or i >= end
+            let _kept = list.append(out, doc.blocks[i])
+        i = i + 1
+    out
+
+# A fresh copy of base with addition spliced in before block index `at`;
+# callers check `at` against 0..list.length(base) inclusive first.
+word _splice(base: List<Block>, at: Int, addition: List<Block>) -> List<Block>
+    var out: List<Block> = list.new()
+    var i = 0
+    while i < at
+        let _kept = list.append(out, base[i])
+        i = i + 1
+    for block in addition
+        let _added = list.append(out, block)
+    while i < list.length(base)
+        let _kept = list.append(out, base[i])
+        i = i + 1
+    out
+
+# Checks an insertion point, 0..block count inclusive: a bad `at` errs
+# through the checked read naming the offending index.
+word _check-at(doc: Doc, at: Int) -> Result<Bool, Error>
+    if at < 0 or at > list.length(doc.blocks)
+        let _bad = doc.blocks[at] catch problem
+            return err(problem)
+        ok(false)
+    else
+        ok(true)
+
+word _render-plain(fragments: List<String>, block: Block) -> Unit
+    match block
+        case Block.Heading(level, text)
+            let _frag = list.append(fragments, heading(level, text))
+        case Block.Paragraph(text)
+            let _frag = list.append(fragments, paragraph(text))
+        case Block.Rule
+            let _frag = list.append(fragments, "---")
+        case Block.Code(_fence, info, lines)
+            let _frag = list.append(fragments, code-block(info, lines))
+        case Block.Table(header, rows)
+            let _frag = list.append(fragments, table(header, rows))
+        case _
+            let _item-kind = ""
+
+word _run-kind(block: Block) -> String
+    match block
+        case Block.BulletItem(_marker, _text, _indent)
+            "bullet"
+        case Block.OrderedItem(_marker, _text, _indent)
+            "ordered"
+        case Block.Quote(_text, _indent)
+            "quote"
+        case _
+            "none"
+
+word _item-line(block: Block) -> String
+    match block
+        case Block.BulletItem(marker, text, indent)
+            _repeat(" ", indent * 2) + _marked(marker, text)
+        case Block.OrderedItem(marker, text, indent)
+            _repeat(" ", indent * 2) + _marked(marker, text)
+        case Block.Quote(text, indent)
+            _repeat(" ", indent * 2) + _marked(">", text)
+        case _
+            ""
+
+word _marked(marker: String, text: String) -> String
+    if text == ""
+        marker
+    else
+        marker + " " + text
+
+word _strip-indent(line: String) -> String
+    var i = 0
+    let chars = text.split(line, "")
+    while i < list.length(chars) and chars[i] == " "
+        i = i + 1
+    text.slice(line, i, text.length(line))
+
+word _indent-of(line: String) -> Int
+    var i = 0
+    let chars = text.split(line, "")
+    while i < list.length(chars) and chars[i] == " "
+        i = i + 1
+    i / 2
+
+word _item-text(rest: String, marker: String) -> String
+    text.trim(text.slice(rest, text.length(marker), text.length(rest)))
+
+word _bullet-marker(rest: String) -> String
+    let chars = text.split(rest, "")
+    if list.length(chars) == 0
+        ""
+    else
+        let first = chars[0]
+        if (first == "-" or first == "*" or first == "+") and (list.length(chars) == 1 or chars[1] == " ")
+            first
+        else
+            ""
+
+word _ordered-marker(rest: String) -> String
+    let chars = text.split(rest, "")
+    var n = 0
+    while n < list.length(chars) and _is-digit(chars[n])
+        n = n + 1
+    if n == 0 or n > 9
+        ""
+    elif n < list.length(chars) and (chars[n] == "." or chars[n] == ")") and (n + 1 == list.length(chars) or chars[n + 1] == " ")
+        text.slice(rest, 0, n + 1)
+    else
+        ""
+
+word _is-digit(c: String) -> Bool
+    text.contains("0123456789", c)
+
+word _absorb(blocks: List<Block>, pending: List<String>) -> List<String>
+    if list.length(pending) > 0
+        let _para = list.append(blocks, Block.Paragraph(text.join(pending, "\n")))
+    list.new()
+
+word _is-rule(line: String) -> Bool
+    let chars = text.split(line, "")
+    if list.length(chars) < 3
+        false
+    else
+        let first = chars[0]
+        (first == "-" or first == "*" or first == "_") and _all(chars, first)
+
+word _all(chars: List<String>, ch: String) -> Bool
+    var same = true
+    for c in chars
+        if c != ch
+            same = false
+    same
+
+word _heading-level(line: String) -> Int
+    let chars = text.split(line, "")
+    var n = 0
+    while n < list.length(chars) and chars[n] == "#"
+        n = n + 1
+    if n < 1 or n > 6
+        0
+    elif n == list.length(chars) or chars[n] == " "
+        n
+    else
+        0
+
+word _fence-open(line: String) -> String
+    let chars = text.split(line, "")
+    var n = 0
+    while n < list.length(chars) and chars[n] == "`"
+        n = n + 1
+    if n >= 3
+        text.slice(line, 0, n)
+    else
+        ""
+
+word _fence-close(line: String, fence: String) -> Bool
+    let t = text.trim(line)
+    text.length(t) >= text.length(fence) and text.length(t) >= 3 and _all(text.split(t, ""), "`")
+
+word _table-at(lines: List<String>, i: Int) -> Bool
+    if i + 1 >= list.length(lines) or not text.starts-with(lines[i], "|")
+        false
+    else
+        let head = _table-cells(lines[i])
+        let dashes = _table-cells(lines[i + 1])
+        list.length(dashes) > 0 and list.length(dashes) == list.length(head) and _all-dash-cells(dashes)
+
+word _all-dash-cells(cells: List<String>) -> Bool
+    var ok = true
+    for cell in cells
+        if not _is-dash-cell(cell)
+            ok = false
+    ok
+
+word _is-dash-cell(cell: String) -> Bool
+    var ok = text.length(cell) > 0
+    var dashes = 0
+    for c in text.split(cell, "")
+        if c == "-"
+            dashes = dashes + 1
+        elif c != ":"
+            ok = false
+    ok and dashes > 0
+
+word _table-cells(line: String) -> List<String>
+    var body = line
+    if text.starts-with(body, "|")
+        body = text.slice(body, 1, text.length(body))
+    if text.ends-with(body, "|") and text.length(body) > 0
+        body = text.slice(body, 0, text.length(body) - 1)
+    var cells: List<String> = list.new()
+    var cur = ""
+    var prev = ""
+    for c in text.split(body, "")
+        if c == "|" and prev == "\\"
+            cur = cur + c
+        elif c == "|"
+            let _cell = list.append(cells, text.trim(cur))
+            cur = ""
+        else
+            cur = cur + c
+        prev = c
+    let _last = list.append(cells, text.trim(cur))
+    cells
+
+word _fit-row(cells: List<String>, width: Int) -> List<String>
+    var out: List<String> = list.new()
+    for j in range(0, width)
+        if j < list.length(cells)
+            let _cell = list.append(out, cells[j])
+        else
+            let _pad = list.append(out, "")
+    out
+
+word _esc(text: String) -> String
+    flow text.split(text, "")
+        list.map(_esc-char(_))
+        text.join("")
+
+word _esc-char(c: String) -> String
+    if text.contains("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", c)
+        "\\" + c
+    else
+        c
+
+word _target(t: String) -> String
+    let low = text.lower(t)
+    var out = text.replace(text.replace(text.replace(t, " ", "%20"), "(", "%28"), ")", "%29")
+    if text.starts-with(low, "javascript:") or text.starts-with(low, "data:")
+        out = text.replace(out, ":", "%3A")
+    out
+
+word _repeat(ch: String, n: Int) -> String
+    var acc = ""
+    for _i in range(0, n)
+        acc = ch + acc
+    acc
+
+word _clamped(level: Int) -> Int
+    if level < 1
+        1
+    elif level > 6
+        6
+    else
+        level
+
+word _fence-length(lines: List<String>) -> Int
+    var longest = 0
+    for line in lines
+        let run = _longest-run(line)
+        if run > longest
+            longest = run
+    if longest >= 3
+        longest + 1
+    else
+        3
+
+word _longest-run(line: String) -> Int
+    var best = 0
+    var run = 0
+    for c in text.split(line, "")
+        if c == "`"
+            run = run + 1
+            if run > best
+                best = run
+        else
+            run = 0
+    best
+
+word _table-row(cells: List<String>, widths: List<Int>) -> String
+    var out = "|"
+    for j in range(0, list.length(cells))
+        out = out + " " + _padded(cells[j], widths[j]) + " |"
+    out
+
+word _padded(cell: String, width: Int) -> String
+    var out = cell
+    for _i in range(text.length(cell), width)
+        out = out + " "
+    out
+
+word _table-separator(widths: List<Int>) -> String
+    var out = "|"
+    for j in range(0, list.length(widths))
+        var n = 3
+        if widths[j] > 3
+            n = widths[j]
+        out = out + " " + _repeat("-", n) + " |"
+    out
+
+# The HTML export helpers, all under md.to-html's doc law above.
+
+# A pinned twin of html.escape-text in the html module (not a sibling
+# import): the same five replaces in the same order, & first. Drift is
+# the known risk of the split; both modules' tests pin these bytes.
+word _html-esc(value: String) -> String
+    flow value
+        text.replace("&", "&amp;")
+        text.replace("<", "&lt;")
+        text.replace(">", "&gt;")
+        text.replace("'", "&#39;")
+        text.replace("\"", "&#34;")
+
+word _html-plain(fragments: List<String>, block: Block) -> Unit
+    match block
+        case Block.Heading(level, text)
+            let tag = "h" + int.to-string(_clamped(level))
+            let _frag = list.append(fragments, "<" + tag + ">" + _html-esc(text) + "</" + tag + ">")
+        case Block.Paragraph(text)
+            let _frag = list.append(fragments, "<p>" + _html-esc(text) + "</p>")
+        case Block.Rule
+            let _frag = list.append(fragments, "<hr>")
+        case Block.Code(_fence, info, lines)
+            let _frag = list.append(fragments, "<pre><code" + _code-class(info) + ">" + _html-esc(text.join(lines, "\n")) + "</code></pre>")
+        case Block.Table(header, rows)
+            let _frag = list.append(fragments, _table-html(header, rows))
+        case _
+            let _skip = ""
+
+# The class attribute from a code block's info string: entity escaping
+# keeps quotes safe inside the attribute.
+word _code-class(info: String) -> String
+    if text.length(info) > 0
+        " class=\"" + _html-esc(info) + "\""
+    else
+        ""
+
+word _table-html(header: List<String>, rows: List<List<String>>) -> String
+    var out = "<table>\n" + _table-row-html(header)
+    for row in rows
+        out = out + "\n" + _table-row-html(row)
+    out + "\n</table>"
+
+# Plain td cells for header and data rows alike — alignment markers were
+# dropped at parse, so there is nothing to emit.
+word _table-row-html(cells: List<String>) -> String
+    var out = "<tr>"
+    for cell in cells
+        out = out + "<td>" + _html-esc(cell) + "</td>"
+    out + "</tr>"
+
+word _list-tag(kind: String) -> String
+    if kind == "bullet"
+        "ul"
+    else
+        "ol"
+
+# Indents normalized so each step deepens by at most one level: a jump
+# from 0 to 2 nests once, matching how the parser floors odd counts.
+word _norm-indents(run: List<Block>) -> List<Int>
+    var out: List<Int> = list.new()
+    var prev = _indent-of-block(run[0])
+    let _first = list.append(out, prev)
+    var i = 1
+    while i < list.length(run)
+        var ind = _indent-of-block(run[i])
+        if ind > prev + 1
+            ind = prev + 1
+        let _norm = list.append(out, ind)
+        prev = ind
+        i = i + 1
+    out
+
+# One list level: items at `base` are li's, a deeper follower nests
+# recursively inside the open li; pos is the shared cursor (a list is a
+# reference), and the level ends at the first item shallower than base.
+word _list-at(run: List<Block>, inds: List<Int>, pos: List<Int>, base: Int, tag: String) -> String
+    var out = "<" + tag + ">\n"
+    var open = true
+    while pos[0] < list.length(run) and open
+        let ind = inds[pos[0]]
+        if ind < base
+            open = false
+        else
+            out = out + "<li>" + _html-esc(_item-text-of(run[pos[0]]))
+            pos[0] = pos[0] + 1
+            if pos[0] < list.length(run) and inds[pos[0]] > base
+                out = out + "\n" + _list-at(run, inds, pos, inds[pos[0]], tag)
+            out = out + "</li>\n"
+    out + "</" + tag + ">"
+
+word _item-text-of(block: Block) -> String
+    match block
+        case Block.BulletItem(_marker, text, _indent)
+            text
+        case Block.OrderedItem(_marker, text, _indent)
+            text
+        case _
+            ""
+
+word _quote-text(block: Block) -> String
+    match block
+        case Block.Quote(text, _indent)
+            text
+        case _
+            ""
+
+word _indent-of-block(block: Block) -> Int
+    match block
+        case Block.BulletItem(_marker, _text, indent)
+            indent
+        case Block.OrderedItem(_marker, _text, indent)
+            indent
+        case Block.Quote(_text, indent)
+            indent
+        case _
+            0
+
+# The text a Stats fold measures a block by: heading, paragraph, item,
+# and quote text verbatim, code lines joined with newlines, table cells
+# joined with newlines, a rule contributing none.
+word _block-text(block: Block) -> String
+    match block
+        case Block.Heading(_level, body)
+            body
+        case Block.Paragraph(body)
+            body
+        case Block.Rule
+            ""
+        case Block.BulletItem(_marker, body, _indent)
+            body
+        case Block.OrderedItem(_marker, body, _indent)
+            body
+        case Block.Quote(body, _indent)
+            body
+        case Block.Code(_fence, _info, lines)
+            text.join(lines, "\n")
+        case Block.Table(header, rows)
+            var cells: List<String> = list.new()
+            for cell in header
+                let _cell = list.append(cells, cell)
+            for row in rows
+                for cell in row
+                    let _row-cell = list.append(cells, cell)
+            text.join(cells, "\n")

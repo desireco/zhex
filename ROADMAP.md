@@ -4,6 +4,8 @@ Build a readable language from small, composable words. The Go interpreter lets 
 
 ## Done
 
+- Examples: the writer's showcase ships — `examples/modules/writer/` loads a draft through the md module, reads its outline, runs sentence and word passes with the ordinary list words, takes the stats moment, edits by section and block, and publishes markdown plus an html fragment: passes over layers end to end, no string surgery (#221, closing the documents epic's example debt; pinned by `writer.test.zhex`).
+
 - The wasm prelude's remaining quadratics fixed — stable merge sort for `list.sort`/`sort-by` and amortized map growth; flow-chain and network shapes now 10.7×/7.6× faster than the interpreter under wasmtime (#188).
 
 - The first language milestone runs real programs with checked types and console input and output.

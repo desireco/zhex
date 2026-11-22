@@ -101,6 +101,13 @@ var corpusTable = map[string]corpusRow{
 	"modules/text-diff/diff.zhex":      {blockers: []string{"list.insert"}},
 	"modules/text-diff/diff.test.zhex": {blockers: []string{"error.new", "console.fail"}},
 	"modules/text-diff/test.zhex":      {blockers: []string{"console.fail"}},
+	// the showcase's sentence pass needs text.sentences, still outside
+	// the compiled host subset; the test files add console.fail; the
+	// co-located md copy stays in-subset like its md-report twin
+	"modules/writer/main.zhex":        {blockers: []string{"text.repeat", "text.sentences"}},
+	"modules/writer/md.zhex":          {in: true},
+	"modules/writer/writer.test.zhex": {blockers: []string{"text.sentences", "console.fail"}},
+	"modules/writer/test.zhex":        {blockers: []string{"console.fail"}},
 }
 
 // corpusResolve mirrors the CLI's module reader: `use name` resolves the

@@ -1,0 +1,99 @@
+# The writer's showcase: the whole text model in one pass. A draft loads
+# as blocks, the outline shows its spine, passes run over the sentence and
+# word layers with the ordinary list words, edits land on sections and
+# blocks, and the result publishes as markdown and html — no string
+# surgery anywhere, only passes over layers.
+
+use md
+
+# The draft as it arrived: a title, two sections, paragraphs, a list.
+let draft = md.parse("# Field notes on quiet systems\n\nSystems that hold still teach the most. This draft gathers what one week of watching a quiet service revealed. Nothing here is urgent.\n\n## What stayed steady\n\nThe ingest path held its shape all week. Its queues drained every night. No page woke anyone.\n\n- ingest: quiet\n- storage: quiet\n- the on-call rotation: asleep by midnight\n\n## What moved\n\nOne query slowed down on Thursday. It recovered on its own before anyone looked. The cache had simply gone cold.\n")
+
+# One outline row as the writer reads it: the heading again, level shown.
+word heading-marks(row: md.Section) -> String
+    text.repeat("#", row.level) + " " + row.text
+
+word show-outline(doc: md.Doc, label: String)
+    print(label)
+    for row in md.outline(doc)
+        print(heading-marks(row))
+
+# A paragraph is the only block a sentence pass reads; everything else
+# passes through as no text at all.
+word is-paragraph(block: md.Block) -> Bool
+    match block
+        case md.Block.Paragraph(_)
+            true
+        case _
+            false
+
+word block-text(block: md.Block) -> String
+    match block
+        case md.Block.Heading(_, title)
+            title
+        case md.Block.Paragraph(body)
+            body
+        case md.Block.BulletItem(_, body, _)
+            body
+        case _
+            ""
+
+word sentence-length(sentence: String) -> Int
+    text.length(sentence)
+
+word is-long-word(part: String) -> Bool
+    text.length(part) > 5
+
+word is-moving(row: md.Section) -> Bool
+    row.text == "What moved"
+
+# The spine: where the draft stands before anything touches it.
+show-outline(draft, "outline of the draft:")
+
+# The moving section, found by its heading through the outline.
+match list.find(md.outline(draft), is-moving(_))
+    case Option.Some(row)
+        # a pass over the sentence layer: the section's paragraphs become
+        # one text, text.sentences splits it, and the ordinary list words
+        # answer writer questions — the longest sentence, the ones about
+        # the cache.
+        let section = md.section(draft, row.index) try
+        let paragraphs = list.filter(section.blocks, is-paragraph(_))
+        let body = text.join(list.map(paragraphs, block-text(_)), " ")
+        let sentences = text.sentences(body)
+        let ranked = list.sort-by(sentences, sentence-length(_))
+        let longest = ranked[list.length(ranked) - 1]
+        print("the longest sentence in the moving section:")
+        print(longest)
+        let about-cache = list.filter(sentences, text.contains(_, "cache"))
+        for line in about-cache
+            print("a sentence that mentions the cache: " + line)
+
+        # a pass over the word layer: the same text, split the other way,
+        # and the list vocabulary again — no new mechanism, just a finer
+        # grain.
+        let words = text.split(body, " ")
+        let long-words = list.filter(words, is-long-word(_))
+        print("the moving section holds " + list.length(words) + " words, " + list.length(long-words) + " of them longer than five letters")
+
+        # the stats moment: per-chunk numbers, whole draft against the
+        # one section.
+        let whole = md.stats(draft)
+        let chunk = md.section-stats(draft, row.index) try
+        print("whole draft: " + whole.words + " words in " + whole.blocks + " blocks")
+        print("the moving section alone: " + chunk.words + " words in " + chunk.blocks + " blocks")
+
+        # structural edits: promote the section one level up (the outline
+        # shows it), then swap the intro paragraph for a sharper opener
+        # (the render shows it).
+        let promoted = md.promote(draft, row.index)
+        let edited = md.replace-block(promoted, 1, md.Block.Paragraph("Quiet systems still move. This draft gathers what one week of watching revealed, and where it moved.")) try
+        show-outline(edited, "outline after the edits:")
+
+        # publish: back to markdown, and out as an html fragment.
+        print("the edited draft, back as markdown:")
+        print(md.render(edited))
+        print("the same draft as an html fragment:")
+        print(md.to-html(edited))
+    case Option.None
+        print("the moving section is missing from the outline")

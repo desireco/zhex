@@ -1,0 +1,62 @@
+# Pins the writer's showcase: the outline before and after the edits, the
+# sentence and word passes, the stats moment, and the rendered round trip.
+# The draft and edits mirror main.zhex; the pins hold them to their shape.
+
+use md
+use test
+
+word expect-outline-row(doc: md.Doc, i: Int, level: Int, text: String, label: String)
+    let row = md.outline(doc)[i]
+    test.check(row.level == level, label + ": level")
+    test.check(row.text == text, label + ": text")
+
+let draft = md.parse("# Field notes on quiet systems\n\nSystems that hold still teach the most. This draft gathers what one week of watching a quiet service revealed. Nothing here is urgent.\n\n## What stayed steady\n\nThe ingest path held its shape all week. Its queues drained every night. No page woke anyone.\n\n- ingest: quiet\n- storage: quiet\n- the on-call rotation: asleep by midnight\n\n## What moved\n\nOne query slowed down on Thursday. It recovered on its own before anyone looked. The cache had simply gone cold.\n")
+
+# the outline before any edit: three headings, two of them sections
+test.check(list.length(md.outline(draft)) == 3, "outline holds three headings")
+expect-outline-row(draft, 0, 1, "Field notes on quiet systems", "title row")
+expect-outline-row(draft, 1, 2, "What stayed steady", "first section row")
+expect-outline-row(draft, 2, 2, "What moved", "moving section row")
+
+# the sentence pass: longest sentence and the cache filter
+let body = "One query slowed down on Thursday. It recovered on its own before anyone looked. The cache had simply gone cold."
+let sentences = text.sentences(body)
+test.check(list.length(sentences) == 3, "three sentences in the section")
+test.check(sentences[1] == "It recovered on its own before anyone looked.", "the longest sentence is pinned by position")
+let about-cache = list.filter(sentences, text.contains(_, "cache"))
+test.check(list.length(about-cache) == 1, "one sentence mentions the cache")
+test.check(about-cache[0] == "The cache had simply gone cold.", "the cache sentence is the closing one")
+
+# the word pass: the same text split the other way
+let words = text.split(body, " ")
+test.check(list.length(words) == 20, "twenty words in the section")
+test.check(list.length(list.filter(words, text.contains(_, "recovered"))) == 1, "the list words work over the word layer too")
+
+# the stats moment: whole draft against the one section
+let whole = md.stats(draft)
+test.check(whole.blocks == 9, "nine blocks in the draft")
+test.check(whole.words == 80, "eighty words across every block")
+let chunk = md.section-stats(draft, 7) try
+test.check(chunk.blocks == 2, "the moving section is two blocks")
+test.check(chunk.words == 22, "twenty-two words in the moving section")
+
+# the edits: promote lifts the moving section, replace-block swaps the intro
+let promoted = md.promote(draft, 7)
+expect-outline-row(promoted, 2, 1, "What moved", "promoted section row")
+let edited = md.replace-block(promoted, 1, md.Block.Paragraph("Quiet systems still move. This draft gathers what one week of watching revealed, and where it moved.")) try
+match edited.blocks[1]
+    case md.Block.Paragraph(text)
+        test.check(text == "Quiet systems still move. This draft gathers what one week of watching revealed, and where it moved.", "the intro paragraph was replaced")
+    case _
+        test.check(false, "block one is still a paragraph")
+
+# the rendered round trip: a canonical draft comes back byte for byte,
+# and the showcase draft keeps its spine through render and parse again
+let canonical = "# Title\n\none\ntwo\n\n- a\n- b"
+test.check(md.render(md.parse(canonical)) == canonical, "canonical text round trips")
+let again = md.parse(md.render(draft))
+test.check(list.length(md.outline(again)) == 3, "the spine survives the round trip")
+expect-outline-row(again, 2, 2, "What moved", "rendered and reparsed moving section row")
+test.check(md.to-html(edited) != "", "the html export is a fragment, never a Result")
+
+print("writer showcase tests passed")
