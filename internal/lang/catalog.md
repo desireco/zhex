@@ -206,6 +206,15 @@ The text given to `text.to-int` is not a signed 128-bit decimal integer. It acce
 ## text-code-point
 `text.from-code-points` received a code point that is not valid Unicode: negative, above U+10FFFF, or a surrogate half (U+D800..U+DFFF). Strings are UTF-8 text, so those values have no encoding; this is a bug signal, not a recoverable case. Check the numbers before building the list.
 
+## text-pad-width
+`text.pad-left` or `text.pad-right` received a negative width. The width is the target length, so a negative value has no meaning; this is a bug signal, not a recoverable case. Pass a width of zero or more — padding never truncates, so a width at or below the text's length returns the text unchanged.
+
+## text-pad-fill
+`text.pad-left` or `text.pad-right` received a fill that is not exactly one code point. Padding reaches an exact width only by repeating a single character, and an empty or multi-code-point fill cannot land on an arbitrary width. Pass a one-code-point fill, or omit it to pad with spaces.
+
+## text-repeat-count
+`text.repeat` received a negative count. A negative count has no meaning — zero already produces the empty string; this is a bug signal, not a recoverable case. Pass a count of zero or more.
+
 ## buffer-range
 `buffer.line` or `buffer.set-line` received an index outside the buffer's lines. The failure lives inside the `Result` and surfaces through `try`; check the index against `buffer.line-count` first.
 

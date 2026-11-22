@@ -253,6 +253,142 @@ func TestToCodePointsElementLimit(t *testing.T) {
 	}
 }
 
+// TestTextEditingWords pins the #196 editing vocabulary: repeat, the pad
+// pair with the space-fill default, wrap over pdf-doc's _wrap law, and the
+// insert/remove pair clamping like text.slice.
+func TestTextEditingWords(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"repeat concatenates whole copies", "print(text.repeat(\"ab\", 3))\nprint(text.repeat(\"ab\", 1))\n", "ababab\nab\n"},
+		{"repeat count zero is empty text", "print(\"[\" + text.repeat(\"ab\", 0) + \"]\")\n", "[]\n"},
+		{"repeat of empty text stays empty", "print(\"[\" + text.repeat(\"\", 4) + \"]\")\n", "[]\n"},
+		{"repeat is code-point safe", "print(text.repeat(\"é\", 3))\n", "ééé\n"},
+		{"repeat flows", "flow \"-\"\n    text.repeat(3)\n    print\n", "---\n"},
+		{"repeat partial", "let dash = text.repeat(_, 3)\nprint dash(\"*\")\n", "***\n"},
+		{"pad-left defaults to spaces", "print(\"[\" + text.pad-left(\"7\", 3) + \"]\")\n", "[  7]\n"},
+		{"pad-right defaults to spaces", "print(\"[\" + text.pad-right(\"7\", 3) + \"]\")\n", "[7  ]\n"},
+		{"pad-left takes a one-code-point fill", "print(text.pad-left(\"7\", 3, \".\"))\nprint(text.pad-left(\"7\", 3, \"·\"))\n", "..7\n··7\n"},
+		{"pad-right takes a one-code-point fill", "print(text.pad-right(\"7\", 3, \".\"))\n", "7..\n"},
+		{"pad to the exact length returns the text", "print(\"[\" + text.pad-left(\"abc\", 3, \"0\") + \"]\")\nprint(\"[\" + text.pad-right(\"abc\", 3, \"0\") + \"]\")\n", "[abc]\n[abc]\n"},
+		{"pad never truncates", "print(text.pad-left(\"abc\", 2))\nprint(text.pad-right(\"abc\", 0, \".\"))\n", "abc\nabc\n"},
+		{"pad counts code points", "print(\"[\" + text.pad-left(\"é\", 2) + \"]\")\n", "[ é]\n"},
+		{"pad of empty text fills to width", "print(\"[\" + text.pad-left(\"\", 2, \"0\") + \"]\")\n", "[00]\n"},
+		{"pad flows with the fill supplied", "flow \"1\"\n    text.pad-left(3, \"0\")\n    print\n", "001\n"},
+		{"pad partial keeps the fill deferred", "let pad3 = text.pad-left(_, 3)\nprint(\"[\" + pad3(\"a\") + \"]\")\n", "[  a]\n"},
+		{"wrap fills greedily", "let lines = text.wrap(\"aa bb cc\", 5)\nprint(list.length(lines))\nprint(lines[0] + \"|\" + lines[1])\n", "2\naa bb|cc\n"},
+		{"wrap keeps a fitting line whole", "print(text.join(text.wrap(\"aaa bbb\", 7), \"|\"))\n", "aaa bbb\n"},
+		{"wrap lets an over-long word overflow alone", "print(text.join(text.wrap(\"aaaaaaaa bb\", 5), \"|\"))\n", "aaaaaaaa|bb\n"},
+		{"wrap of empty text is one empty line", "let lines = text.wrap(\"\", 4)\nprint(list.length(lines))\nprint(\"[\" + lines[0] + \"]\")\n", "1\n[]\n"},
+		{"wrap of spaces-only text is one empty line", "print(list.length(text.wrap(\"  \", 4)))\n", "1\n"},
+		{"wrap collapses space runs between words", "print(text.join(text.wrap(\"aa  bb\", 5), \"|\"))\n", "aa bb\n"},
+		{"wrap at width one puts every word alone", "print(text.join(text.wrap(\"a b\", 1), \"|\"))\n", "a|b\n"},
+		{"wrap counts code points", "print(text.join(text.wrap(\"éé x\", 3), \"|\"))\nprint(text.join(text.wrap(\"é x\", 3), \"|\"))\n", "éé|x\né x\n"},
+		{"wrap flows", "flow \"aa bb cc\"\n    text.wrap(5)\n    list.length\n    print\n", "2\n"},
+		{"insert places text at the index", "print(text.insert(\"ac\", 1, \"b\"))\nprint(text.insert(\"ac\", 0, \"b\"))\n", "abc\nbac\n"},
+		{"insert at the length appends", "print(text.insert(\"ac\", 2, \"-\"))\n", "ac-\n"},
+		{"insert clamps out-of-range indexes like slice", "print(text.insert(\"ac\", -5, \"x\"))\nprint(text.insert(\"ac\", 99, \"!\"))\n", "xac\nac!\n"},
+		{"insert is code-point indexed", "print(text.insert(\"hélo\", 1, \"e\"))\n", "heélo\n"},
+		{"insert into empty text at zero", "print(text.insert(\"\", 0, \"hi\"))\n", "hi\n"},
+		{"insert of empty text changes nothing", "print(text.insert(\"ab\", 1, \"\"))\n", "ab\n"},
+		{"insert may place multicharacter text", "print(text.insert(\"ac\", 1, \"XYZ\"))\n", "aXYZc\n"},
+		{"insert flows", "flow \"ac\"\n    text.insert(1, \"b\")\n    print\n", "abc\n"},
+		{"remove cuts the half-open range", "print(text.remove(\"hello\", 1, 3))\n", "hlo\n"},
+		{"remove of the whole text is empty", "print(\"[\" + text.remove(\"hello\", 0, 5) + \"]\")\n", "[]\n"},
+		{"remove of an empty or inverted range changes nothing", "print(text.remove(\"hello\", 2, 2))\nprint(text.remove(\"hello\", 3, 2))\n", "hello\nhello\n"},
+		{"remove clamps like slice", "print(\"[\" + text.remove(\"hello\", -2, 99) + \"]\")\nprint(text.remove(\"hello\", -2, 2))\n", "[]\nllo\n"},
+		{"remove is code-point indexed", "print(text.remove(\"héélo\", 1, 3))\n", "hlo\n"},
+		{"remove of empty text is empty", "print(\"[\" + text.remove(\"\", 0, 5) + \"]\")\n", "[]\n"},
+		{"remove flows", "flow \"hello\"\n    text.remove(1, 3)\n    print\n", "hlo\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := runText(t, tc.source)
+			if got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestTextEditingTyping pins the argument diagnostics of the editing words:
+// the pad pair accepts 2 to 3 arguments (the fill default), the others their
+// exact arities.
+func TestTextEditingTyping(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"repeat argument count", "print(text.repeat(\"a\"))\n", "text.repeat requires 2 arguments, found 1"},
+		{"repeat count type", "print(text.repeat(\"a\", \"b\"))\n", "argument 2 of text.repeat requires type Int, found String"},
+		{"repeat value type", "print(text.repeat(1, 2))\n", "argument 1 of text.repeat requires type String, found Int"},
+		{"pad-left short arity", "print(text.pad-left(\"a\"))\n", "text.pad-left requires 2 to 3 arguments, found 1"},
+		{"pad-left long arity", "print(text.pad-left(\"a\", 1, \"b\", \"c\"))\n", "text.pad-left requires 2 to 3 arguments, found 4"},
+		{"pad-left fill type", "print(text.pad-left(\"a\", 1, 2))\n", "argument 3 of text.pad-left requires type String, found Int"},
+		{"pad-right width type", "print(text.pad-right(\"a\", \"b\"))\n", "argument 2 of text.pad-right requires type Int, found String"},
+		{"pad-right long arity", "print(text.pad-right(\"a\", 1, \"b\", true))\n", "text.pad-right requires 2 to 3 arguments, found 4"},
+		{"wrap value type", "print(text.wrap(1, 2))\n", "argument 1 of text.wrap requires type String, found Int"},
+		{"wrap width type", "print(text.wrap(\"a\", \"b\"))\n", "argument 2 of text.wrap requires type Int, found String"},
+		{"insert index type", "print(text.insert(\"a\", \"b\", \"c\"))\n", "argument 2 of text.insert requires type Int, found String"},
+		{"remove argument count", "print(text.remove(\"a\", 1))\n", "text.remove requires 3 arguments, found 2"},
+		{"remove end type", "print(text.remove(\"a\", 1, \"b\"))\n", "argument 3 of text.remove requires type Int, found String"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var out strings.Builder
+			err := Run("typing.zhex", tc.source, strings.NewReader(""), &out)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("wanted %q, got %v", tc.want, err)
+			}
+		})
+	}
+}
+
+// TestPadAndRepeatValidationIsABugSignal pins the hard errors: a negative pad
+// width, a fill that is not exactly one code point, and a negative repeat
+// count have no sane result, so the run exits with their stable codes — no
+// hint, because there is nothing to suggest but a valid argument.
+func TestPadAndRepeatValidationIsABugSignal(t *testing.T) {
+	for _, tc := range []struct{ code, source, first string }{
+		{"text-pad-width", "print(text.pad-left(\"a\", -1))\n", "bad.zhex:1:7: text.pad-left width is negative"},
+		{"text-pad-width", "print(text.pad-right(\"a\", -1))\n", "bad.zhex:1:7: text.pad-right width is negative"},
+		{"text-pad-fill", "print(text.pad-left(\"a\", 2, \"\"))\n", "bad.zhex:1:7: text.pad-left fill must be exactly one code point"},
+		{"text-pad-fill", "print(text.pad-right(\"a\", 2, \"ab\"))\n", "bad.zhex:1:7: text.pad-right fill must be exactly one code point"},
+		{"text-repeat-count", "print(text.repeat(\"a\", -1))\n", "bad.zhex:1:7: text.repeat count is negative"},
+	} {
+		t.Run(tc.code, func(t *testing.T) {
+			err := Run("bad.zhex", tc.source, strings.NewReader(""), &strings.Builder{})
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if !strings.HasPrefix(err.Error(), tc.first) {
+				t.Fatalf("first line changed: %q", err.Error())
+			}
+			if strings.Contains(err.Error(), "hint:") {
+				t.Fatalf("%s must carry no hint: %q", tc.code, err.Error())
+			}
+			report, ok := Report(err)
+			if !ok || !strings.Contains(report, `"code":"`+tc.code+`"`) {
+				t.Fatalf("wanted code %s, got %s", tc.code, report)
+			}
+		})
+	}
+}
+
+// TestWrapElementLimit pins the hard stop before materializing: a wrap that
+// would produce more than the runtime element limit fails with the shared
+// collection-limit code, the same limit as text.split.
+func TestWrapElementLimit(t *testing.T) {
+	var out strings.Builder
+	source := "var big = \"a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a\"\nfor i in range(1, 16)\n    big = big + \" \" + big\nprint(list.length(text.wrap(big, 1)))\n"
+	err := Run("wrap.zhex", source, strings.NewReader(""), &out)
+	if err == nil || !strings.Contains(err.Error(), "text.wrap exceeds element limit") {
+		t.Fatalf("wanted element limit diagnostic, got %v", err)
+	}
+	report, ok := Report(err)
+	if !ok || !strings.Contains(report, `"code":"collection-limit"`) {
+		t.Fatalf("wanted code collection-limit, got %s", report)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("limit must stop the run before output, got %q", out.String())
+	}
+}
+
 func runText(t *testing.T, source string) string {
 	t.Helper()
 	var out strings.Builder

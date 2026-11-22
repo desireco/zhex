@@ -1973,6 +1973,30 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 	case "text.ends-with":
 		need(2)
 		return fmt.Sprintf("zhexrt.TextEndsWith(%s, %s)", args[0], args[1])
+	case "text.repeat":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextRepeat(%s, %s, %s)", pos, args[0], args[1])
+	case "text.pad-left":
+		need(2)
+		if len(args) == 2 {
+			return fmt.Sprintf("zhexrt.TextPadLeft(%s, %s, %s, \" \")", pos, args[0], args[1])
+		}
+		return fmt.Sprintf("zhexrt.TextPadLeft(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "text.pad-right":
+		need(2)
+		if len(args) == 2 {
+			return fmt.Sprintf("zhexrt.TextPadRight(%s, %s, %s, \" \")", pos, args[0], args[1])
+		}
+		return fmt.Sprintf("zhexrt.TextPadRight(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "text.wrap":
+		need(2)
+		return fmt.Sprintf("zhexrt.TextWrap(%s, %s, %s)", pos, args[0], args[1])
+	case "text.insert":
+		need(3)
+		return fmt.Sprintf("zhexrt.TextInsert(%s, %s, %s)", args[0], args[1], args[2])
+	case "text.remove":
+		need(3)
+		return fmt.Sprintf("zhexrt.TextRemove(%s, %s, %s)", args[0], args[1], args[2])
 
 	// list words
 	case "list.new":

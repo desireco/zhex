@@ -630,6 +630,30 @@ Fix: Strings are UTF-8 text, so those values have no encoding; this is a bug sig
 
 Learn: https://desireco.github.io/zhex/errors.html#text-code-point
 
+## text-pad-fill
+
+`text.pad-left` or `text.pad-right` received a fill that is not exactly one code point.
+
+Fix: Padding reaches an exact width only by repeating a single character, and an empty or multi-code-point fill cannot land on an arbitrary width. Pass a one-code-point fill, or omit it to pad with spaces.
+
+Learn: https://desireco.github.io/zhex/errors.html#text-pad-fill
+
+## text-pad-width
+
+`text.pad-left` or `text.pad-right` received a negative width.
+
+Fix: The width is the target length, so a negative value has no meaning; this is a bug signal, not a recoverable case. Pass a width of zero or more — padding never truncates, so a width at or below the text's length returns the text unchanged.
+
+Learn: https://desireco.github.io/zhex/errors.html#text-pad-width
+
+## text-repeat-count
+
+`text.repeat` received a negative count.
+
+Fix: A negative count has no meaning — zero already produces the empty string; this is a bug signal, not a recoverable case. Pass a count of zero or more.
+
+Learn: https://desireco.github.io/zhex/errors.html#text-repeat-count
+
 ## text-to-int
 
 The text given to `text.to-int` is not a signed 128-bit decimal integer.

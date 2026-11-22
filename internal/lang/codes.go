@@ -103,6 +103,9 @@ const (
 	CodeTextToInt        Code = "text-to-int"
 	CodeReplaceEmpty     Code = "replace-empty"
 	CodeTextCodePoint    Code = "text-code-point"
+	CodeTextPadWidth     Code = "text-pad-width"
+	CodeTextPadFill      Code = "text-pad-fill"
+	CodeTextRepeatCount  Code = "text-repeat-count"
 	CodeBufferRange      Code = "buffer-range"
 	CodeFileOpen         Code = "file-open"
 	CodeFileRead         Code = "file-read"
@@ -141,7 +144,7 @@ var diagnosticCodes = []Code{
 	CodeUnknownWord, CodePrintType, CodeRangeContext, CodeMainParameters,
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
-	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeTextCodePoint, CodeBufferRange,
+	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeTextCodePoint, CodeTextPadWidth, CodeTextPadFill, CodeTextRepeatCount, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileBytesRange, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
 	CodeDoctestMismatch, CodeDoctestCheck, CodeTestFailed,
 	CodeNotAvailableInBuild,

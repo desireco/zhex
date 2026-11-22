@@ -68,7 +68,7 @@ var hostWords = []string{
 	"map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values",
 	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
-	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with",
+	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with", "text.repeat", "text.pad-left", "text.pad-right", "text.wrap", "text.insert", "text.remove",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
 	"file.read", "file.open", "file.read-line", "file.close", "file.write", "file.write-bytes", "file.stream", "file.list", "file.exists", "file.size", "file.free-space",
 	"file.join", "file.base", "file.extension", "file.directory-of",
@@ -89,6 +89,8 @@ var builtinTrailingDefaults = map[string]builtinDefault{
 	"file.delete-folder": {arity: 2, values: []value{{boolean: false}}},
 	"file.move":          {arity: 3, values: []value{{boolean: false}}},
 	"env.load":           {arity: 1, values: []value{{text: ".env"}}},
+	"text.pad-left":      {arity: 3, values: []value{{text: " "}}},
+	"text.pad-right":     {arity: 3, values: []value{{text: " "}}},
 }
 
 type builtinDefault struct {
@@ -2156,6 +2158,21 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 		case "text.starts-with", "text.ends-with":
 			params = []valueType{stringType, stringType}
 			result = boolType
+		case "text.repeat":
+			params = []valueType{stringType, intType}
+			result = stringType
+		case "text.pad-left", "text.pad-right":
+			params = []valueType{stringType, intType, stringType}
+			result = stringType
+		case "text.wrap":
+			params = []valueType{stringType, intType}
+			result = "List<String>"
+		case "text.insert":
+			params = []valueType{stringType, intType, stringType}
+			result = stringType
+		case "text.remove":
+			params = []valueType{stringType, intType, intType}
+			result = stringType
 		case "buffer.new":
 			result = bufferType
 		case "buffer.add-line":

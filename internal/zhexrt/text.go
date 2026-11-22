@@ -1,6 +1,7 @@
 package zhexrt
 
 import (
+	"math"
 	"strings"
 	"unicode/utf8"
 )
@@ -111,4 +112,116 @@ func TextFromCodePoints(pos Pos, l *List[Int]) string {
 		b.WriteRune(rune(cp.AsInt64()))
 	}
 	return b.String()
+}
+
+// The #196 text editing words. repeat and the pad pair validate their
+// numeric arguments as bug signals (the replace-empty law); wrap, insert,
+// and remove are total — wrap adopts pdf-doc's _wrap semantics verbatim
+// and insert/remove clamp like TextSlice.
+
+func TextRepeat(pos Pos, s string, n Int) string {
+	if n.Negative() {
+		Fail(pos, "text-repeat-count", "text.repeat count is negative")
+	}
+	// A count whose result no string could hold is out of range, not a build.
+	if !n.Fits64() || len(s) > 0 && n.AsInt64() > int64(math.MaxInt)/int64(len(s)) {
+		Fail(pos, "text-repeat-count", "text.repeat count %s is out of range", Str(n))
+	}
+	return strings.Repeat(s, int(n.AsInt64()))
+}
+
+// textPad validates the shared pad contract and returns the fill prefix:
+// width at or below the text's code-point length pads nothing, and the
+// fill is exactly one code point so any target width stays reachable.
+func textPad(pos Pos, word, s string, width Int, fill string) string {
+	if width.Negative() {
+		Fail(pos, "text-pad-width", "%s width is negative", word)
+	}
+	if utf8.RuneCountInString(fill) != 1 {
+		Fail(pos, "text-pad-fill", "%s fill must be exactly one code point", word)
+	}
+	length := int64(utf8.RuneCountInString(s))
+	if !width.Fits64() {
+		Fail(pos, "text-pad-width", "%s width %s is out of range", word, Str(width))
+	}
+	if w := width.AsInt64(); w > length {
+		return strings.Repeat(fill, int(w-length))
+	}
+	return ""
+}
+
+func TextPadLeft(pos Pos, s string, width Int, fill string) string {
+	return textPad(pos, "text.pad-left", s, width, fill) + s
+}
+
+func TextPadRight(pos Pos, s string, width Int, fill string) string {
+	return s + textPad(pos, "text.pad-right", s, width, fill)
+}
+
+// TextWrap is the greedy word wrap pdf-doc's _wrap established: split on
+// single spaces with empty fields skipped, a line breaks before the first
+// word that no longer fits, an over-long word overflows alone, and text
+// with no words wraps to one empty line. Width counts code points.
+func TextWrap(pos Pos, s string, width Int) *List[string] {
+	// Lines never outnumber words, so the space count bounds them before
+	// anything materializes — the text.split limit.
+	if int64(strings.Count(s, " "))+1 > MaxElements {
+		Fail(pos, "collection-limit", "text.wrap exceeds element limit")
+	}
+	lines := []string{}
+	cur := ""
+	any := false
+	for _, w := range strings.Split(s, " ") {
+		if w == "" {
+			continue
+		}
+		if !any {
+			cur, any = w, true
+			continue
+		}
+		if Cmp(I64(int64(utf8.RuneCountInString(cur)+1+utf8.RuneCountInString(w))), width) <= 0 {
+			cur = cur + " " + w
+		} else {
+			lines = append(lines, cur)
+			cur = w
+		}
+	}
+	if any {
+		lines = append(lines, cur)
+	} else {
+		lines = append(lines, "")
+	}
+	return &List[string]{Items: lines}
+}
+
+// TextInsert places inserted at the code-point index, 0 through the length
+// inclusive (the length appends); an index outside clamps into range, the
+// TextSlice law.
+func TextInsert(s string, index Int, inserted string) string {
+	runes := []rune(s)
+	if index.Negative() {
+		index = I64(0)
+	}
+	if length := I64(int64(len(runes))); Cmp(index, length) > 0 {
+		index = length
+	}
+	at := index.AsInt64()
+	return string(runes[:at]) + inserted + string(runes[at:])
+}
+
+// TextRemove is TextSlice's mirror image: the same clamped half-open
+// range, removed instead of kept — an empty or inverted range is a no-op.
+func TextRemove(s string, start, end Int) string {
+	runes := []rune(s)
+	length := I64(int64(len(runes)))
+	if start.Negative() {
+		start = I64(0)
+	}
+	if Cmp(end, length) > 0 {
+		end = length
+	}
+	if Cmp(start, end) >= 0 {
+		return s
+	}
+	return string(runes[:start.AsInt64()]) + string(runes[end.AsInt64():])
 }
