@@ -1,0 +1,57 @@
+# PDF module tests: the escape law (ASCII literal, punctuation escaped,
+# Latin-1 in octal, over-fence failure), the text-block operators, the
+# content /Length, and the assembled document's header, xref offsets,
+# and trailer. The viewer verification — pdfinfo and qpdf --check on the
+# written file — runs in the ticket's gate, not here; this file pins
+# structure.
+use pdf
+use test
+
+# the escape law
+test.check(pdf.escape("a(b)\\c") try == "a\\(b\\)\\\\c", "punctuation escapes")
+test.check(pdf.escape("na" + text.from-code-points([233]) + "ve") try == "na\\351ve", "Latin-1 byte becomes octal")
+test.check(pdf.escape("plain ascii") try == "plain ascii", "ASCII stays literal")
+let over = pdf.escape(text.from-code-points([20320])) catch "failed"
+test.check(over == "failed", "a code point above the Latin-1 fence fails")
+
+# the text-block operators
+let block = pdf.text-block(24, 16, ["One", "Two"]) try
+test.check(text.starts-with(block, "BT\n/F1 24 Tf\n72 770 Td\n"), "Tf size and first-baseline Td")
+test.check(text.contains(block, "0 -16 TD\n(Two) Tj"), "later lines step one leading via TD")
+test.check(text.contains(block, "(One) Tj"), "text draws with Tj")
+test.check(text.ends-with(block, "ET"), "the block closes with ET")
+
+# the content stream /Length counts the operators it wraps
+let body = pdf.content-body("BT ET")
+test.check(body == "<< /Length 5 >>\nstream\nBT ET\nendstream", "content body pins shape and length")
+
+# the two-page document: header, object shapes, xref law, trailer
+let ops = pdf.text-block(12, 16, ["line"]) try
+let doc = pdf.document([
+    pdf.obj(1, pdf.catalog-body()),
+    pdf.obj(2, pdf.pages-body([4, 6])),
+    pdf.obj(3, pdf.font-body()),
+    pdf.obj(4, pdf.page-body(2, 5)),
+    pdf.obj(5, pdf.content-body(ops)),
+    pdf.obj(6, pdf.page-body(2, 7)),
+    pdf.obj(7, pdf.content-body(ops))
+])
+test.check(text.starts-with(doc, "%PDF-1.4\n"), "the header comes first")
+test.check(text.slice(doc, 9, 17) == "1 0 obj\n", "the first xref entry points at object 1")
+test.check(pdf.catalog-body() == "<< /Type /Catalog /Pages 2 0 R >>", "catalog pins the page tree")
+test.check(pdf.pages-body([4, 6]) == "<< /Type /Pages /Kids [4 0 R 6 0 R ] /Count 2 >>", "page tree pins both kids")
+test.check(pdf.font-body() == "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", "font pins base-14 Helvetica")
+test.check(text.contains(doc, "/Count 2"), "the page tree counts two pages")
+test.check(list.length(text.split(doc, "/Type /Page ")) == 3, "two page objects")
+test.check(list.length(text.split(doc, "stream\nBT")) == 3, "two content streams")
+test.check(pdf.obj(3, "body") == "3 0 obj\nbody\nendobj\n", "objects pin their number and wrapper")
+
+# startxref names the byte (character, under the ASCII law) offset of xref
+let at = text.index-of(doc, "startxref\n")
+let tail = text.slice(doc, at + 10, text.length(doc))
+let digits = text.slice(tail, 0, text.index-of(tail, "\n"))
+let xref-offset = text.to-int(digits) try
+test.check(text.slice(doc, xref-offset, xref-offset + 4) == "xref", "startxref points at the xref table")
+test.check(text.ends-with(doc, "%%EOF\n"), "the trailer ends the file")
+
+print "pdf module tests passed"

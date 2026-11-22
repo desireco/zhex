@@ -1,0 +1,44 @@
+# A two-page PDF emitted by hand: the pdf module assembles catalog, page
+# tree, font, and the two page content streams as ASCII strings; the
+# demo writes the file, prints its structural facts, and removes it, so
+# the example's output stays deterministic at build time.
+use pdf
+
+# page 1: a heading plus body lines in Helvetica
+let ops1 = pdf.text-block(24, 16, [
+    "Zhex PDF spike",
+    "",
+    "This document is a plain ASCII string built by Zhex words:",
+    "objects, an xref table, and a trailer, concatenated in order.",
+    "Page two proves the page-break machinery."
+]) try
+
+# page 2: the page-break proof — a second page object and stream
+let ops2 = pdf.text-block(12, 16, [
+    "Page 2",
+    "",
+    "Two page objects share one font resource and one page tree;",
+    "each carries its own content stream with its own /Length.",
+    "The viewer paginates from the Kids list, nothing more."
+]) try
+
+let doc = pdf.document([
+    pdf.obj(1, pdf.catalog-body()),
+    pdf.obj(2, pdf.pages-body([4, 6])),
+    pdf.obj(3, pdf.font-body()),
+    pdf.obj(4, pdf.page-body(2, 5)),
+    pdf.obj(5, pdf.content-body(ops1)),
+    pdf.obj(6, pdf.page-body(2, 7)),
+    pdf.obj(7, pdf.content-body(ops2))
+])
+
+print "pdf chars (= bytes, the ASCII law): " + text.length(doc)
+print "header: " + text.slice(doc, 0, 8)
+if text.ends-with(doc, "%%EOF\n")
+    print "trailer: %%EOF ends the file"
+if text.contains(pdf.font-body(), "/Helvetica")
+    print "font: Helvetica base-14"
+
+let written = file.write(doc, "pdf-spike.pdf") try
+print "wrote pdf-spike.pdf"
+let removed = file.delete("pdf-spike.pdf") try

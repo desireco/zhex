@@ -1,0 +1,101 @@
+# The PDF emission vocabulary: whole documents as plain ASCII strings.
+# Bytes at or above 0x80 appear only inside text strings as PDF octal
+# escapes (\377 style), so a emitted file is ASCII end to end and byte
+# offsets equal string lengths — the law document() counts by.
+# Text draws through the base-14 font Helvetica; characters outside the
+# Latin-1 fence (code points above 255) fail the escape Result rather
+# than strip or mojibake.
+
+## One code point as PDF string source: ( ) and \ are backslash-escaped,
+## ASCII stays literal, and 128..255 becomes a three-digit octal escape.
+word _escape-code-point(cp: Int) -> String
+    if cp == 40
+        "\\("
+    elif cp == 41
+        "\\)"
+    elif cp == 92
+        "\\\\"
+    elif cp < 128
+        text.from-code-points([cp])
+    else
+        "\\" + (cp / 64) + ((cp / 8) % 8) + (cp % 8)
+
+## Plain text as a PDF string literal, ( ) \ escaped and high bytes in
+## octal; a code point above 255 fails pdf-latin1 instead of being
+## mangled — the module's fence.
+word escape(text: String) -> Result<String, Error>
+    let cps = text.to-code-points(text)
+    var limit = 0
+    for cp in cps
+        if cp > limit
+            limit = cp
+    if limit > 255
+        err(error.new("pdf-latin1", "code point " + limit + " is outside the Latin-1 fence"))
+    else
+        ok(text.join(list.map(cps, _escape-code-point(_)), ""))
+
+## A whole BT/ET text block in /F1 Helvetica: Tf sets the size, Td moves
+## to the first baseline, and every later line steps one leading down
+## with 0 -lead TD (a TD move also sets the leading for Tj).
+word text-block(size: Int, lead: Int, lines: List<String>) -> Result<String, Error>
+    var ops = "BT\n/F1 " + size + " Tf\n72 770 Td\n"
+    var i = 0
+    while i < list.length(lines)
+        if i > 0
+            ops = ops + "0 -" + lead + " TD\n"
+        ops = ops + "(" + escape(lines[i]) try + ") Tj\n"
+        i = i + 1
+    ok(ops + "ET")
+
+## A content stream object body carrying the drawing operators; /Length
+## counts the bytes between the stream keywords, which equals
+## text.length under the ASCII law.
+word content-body(ops: String) -> String
+    "<< /Length " + text.length(ops) + " >>\nstream\n" + ops + "\nendstream"
+
+## The document catalog pointing at the page tree.
+word catalog-body() -> String
+    "<< /Type /Catalog /Pages 2 0 R >>"
+
+## The page tree: kids as object numbers, one page each.
+word pages-body(kids: List<Int>) -> String
+    var refs = ""
+    for k in kids
+        refs = refs + k + " 0 R "
+    "<< /Type /Pages /Kids [" + refs + "] /Count " + list.length(kids) + " >>"
+
+## One letter-size page: parent tree node, a content stream, and /F1 as
+## the Helvetica font resource.
+word page-body(parent: Int, contents: Int) -> String
+    "<< /Type /Page /Parent " + parent + " 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents " + contents + " 0 R >>"
+
+## The Helvetica base-14 font resource every page shares.
+word font-body() -> String
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+
+## One numbered indirect object wrapping a body.
+word obj(number: Int, body: String) -> String
+    number + " 0 obj\n" + body + "\nendobj\n"
+
+## A ten-digit zero-padded xref offset column.
+word _pad10(n: Int) -> String
+    var s = int.to-string(n)
+    while text.length(s) < 10
+        s = "0" + s
+    s
+
+## Assemble numbered objects 1..N into a document: header, each object
+## with its offset remembered, one xref table, and the trailer pointing
+## startxref and /Root at it. Offsets count characters, which the ASCII
+## law makes identical to the byte offsets PDF requires.
+word document(objects: List<String>) -> String
+    var out = "%PDF-1.4\n"
+    var offsets: List<Int> = list.new()
+    for body in objects
+        offsets = list.append(offsets, text.length(out))
+        out = out + body
+    let xref-at = text.length(out)
+    var xref = "xref\n0 " + (list.length(objects) + 1) + "\n0000000000 65535 f \n"
+    for off in offsets
+        xref = xref + _pad10(off) + " 00000 n \n"
+    out + xref + "trailer\n<< /Size " + (list.length(objects) + 1) + " /Root 1 0 R >>\nstartxref\n" + xref-at + "\n%%EOF\n"

@@ -89,6 +89,10 @@ var corpusTable = map[string]corpusRow{
 	"modules/epub-book/zip.zhex":      {blockers: []string{"text.to-code-points"}},
 	"modules/epub-book/zip.test.zhex": {blockers: []string{"text.to-code-points", "console.fail"}},
 	"modules/epub-book/test.zhex":     {blockers: []string{"console.fail"}},
+	"modules/pdf-doc/main.zhex":     {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
+	"modules/pdf-doc/pdf.zhex":      {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
+	"modules/pdf-doc/pdf.test.zhex": {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new", "console.fail"}},
+	"modules/pdf-doc/test.zhex":     {blockers: []string{"console.fail"}},
 }
 
 // corpusResolve mirrors the CLI's module reader: `use name` resolves the
