@@ -24,7 +24,8 @@
 # Parse side (md.parse, md.render):
 # - Block is the flat block choice (Heading(level, text), Paragraph(text),
 #   Rule, BulletItem(marker, text, indent), OrderedItem(marker, text,
-#   indent), Quote(text, indent)) and Doc is the record over List<Block>;
+#   indent), Quote(text, indent), Code(fence, info, lines),
+#   Table(header, rows)) and Doc is the record over List<Block>;
 #   the list carries heading levels and item indents inline, never nested
 #   children — the hierarchy is derived later.
 # - md.parse is total: every input is some block sequence, so it returns a
@@ -43,7 +44,24 @@
 #   per item or quote, and a non-blank follower without a marker is
 #   paragraph text. Setext headings, indented headings and rules, nested
 #   quote markers (the inner > stays in the text), and rules with inner
-#   spaces are excluded. CRLF line endings are normalized to LF first,
+#   spaces are excluded.
+# - Fenced code: an opening fence is 3 or more backticks at the start of
+#   a line (tildes are not fences; an indented fence is paragraph text),
+#   the info string is the trimmed rest of that line kept verbatim, and
+#   the closing fence is a line of only backticks at least as long as
+#   the opening one — everything between is content verbatim, blank
+#   lines and indentation included, and an unclosed block simply closes
+#   at the end of the text. md.render re-fences through md.code-block's
+#   max(3, longest inner run + 1) law, so the parsed fence is advisory.
+# - Tables: a line starting with | whose next line is a delimiter row —
+#   pipe-led cells of dashes with optional outer : markers, cell count
+#   matching the header — starts a table; alignment markers are dropped
+#   on purpose (the write side emits plain dashes). Cells are trimmed
+#   and split on pipes not preceded by a backslash; the backslash stays
+#   verbatim, no unescaping. Data rows are the following pipe-led lines:
+#   a short row pads with empty cells, an overlong row drops its excess
+#   cells, and any other line ends the table.
+# - CRLF line endings are normalized to LF first,
 #   and inline content is kept verbatim — no unescaping, inline parsing
 #   is a later story.
 # - md.render writes a Doc back through the write-side words above (so
@@ -112,8 +130,10 @@ word table(headers: List<String>, rows: List<List<String>>) -> String
 
 # One block in the flat Doc: a heading with its ATX level, a paragraph's
 # verbatim text, a horizontal rule, a list item with its verbatim marker
-# and indent, or a quote line with its indent. Nesting is the indent
-# field on the flat list, never children.
+# and indent, a quote line with its indent, a fenced code block with its
+# opening fence, info string, and verbatim lines, or a pipe table with
+# its header and rows. Nesting is the indent field on the flat list,
+# never children.
 type Block = choice
     Heading(level: Int, text: String)
     Paragraph(text: String)
@@ -121,6 +141,8 @@ type Block = choice
     BulletItem(marker: String, text: String, indent: Int)
     OrderedItem(marker: String, text: String, indent: Int)
     Quote(text: String, indent: Int)
+    Code(fence: String, info: String, lines: List<String>)
+    Table(header: List<String>, rows: List<List<String>>)
 
 # A parsed document: the block list in source order, nothing nested.
 type Doc = record
@@ -137,15 +159,52 @@ type Doc = record
 ## > render(parse("- one\n  - two"))
 ## - one
 ##   - two
+## > render(parse("```zhex\nlet x = 1\n```"))
+## ```zhex
+## let x = 1
+## ```
+## > render(parse("| a | b |\n| --- | --- |\n| 1 | 2 |"))
+## | a | b |
+## | --- | --- |
+## | 1 | 2 |
 word parse(text: String) -> Doc
     var blocks: List<Block> = list.new()
     var pending: List<String> = list.new()
-    for line in text.split(text.replace(text, "\r\n", "\n"), "\n")
-        if text.trim(line) == ""
+    let lines = text.split(text.replace(text, "\r\n", "\n"), "\n")
+    var i = 0
+    while i < list.length(lines)
+        let line = lines[i]
+        var next = i + 1
+        let fence = _fence-open(line)
+        if fence != ""
+            pending = _absorb(blocks, pending)
+            var body: List<String> = list.new()
+            var j = i + 1
+            var closed = false
+            while j < list.length(lines) and not closed
+                if _fence-close(lines[j], fence)
+                    closed = true
+                else
+                    let _body = list.append(body, lines[j])
+                j = j + 1
+            let info = text.trim(text.slice(line, text.length(fence), text.length(line)))
+            let _code = list.append(blocks, Block.Code(fence, info, body))
+            next = j
+        elif text.trim(line) == ""
             pending = _absorb(blocks, pending)
         elif _is-rule(line)
             pending = _absorb(blocks, pending)
             let _rule = list.append(blocks, Block.Rule)
+        elif _table-at(lines, i)
+            pending = _absorb(blocks, pending)
+            let header = _table-cells(line)
+            var rows: List<List<String>> = list.new()
+            var j = i + 2
+            while j < list.length(lines) and text.starts-with(lines[j], "|")
+                let _row = list.append(rows, _fit-row(_table-cells(lines[j]), list.length(header)))
+                j = j + 1
+            let _table = list.append(blocks, Block.Table(header, rows))
+            next = j
         else
             let level = _heading-level(line)
             if level > 0
@@ -168,6 +227,7 @@ word parse(text: String) -> Doc
                     let _item = list.append(blocks, Block.OrderedItem(ordered, _item-text(rest, ordered), ind))
                 else
                     let _line = list.append(pending, line)
+        i = next
     _absorb(blocks, pending)
     Doc(blocks)
 
@@ -201,6 +261,10 @@ word _render-plain(fragments: List<String>, block: Block) -> Unit
             let _frag = list.append(fragments, paragraph(text))
         case Block.Rule
             let _frag = list.append(fragments, "---")
+        case Block.Code(_fence, info, lines)
+            let _frag = list.append(fragments, code-block(info, lines))
+        case Block.Table(header, rows)
+            let _frag = list.append(fragments, table(header, rows))
         case _
             let _item-kind = ""
 
@@ -306,6 +370,75 @@ word _heading-level(line: String) -> Int
         n
     else
         0
+
+word _fence-open(line: String) -> String
+    let chars = text.split(line, "")
+    var n = 0
+    while n < list.length(chars) and chars[n] == "`"
+        n = n + 1
+    if n >= 3
+        text.slice(line, 0, n)
+    else
+        ""
+
+word _fence-close(line: String, fence: String) -> Bool
+    let t = text.trim(line)
+    text.length(t) >= text.length(fence) and text.length(t) >= 3 and _all(text.split(t, ""), "`")
+
+word _table-at(lines: List<String>, i: Int) -> Bool
+    if i + 1 >= list.length(lines) or not text.starts-with(lines[i], "|")
+        false
+    else
+        let head = _table-cells(lines[i])
+        let dashes = _table-cells(lines[i + 1])
+        list.length(dashes) > 0 and list.length(dashes) == list.length(head) and _all-dash-cells(dashes)
+
+word _all-dash-cells(cells: List<String>) -> Bool
+    var ok = true
+    for cell in cells
+        if not _is-dash-cell(cell)
+            ok = false
+    ok
+
+word _is-dash-cell(cell: String) -> Bool
+    var ok = text.length(cell) > 0
+    var dashes = 0
+    for c in text.split(cell, "")
+        if c == "-"
+            dashes = dashes + 1
+        elif c != ":"
+            ok = false
+    ok and dashes > 0
+
+word _table-cells(line: String) -> List<String>
+    var body = line
+    if text.starts-with(body, "|")
+        body = text.slice(body, 1, text.length(body))
+    if text.ends-with(body, "|") and text.length(body) > 0
+        body = text.slice(body, 0, text.length(body) - 1)
+    var cells: List<String> = list.new()
+    var cur = ""
+    var prev = ""
+    for c in text.split(body, "")
+        if c == "|" and prev == "\\"
+            cur = cur + c
+        elif c == "|"
+            let _cell = list.append(cells, text.trim(cur))
+            cur = ""
+        else
+            cur = cur + c
+        prev = c
+    let _last = list.append(cells, text.trim(cur))
+    cells
+
+word _fit-row(cells: List<String>, width: Int) -> List<String>
+    var out: List<String> = list.new()
+    for j in range(0, width)
+        if j < list.length(cells)
+            let _cell = list.append(out, cells[j])
+        else
+            let _pad = list.append(out, "")
+    out
 
 word _esc(text: String) -> String
     flow text.split(text, "")

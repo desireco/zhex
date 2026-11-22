@@ -148,4 +148,78 @@ test.check(md.render(doc) == "# T\n\n- a\n  - b\n\n1. one\n\n> note\n\nend", "mi
 expect-paragraph(md.parse("one\r\ntwo"), 0, "one\ntwo", "crlf lines join with lf")
 test.check(md.render(md.parse("a\r\n\r\nb")) == "a\n\nb", "crlf separators normalize on render")
 
+# fenced code blocks
+word expect-code(doc: md.Doc, i: Int, fence: String, info: String, lines: List<String>, label: String)
+    match doc.blocks[i]
+        case md.Block.Code(got-fence, got-info, got-lines)
+            test.check(got-fence == fence, label + ": fence")
+            test.check(got-info == info, label + ": info")
+            test.check(text.join(got-lines, "\n") == text.join(lines, "\n"), label + ": lines")
+        case _
+            test.check(false, label + ": not a code block")
+
+let fenced = md.parse("```\ncode\n```")
+expect-count(fenced, 1, "one fenced block, one block")
+expect-code(fenced, 0, "```", "", ["code"], "plain fenced block")
+expect-code(md.parse("```zhex\nlet x = 1\n```"), 0, "```", "zhex", ["let x = 1"], "info string is kept verbatim")
+expect-code(md.parse("```   go   \nx\n```"), 0, "```", "go", ["x"], "info string is trimmed")
+expect-code(md.parse("````\n```\n````"), 0, "````", "", ["```"], "a shorter all-backtick line stays content")
+expect-count(md.parse("```\nabc"), 1, "an unclosed fence closes at end of text")
+expect-code(md.parse("```\nabc"), 0, "```", "", ["abc"], "an unclosed fence keeps its lines")
+expect-code(md.parse("```\n  kept\n```"), 0, "```", "", ["  kept"], "content indentation is verbatim")
+expect-count(md.parse("```\na\n\nb\n```"), 1, "a blank line inside a fence is content")
+expect-paragraph(md.parse("``\nx"), 0, "``\nx", "two backticks are not a fence")
+expect-paragraph(md.parse("~~~\nx\n~~~"), 0, "~~~\nx\n~~~", "tilde fences are not recognized")
+
+# tables
+word same-cells(got: List<String>, want: List<String>) -> Bool
+    text.join(got, "\n") == text.join(want, "\n")
+
+word expect-table(doc: md.Doc, i: Int, header: List<String>, rows: List<List<String>>, label: String)
+    match doc.blocks[i]
+        case md.Block.Table(got-header, got-rows)
+            test.check(same-cells(got-header, header), label + ": header")
+            test.check(list.length(got-rows) == list.length(rows), label + ": row count")
+            var j = 0
+            while j < list.length(rows)
+                test.check(same-cells(got-rows[j], rows[j]), label + ": row " + j)
+                j = j + 1
+        case _
+            test.check(false, label + ": not a table")
+
+let tab = md.parse("| a | b |\n| --- | --- |\n| 1 | 2 |")
+expect-count(tab, 1, "one table, one block")
+expect-table(tab, 0, ["a", "b"], [["1", "2"]], "plain table")
+expect-table(md.parse("| a | b |\n| :-- | --: |\n| 1 | 2 |"), 0, ["a", "b"], [["1", "2"]], "alignment markers parse and drop")
+expect-table(md.parse("| a | b |\n| --- | --- |\n| 1 |"), 0, ["a", "b"], [["1", ""]], "a short row pads with an empty cell")
+expect-table(md.parse("| a | b |\n| --- | --- |\n| 1 | 2 | 3 |"), 0, ["a", "b"], [["1", "2"]], "an overlong row drops its excess cells")
+expect-table(md.parse("| a\\|b | c |\n| --- | --- |\n| x | y |"), 0, ["a\\|b", "c"], [["x", "y"]], "a backslashed pipe stays in the cell")
+expect-paragraph(md.parse("| a | b |\n| --- |\n| 1 |"), 0, "| a | b |\n| --- |\n| 1 |", "a narrower delimiter row is paragraph text")
+let after-table = md.parse("| a |\n| --- |\n| 1 |\n\nafter")
+expect-count(after-table, 2, "a blank line ends the table")
+expect-table(after-table, 0, ["a"], [["1"]], "table before the blank line")
+expect-paragraph(after-table, 1, "after", "paragraph after the table")
+
+# mixed document with all eight block kinds
+let full = md.parse("# T\n\nintro\n\n---\n\n- a\n\n1. one\n\n> note\n\n```\nx\n```\n\n| h |\n| --- |\n| r |\n\noutro")
+expect-count(full, 9, "every block kind in one document")
+expect-heading(full, 0, 1, "T", "full: heading")
+expect-paragraph(full, 1, "intro", "full: paragraph")
+expect-rule(full, 2, "full: rule")
+expect-bullet(full, 3, "-", "a", 0, "full: bullet item")
+expect-ordered(full, 4, "1.", "one", 0, "full: ordered item")
+expect-quote(full, 5, "note", 0, "full: quote")
+expect-code(full, 6, "```", "", ["x"], "full: code block")
+expect-table(full, 7, ["h"], [["r"]], "full: table")
+expect-paragraph(full, 8, "outro", "full: closing paragraph")
+
+# code and table round trips
+test.check(md.render(md.parse("```\ncode\n```")) == "```\ncode\n```", "plain code block round trips")
+test.check(md.render(md.parse("````\n```\n````")) == "````\n```\n````", "a code block containing backticks round trips")
+test.check(md.render(md.parse("```zhex\nlet x = 1\n```")) == "```zhex\nlet x = 1\n```", "info string survives the round trip")
+test.check(md.render(md.parse("| a | b |\n| --- | --- |\n| 1 | 2 |")) == "| a | b |\n| --- | --- |\n| 1 | 2 |", "a plain table round trips")
+test.check(md.render(md.parse("| a | b |\n| :-- | --: |\n| 1 | 2 |")) == "| a | b |\n| --- | --- |\n| 1 | 2 |", "alignment markers drop on the round trip")
+test.check(md.render(md.parse("| a | b |\n| --- | --- |\n| 1 |")) == "| a | b |\n| --- | --- |\n| 1 |   |", "a padded cell renders padded")
+test.check(md.render(full) == "# T\n\nintro\n\n---\n\n- a\n\n1. one\n\n> note\n\n```\nx\n```\n\n| h |\n| --- |\n| r |\n\noutro", "the full mixed document round trips")
+
 print "md parse tests passed"
