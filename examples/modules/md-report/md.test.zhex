@@ -354,6 +354,94 @@ let bad-move-from = md.move-section(spine, 1, 0) catch problem
     test.check(text.contains(error.message(problem), "out of range"), "move on a non-heading index: out-of-range message")
     md.Doc([])
 
+# block-grain editing — the finest layer beneath the section ops, the
+# same verbs at single-block grain over the same flat list
+
+# insert-block: 0..block count inclusive, at the count appends
+let grain-in-mid = md.insert-block(spine, 1, md.Block.Paragraph("preface")) try
+expect-count(grain-in-mid, 15, "block insert adds one block")
+expect-paragraph(grain-in-mid, 1, "preface", "block insert lands before the index")
+expect-paragraph(grain-in-mid, 2, "intro", "block insert pushes the old blocks down")
+expect-rule((md.insert-block(spine, 0, md.Block.Rule) try), 0, "block insert at zero is the new first block")
+expect-paragraph((md.insert-block(spine, 14, md.Block.Paragraph("tail")) try), 14, "tail", "block insert at the count appends")
+let bad-grain-insert = md.insert-block(spine, 15, md.Block.Rule) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "block insert past the count: out-of-range message")
+    md.Doc([])
+let bad-grain-negative = md.insert-block(spine, -1, md.Block.Rule) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "block insert at a negative index: out-of-range message")
+    md.Doc([])
+
+# replace-block and remove-block validate their index through the
+# checked read channel
+let grain-swapped = md.replace-block(spine, 1, md.Block.Paragraph("new intro")) try
+expect-count(grain-swapped, 14, "block replace keeps the block count")
+expect-paragraph(grain-swapped, 1, "new intro", "block replace swaps in place")
+let grain-dropped = md.remove-block(spine, 2) try
+expect-count(grain-dropped, 13, "block remove drops one block")
+expect-paragraph(grain-dropped, 1, "intro", "block remove keeps the earlier neighbors")
+expect-bullet(grain-dropped, 2, "-", "item", 0, "block remove pulls later blocks up")
+let bad-grain-replace = md.replace-block(spine, 14, md.Block.Rule) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "block replace at the count: out-of-range message")
+    md.Doc([])
+let bad-grain-remove = md.remove-block(spine, 99) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "block remove past the end: out-of-range message")
+    md.Doc([])
+
+# set-blocks swaps the whole list, total — no failure channel
+let reset = md.set-blocks(spine, [md.Block.Heading(1, "Only")])
+expect-count(reset, 1, "set-blocks swaps the whole list")
+test.check(md.render(reset) == "# Only", "set-blocks renders the replacement list")
+
+# the layering idiom: the section ops are the block verbs over a slice
+let two = md.parse("# A\n\n## B")
+test.check(md.render(md.remove-block(two, 1) try) == md.render(md.remove-section(two, 1) try), "remove-block over a single-block section equals remove-section")
+
+# stats over the eight-kind document: kind counts plus words and
+# characters measured on each block's own text
+let full-stats = md.stats(full)
+test.check(full-stats.blocks == 9, "stats counts every block")
+test.check(full-stats.headings == 1, "stats counts headings")
+test.check(full-stats.paragraphs == 2, "stats counts paragraphs")
+test.check(full-stats.list-items == 2, "stats counts list items")
+test.check(full-stats.code-blocks == 1, "stats counts code blocks")
+test.check(full-stats.tables == 1, "stats counts tables")
+test.check(full-stats.words == 9, "stats counts words over all block kinds")
+test.check(full-stats.characters == 23, "stats counts characters over all block kinds")
+
+# the empty document is all zeros
+let empty-stats = md.stats(md.parse(""))
+test.check(empty-stats.blocks == 0 and empty-stats.words == 0 and empty-stats.characters == 0, "empty document stats are zero")
+
+# per-kind words and characters, one block each: item and quote text
+# verbatim, code lines joined, table cells joined, a rule contributes none
+test.check(md.stats(md.parse("## Two words")).words == 2, "heading words")
+test.check(md.stats(md.parse("## Two words")).characters == 9, "heading characters")
+test.check(md.stats(md.parse("one two")).words == 2, "paragraph words")
+test.check(md.stats(md.parse("one two")).characters == 7, "paragraph characters")
+test.check(md.stats(md.parse("---")).words == 0, "rule words are zero")
+test.check(md.stats(md.parse("---")).characters == 0, "rule characters are zero")
+test.check(md.stats(md.parse("- alpha beta")).words == 2, "bullet words")
+test.check(md.stats(md.parse("- alpha beta")).characters == 10, "bullet characters")
+test.check(md.stats(md.parse("1. first")).words == 1, "ordered words")
+test.check(md.stats(md.parse("1. first")).characters == 5, "ordered characters")
+test.check(md.stats(md.parse("> deep thought")).words == 2, "quote words")
+test.check(md.stats(md.parse("> deep thought")).characters == 12, "quote characters")
+test.check(md.stats(md.parse("```\nab cd\n```")).words == 2, "code words join the lines")
+test.check(md.stats(md.parse("```\nab cd\n```")).characters == 5, "code characters join the lines")
+test.check(md.stats(md.parse("| a | b |\n| --- | --- |\n| 1 | 2 |")).words == 4, "table words join the cells")
+test.check(md.stats(md.parse("| a | b |\n| --- | --- |\n| 1 | 2 |")).characters == 7, "table characters join the cells")
+
+# section-stats is the stats fold over md.section's slice; the Chapter
+# section (## Chapter, text, ### Deep, deep text) folds to these counts
+let chapter-stats = md.section-stats(spine, 8) try
+test.check(chapter-stats.blocks == 4, "section stats count the slice's blocks")
+test.check(chapter-stats.headings == 2, "section stats count nested headings")
+test.check(chapter-stats.words == 5, "section stats fold words")
+test.check(chapter-stats.characters == 24, "section stats fold characters")
+let bad-section-stats = md.section-stats(spine, 1) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "section stats on a non-heading: out-of-range message")
+    md.Stats(0, 0, 0, 0, 0, 0, 0, 0)
+
 # the round-trip law, as the module docs state it: render(parse(text))
 # == text for canonical text, and one pass canonicalizes the shape
 # divergences (loose lists, alignment markers, cell padding, CRLF) so

@@ -89,6 +89,22 @@
 #   and an index that selects no heading selects no slice — nothing
 #   shifts and the Doc comes back unchanged, the same answer md.outline
 #   gives that index, never a silent shape change.
+# - Block-grain editing is the finest layer beneath the section ops: the
+#   same flat list, one block at a time. md.insert-block splices one block
+#   in before block index `at` (0..block count inclusive — `at` == count
+#   appends, list.insert's law); md.replace-block and md.remove-block
+#   validate their index through the checked read channel (a deliberate
+#   read naming the offending index, never a silent shape); md.set-blocks
+#   swaps the whole list and is total. The section ops are these verbs'
+#   convenience layer — remove-section(doc, i) is remove-block repeated
+#   over the section's slice.
+# - Stats is the per-chunk counting record: blocks, headings, paragraphs,
+#   list-items, code-blocks, tables, plus words and characters measured on
+#   each block's own text — heading, paragraph, item, and quote text
+#   verbatim, code lines joined with newlines, table cells joined with
+#   newlines, a rule contributing none. md.stats folds it over a Doc;
+#   md.section-stats is that fold over md.section's slice (Result like
+#   md.section).
 # - CRLF line endings are normalized to LF first,
 #   and inline content is kept verbatim — no unescaping, inline parsing
 #   is a later story.
@@ -216,6 +232,18 @@ type Section = record
     index: Int
     level: Int
     text: String
+
+# Per-chunk statistics: block-kind counts plus words and characters
+# measured on each block's own text (see _block-text).
+type Stats = record
+    blocks: Int
+    headings: Int
+    paragraphs: Int
+    list-items: Int
+    code-blocks: Int
+    tables: Int
+    words: Int
+    characters: Int
 
 ## Parses Markdown text into a flat Doc of blocks; total, never a Result.
 ## > render(parse("## Notes"))
@@ -419,6 +447,93 @@ word move-section(doc: Doc, index: Int, to: Int) -> Result<Doc, Error>
         if to > index
             pos = to - (end - index)
         ok(Doc(_splice(_blocks-without(doc, index, end), pos, _slice-blocks(doc, index, end))))
+
+## Inserts one block before block index `at` (0..block count inclusive —
+## `at` == count appends, list.insert's law at single-block grain).
+## Fails through the checked read channel naming the offending index.
+## > list.length((insert-block(parse("# A"), 1, Block.Paragraph("tail")) try).blocks)
+## 2
+word insert-block(doc: Doc, at: Int, block: Block) -> Result<Doc, Error>
+    let _checked = _check-at(doc, at) try
+    ok(Doc(_splice(doc.blocks, at, [block])))
+
+## Swaps the block at index `at` for the given block, in place. The
+## section layer above: replace-section(doc, i, repl) is this verb over
+## the section's slice — the same flat list at coarser grain.
+## > render(replace-block(parse("# A"), 0, Block.Heading(2, "B")) try)
+## ## B
+word replace-block(doc: Doc, at: Int, block: Block) -> Result<Doc, Error>
+    let _old = doc.blocks[at] catch problem
+        return err(problem)
+    var blocks: List<Block> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        if i == at
+            let _swapped = list.append(blocks, block)
+        else
+            let _kept = list.append(blocks, doc.blocks[i])
+        i = i + 1
+    ok(Doc(blocks))
+
+## Drops the block at index `at`. The layering idiom: remove-section(doc,
+## i) is this verb repeated over the section's slice — the section ops are
+## the block verbs' convenience layer, not a separate mechanism.
+## > render(remove-block(parse("# A\n\n## B"), 1) try)
+## # A
+word remove-block(doc: Doc, at: Int) -> Result<Doc, Error>
+    let _old = doc.blocks[at] catch problem
+        return err(problem)
+    ok(Doc(_blocks-without(doc, at, at + 1)))
+
+## Replaces the whole block list — the Buffer's to-text moment mirrored:
+## the Doc over exactly these blocks, total, no failure channel.
+## > render(set-blocks(parse("old"), [Block.Paragraph("new")]))
+## new
+word set-blocks(doc: Doc, blocks: List<Block>) -> Doc
+    Doc(blocks)
+
+## Folds the Stats record over a Doc: block-kind counts plus words and
+## characters measured on each block's own text.
+## > stats(parse("one two three")).words
+## 3
+## > stats(parse("---")).characters
+## 0
+word stats(doc: Doc) -> Stats
+    var headings = 0
+    var paragraphs = 0
+    var list-items = 0
+    var code-blocks = 0
+    var tables = 0
+    var words = 0
+    var characters = 0
+    for block in doc.blocks
+        match block
+            case Block.Heading(_level, _body)
+                headings = headings + 1
+            case Block.Paragraph(_body)
+                paragraphs = paragraphs + 1
+            case Block.BulletItem(_marker, _body, _indent)
+                list-items = list-items + 1
+            case Block.OrderedItem(_marker, _body, _indent)
+                list-items = list-items + 1
+            case Block.Code(_fence, _info, _lines)
+                code-blocks = code-blocks + 1
+            case Block.Table(_header, _rows)
+                tables = tables + 1
+            case _
+                let _skip = ""
+        let body = _block-text(block)
+        words = words + text.word-count(body)
+        characters = characters + text.length(body)
+    Stats(list.length(doc.blocks), headings, paragraphs, list-items, code-blocks, tables, words, characters)
+
+## A section's stats: md.stats folded over md.section's slice — the
+## per-chunk reachability the Stats record exists for. Fails through
+## md.section's checked read channel.
+## > (section-stats(parse("# A\n\none two"), 0) try).words
+## 3
+word section-stats(doc: Doc, index: Int) -> Result<Stats, Error>
+    ok(stats(section(doc, index) try))
 
 ## Renders a Doc to an HTML fragment: every block as escaped markup,
 ## blocks joined with single newlines (the page form is a later story).
@@ -987,3 +1102,31 @@ word _indent-of-block(block: Block) -> Int
             indent
         case _
             0
+
+# The text a Stats fold measures a block by: heading, paragraph, item,
+# and quote text verbatim, code lines joined with newlines, table cells
+# joined with newlines, a rule contributing none.
+word _block-text(block: Block) -> String
+    match block
+        case Block.Heading(_level, body)
+            body
+        case Block.Paragraph(body)
+            body
+        case Block.Rule
+            ""
+        case Block.BulletItem(_marker, body, _indent)
+            body
+        case Block.OrderedItem(_marker, body, _indent)
+            body
+        case Block.Quote(body, _indent)
+            body
+        case Block.Code(_fence, _info, lines)
+            text.join(lines, "\n")
+        case Block.Table(header, rows)
+            var cells: List<String> = list.new()
+            for cell in header
+                let _cell = list.append(cells, cell)
+            for row in rows
+                for cell in row
+                    let _row-cell = list.append(cells, cell)
+            text.join(cells, "\n")
