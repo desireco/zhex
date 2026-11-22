@@ -43,6 +43,7 @@ There is no implicit conversion between `Int` and `String`. One exception exists
 | `text.wrap(String, Int) -> List<String>` | Greedily wrap on spaces: a line breaks before the first word that no longer fits, an over-long word overflows alone rather than breaking mid-word, and empty or spaces-only input wraps to one empty line. Width counts code points — a monospace approximation, not a typographic measure. A result beyond 1,000,000 lines fails `collection-limit` before the list is materialized. |
 | `text.insert(String, Int, String) -> String` | Place `inserted` at the code-point index. Insertion points run `0` through the length inclusive — index == length appends — and an out-of-range index clamps into range the way `text.slice`'s bounds do. |
 | `text.remove(String, Int, Int) -> String` | Remove the code points from `start` up to but not including `end`, with `text.slice`'s clamping: negative `start` clamps to 0, `end` past the length clamps to the length, and an empty or inverted range returns the text unchanged. |
+| `text.sentences(String) -> List<String>` | Split text into sentences under a written-down rule: a run of the terminators `.`, `!`, and `?` ends a sentence when closing quotes and brackets (`"`, `'`, `”`, `’`, `)`, `]`) may follow it and whitespace or the end of the text comes next. Consecutive terminators stay together, each sentence keeps its punctuation and closers, the whitespace between sentences is dropped, and empty or whitespace-only text is an empty list. Abbreviations such as `Dr.` split — the rule has no abbreviation list. A result beyond 1,000,000 sentences fails `collection-limit` before the list is materialized. |
 
 Examples:
 
@@ -53,8 +54,11 @@ print(text.slice("héllo", 1, 3))
 print(text.pad-left("7", 3, "0"))
 print(text.insert("ac", 1, "b"))
 print(text.join(text.wrap("aa bb cc", 5), "|"))
+print(text.join(text.sentences("One. Two! Three?"), "|"))
 ```
 
-The output is `5`, `2`, `él`, `007`, `abc`, and `aa bb|cc`. `text.replace` treats its search text literally, not as a pattern. The language does not currently provide normalization, grapheme-cluster operations, or case-insensitive comparison.
+The output is `5`, `2`, `él`, `007`, `abc`, `aa bb|cc`, and `One.|Two!|Three?`. `text.replace` treats its search text literally, not as a pattern. The language does not currently provide normalization, grapheme-cluster operations, or case-insensitive comparison.
+
+`text.sentences` keeps every sentence verbatim, so `text.join(sentences, " ")` restores a text exactly when single spaces separated its sentences; joining with another separator changes only the whitespace around and between sentences. The rule is punctuation and whitespace only: `Dr.`, `e.g.`, and a terminator inside a closing quote (`"Stop!" and left`) all end a sentence, and only the three ASCII terminators count.
 
 The [text-stats example](../examples.html#text-stats) combines line, word, and character counts with file reading.
