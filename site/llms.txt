@@ -44,6 +44,117 @@
 
 - [Standard library direction](https://desireco.github.io/zhex/docs/standard-library.html): current library boundaries and proposed growth. The [complete 119-name inventory and comparative research](https://github.com/desireco/zhex/blob/main/docs/standard-library-plan.md) distinguishes shipped operations from unimplemented draft stories; do not generate programs using proposed APIs.
 
+## Error codes
+
+Every built-in diagnostic code with its one-line meaning and its learn URL, one line per code — the same catalog the [error catalog](https://desireco.github.io/zhex/errors.html) renders and `zhex errors <code>` prints offline. The list between the markers below is generated from internal/lang/catalog.md (`go generate ./internal/lang` regenerates it; never hand-edit), and the same catalog ships as the repository's generated agent skill [skills/diagnostics/SKILL.md](https://github.com/desireco/zhex/blob/main/skills/diagnostics/SKILL.md).
+
+<!-- zhex:error-codes begin -->
+- [addition-type](https://desireco.github.io/zhex/errors.html#addition-type): `+` adds two `Int`s, concatenates two `String`s, or concatenates a `String` and an `Int` — the string-context Int exception.
+- [argument-count](https://desireco.github.io/zhex/errors.html#argument-count): A word call passed the wrong number of arguments.
+- [argument-missing](https://desireco.github.io/zhex/errors.html#argument-missing): `console.arg` received an index outside the program's command-line arguments.
+- [argument-type](https://desireco.github.io/zhex/errors.html#argument-type): An argument's type does not match the parameter.
+- [arithmetic-type](https://desireco.github.io/zhex/errors.html#arithmetic-type): `- * / %` need `Int` operands.
+- [array-range](https://desireco.github.io/zhex/errors.html#array-range): An array coordinate is outside its dimension.
+- [array-rank](https://desireco.github.io/zhex/errors.html#array-rank): An array shape or index has the wrong rank.
+- [array-shape](https://desireco.github.io/zhex/errors.html#array-shape): An array extent is negative.
+- [assignment-type](https://desireco.github.io/zhex/errors.html#assignment-type): A binding annotation must match its value's type.
+- [bool-operand](https://desireco.github.io/zhex/errors.html#bool-operand): `and`/`or` need `Bool` on both sides.
+- [branch-type](https://desireco.github.io/zhex/errors.html#branch-type): The branches of an `if` end in different types.
+- [buffer-range](https://desireco.github.io/zhex/errors.html#buffer-range): `buffer.line` or `buffer.set-line` received an index outside the buffer's lines.
+- [collection-iterating](https://desireco.github.io/zhex/errors.html#collection-iterating): An active iteration prevents mutation of the traversed collection.
+- [collection-limit](https://desireco.github.io/zhex/errors.html#collection-limit): A list or array would exceed the runtime limit of 1,000,000 elements.
+- [compare-type](https://desireco.github.io/zhex/errors.html#compare-type): Equality comparison needs matching `Int`, `Bool`, or `String` values.
+- [condition-type](https://desireco.github.io/zhex/errors.html#condition-type): An `if` condition must be `Bool`.
+- [console-exit-status](https://desireco.github.io/zhex/errors.html#console-exit-status): `console.exit` requires a status from 0 through 255.
+- [console-input](https://desireco.github.io/zhex/errors.html#console-input): Reading a line from the input stream failed, usually because the input ended.
+- [console-output](https://desireco.github.io/zhex/errors.html#console-output): Writing to the output stream failed.
+- [console-utf8](https://desireco.github.io/zhex/errors.html#console-utf8): The line read from the input stream is not valid UTF-8.
+- [date-parse](https://desireco.github.io/zhex/errors.html#date-parse): A date string is invalid.
+- [depth-limit](https://desireco.github.io/zhex/errors.html#depth-limit): Word recursion passed the runtime depth limit of 256.
+- [division-zero](https://desireco.github.io/zhex/errors.html#division-zero): Division or remainder by zero.
+- [doctest-check](https://desireco.github.io/zhex/errors.html#doctest-check): A `## >` example's expression failed to check or evaluate by itself.
+- [doctest-mismatch](https://desireco.github.io/zhex/errors.html#doctest-mismatch): A `## >` example in a word's doc produced a different value than the expected output lines after it (they run until a blank doc line or the next `## >` line).
+- [duplicate-name](https://desireco.github.io/zhex/errors.html#duplicate-name): This name is already defined in the same scope.
+- [duplicate-word](https://desireco.github.io/zhex/errors.html#duplicate-word): A word with this name already exists, or it collides with a host word.
+- [duration-parse](https://desireco.github.io/zhex/errors.html#duration-parse): A duration string is invalid or outside the supported nanosecond range.
+- [empty-block](https://desireco.github.io/zhex/errors.html#empty-block): A block header is followed by nothing.
+- [env-parse](https://desireco.github.io/zhex/errors.html#env-parse): A line of the file given to `env.load` is not a KEY=VALUE assignment: the `=` is missing, the key is empty, or the key contains spaces.
+- [env-read](https://desireco.github.io/zhex/errors.html#env-read): `env.load` could not read the file: it is missing, or the process may not read it.
+- [error-no-cause](https://desireco.github.io/zhex/errors.html#error-no-cause): `error.cause` was called for an Error without a cause.
+- [expected-expression](https://desireco.github.io/zhex/errors.html#expected-expression): A token cannot start an expression where one is required.
+- [expected-indent](https://desireco.github.io/zhex/errors.html#expected-indent): A construct needs an indented block on the following lines.
+- [expected-name](https://desireco.github.io/zhex/errors.html#expected-name): A keyword appears where a name is required.
+- [expected-token](https://desireco.github.io/zhex/errors.html#expected-token): The parser expected a specific token and found something else.
+- [file-delete](https://desireco.github.io/zhex/errors.html#file-delete): `file.delete` could not delete the path: it is missing, it is a nonempty folder (the safety default removes a file or an empty folder only; `file.delete-folder(recursive: true)` removes a tree), or the process may not remove it.
+- [file-delete-folder](https://desireco.github.io/zhex/errors.html#file-delete-folder): `file.delete-folder` could not remove the folder: it holds entries while `recursive` is false (the default removes an empty folder only; pass `recursive: true` for the whole tree), or the process may not remove something inside it.
+- [file-exists](https://desireco.github.io/zhex/errors.html#file-exists): `file.exists` could not answer for the path: the message names the path and the operating system's reason, and the failure carries the not-found/permission-denied/other taxonomy in its details.
+- [file-free-space](https://desireco.github.io/zhex/errors.html#file-free-space): `file.free-space` could not report the bytes available on the volume containing the path: the path does not exist, or the platform cannot answer for it.
+- [file-list](https://desireco.github.io/zhex/errors.html#file-list): `file.list` could not list the folder: the folder is missing, or the process may not read it, or the path is a file.
+- [file-make-folder](https://desireco.github.io/zhex/errors.html#file-make-folder): `file.make-folder` could not create the folder: a parent is missing (pass `parents: true` to create ancestors), or the target already exists (the default one-level form refuses it; `parents: true` tolerates an existing folder), or the process may not write the parent.
+- [file-move](https://desireco.github.io/zhex/errors.html#file-move): `file.move` could not rename the source to the target: the source is missing, the target exists (pass `overwrite: true` to replace an existing file), the target is a folder (never replaced in either mode), the two paths are on different devices (no copy fallback), or the process may not rename.
+- [file-open](https://desireco.github.io/zhex/errors.html#file-open): `file.open`, `file.read`, or a `file.stream` loop could not open the path.
+- [file-read](https://desireco.github.io/zhex/errors.html#file-read): A read from an open file failed: the stream was drained ("end of file") or the file was closed.
+- [file-size](https://desireco.github.io/zhex/errors.html#file-size): `file.size` could not get the size of the path: it is missing, or the process may not stat it.
+- [file-utf8](https://desireco.github.io/zhex/errors.html#file-utf8): A file's content is not valid UTF-8.
+- [file-write](https://desireco.github.io/zhex/errors.html#file-write): `file.write` could not open, write, or close the path; the message names the path, the failing phase, and the operating system's reason.
+- [flow-step](https://desireco.github.io/zhex/errors.html#flow-step): A `flow` block needs at least one step word.
+- [immutable-name](https://desireco.github.io/zhex/errors.html#immutable-name): A name defined with `let` cannot be reassigned.
+- [indentation](https://desireco.github.io/zhex/errors.html#indentation): A line's indent is not a multiple of four spaces, or it opens more than one level at once.
+- [instant-parse](https://desireco.github.io/zhex/errors.html#instant-parse): An instant string is invalid.
+- [integer-literal-range](https://desireco.github.io/zhex/errors.html#integer-literal-range): An integer literal is outside the signed 128-bit range.
+- [integer-overflow](https://desireco.github.io/zhex/errors.html#integer-overflow): An arithmetic result does not fit in a signed 128-bit integer.
+- [json-depth](https://desireco.github.io/zhex/errors.html#json-depth): JSON nesting exceeds the supported depth of 256.
+- [json-field](https://desireco.github.io/zhex/errors.html#json-field): A JSON object has an unknown, duplicate, or missing required field.
+- [json-range](https://desireco.github.io/zhex/errors.html#json-range): A JSON integer or collection exceeds the supported range.
+- [json-syntax](https://desireco.github.io/zhex/errors.html#json-syntax): JSON text is invalid or contains more than one value.
+- [json-type](https://desireco.github.io/zhex/errors.html#json-type): A JSON value does not match the expected Zhex type.
+- [list-range](https://desireco.github.io/zhex/errors.html#list-range): The list index is negative or outside its current length.
+- [main-parameters](https://desireco.github.io/zhex/errors.html#main-parameters): A file whose top level has no statements names `word main` as its entry point, and `zhex run` and `zhex compile` call it with no arguments.
+- [module-body](https://desireco.github.io/zhex/errors.html#module-body): An imported file contains top-level statements.
+- [nesting-limit](https://desireco.github.io/zhex/errors.html#nesting-limit): Expressions or blocks nest past the parser's limit.
+- [not-available-in-build](https://desireco.github.io/zhex/errors.html#not-available-in-build): The build that ran the program does not provide this construct.
+- [operand-types](https://desireco.github.io/zhex/errors.html#operand-types): A binary operator got two different operand types.
+- [ordering-type](https://desireco.github.io/zhex/errors.html#ordering-type): Ordering comparison (`< <= > >=`) needs `Int` operands.
+- [print-type](https://desireco.github.io/zhex/errors.html#print-type): `print` accepts one `Int`, `String`, or `Bool` value.
+- [private-use](https://desireco.github.io/zhex/errors.html#private-use): A word or record type beginning with an underscore is private to its module.
+- [range-context](https://desireco.github.io/zhex/errors.html#range-context): `range` and `file.stream` exist only inside a `for` loop header — `for n in range(start, end)` and `for line in file.stream(path)`.
+- [range-type](https://desireco.github.io/zhex/errors.html#range-type): The bounds of `range(start, end)` must both be `Int`; the path of `file.stream(path)` must be `String`.
+- [replace-empty](https://desireco.github.io/zhex/errors.html#replace-empty): `text.replace` was called with an empty old text.
+- [source-utf8](https://desireco.github.io/zhex/errors.html#source-utf8): The file is not valid UTF-8.
+- [string-escape](https://desireco.github.io/zhex/errors.html#string-escape): A string contains an escape Zhex does not support, or invalid UTF-8.
+- [tab-character](https://desireco.github.io/zhex/errors.html#tab-character): A tab appeared outside a string.
+- [temporal-invalid](https://desireco.github.io/zhex/errors.html#temporal-invalid): Numeric date or time components are outside their valid range.
+- [temporal-range](https://desireco.github.io/zhex/errors.html#temporal-range): Temporal arithmetic produced a value outside the supported range.
+- [test-failed](https://desireco.github.io/zhex/errors.html#test-failed): A `.test.zhex` file run by `zhex test` exited nonzero without a diagnostic of its own — a failed `test.check` label, a deliberate exit, or a crash.
+- [text-code-point](https://desireco.github.io/zhex/errors.html#text-code-point): `text.from-code-points` received a code point that is not valid Unicode: negative, above U+10FFFF, or a surrogate half (U+D800..U+DFFF).
+- [text-to-int](https://desireco.github.io/zhex/errors.html#text-to-int): The text given to `text.to-int` is not a signed 128-bit decimal integer.
+- [time-parse](https://desireco.github.io/zhex/errors.html#time-parse): A time string is invalid.
+- [timezone-load](https://desireco.github.io/zhex/errors.html#timezone-load): A named time zone is invalid or unavailable.
+- [try-input](https://desireco.github.io/zhex/errors.html#try-input): Postfix `try` and `catch` need a `Result` value to unwrap.
+- [unary-type](https://desireco.github.io/zhex/errors.html#unary-type): The unary operator (`-`, `not`) received the wrong type.
+- [unclosed-delimiter](https://desireco.github.io/zhex/errors.html#unclosed-delimiter): An opening parenthesis, bracket, or brace has no matching closing delimiter.
+- [unexpected-character](https://desireco.github.io/zhex/errors.html#unexpected-character): A character cannot start any token.
+- [unhandled-result](https://desireco.github.io/zhex/errors.html#unhandled-result): Handle or propagate each Result with `catch` or `try`.
+- [unknown-name](https://desireco.github.io/zhex/errors.html#unknown-name): No binding or word has this name.
+- [unknown-type](https://desireco.github.io/zhex/errors.html#unknown-type): A type name is not one of `Int`, `Bool`, `String`, `Unit`, `Buffer`, or `File`.
+- [unknown-word](https://desireco.github.io/zhex/errors.html#unknown-word): No word with this name exists.
+- [unsupported-code](https://desireco.github.io/zhex/errors.html#unsupported-code): An internal invariant failed: the checker approved something the evaluator cannot run.
+- [unterminated-string](https://desireco.github.io/zhex/errors.html#unterminated-string): A string literal has no closing quote before the end of the line.
+- [use-cycle](https://desireco.github.io/zhex/errors.html#use-cycle): Modules import each other in a circle; the message spells the files in the cycle.
+- [use-location](https://desireco.github.io/zhex/errors.html#use-location): A `use` appears inside a word body or another block.
+- [use-missing](https://desireco.github.io/zhex/errors.html#use-missing): A `use` names a module that could not be loaded.
+- [use-reserved](https://desireco.github.io/zhex/errors.html#use-reserved): A module is named `text`, `int`, `buffer`, `file`, or `console`.
+- [with-location](https://desireco.github.io/zhex/errors.html#with-location): A `with` line did not directly follow the expression line it continues.
+- [with-seed](https://desireco.github.io/zhex/errors.html#with-seed): A `with` block's seed produces Unit, so no step can receive it.
+- [with-step](https://desireco.github.io/zhex/errors.html#with-step): A `with` step name resolved neither through the block's namespace nor as a word in scope.
+- [word-result](https://desireco.github.io/zhex/errors.html#word-result): The word's final statement produces a different type than its declared result.
+- [xml-depth](https://desireco.github.io/zhex/errors.html#xml-depth): XML nesting exceeds the supported depth of 256.
+- [xml-field](https://desireco.github.io/zhex/errors.html#xml-field): An XML element or attribute name is unknown, duplicated, missing, collides with its counterpart, or is namespace-qualified.
+- [xml-range](https://desireco.github.io/zhex/errors.html#xml-range): An XML integer or document exceeds the supported range.
+- [xml-syntax](https://desireco.github.io/zhex/errors.html#xml-syntax): XML text is invalid, carries a DTD or entity declaration, uses an undefined entity, or has more than one root element.
+- [xml-type](https://desireco.github.io/zhex/errors.html#xml-type): An XML element or attribute does not match the expected Zhex type, or mixes text with child elements.
+<!-- zhex:error-codes end -->
+
 ## Reference
 
 - [Language contract](https://github.com/desireco/zhex/blob/main/docs/initial-language.md): the authoritative syntax and semantics the interpreter enforces.

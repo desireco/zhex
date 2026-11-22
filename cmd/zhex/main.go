@@ -280,7 +280,7 @@ func errorsCmd(args []string, output, diagnostics io.Writer) int {
 	if code == "" {
 		fmt.Fprintf(output, "%d diagnostic codes — full entry: zhex errors <code> — %s\n", len(entries), zhexrt.DocsBaseURL)
 		for _, entry := range entries {
-			fmt.Fprintf(output, "%s  %s\n", entry.Code, firstSentence(entry.Text))
+			fmt.Fprintf(output, "%s  %s\n", entry.Code, entry.FirstSentence())
 		}
 		return 0
 	}
@@ -298,17 +298,6 @@ func errorsCmd(args []string, output, diagnostics io.Writer) int {
 		fmt.Fprintln(diagnostics, "hint: "+hint)
 	}
 	return 1
-}
-
-// firstSentence flattens a catalog entry to its first sentence — the
-// one-line listing form. Section prose can wrap lines, so join before
-// cutting at the sentence boundary.
-func firstSentence(text string) string {
-	flat := strings.Join(strings.Fields(text), " ")
-	if i := strings.Index(flat, ". "); i >= 0 {
-		return flat[:i+1]
-	}
-	return flat
 }
 
 // repl reads entries from input until EOF. A first line whose compile is
