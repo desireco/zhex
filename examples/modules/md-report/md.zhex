@@ -20,6 +20,25 @@
 #   out-of-range diagnostic, so a malformed table never renders silently.
 # - Empty input renders to the empty fragment "".
 # - Dialect: CommonMark core subset; footnotes and task lists excluded.
+#
+# Parse side (md.parse, md.render):
+# - Block is the flat block choice (Heading(level, text), Paragraph(text),
+#   Rule) and Doc is the record over List<Block>; the list carries heading
+#   levels inline, never nested children — the hierarchy is derived later.
+# - md.parse is total: every input is some block sequence, so it returns a
+#   plain Doc, not a Result. Recognized subset: ATX headings are 1-6 #'s
+#   followed by a space or the line's end (7+ #'s or a missing space is
+#   paragraph text); paragraphs are runs of non-blank lines joined with
+#   newlines, separated by one or more blank lines, leading and trailing
+#   blank lines ignored; a rule is 3 or more of one marker character
+#   (-, *, or _) alone on its line. Setext headings, indented constructs,
+#   and rules with inner spaces are excluded. CRLF line endings are
+#   normalized to LF first, and inline content is kept verbatim — no
+#   unescaping, inline parsing is a later story.
+# - md.render writes a Doc back through the write-side words above (so
+#   heading and paragraph text escape as they pin) and joins blocks with
+#   blank lines; rules render as ---. The round trip render(parse(text))
+#   is byte-stable for text without escapable ASCII punctuation.
 
 word heading(level: Int, text: String) -> String
     _repeat("#", _clamped(level)) + " " + _esc(text)
@@ -75,6 +94,92 @@ word table(headers: List<String>, rows: List<List<String>>) -> String
     for row in esc-rows
         list.append(lines, _table-row(row, widths))
     text.join(lines, "\n")
+
+# One block in the flat Doc: a heading with its ATX level, a paragraph's
+# verbatim text, or a horizontal rule.
+type Block = choice
+    Heading(level: Int, text: String)
+    Paragraph(text: String)
+    Rule
+
+# A parsed document: the block list in source order, nothing nested.
+type Doc = record
+    blocks: List<Block>
+
+## Parses Markdown text into a flat Doc of blocks; total, never a Result.
+## > render(parse("## Notes"))
+## ## Notes
+## > render(parse("one\ntwo"))
+## one
+## two
+## > render(parse("---"))
+## ---
+word parse(text: String) -> Doc
+    var blocks: List<Block> = list.new()
+    var pending: List<String> = list.new()
+    for line in text.split(text.replace(text, "\r\n", "\n"), "\n")
+        if text.trim(line) == ""
+            pending = _absorb(blocks, pending)
+        elif _is-rule(line)
+            pending = _absorb(blocks, pending)
+            let _rule = list.append(blocks, Block.Rule)
+        else
+            let level = _heading-level(line)
+            if level > 0
+                pending = _absorb(blocks, pending)
+                let body = text.trim(text.slice(line, level, text.length(line)))
+                let _heading = list.append(blocks, Block.Heading(level, body))
+            else
+                let _line = list.append(pending, line)
+    _absorb(blocks, pending)
+    Doc(blocks)
+
+## Renders a Doc back to Markdown text through the write-side words.
+## > render(Doc([Block.Rule]))
+## ---
+word render(doc: Doc) -> String
+    var fragments: List<String> = list.new()
+    for block in doc.blocks
+        match block
+            case Block.Heading(level, text)
+                list.append(fragments, heading(level, text))
+            case Block.Paragraph(text)
+                list.append(fragments, paragraph(text))
+            case Block.Rule
+                list.append(fragments, "---")
+    text.join(fragments, "\n\n")
+
+word _absorb(blocks: List<Block>, pending: List<String>) -> List<String>
+    if list.length(pending) > 0
+        let _para = list.append(blocks, Block.Paragraph(text.join(pending, "\n")))
+    list.new()
+
+word _is-rule(line: String) -> Bool
+    let chars = text.split(line, "")
+    if list.length(chars) < 3
+        false
+    else
+        let first = chars[0]
+        (first == "-" or first == "*" or first == "_") and _all(chars, first)
+
+word _all(chars: List<String>, ch: String) -> Bool
+    var same = true
+    for c in chars
+        if c != ch
+            same = false
+    same
+
+word _heading-level(line: String) -> Int
+    let chars = text.split(line, "")
+    var n = 0
+    while n < list.length(chars) and chars[n] == "#"
+        n = n + 1
+    if n < 1 or n > 6
+        0
+    elif n == list.length(chars) or chars[n] == " "
+        n
+    else
+        0
 
 word _esc(text: String) -> String
     flow text.split(text, "")

@@ -1,0 +1,72 @@
+use md
+use test
+
+word expect-count(doc: md.Doc, n: Int, label: String)
+    test.check(list.length(doc.blocks) == n, label)
+
+word expect-heading(doc: md.Doc, i: Int, level: Int, text: String, label: String)
+    match doc.blocks[i]
+        case md.Block.Heading(got-level, got-text)
+            test.check(got-level == level, label + ": level")
+            test.check(got-text == text, label + ": text")
+        case _
+            test.check(false, label + ": not a heading")
+
+word expect-paragraph(doc: md.Doc, i: Int, text: String, label: String)
+    match doc.blocks[i]
+        case md.Block.Paragraph(got)
+            test.check(got == text, label)
+        case _
+            test.check(false, label + ": not a paragraph")
+
+word expect-rule(doc: md.Doc, i: Int, label: String)
+    match doc.blocks[i]
+        case md.Block.Rule
+            test.check(true, label)
+        case _
+            test.check(false, label + ": not a rule")
+
+# headings
+expect-count(md.parse("# Title"), 1, "one heading, one block")
+expect-heading(md.parse("# Title"), 0, 1, "Title", "level-one heading")
+expect-heading(md.parse("###### Deep"), 0, 6, "Deep", "level-six heading")
+expect-heading(md.parse("##"), 0, 2, "", "bare marker is an empty heading")
+expect-heading(md.parse("##   spaced   "), 0, 2, "spaced", "heading text is trimmed")
+expect-paragraph(md.parse("#NoSpace"), 0, "#NoSpace", "marker without a space is text")
+expect-paragraph(md.parse("####### seven"), 0, "####### seven", "seven markers are text")
+
+# paragraphs
+expect-count(md.parse(""), 0, "empty text has no blocks")
+expect-count(md.parse("\n\n\n"), 0, "only blank lines have no blocks")
+expect-paragraph(md.parse("one"), 0, "one", "single line")
+expect-paragraph(md.parse("one\ntwo"), 0, "one\ntwo", "lines join with newlines")
+expect-count(md.parse("one\n\ntwo"), 2, "blank line splits paragraphs")
+expect-paragraph(md.parse("\n\none\n"), 0, "one", "leading and trailing blanks are ignored")
+
+# rules
+expect-rule(md.parse("---"), 0, "dashes are a rule")
+expect-rule(md.parse("***"), 0, "stars are a rule")
+expect-rule(md.parse("___"), 0, "underscores are a rule")
+expect-rule(md.parse("------"), 0, "long runs are one rule")
+expect-paragraph(md.parse("--"), 0, "--", "two dashes are text")
+expect-paragraph(md.parse("-*-"), 0, "-*-", "mixed markers are text")
+
+# mixed documents and blank-line rules
+let mixed = md.parse("# T\n\nintro\nline\n\n---\n\noutro")
+expect-count(mixed, 4, "mixed document block count")
+expect-heading(mixed, 0, 1, "T", "mixed: heading")
+expect-paragraph(mixed, 1, "intro\nline", "mixed: multi-line paragraph")
+expect-rule(mixed, 2, "mixed: rule")
+expect-paragraph(mixed, 3, "outro", "mixed: closing paragraph")
+let tight = md.parse("para\n# Head")
+expect-count(tight, 2, "a heading ends a paragraph without a blank line")
+
+# the round trip for this subset
+let source = "# T\n\nintro\nline\n\n---\n\noutro"
+test.check(md.render(md.parse(source)) == source, "render(parse(source)) round trips")
+
+# CRLF tolerance
+expect-paragraph(md.parse("one\r\ntwo"), 0, "one\ntwo", "crlf lines join with lf")
+test.check(md.render(md.parse("a\r\n\r\nb")) == "a\n\nb", "crlf separators normalize on render")
+
+print "md parse tests passed"
