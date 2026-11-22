@@ -4,6 +4,8 @@ Build a readable language from small, composable words. The Go interpreter lets 
 
 ## Done
 
+- The wasm prelude's remaining quadratics fixed — stable merge sort for `list.sort`/`sort-by` and amortized map growth; flow-chain and network shapes now 10.7×/7.6× faster than the interpreter under wasmtime (#188).
+
 The first language milestone runs real programs with checked types and console input and output.
 
 - WebAssembly compiler: `zhex compile` ships with browser and WASI targets, byte-identical to the interpreter across the examples corpus (#7).
