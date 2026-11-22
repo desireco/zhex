@@ -35,14 +35,14 @@ word _split-lines(text: String) -> List<String>
 
 ## A fresh list of `count` zeros — the diagonal frontier array.
 word _zeros(count: Int) -> List<Int>
-    var out = list.new()
+    var out: List<Int> = list.new()
     for index in range(0, count)
         out = list.append(out, 0)
     out
 
 ## A fresh copy of an Int list — one trace snapshot.
 word _copy(values: List<Int>) -> List<Int>
-    var out = list.new()
+    var out: List<Int> = list.new()
     for value in values
         out = list.append(out, value)
     out
@@ -61,7 +61,7 @@ word lines(a: String, b: String) -> List<Change>
     let m = list.length(bs)
     let offset = n + m
     var v = _zeros(2 * (n + m) + 1)
-    var trace = list.new()
+    var trace: List<List<Int>> = list.new()
     var found = false
     var depth = 0
     var d = 0
@@ -89,7 +89,7 @@ word lines(a: String, b: String) -> List<Change>
 ## Walks the trace backwards from (n, m), prepending each emitted change so
 ## the result comes out in text order without recursion.
 word _backtrack(as: List<String>, bs: List<String>, trace: List<List<Int>>, offset: Int, depth: Int) -> List<Change>
-    var out = list.new()
+    var out: List<Change> = list.new()
     var x = list.length(as)
     var y = list.length(bs)
     var d = depth
@@ -130,25 +130,25 @@ word _backtrack(as: List<String>, bs: List<String>, trace: List<List<Int>>, offs
 ## failed
 word apply(text: String, changes: List<Change>) -> Result<String, Error>
     let src = _split-lines(text)
-    var out = list.new()
+    var out: List<String> = list.new()
     var i = 0
     var bad = ""
     var pos = 0
     for change in changes
         if bad == ""
             match change
-                case Keep(line)
+                case Change.Keep(line)
                     if i < list.length(src) and src[i] == line
                         out = list.append(out, line)
                         i = i + 1
                     else
                         bad = "Keep at patch position " + int.to-string(pos) + " does not match the text"
-                case Delete(line)
+                case Change.Delete(line)
                     if i < list.length(src) and src[i] == line
                         i = i + 1
                     else
                         bad = "Delete at patch position " + int.to-string(pos) + " does not match the text"
-                case Insert(line)
+                case Change.Insert(line)
                     out = list.append(out, line)
         pos = pos + 1
     if bad != ""

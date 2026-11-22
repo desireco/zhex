@@ -53,7 +53,10 @@ round-trips("a\nb\nc\nd", "a\nB\nC\nd\ne", "adjacent edits round trips")
 round-trips("a\nb\nc\nd", "c\nd\na\nb", "block move round trips")
 
 # CRLF inputs normalize to LF before diffing and come back as LF
-round-trips("a\r\nb\r\n", "a\r\nx\r\n", "CRLF inputs normalize like md.parse")
+# CRLF normalizes to LF before diffing; the patch applies to the
+# normalized text (the documented law, like md.parse)
+let crlf-got = diff.apply("a\r\nb\r\n", diff.lines("a\r\nb\r\n", "a\r\nx\r\n")) catch "FAILED"
+test.check(crlf-got == "a\nx\n", "CRLF inputs normalize like md.parse")
 
 # property sweep: deterministic LCG line lists over a 5-token alphabet,
 # the law apply(diff(a, b), a) == b
@@ -62,8 +65,8 @@ word next-seed(state: Int) -> Int
 
 var seed = 20261121
 for case-index in range(0, 300)
-    var a-lines = list.new()
-    var b-lines = list.new()
+    var a-lines: List<String> = list.new()
+    var b-lines: List<String> = list.new()
     for a-index in range(0, 6 + case-index % 7)
         seed = next-seed(seed)
         a-lines = list.append(a-lines, "l" + int.to-string(seed % 5))

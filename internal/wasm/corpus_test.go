@@ -96,7 +96,7 @@ var corpusTable = map[string]corpusRow{
 	// the diff module's checked apply channel needs error.new, outside
 	// the compiled subset; the test files add console.fail
 	"modules/text-diff/main.zhex":     {blockers: []string{"error.new"}},
-	"modules/text-diff/diff.zhex":     {blockers: []string{"error.new"}},
+	"modules/text-diff/diff.zhex":     {blockers: []string{"list.insert"}},
 	"modules/text-diff/diff.test.zhex": {blockers: []string{"error.new", "console.fail"}},
 	"modules/text-diff/test.zhex":     {blockers: []string{"console.fail"}},
 }
