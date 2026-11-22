@@ -454,4 +454,55 @@ while sweep-i < 240
     _round-trips(generated.text, "sweep case " + sweep-i)
     sweep-i = sweep-i + 1
 
-print "md parse, section editing, and round-trip tests passed"
+# the HTML export: md.to-html renders every block kind to an escaped
+# fragment, byte-exact — headings, paragraphs, rules, lists with indent
+# nesting, quotes, code, tables
+test.check(md.to-html(md.parse("")) == "", "an empty document exports to the empty fragment")
+test.check(md.to-html(md.parse("# T")) == "<h1>T</h1>", "a heading exports as h1")
+test.check(md.to-html(md.parse("## S")) == "<h2>S</h2>", "a heading exports at its own level")
+test.check(md.to-html(md.parse("###### Deep")) == "<h6>Deep</h6>", "a level-six heading exports as h6")
+test.check(md.to-html(md.Doc([md.Block.Heading(9, "X")])) == "<h6>X</h6>", "a hand-built heading clamps at h6")
+test.check(md.to-html(md.parse("intro")) == "<p>intro</p>", "a paragraph exports as p")
+test.check(md.to-html(md.parse("---")) == "<hr>", "a rule exports as hr")
+test.check(md.to-html(md.parse("one\ntwo")) == "<p>one\ntwo</p>", "paragraph lines stay joined inside one p")
+
+# lists: one ul/ol per run, indent fields nest
+test.check(md.to-html(md.parse("- a\n- b")) == "<ul>\n<li>a</li>\n<li>b</li>\n</ul>", "a bullet list exports as ul")
+test.check(md.to-html(md.parse("* a\n+ b")) == "<ul>\n<li>a</li>\n<li>b</li>\n</ul>", "markers drop, items join in one ul")
+test.check(md.to-html(md.parse("1. one\n2) two")) == "<ol>\n<li>one</li>\n<li>two</li>\n</ol>", "an ordered list exports as ol")
+test.check(md.to-html(md.parse("- a\n  - b\n- c")) == "<ul>\n<li>a\n<ul>\n<li>b</li>\n</ul></li>\n<li>c</li>\n</ul>", "an indent field nests a ul inside the li")
+test.check(md.to-html(md.parse("1. a\n  1. b")) == "<ol>\n<li>a\n<ol>\n<li>b</li>\n</ol></li>\n</ol>", "an ordered run nests ol the same way")
+test.check(md.to-html(md.parse("- a\n    - deep")) == "<ul>\n<li>a\n<ul>\n<li>deep</li>\n</ul></li>\n</ul>", "a two-level indent jump nests once")
+test.check(md.to-html(md.parse("- a\n\n- b")) == "<ul>\n<li>a</li>\n<li>b</li>\n</ul>", "a blank line inside a list drops on export too")
+
+# quotes: a run of quote lines is one blockquote of p lines, flat
+test.check(md.to-html(md.parse("> note")) == "<blockquote>\n<p>note</p>\n</blockquote>", "a quote exports as blockquote")
+test.check(md.to-html(md.parse("> a\n> b")) == "<blockquote>\n<p>a</p>\n<p>b</p>\n</blockquote>", "a quote run joins into one blockquote")
+test.check(md.to-html(md.parse("> a\n\n> b")) == "<blockquote>\n<p>a</p>\n<p>b</p>\n</blockquote>", "a blank line inside a quote run drops on export too")
+
+# code blocks: verbatim content, everything escaped, no fence in the output
+test.check(md.to-html(md.parse("```\nlet x = 1\n```")) == "<pre><code>let x = 1</code></pre>", "a plain code block exports without its fence")
+test.check(md.to-html(md.parse("```zhex\nlet x = 1\n```")) == "<pre><code class=\"zhex\">let x = 1</code></pre>", "the info string becomes the code class")
+test.check(md.to-html(md.parse("```\nif a < b && c > d\n```")) == "<pre><code>if a &lt; b &amp;&amp; c &gt; d</code></pre>", "code content is entity-escaped verbatim")
+test.check(md.to-html(md.parse("```\n``` \"quoted\"\n```")) == "<pre><code>``` &#34;quoted&#34;</code></pre>", "backticks and quotes escape inside code")
+
+# tables: plain td cells, header and data rows alike
+test.check(md.to-html(md.parse("| a | b |\n| --- | --- |\n| 1 | 2 |")) == "<table>\n<tr><td>a</td><td>b</td></tr>\n<tr><td>1</td><td>2</td></tr>\n</table>", "a table exports header and data rows as plain td")
+test.check(md.to-html(md.parse("| a | b |\n| :-- | --: |\n| 1 | 2 |")) == "<table>\n<tr><td>a</td><td>b</td></tr>\n<tr><td>1</td><td>2</td></tr>\n</table>", "no alignment is emitted — markers were dropped at parse")
+
+# escaping torture: every entity position, & first
+test.check(md.to-html(md.parse("a & b < c > d ' e \" f")) == "<p>a &amp; b &lt; c &gt; d &#39; e &#34; f</p>", "all five entities escape in text positions")
+test.check(md.to-html(md.parse("&#60;x&#62;")) == "<p>&amp;#60;x&amp;#62;</p>", "an ampersand escapes first so entities stay literal")
+test.check(md.to-html(md.parse("| & | < |\n| --- | --- |\n| ' | \" |")) == "<table>\n<tr><td>&amp;</td><td>&lt;</td></tr>\n<tr><td>&#39;</td><td>&#34;</td></tr>\n</table>", "table cells escape the same way")
+
+# spans deferred: raw markdown links and emphasis are not parsed, so they
+# render as escaped text — no anchor is emitted, the scheme gate cannot
+# fire, and to-html stays total (a plain String, never a Result)
+test.check(md.to-html(md.parse("see [docs](https://example.com) here")) == "<p>see [docs](https://example.com) here</p>", "a raw markdown link exports as escaped text, not an anchor")
+test.check(md.to-html(md.parse("click [x](javascript:alert(\"1\"))")) == "<p>click [x](javascript:alert(&#34;1&#34;))</p>", "a javascript link stays inert escaped text")
+test.check(md.to-html(md.parse("*bold* and _italic_")) == "<p>*bold* and _italic_</p>", "emphasis markers stay literal text")
+
+# the full mixed document, byte-exact end to end
+test.check(md.to-html(full) == "<h1>T</h1>\n<p>intro</p>\n<hr>\n<ul>\n<li>a</li>\n</ul>\n<ol>\n<li>one</li>\n</ol>\n<blockquote>\n<p>note</p>\n</blockquote>\n<pre><code>x</code></pre>\n<table>\n<tr><td>h</td></tr>\n<tr><td>r</td></tr>\n</table>\n<p>outro</p>", "every block kind exports in one document")
+
+print "md parse, section editing, round-trip, and html export tests passed"

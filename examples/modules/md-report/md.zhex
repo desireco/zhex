@@ -111,6 +111,29 @@
 #   after which the equality law holds. Escapable punctuation in a
 #   rendered position escapes on every pass (parse never unescapes), so
 #   it is excluded from both laws; md.test.zhex pins that edge too.
+#
+# Export side (md.to-html):
+# - Every block kind renders as escaped HTML, blocks joined with single
+#   newlines; the fragment is the deliverable, the full page form is a
+#   later story.
+# - Text positions (headings, paragraphs, list items, quotes, table
+#   cells) entity-escape & < > ' " through _html-esc, a pinned twin of
+#   html.escape-text in the html module — use resolves siblings only, so
+#   the modules cannot import each other; the bytes are pinned identical
+#   on both sides, and drift is the known risk of that split.
+# - Code blocks escape their content verbatim inside <pre><code> with no
+#   fence in the output; a non-empty info string becomes the class
+#   attribute (entity-escaped).
+# - A run of one list kind is one <ul>/<ol>; indent fields nest a list
+#   inside the previous item's <li>, and an indent jump deeper than one
+#   level nests once (indents normalize stepwise). A run of quote lines
+#   is one <blockquote> of <p> lines, rendered flat. Table header and
+#   data rows are plain <td> cells — alignment was dropped at parse.
+# - Inline markup is not parsed (spans are the v2 story): raw markdown
+#   links and emphasis render as escaped text, no anchor is ever
+#   emitted, the html.link scheme gate cannot fire, and to-html is
+#   total — a plain String, never a Result. When spans land, link
+#   targets must pass that gate.
 
 word heading(level: Int, text: String) -> String
     _repeat("#", _clamped(level)) + " " + _esc(text)
@@ -396,6 +419,56 @@ word move-section(doc: Doc, index: Int, to: Int) -> Result<Doc, Error>
         if to > index
             pos = to - (end - index)
         ok(Doc(_splice(_blocks-without(doc, index, end), pos, _slice-blocks(doc, index, end))))
+
+## Renders a Doc to an HTML fragment: every block as escaped markup,
+## blocks joined with single newlines (the page form is a later story).
+## Text positions entity-escape & < > ' " through _html-esc, a pinned
+## twin of html.escape-text in the html module — use resolves siblings
+## only, so the two modules cannot import each other; the bytes are
+## pinned identical in both modules' tests, and drift is the known risk
+## of that split. Code blocks escape their content verbatim inside
+## <pre><code> (no fence in the output, the info string becomes the
+## class attribute); a run of one list kind is one <ul>/<ol> whose
+## indent fields nest (an indent jump deeper than one level nests
+## once); a run of quote lines is one <blockquote> of <p> lines,
+## rendered flat; table header and data rows are plain <td> cells —
+## alignment markers were dropped at parse. Inline markup is not
+## parsed (spans are the v2 story), so raw markdown links and emphasis
+## render as escaped text: no anchor is ever emitted, the html.link
+## scheme gate cannot fire, and to-html is total — a plain String,
+## never a Result. When spans land, link targets must pass that gate.
+## > to-html(parse("# T"))
+## <h1>T</h1>
+## > to-html(parse("- a\n  - b"))
+## <ul>
+## <li>a
+## <ul>
+## <li>b</li>
+## </ul></li>
+## </ul>
+## > to-html(parse("```zhex\nlet x = 1\n```"))
+## <pre><code class="zhex">let x = 1</code></pre>
+word to-html(doc: Doc) -> String
+    var fragments: List<String> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        let kind = _run-kind(doc.blocks[i])
+        if kind == "bullet" or kind == "ordered"
+            var run: List<Block> = list.new()
+            while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == kind
+                let _item = list.append(run, doc.blocks[i])
+                i = i + 1
+            let _list = list.append(fragments, _list-at(run, _norm-indents(run), [0], _indent-of-block(run[0]), _list-tag(kind)))
+        elif kind == "quote"
+            var paras: List<String> = list.new()
+            while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == "quote"
+                let _line = list.append(paras, "<p>" + _html-esc(_quote-text(doc.blocks[i])) + "</p>")
+                i = i + 1
+            let _quote = list.append(fragments, "<blockquote>\n" + text.join(paras, "\n") + "\n</blockquote>")
+        else
+            _html-plain(fragments, doc.blocks[i])
+            i = i + 1
+    text.join(fragments, "\n")
 
 word _shift(doc: Doc, index: Int, delta: Int) -> Doc
     var end = index
@@ -762,3 +835,121 @@ word _table-separator(widths: List<Int>) -> String
             n = widths[j]
         out = out + " " + _repeat("-", n) + " |"
     out
+
+# The HTML export helpers, all under md.to-html's doc law above.
+
+# A pinned twin of html.escape-text in the html module (not a sibling
+# import): the same five replaces in the same order, & first. Drift is
+# the known risk of the split; both modules' tests pin these bytes.
+word _html-esc(value: String) -> String
+    flow value
+        text.replace("&", "&amp;")
+        text.replace("<", "&lt;")
+        text.replace(">", "&gt;")
+        text.replace("'", "&#39;")
+        text.replace("\"", "&#34;")
+
+word _html-plain(fragments: List<String>, block: Block) -> Unit
+    match block
+        case Block.Heading(level, text)
+            let tag = "h" + int.to-string(_clamped(level))
+            let _frag = list.append(fragments, "<" + tag + ">" + _html-esc(text) + "</" + tag + ">")
+        case Block.Paragraph(text)
+            let _frag = list.append(fragments, "<p>" + _html-esc(text) + "</p>")
+        case Block.Rule
+            let _frag = list.append(fragments, "<hr>")
+        case Block.Code(_fence, info, lines)
+            let _frag = list.append(fragments, "<pre><code" + _code-class(info) + ">" + _html-esc(text.join(lines, "\n")) + "</code></pre>")
+        case Block.Table(header, rows)
+            let _frag = list.append(fragments, _table-html(header, rows))
+        case _
+            let _skip = ""
+
+# The class attribute from a code block's info string: entity escaping
+# keeps quotes safe inside the attribute.
+word _code-class(info: String) -> String
+    if text.length(info) > 0
+        " class=\"" + _html-esc(info) + "\""
+    else
+        ""
+
+word _table-html(header: List<String>, rows: List<List<String>>) -> String
+    var out = "<table>\n" + _table-row-html(header)
+    for row in rows
+        out = out + "\n" + _table-row-html(row)
+    out + "\n</table>"
+
+# Plain td cells for header and data rows alike — alignment markers were
+# dropped at parse, so there is nothing to emit.
+word _table-row-html(cells: List<String>) -> String
+    var out = "<tr>"
+    for cell in cells
+        out = out + "<td>" + _html-esc(cell) + "</td>"
+    out + "</tr>"
+
+word _list-tag(kind: String) -> String
+    if kind == "bullet"
+        "ul"
+    else
+        "ol"
+
+# Indents normalized so each step deepens by at most one level: a jump
+# from 0 to 2 nests once, matching how the parser floors odd counts.
+word _norm-indents(run: List<Block>) -> List<Int>
+    var out: List<Int> = list.new()
+    var prev = _indent-of-block(run[0])
+    let _first = list.append(out, prev)
+    var i = 1
+    while i < list.length(run)
+        var ind = _indent-of-block(run[i])
+        if ind > prev + 1
+            ind = prev + 1
+        let _norm = list.append(out, ind)
+        prev = ind
+        i = i + 1
+    out
+
+# One list level: items at `base` are li's, a deeper follower nests
+# recursively inside the open li; pos is the shared cursor (a list is a
+# reference), and the level ends at the first item shallower than base.
+word _list-at(run: List<Block>, inds: List<Int>, pos: List<Int>, base: Int, tag: String) -> String
+    var out = "<" + tag + ">\n"
+    var open = true
+    while pos[0] < list.length(run) and open
+        let ind = inds[pos[0]]
+        if ind < base
+            open = false
+        else
+            out = out + "<li>" + _html-esc(_item-text-of(run[pos[0]]))
+            pos[0] = pos[0] + 1
+            if pos[0] < list.length(run) and inds[pos[0]] > base
+                out = out + "\n" + _list-at(run, inds, pos, inds[pos[0]], tag)
+            out = out + "</li>\n"
+    out + "</" + tag + ">"
+
+word _item-text-of(block: Block) -> String
+    match block
+        case Block.BulletItem(_marker, text, _indent)
+            text
+        case Block.OrderedItem(_marker, text, _indent)
+            text
+        case _
+            ""
+
+word _quote-text(block: Block) -> String
+    match block
+        case Block.Quote(text, _indent)
+            text
+        case _
+            ""
+
+word _indent-of-block(block: Block) -> Int
+    match block
+        case Block.BulletItem(_marker, _text, indent)
+            indent
+        case Block.OrderedItem(_marker, _text, indent)
+            indent
+        case Block.Quote(_text, indent)
+            indent
+        case _
+            0
