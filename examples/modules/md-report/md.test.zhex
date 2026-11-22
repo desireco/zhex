@@ -61,9 +61,88 @@ expect-paragraph(mixed, 3, "outro", "mixed: closing paragraph")
 let tight = md.parse("para\n# Head")
 expect-count(tight, 2, "a heading ends a paragraph without a blank line")
 
+# list items and quotes
+word expect-bullet(doc: md.Doc, i: Int, marker: String, text: String, indent: Int, label: String)
+    match doc.blocks[i]
+        case md.Block.BulletItem(got-marker, got-text, got-indent)
+            test.check(got-marker == marker, label + ": marker")
+            test.check(got-text == text, label + ": text")
+            test.check(got-indent == indent, label + ": indent")
+        case _
+            test.check(false, label + ": not a bullet item")
+
+word expect-ordered(doc: md.Doc, i: Int, marker: String, text: String, indent: Int, label: String)
+    match doc.blocks[i]
+        case md.Block.OrderedItem(got-marker, got-text, got-indent)
+            test.check(got-marker == marker, label + ": marker")
+            test.check(got-text == text, label + ": text")
+            test.check(got-indent == indent, label + ": indent")
+        case _
+            test.check(false, label + ": not an ordered item")
+
+word expect-quote(doc: md.Doc, i: Int, text: String, indent: Int, label: String)
+    match doc.blocks[i]
+        case md.Block.Quote(got-text, got-indent)
+            test.check(got-text == text, label + ": text")
+            test.check(got-indent == indent, label + ": indent")
+        case _
+            test.check(false, label + ": not a quote")
+
+# bullet markers are kept verbatim
+expect-bullet(md.parse("- dash"), 0, "-", "dash", 0, "dash bullet")
+expect-bullet(md.parse("* star"), 0, "*", "star", 0, "star bullet")
+expect-bullet(md.parse("+ plus"), 0, "+", "plus", 0, "plus bullet")
+expect-bullet(md.parse("-"), 0, "-", "", 0, "bare marker is an empty item")
+expect-paragraph(md.parse("-nodash"), 0, "-nodash", "bullet marker without a space is text")
+
+# ordered markers: digits then . or )
+expect-ordered(md.parse("1. one"), 0, "1.", "one", 0, "dot ordered item")
+expect-ordered(md.parse("2) two"), 0, "2)", "two", 0, "paren ordered item")
+expect-ordered(md.parse("10. ten"), 0, "10.", "ten", 0, "multi-digit ordered item")
+expect-paragraph(md.parse("1.no-space"), 0, "1.no-space", "ordered marker without a space is text")
+expect-paragraph(md.parse("1.5"), 0, "1.5", "a digit run without a delimiter is text")
+
+# indent fields: two leading spaces per level, odd counts floor
+let nested = md.parse("- top\n  - child\n    - grandchild\n- back")
+expect-count(nested, 4, "nested list keeps four flat items")
+expect-bullet(nested, 0, "-", "top", 0, "nested: level zero")
+expect-bullet(nested, 1, "-", "child", 1, "nested: one level")
+expect-bullet(nested, 2, "-", "grandchild", 2, "nested: two levels")
+expect-bullet(nested, 3, "-", "back", 0, "nested: back to level zero")
+expect-ordered(md.parse("  1. inside"), 0, "1.", "inside", 1, "ordered items indent too")
+
+# blank lines split lists; a heading or plain line ends one without them
+expect-count(md.parse("- a\n\n- b"), 2, "a blank line splits a list into two blocks")
+expect-paragraph(md.parse("- a\nplain"), 1, "plain", "a plain follower line is paragraph text")
+
+# quotes: text after > is trimmed, indent counted like lists
+expect-quote(md.parse("> quoted"), 0, "quoted", 0, "quote line")
+expect-quote(md.parse(">"), 0, "", 0, "bare > is an empty quote")
+expect-quote(md.parse("  > indented"), 0, "indented", 1, "quote indent counts two spaces")
+expect-count(md.parse("> a\n\n> b"), 2, "a blank line splits quotes into two blocks")
+
+# mixed document with the parser I blocks
+let doc = md.parse("# T\n\n- a\n  - b\n\n1. one\n\n> note\n\nend")
+expect-count(doc, 6, "mixed document block count")
+expect-heading(doc, 0, 1, "T", "mixed: heading")
+expect-bullet(doc, 1, "-", "a", 0, "mixed: bullet")
+expect-bullet(doc, 2, "-", "b", 1, "mixed: nested bullet")
+expect-ordered(doc, 3, "1.", "one", 0, "mixed: ordered")
+expect-quote(doc, 4, "note", 0, "mixed: quote")
+expect-paragraph(doc, 5, "end", "mixed: closing paragraph")
+
 # the round trip for this subset
 let source = "# T\n\nintro\nline\n\n---\n\noutro"
 test.check(md.render(md.parse(source)) == source, "render(parse(source)) round trips")
+
+# list and quote round trips: tight runs are byte-stable, loose ones tighten
+test.check(md.render(md.parse("- a\n- b")) == "- a\n- b", "bullet list round trips")
+test.check(md.render(md.parse("- a\n  - b\n- c")) == "- a\n  - b\n- c", "nested bullet list round trips")
+test.check(md.render(md.parse("1. one\n2) two")) == "1. one\n2) two", "ordered markers survive the round trip")
+test.check(md.render(md.parse("> a\n> b")) == "> a\n> b", "quote run round trips")
+test.check(md.render(md.parse(">")) == ">", "bare quote round trips")
+test.check(md.render(md.parse("- a\n\n- b")) == "- a\n- b", "a blank line inside a list is dropped on render")
+test.check(md.render(doc) == "# T\n\n- a\n  - b\n\n1. one\n\n> note\n\nend", "mixed document round trips")
 
 # CRLF tolerance
 expect-paragraph(md.parse("one\r\ntwo"), 0, "one\ntwo", "crlf lines join with lf")

@@ -23,22 +23,37 @@
 #
 # Parse side (md.parse, md.render):
 # - Block is the flat block choice (Heading(level, text), Paragraph(text),
-#   Rule) and Doc is the record over List<Block>; the list carries heading
-#   levels inline, never nested children — the hierarchy is derived later.
+#   Rule, BulletItem(marker, text, indent), OrderedItem(marker, text,
+#   indent), Quote(text, indent)) and Doc is the record over List<Block>;
+#   the list carries heading levels and item indents inline, never nested
+#   children — the hierarchy is derived later.
 # - md.parse is total: every input is some block sequence, so it returns a
 #   plain Doc, not a Result. Recognized subset: ATX headings are 1-6 #'s
 #   followed by a space or the line's end (7+ #'s or a missing space is
 #   paragraph text); paragraphs are runs of non-blank lines joined with
 #   newlines, separated by one or more blank lines, leading and trailing
 #   blank lines ignored; a rule is 3 or more of one marker character
-#   (-, *, or _) alone on its line. Setext headings, indented constructs,
-#   and rules with inner spaces are excluded. CRLF line endings are
-#   normalized to LF first, and inline content is kept verbatim — no
-#   unescaping, inline parsing is a later story.
+#   (-, *, or _) alone on its line. Bullet items start with -, *, or +
+#   followed by a space or the line's end; ordered items start with one to
+#   nine digits then . or ) followed by a space or the line's end; the
+#   marker is kept verbatim and the item text is the trimmed rest of that
+#   one line. A quote line starts with > and its text is the trimmed rest.
+#   Indent is floor(leading spaces / 2) — two spaces per level, odd counts
+#   floor — on lists and quotes only. Lazy continuation is out: one line
+#   per item or quote, and a non-blank follower without a marker is
+#   paragraph text. Setext headings, indented headings and rules, nested
+#   quote markers (the inner > stays in the text), and rules with inner
+#   spaces are excluded. CRLF line endings are normalized to LF first,
+#   and inline content is kept verbatim — no unescaping, inline parsing
+#   is a later story.
 # - md.render writes a Doc back through the write-side words above (so
-#   heading and paragraph text escape as they pin) and joins blocks with
-#   blank lines; rules render as ---. The round trip render(parse(text))
-#   is byte-stable for text without escapable ASCII punctuation.
+#   heading and paragraph text escape as they pin; item and quote text is
+#   verbatim, matching the parse) and joins blocks with blank lines,
+#   except that a run of consecutive same-kind items or quotes joins with
+#   single newlines as one list — every parsed list is tight, so a blank
+#   line inside a list is dropped and loose lists tighten on the round
+#   trip; rules render as ---. The round trip render(parse(text)) is
+#   byte-stable for text without escapable ASCII punctuation.
 
 word heading(level: Int, text: String) -> String
     _repeat("#", _clamped(level)) + " " + _esc(text)
@@ -96,11 +111,16 @@ word table(headers: List<String>, rows: List<List<String>>) -> String
     text.join(lines, "\n")
 
 # One block in the flat Doc: a heading with its ATX level, a paragraph's
-# verbatim text, or a horizontal rule.
+# verbatim text, a horizontal rule, a list item with its verbatim marker
+# and indent, or a quote line with its indent. Nesting is the indent
+# field on the flat list, never children.
 type Block = choice
     Heading(level: Int, text: String)
     Paragraph(text: String)
     Rule
+    BulletItem(marker: String, text: String, indent: Int)
+    OrderedItem(marker: String, text: String, indent: Int)
+    Quote(text: String, indent: Int)
 
 # A parsed document: the block list in source order, nothing nested.
 type Doc = record
@@ -114,6 +134,9 @@ type Doc = record
 ## two
 ## > render(parse("---"))
 ## ---
+## > render(parse("- one\n  - two"))
+## - one
+##   - two
 word parse(text: String) -> Doc
     var blocks: List<Block> = list.new()
     var pending: List<String> = list.new()
@@ -130,24 +153,127 @@ word parse(text: String) -> Doc
                 let body = text.trim(text.slice(line, level, text.length(line)))
                 let _heading = list.append(blocks, Block.Heading(level, body))
             else
-                let _line = list.append(pending, line)
+                let rest = _strip-indent(line)
+                let ind = _indent-of(line)
+                let bullet = _bullet-marker(rest)
+                let ordered = _ordered-marker(rest)
+                if text.starts-with(rest, ">")
+                    pending = _absorb(blocks, pending)
+                    let _quote = list.append(blocks, Block.Quote(text.trim(text.slice(rest, 1, text.length(rest))), ind))
+                elif bullet != ""
+                    pending = _absorb(blocks, pending)
+                    let _item = list.append(blocks, Block.BulletItem(bullet, _item-text(rest, bullet), ind))
+                elif ordered != ""
+                    pending = _absorb(blocks, pending)
+                    let _item = list.append(blocks, Block.OrderedItem(ordered, _item-text(rest, ordered), ind))
+                else
+                    let _line = list.append(pending, line)
     _absorb(blocks, pending)
     Doc(blocks)
 
 ## Renders a Doc back to Markdown text through the write-side words.
 ## > render(Doc([Block.Rule]))
 ## ---
+## > render(Doc([Block.BulletItem("-", "a", 0), Block.BulletItem("-", "b", 1)]))
+## - a
+##   - b
 word render(doc: Doc) -> String
     var fragments: List<String> = list.new()
-    for block in doc.blocks
-        match block
-            case Block.Heading(level, text)
-                list.append(fragments, heading(level, text))
-            case Block.Paragraph(text)
-                list.append(fragments, paragraph(text))
-            case Block.Rule
-                list.append(fragments, "---")
+    var i = 0
+    while i < list.length(doc.blocks)
+        let kind = _run-kind(doc.blocks[i])
+        if kind == "none"
+            _render-plain(fragments, doc.blocks[i])
+            i = i + 1
+        else
+            var lines: List<String> = list.new()
+            while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == kind
+                let _line = list.append(lines, _item-line(doc.blocks[i]))
+                i = i + 1
+            let _list = list.append(fragments, text.join(lines, "\n"))
     text.join(fragments, "\n\n")
+
+word _render-plain(fragments: List<String>, block: Block) -> Unit
+    match block
+        case Block.Heading(level, text)
+            let _frag = list.append(fragments, heading(level, text))
+        case Block.Paragraph(text)
+            let _frag = list.append(fragments, paragraph(text))
+        case Block.Rule
+            let _frag = list.append(fragments, "---")
+        case _
+            let _item-kind = ""
+
+word _run-kind(block: Block) -> String
+    match block
+        case Block.BulletItem(_marker, _text, _indent)
+            "bullet"
+        case Block.OrderedItem(_marker, _text, _indent)
+            "ordered"
+        case Block.Quote(_text, _indent)
+            "quote"
+        case _
+            "none"
+
+word _item-line(block: Block) -> String
+    match block
+        case Block.BulletItem(marker, text, indent)
+            _repeat(" ", indent * 2) + _marked(marker, text)
+        case Block.OrderedItem(marker, text, indent)
+            _repeat(" ", indent * 2) + _marked(marker, text)
+        case Block.Quote(text, indent)
+            _repeat(" ", indent * 2) + _marked(">", text)
+        case _
+            ""
+
+word _marked(marker: String, text: String) -> String
+    if text == ""
+        marker
+    else
+        marker + " " + text
+
+word _strip-indent(line: String) -> String
+    var i = 0
+    let chars = text.split(line, "")
+    while i < list.length(chars) and chars[i] == " "
+        i = i + 1
+    text.slice(line, i, text.length(line))
+
+word _indent-of(line: String) -> Int
+    var i = 0
+    let chars = text.split(line, "")
+    while i < list.length(chars) and chars[i] == " "
+        i = i + 1
+    i / 2
+
+word _item-text(rest: String, marker: String) -> String
+    text.trim(text.slice(rest, text.length(marker), text.length(rest)))
+
+word _bullet-marker(rest: String) -> String
+    let chars = text.split(rest, "")
+    if list.length(chars) == 0
+        ""
+    else
+        let first = chars[0]
+        if (first == "-" or first == "*" or first == "+") and (list.length(chars) == 1 or chars[1] == " ")
+            first
+        else
+            ""
+
+word _ordered-marker(rest: String) -> String
+    let chars = text.split(rest, "")
+    var n = 0
+    while n < list.length(chars) and _is-digit(chars[n])
+        n = n + 1
+    if n == 0 or n > 9
+        ""
+    elif n < list.length(chars) and (chars[n] == "." or chars[n] == ")") and (n + 1 == list.length(chars) or chars[n + 1] == " ")
+        text.slice(rest, 0, n + 1)
+    else
+        ""
+
+word _is-digit(c: String) -> Bool
+    text.contains("0123456789", c)
 
 word _absorb(blocks: List<Block>, pending: List<String>) -> List<String>
     if list.length(pending) > 0
