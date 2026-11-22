@@ -694,6 +694,100 @@ func TestDifferentialStreamIO(t *testing.T) {
 	}
 }
 
+// sortBound is the wall-clock canary for the sort fixture (#188): a merge
+// sort over the fixture's lists finishes in well under a second under both
+// skins, while the insertion sort this gate caught was O(n^2) — the four
+// heavy sorts compare and shift ~2e9 times and blow far past the bound.
+const sortBound = 10 * time.Second
+
+// TestDifferentialSort (#188): the fixture sorts 60k Int and 30k String
+// lists with heavily duplicated keys — list.sort plus stable list.sort-by
+// runs whose equal-key order must match the interpreter byte for byte —
+// and must finish inside sortBound under both skins.
+func TestDifferentialSort(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	path := filepath.Join("testdata", "sort-lists.zhex")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var interpreted bytes.Buffer
+	runErr := lang.Run(path, string(source), strings.NewReader(""), &interpreted)
+	wantOut, wantCode := interpreted.String(), exitCode(runErr)
+
+	browser := compileFixture(t, "sort-lists", lang.WatSkinBrowser)
+	start := time.Now()
+	out, _, code := runNode(t, browser)
+	if elapsed := time.Since(start); elapsed > sortBound {
+		t.Fatalf("browser skin took %s (bound %s): list sorting is quadratic again", elapsed, sortBound)
+	}
+	if out != wantOut || code != wantCode {
+		t.Fatalf("browser skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
+	}
+
+	wasi := compileFixture(t, "sort-lists", lang.WatSkinWASI)
+	dir := t.TempDir()
+	stdinPath := filepath.Join(dir, "stdin.txt")
+	if err := os.WriteFile(stdinPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	start = time.Now()
+	out, _, code = runWasmtime(t, wasi, t.TempDir(), stdinPath, nil)
+	if elapsed := time.Since(start); elapsed > sortBound {
+		t.Fatalf("wasi skin took %s (bound %s): list sorting is quadratic again", elapsed, sortBound)
+	}
+	if out != wantOut || code != wantCode {
+		t.Fatalf("wasi skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
+	}
+}
+
+// mapBound is the wall-clock canary for the map fixture (#188): building
+// the fixture's 100k-entry maps with amortized storage finishes in about a
+// second under both skins, while the grow-by-one-entry puts this gate
+// caught copied ~1e10 words and blew far past the bound.
+const mapBound = 10 * time.Second
+
+// TestDifferentialMaps (#188): the fixture builds 100k-entry String- and
+// Int-keyed maps by put, then exercises remove, re-put, into, and
+// insertion-order iteration. Both skins must match the interpreter byte
+// for byte and finish inside mapBound.
+func TestDifferentialMaps(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	path := filepath.Join("testdata", "grow-maps.zhex")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var interpreted bytes.Buffer
+	runErr := lang.Run(path, string(source), strings.NewReader(""), &interpreted)
+	wantOut, wantCode := interpreted.String(), exitCode(runErr)
+
+	browser := compileFixture(t, "grow-maps", lang.WatSkinBrowser)
+	start := time.Now()
+	out, _, code := runNode(t, browser)
+	if elapsed := time.Since(start); elapsed > mapBound {
+		t.Fatalf("browser skin took %s (bound %s): map growth is quadratic again", elapsed, mapBound)
+	}
+	if out != wantOut || code != wantCode {
+		t.Fatalf("browser skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
+	}
+
+	wasi := compileFixture(t, "grow-maps", lang.WatSkinWASI)
+	dir := t.TempDir()
+	stdinPath := filepath.Join(dir, "stdin.txt")
+	if err := os.WriteFile(stdinPath, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	start = time.Now()
+	out, _, code = runWasmtime(t, wasi, t.TempDir(), stdinPath, nil)
+	if elapsed := time.Since(start); elapsed > mapBound {
+		t.Fatalf("wasi skin took %s (bound %s): map growth is quadratic again", elapsed, mapBound)
+	}
+	if out != wantOut || code != wantCode {
+		t.Fatalf("wasi skin: code=%d (want %d)\ninterpreted: %q\ncompiled:    %q", code, wantCode, wantOut, out)
+	}
+}
+
 func TestWASIOutputScratchIsolation(t *testing.T) {
 	requireTool(t, "wasm-tools")
 	for _, tc := range []struct {

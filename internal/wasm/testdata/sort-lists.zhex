@@ -1,0 +1,50 @@
+# Sort-heavy fixture (#188): 60k Int and 30k String sorts with heavily
+# duplicated keys, plus stable sort-by runs — the shapes the #6 benchmark
+# caught running as insertion sorts in the wasm prelude.
+
+word add-up(total: Int, value: Int) -> Int
+    total + value
+
+word mod50(n: Int) -> Int
+    n % 50
+
+word first-half(s: String) -> String
+    text.slice(s, 0, 1)
+
+word main()
+    var xs: List<Int> = []
+    var i = 0
+    while i < 100000
+        list.append(xs, (i * 7919) % 100003)
+        i = i + 1
+    let sorted = list.sort(xs)
+    print(int.to-string(sorted[0]) + " " + int.to-string(sorted[99999]))
+    print(int.to-string(list.fold(sorted, 0, add-up(_, _))))
+    print(int.to-string(list.length(xs)) + " " + int.to-string(xs[0]))
+
+    var ys: List<Int> = []
+    var j = 0
+    while j < 100000
+        list.append(ys, j)
+        j = j + 1
+    let by-key = list.sort-by(ys, mod50(_))
+    print(int.to-string(by-key[0]) + " " + int.to-string(by-key[29999]) + " " + int.to-string(by-key[99999]))
+    print(int.to-string(list.fold(by-key, 0, add-up(_, _))))
+
+    var words: List<String> = []
+    var k = 0
+    while k < 60000
+        list.append(words, int.to-string((k * 31) % 500))
+        k = k + 1
+    let ws = list.sort(words)
+    print(ws[0] + "," + ws[59999])
+    print(int.to-string(text.length(text.join(ws, "-"))))
+
+    var mixed: List<String> = []
+    var m = 0
+    while m < 60000
+        list.append(mixed, int.to-string(m % 25) + "-" + int.to-string(m))
+        m = m + 1
+    let grouped = list.sort-by(mixed, first-half(_))
+    print(grouped[0] + " " + grouped[59999])
+    print(int.to-string(text.length(text.join(grouped, " "))))
