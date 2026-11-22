@@ -1,0 +1,149 @@
+# Epub module tests: UTF-8 encoder vectors (the #212-documented gap the
+# assembly now owns), exact-string pins for container.xml, the OPF
+# package, nav.xhtml, and the chapter page — the escaping law on titles,
+# the verbatim-trusted body — and mimetype-first stored ordering read
+# straight from the archive bytes. The external reader bar — building a
+# book from markdown through md.to-html and opening the .epub — runs in
+# the ticket's gate, not here; this file pins strings and bytes.
+use epub
+use test
+use zip
+
+word check-bytes(got: List<Int>, want: List<Int>, label: String)
+    test.check(list.length(got) == list.length(want), label + ": length")
+    var i = 0
+    var same = true
+    while i < list.length(want)
+        if got[i] != want[i]
+            same = false
+        i = i + 1
+    test.check(same, label + ": bytes")
+
+# UTF-8 vectors: ASCII passes through, café's é is the two-byte form,
+# the euro sign three bytes, the G clef outside the BMP four
+check-bytes(epub.utf8(""), [], "empty text encodes to no bytes")
+check-bytes(epub.utf8("az09"), [97, 122, 48, 57], "ASCII is one byte per character")
+check-bytes(epub.utf8("café"), [99, 97, 102, 195, 169], "café encodes é as two bytes")
+check-bytes(epub.utf8("€"), [226, 130, 172], "euro sign encodes as three bytes")
+check-bytes(epub.utf8("𝄞"), [240, 157, 132, 158], "G clef encodes as four bytes")
+
+# the two-chapter fixture every string pin below shares
+let chapters = [
+    epub.Chapter("ch1.xhtml", "First", "<p>Hello, <em>reader</em>.</p>"),
+    epub.Chapter("ch2.xhtml", "Second & Last", "<p>Goodbye.</p>")
+]
+
+# container.xml, pinned whole
+test.check(epub.container-xml() == text.join([
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    "<container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">",
+    "<rootfiles>",
+    "<rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/>",
+    "</rootfiles>",
+    "</container>"
+], "\n"), "container.xml matches the pinned bytes")
+
+# the OPF package: dc metadata, nav + chapter items, spine, pinned whole
+test.check(epub.content-opf("A Tiny Book", "Ada & Grace", chapters) == text.join([
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" unique-identifier=\"pub-id\">",
+    "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">",
+    "<dc:title>A Tiny Book</dc:title>",
+    "<dc:creator>Ada &amp; Grace</dc:creator>",
+    "<dc:language>en</dc:language>",
+    "<dc:identifier id=\"pub-id\">urn:zhex:epub:A Tiny Book</dc:identifier>",
+    "<meta property=\"dcterms:modified\">2026-01-01T00:00:00Z</meta>",
+    "</metadata>",
+    "<manifest>",
+    "<item id=\"nav\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>",
+    "<item id=\"chapter1\" href=\"ch1.xhtml\" media-type=\"application/xhtml+xml\"/>",
+    "<item id=\"chapter2\" href=\"ch2.xhtml\" media-type=\"application/xhtml+xml\"/>",
+    "</manifest>",
+    "<spine>",
+    "<itemref idref=\"chapter1\"/>",
+    "<itemref idref=\"chapter2\"/>",
+    "</spine>",
+    "</package>"
+], "\n"), "content.opf matches the pinned bytes")
+
+# nav.xhtml: escaped chapter titles link to their files
+test.check(epub.nav-xhtml("A Tiny Book", chapters) == text.join([
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    "<!DOCTYPE html>",
+    "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">",
+    "<head>",
+    "<title>A Tiny Book</title>",
+    "</head>",
+    "<body>",
+    "<nav epub:type=\"toc\">",
+    "<h1>A Tiny Book</h1>",
+    "<ol>",
+    "<li><a href=\"ch1.xhtml\">First</a></li>",
+    "<li><a href=\"ch2.xhtml\">Second &amp; Last</a></li>",
+    "</ol>",
+    "</nav>",
+    "</body>",
+    "</html>"
+], "\n"), "nav.xhtml matches the pinned bytes")
+
+# the chapter page: title escaped in head and h1, body verbatim
+test.check(epub.chapter-xhtml(chapters[1]) == text.join([
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    "<!DOCTYPE html>",
+    "<html xmlns=\"http://www.w3.org/1999/xhtml\">",
+    "<head>",
+    "<title>Second &amp; Last</title>",
+    "</head>",
+    "<body>",
+    "<h1>Second &amp; Last</h1>",
+    "<p>Goodbye.</p>",
+    "</body>",
+    "</html>"
+], "\n"), "chapter page escapes the title and trusts the body")
+test.check(epub.chapter-xhtml(epub.Chapter("x.xhtml", "<t & \"'>", "<p>raw & stays</p>")) == text.join([
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    "<!DOCTYPE html>",
+    "<html xmlns=\"http://www.w3.org/1999/xhtml\">",
+    "<head>",
+    "<title>&lt;t &amp; &quot;&apos;&gt;</title>",
+    "</head>",
+    "<body>",
+    "<h1>&lt;t &amp; &quot;&apos;&gt;</h1>",
+    "<p>raw & stays</p>",
+    "</body>",
+    "</html>"
+], "\n"), "all five XML entities escape, the body keeps its raw ampersand")
+
+# mimetype-first ordering, read from the archive bytes: the first local
+# header is PK\x03\x04 with method 0 (stored), the name at offset 30 is
+# mimetype, and its data follows uncompressed
+let book = epub.book("A Tiny Book", "Ada", chapters)
+var prefix = true
+var i = 0
+while i < 4
+    if book[i] != [80, 75, 3, 4][i]
+        prefix = false
+    i = i + 1
+test.check(prefix, "the archive opens with a local file header")
+test.check(book[8] == 0 and book[9] == 0, "the first entry is stored (method 0)")
+var name = true
+var j = 0
+while j < 8
+    if book[30 + j] != epub.utf8("mimetype")[j]
+        name = false
+    j = j + 1
+test.check(name, "the first entry name is mimetype")
+# the mimetype payload sits at offset 38, twenty bytes, uncompressed
+var payload = true
+var k = 0
+while k < 20
+    if book[38 + k] != epub.utf8("application/epub+zip")[k]
+        payload = false
+    k = k + 1
+test.check(payload, "the mimetype content follows the header verbatim")
+
+# whole-book determinism: length and CRC pin every later byte
+test.check(list.length(book) == 2453, "two-chapter book has the pinned length")
+test.check(zip.crc32(book) == 183584265, "two-chapter book CRC pins the layout")
+
+print "epub module tests passed"

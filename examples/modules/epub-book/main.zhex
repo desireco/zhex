@@ -1,15 +1,25 @@
-# A stored archive from native values: the zip module assembles entries
-# into bytes — here an EPUB-shaped pair with the mimetype first — and the
-# demo stays in memory (printed facts, not a written file), so the
-# example's output is deterministic at build time.
-use zip
+# A two-chapter book from native values: the epub module assembles the
+# mimetype, container.xml, the OPF package, nav.xhtml, and pre-rendered
+# chapter bodies into archive bytes. The demo stays in memory (printed
+# facts, not a written file), so the example's output is deterministic at
+# build time; the external reader bar — writing the same bytes to a real
+# .epub and opening it — runs in the ticket's gate.
+use epub
 
-let book = [
-    zip.Entry("mimetype", text.to-code-points("application/epub+zip")),
-    zip.Entry("hello.txt", text.to-code-points("Hello, world!\n"))
+let chapters = [
+    epub.Chapter(
+        "ch1.xhtml",
+        "Why Zhex",
+        "<p>Small words, named values, checked composition: the checker\nreads the whole program before anything runs.</p>"
+    ),
+    epub.Chapter(
+        "ch2.xhtml",
+        "Checked Books",
+        "<p>This book was assembled without a byte-level library: a\npure-Zhex zip writer, a UTF-8 encoder, and string templates.</p>"
+    )
 ]
 
-let archive = zip.archive(book)
-print "entries: " + list.length(book)
-print "archive bytes: " + list.length(archive)
-print "crc32 check value: " + zip.crc32(text.to-code-points("123456789"))
+let book = epub.book("Two Chapters", "Ada", chapters)
+print "chapters: " + list.length(chapters)
+print "book bytes: " + list.length(book)
+print "mimetype first: " + epub.utf8("application/epub+zip")[0]

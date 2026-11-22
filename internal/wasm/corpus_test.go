@@ -85,20 +85,22 @@ var corpusTable = map[string]corpusRow{
 	"modules/test.zhex":              {blockers: []string{"console.fail"}},
 	// the zip module's byte surfaces need text.to-code-points, still
 	// outside the compiled subset; the test files add console.fail
-	"modules/epub-book/main.zhex":     {blockers: []string{"text.to-code-points"}},
-	"modules/epub-book/zip.zhex":      {blockers: []string{"text.to-code-points"}},
-	"modules/epub-book/zip.test.zhex": {blockers: []string{"text.to-code-points", "console.fail"}},
-	"modules/epub-book/test.zhex":     {blockers: []string{"console.fail"}},
-	"modules/pdf-doc/main.zhex":     {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
-	"modules/pdf-doc/pdf.zhex":      {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
-	"modules/pdf-doc/pdf.test.zhex": {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new", "console.fail"}},
-	"modules/pdf-doc/test.zhex":     {blockers: []string{"console.fail"}},
+	"modules/epub-book/main.zhex":      {blockers: []string{"text.to-code-points"}},
+	"modules/epub-book/epub.zhex":      {blockers: []string{"text.to-code-points"}},
+	"modules/epub-book/epub.test.zhex": {blockers: []string{"text.to-code-points", "console.fail"}},
+	"modules/epub-book/zip.zhex":       {blockers: []string{"text.to-code-points"}},
+	"modules/epub-book/zip.test.zhex":  {blockers: []string{"text.to-code-points", "console.fail"}},
+	"modules/epub-book/test.zhex":      {blockers: []string{"console.fail"}},
+	"modules/pdf-doc/main.zhex":        {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
+	"modules/pdf-doc/pdf.zhex":         {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
+	"modules/pdf-doc/pdf.test.zhex":    {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new", "console.fail"}},
+	"modules/pdf-doc/test.zhex":        {blockers: []string{"console.fail"}},
 	// the diff module's checked apply channel needs error.new, outside
 	// the compiled subset; the test files add console.fail
-	"modules/text-diff/main.zhex":     {blockers: []string{"error.new"}},
-	"modules/text-diff/diff.zhex":     {blockers: []string{"list.insert"}},
+	"modules/text-diff/main.zhex":      {blockers: []string{"error.new"}},
+	"modules/text-diff/diff.zhex":      {blockers: []string{"list.insert"}},
 	"modules/text-diff/diff.test.zhex": {blockers: []string{"error.new", "console.fail"}},
-	"modules/text-diff/test.zhex":     {blockers: []string{"console.fail"}},
+	"modules/text-diff/test.zhex":      {blockers: []string{"console.fail"}},
 }
 
 // corpusResolve mirrors the CLI's module reader: `use name` resolves the

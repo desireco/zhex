@@ -1,0 +1,197 @@
+# Minimal EPUB 3 assembly over the zip module: pre-rendered chapters in,
+# book bytes out. The caller owns rendering — chapter bodies arrive as
+# XHTML fragments already rendered (md.to-html in the md module is one
+# such renderer; use resolves siblings only, so this module composes
+# bytes and metadata and stays renderer-free by design).
+#
+# Pinned contracts:
+# - The archive entry order is the EPUB rule: mimetype first — the
+#   stored-mode archive writes every entry uncompressed, which is exactly
+#   what the mimetype requires — then META-INF/container.xml, the OPF
+#   package, nav.xhtml, and each chapter file under OEBPS/.
+# - Titles and author text are entity-escaped through _xml-esc wherever
+#   they land in XML; chapter bodies are written verbatim, TRUSTED as
+#   well-formed XHTML — that is the (a) contract's trust boundary: the
+#   caller pre-renders, this module assembles, and a malformed body
+#   passes through to the reader unchecked. Chapter filenames are hrefs
+#   and entry names verbatim — the caller owns its paths, the same law
+#   as the zip module's entry names.
+# - All XML strings are UTF-8 encoded through utf8 (below) before they
+#   become bytes — text.to-code-points yields code points, which are
+#   bytes only for ASCII, so the assembly owns its encoder.
+# - The OPF's dc:identifier and dcterms:modified are fixed values derived
+#   from the title and pinned constants, so one input always yields one
+#   book — no clocks, no randomness; a real publish date is the caller's
+#   upgrade path.
+
+use zip
+
+type Chapter = record
+    filename: String
+    title: String
+    body: String
+
+## UTF-8 encodes a string: code points below 128 pass through as single
+## bytes, larger ones become the standard two-, three-, or four-byte
+## sequences. This is the encoder the zip module's docs left to the
+## caller — text.to-code-points alone is bytes only for ASCII.
+## > list.length(utf8("café"))
+## 5
+word utf8(text: String) -> List<Int>
+    var out: List<Int> = list.new()
+    for cp in text.to-code-points(text)
+        if cp < 128
+            out = list.append(out, cp)
+        elif cp < 2048
+            out = list.append(out, 192 + cp / 64)
+            out = list.append(out, 128 + cp % 64)
+        elif cp < 65536
+            out = list.append(out, 224 + cp / 4096)
+            out = list.append(out, 128 + (cp / 64) % 64)
+            out = list.append(out, 128 + cp % 64)
+        else
+            out = list.append(out, 240 + cp / 262144)
+            out = list.append(out, 128 + (cp / 4096) % 64)
+            out = list.append(out, 128 + (cp / 64) % 64)
+            out = list.append(out, 128 + cp % 64)
+    out
+
+## Text positions entity-escape the five XML characters, & first so no
+## escaped form is re-escaped — a pinned twin of the html and md
+## modules' escape word with XML's named apostrophe and quote entities;
+## use resolves siblings only, so the bytes are pinned here too and
+## drift is the known risk of that split.
+word _xml-esc(value: String) -> String
+    flow value
+        text.replace("&", "&amp;")
+        text.replace("<", "&lt;")
+        text.replace(">", "&gt;")
+        text.replace("'", "&apos;")
+        text.replace("\"", "&quot;")
+
+## Appends one string chunk to another, in order.
+word _extend-text(out: List<String>, chunk: List<String>) -> List<String>
+    var acc = out
+    for line in chunk
+        acc = list.append(acc, line)
+    acc
+
+## The META-INF/container.xml every EPUB opens with: one rootfile
+## pointer at the OPF package.
+word container-xml() -> String
+    text.join([
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">",
+        "<rootfiles>",
+        "<rootfile full-path=\"OEBPS/content.opf\" media-type=\"application/oebps-package+xml\"/>",
+        "</rootfiles>",
+        "</container>"
+    ], "\n")
+
+## The OEBPS/content.opf package: dc metadata (title, creator, a fixed
+## language and a title-derived identifier — see the module doc), the
+## manifest (nav plus one item per chapter, hrefs straight from each
+## chapter's filename), and a spine walking the chapters in order.
+word content-opf(title: String, author: String, chapters: List<Chapter>) -> String
+    var items: List<String> = list.new()
+    var refs: List<String> = list.new()
+    var i = 0
+    while i < list.length(chapters)
+        let c = chapters[i]
+        items = list.append(items, "<item id=\"chapter" + (i + 1) + "\" href=\"" + c.filename + "\" media-type=\"application/xhtml+xml\"/>")
+        refs = list.append(refs, "<itemref idref=\"chapter" + (i + 1) + "\"/>")
+        i = i + 1
+    var lines: List<String> = list.new()
+    lines = list.append(lines, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+    lines = list.append(lines, "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" unique-identifier=\"pub-id\">")
+    lines = list.append(lines, "<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">")
+    lines = list.append(lines, "<dc:title>" + _xml-esc(title) + "</dc:title>")
+    lines = list.append(lines, "<dc:creator>" + _xml-esc(author) + "</dc:creator>")
+    lines = list.append(lines, "<dc:language>en</dc:language>")
+    lines = list.append(lines, "<dc:identifier id=\"pub-id\">urn:zhex:epub:" + _xml-esc(title) + "</dc:identifier>")
+    lines = list.append(lines, "<meta property=\"dcterms:modified\">2026-01-01T00:00:00Z</meta>")
+    lines = list.append(lines, "</metadata>")
+    lines = list.append(lines, "<manifest>")
+    lines = list.append(lines, "<item id=\"nav\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>")
+    lines = _extend-text(lines, items)
+    lines = list.append(lines, "</manifest>")
+    lines = list.append(lines, "<spine>")
+    lines = _extend-text(lines, refs)
+    lines = list.append(lines, "</spine>")
+    lines = list.append(lines, "</package>")
+    text.join(lines, "\n")
+
+## The OEBPS/nav.xhtml table of contents: an epub:type="toc" nav whose
+## list links each chapter's escaped title to its file.
+word nav-xhtml(title: String, chapters: List<Chapter>) -> String
+    var entries: List<String> = list.new()
+    var i = 0
+    while i < list.length(chapters)
+        let c = chapters[i]
+        entries = list.append(entries, "<li><a href=\"" + c.filename + "\">" + _xml-esc(c.title) + "</a></li>")
+        i = i + 1
+    var lines: List<String> = list.new()
+    lines = list.append(lines, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
+    lines = list.append(lines, "<!DOCTYPE html>")
+    lines = list.append(lines, "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">")
+    lines = list.append(lines, "<head>")
+    lines = list.append(lines, "<title>" + _xml-esc(title) + "</title>")
+    lines = list.append(lines, "</head>")
+    lines = list.append(lines, "<body>")
+    lines = list.append(lines, "<nav epub:type=\"toc\">")
+    lines = list.append(lines, "<h1>" + _xml-esc(title) + "</h1>")
+    lines = list.append(lines, "<ol>")
+    lines = _extend-text(lines, entries)
+    lines = list.append(lines, "</ol>")
+    lines = list.append(lines, "</nav>")
+    lines = list.append(lines, "</body>")
+    lines = list.append(lines, "</html>")
+    text.join(lines, "\n")
+
+## One chapter as a minimal XHTML page: escaped title in head and h1,
+## the body verbatim between them — trusted pre-rendered XHTML, the
+## trust boundary the module doc names.
+## > chapter-xhtml(Chapter("c.xhtml", "T", "<p>b</p>"))
+## <?xml version="1.0" encoding="UTF-8"?>
+## <!DOCTYPE html>
+## <html xmlns="http://www.w3.org/1999/xhtml">
+## <head>
+## <title>T</title>
+## </head>
+## <body>
+## <h1>T</h1>
+## <p>b</p>
+## </body>
+## </html>
+word chapter-xhtml(chapter: Chapter) -> String
+    text.join([
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<!DOCTYPE html>",
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\">",
+        "<head>",
+        "<title>" + _xml-esc(chapter.title) + "</title>",
+        "</head>",
+        "<body>",
+        "<h1>" + _xml-esc(chapter.title) + "</h1>",
+        chapter.body,
+        "</body>",
+        "</html>"
+    ], "\n")
+
+## Assembles a whole EPUB 3 book as archive bytes, mimetype first (see
+## the module doc), ready for file.write-bytes(path, book try). Every
+## string entry is UTF-8 encoded on its way in.
+## > list.length(book("T", "A", []))
+## 1490
+word book(title: String, author: String, chapters: List<Chapter>) -> List<Int>
+    var entries: List<zip.Entry> = list.new()
+    entries = list.append(entries, zip.Entry("mimetype", utf8("application/epub+zip")))
+    entries = list.append(entries, zip.Entry("META-INF/container.xml", utf8(container-xml())))
+    entries = list.append(entries, zip.Entry("OEBPS/content.opf", utf8(content-opf(title, author, chapters))))
+    entries = list.append(entries, zip.Entry("OEBPS/nav.xhtml", utf8(nav-xhtml(title, chapters))))
+    var i = 0
+    while i < list.length(chapters)
+        let c = chapters[i]
+        entries = list.append(entries, zip.Entry("OEBPS/" + c.filename, utf8(chapter-xhtml(c))))
+        i = i + 1
+    zip.archive(entries)
