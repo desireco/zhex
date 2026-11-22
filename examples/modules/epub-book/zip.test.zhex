@@ -1,0 +1,56 @@
+# Zip module tests: known CRC32 vectors, one archive byte-pinned against
+# a Python-generated fixture, a multi-entry archive pinned by length and
+# CRC, and the empty edges. The external round trip — writing an archive
+# with file.write-bytes and verifying it with `python3 -m zipfile -t` —
+# runs in the ticket's gate, not here; this file pins bytes.
+use zip
+use test
+
+word check-crc(text: String, want: Int, label: String)
+    test.check(zip.crc32(text.to-code-points(text)) == want, label)
+
+# Zhex compares only Int, Bool, and String with ==, so bytes are pinned
+# one index at a time
+word check-bytes(got: List<Int>, want: List<Int>, label: String)
+    test.check(list.length(got) == list.length(want), label + ": length")
+    var i = 0
+    var same = true
+    while i < list.length(want)
+        if got[i] != want[i]
+            same = false
+        i = i + 1
+    test.check(same, label + ": bytes")
+
+# known CRC32 vectors
+check-crc("", 0, "empty text has CRC 0")
+check-crc("123456789", 3421780262, "the classic check value")
+check-crc("The quick brown fox jumps over the lazy dog", 1095738169, "fox vector")
+check-crc("zhex", 626418576, "short ASCII vector")
+# café in UTF-8 bytes — to-code-points gives code points, which are bytes
+# only for ASCII, so non-ASCII text reaches crc32 as an explicit byte list
+test.check(zip.crc32([99, 97, 102, 195, 169]) == 2561491637, "multi-byte UTF-8 vector")
+test.check(zip.crc32([]) == 0, "empty byte list has CRC 0")
+
+# one entry, every byte pinned (fixture generated with python3's zlib
+# and struct on ticket #212; Hello, world!\n over hello.txt)
+let single = zip.archive([zip.Entry("hello.txt", text.to-code-points("Hello, world!\n"))])
+test.check(list.length(single) == 130, "single-entry archive is 130 bytes")
+check-bytes(single, [80, 75, 3, 4, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 167, 85, 123, 14, 0, 0, 0, 14, 0, 0, 0, 9, 0, 0, 0, 104, 101, 108, 108, 111, 46, 116, 120, 116, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 10, 80, 75, 1, 2, 20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 167, 85, 123, 14, 0, 0, 0, 14, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 104, 101, 108, 108, 111, 46, 116, 120, 116, 80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0, 55, 0, 0, 0, 53, 0, 0, 0, 0, 0], "single-entry archive matches the pinned bytes")
+
+# two entries including the EPUB mimetype shape; the CRC of the whole
+# archive pins the central directory and EOCD as well
+let book = [
+    zip.Entry("mimetype", text.to-code-points("application/epub+zip")),
+    zip.Entry("dir/note.txt", text.to-code-points("stored\n"))
+]
+let multi = zip.archive(book)
+test.check(list.length(multi) == 241, "two-entry archive is 241 bytes")
+test.check(zip.crc32(multi) == 2614520230, "two-entry archive CRC pins layout")
+
+# empty edges: no entries is the bare 22-byte EOCD, and an empty name
+# with no data still writes both headers
+let none = zip.archive([])
+check-bytes(none, [80, 75, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "empty entries list is the bare EOCD")
+test.check(list.length(zip.archive([zip.Entry("", [])])) == 98, "empty name and data still carry headers")
+
+print "zip module tests passed"

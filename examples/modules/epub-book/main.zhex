@@ -1,0 +1,15 @@
+# A stored archive from native values: the zip module assembles entries
+# into bytes — here an EPUB-shaped pair with the mimetype first — and the
+# demo stays in memory (printed facts, not a written file), so the
+# example's output is deterministic at build time.
+use zip
+
+let book = [
+    zip.Entry("mimetype", text.to-code-points("application/epub+zip")),
+    zip.Entry("hello.txt", text.to-code-points("Hello, world!\n"))
+]
+
+let archive = zip.archive(book)
+print "entries: " + list.length(book)
+print "archive bytes: " + list.length(archive)
+print "crc32 check value: " + zip.crc32(text.to-code-points("123456789"))

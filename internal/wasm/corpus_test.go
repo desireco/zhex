@@ -83,6 +83,12 @@ var corpusTable = map[string]corpusRow{
 	"modules/md-report/md.test.zhex": {blockers: []string{"console.fail"}},
 	"modules/md-report/test.zhex":    {blockers: []string{"console.fail"}},
 	"modules/test.zhex":              {blockers: []string{"console.fail"}},
+	// the zip module's byte surfaces need text.to-code-points, still
+	// outside the compiled subset; the test files add console.fail
+	"modules/epub-book/main.zhex":     {blockers: []string{"text.to-code-points"}},
+	"modules/epub-book/zip.zhex":      {blockers: []string{"text.to-code-points"}},
+	"modules/epub-book/zip.test.zhex": {blockers: []string{"text.to-code-points", "console.fail"}},
+	"modules/epub-book/test.zhex":     {blockers: []string{"console.fail"}},
 }
 
 // corpusResolve mirrors the CLI's module reader: `use name` resolves the

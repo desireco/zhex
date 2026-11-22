@@ -107,6 +107,10 @@ func TestExamples(t *testing.T) {
 		// default, markup through element and one deliberate html.raw,
 		// and a rejected javascript: link target.
 		{name: "modules/html-page/main", want: "<!DOCTYPE html>\n<html>\n<head>\n<title>Zhex services — café &amp; &lt;status&gt;</title>\n</head>\n<body>\n<p>Everything below is escaped unless it arrives through html.raw.</p>\n<ul class=\"status &#34;live&#34; &amp; &lt;fresh&gt;\">\n<li>api: 2 ms</li>\n<li>web: 9 ms</li>\n<li>db: 41 ms &amp; &lt;degraded&gt;</li>\n</ul>\n<hr>\n<a href=\"https://example.io/zhex\">project home</a> / (link rejected: javascript: is not an allowed scheme)\n</body>\n</html>\n"},
+		// epub-book assembles a stored-ZIP archive through the zip sibling
+		// module; zip.test pins CRC32 vectors and archive bytes.
+		{name: "modules/epub-book/main", want: "entries: 2\narchive bytes: 242\ncrc32 check value: 3421780262\n"},
+		{name: "modules/epub-book/zip.test", want: "zip module tests passed\n"},
 	}
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("%s/%d", tc.name, i), func(t *testing.T) {
