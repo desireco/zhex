@@ -221,6 +221,9 @@ A file's content is not valid UTF-8. Zhex reads UTF-8 text only; re-save the fil
 ## file-write
 `file.write` could not open, write, or close the path; the message names the path, the failing phase, and the operating system's reason. The failure lives inside the `Result` and surfaces through `try`; a failed write may leave a partial or truncated file, and a missing parent directory is never created.
 
+## file-bytes-range
+`file.write-bytes` received a byte value outside 0 through 255; the message names the first offending value. The failure lives inside the `Result`, is checked before the file is opened, and never creates or truncates a file.
+
 ## file-exists
 `file.exists` could not answer for the path: the message names the path and the operating system's reason, and the failure carries the not-found/permission-denied/other taxonomy in its details. A missing path is not this failure — it is the answer `false`; apply `try` or `catch` to inspect the checked form's failures.
 

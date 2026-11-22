@@ -11,6 +11,7 @@ var engineBoundaryWords = map[string]bool{
 	"file.read":          true,
 	"file.open":          true,
 	"file.write":         true,
+	"file.write-bytes":   true,
 	"file.list":          true,
 	"file.exists":        true,
 	"file.size":          true,

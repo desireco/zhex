@@ -13,7 +13,7 @@ import (
 // file.extension, file.directory-of), read-line against the supplied stdin,
 // console.args-count (always 0), and env.get (always Option.None) keep
 // working there, so a fence on any of them would break working programs.
-const wantBoundaryWords = "console.arg env.load file.delete file.delete-folder file.exists file.free-space file.list file.make-folder file.move file.open file.read file.size file.write"
+const wantBoundaryWords = "console.arg env.load file.delete file.delete-folder file.exists file.free-space file.list file.make-folder file.move file.open file.read file.size file.write file.write-bytes"
 
 func TestEngineBoundaryWordsPinned(t *testing.T) {
 	names := make([]string, 0, len(engineBoundaryWords))

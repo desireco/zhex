@@ -98,6 +98,28 @@ func inspectError(pos position, code Code, format string, path string, cause err
 // or truncated file, created files use mode 0644 before umask, and the write
 // path follows symlinks.
 func writeTextFile(pos position, contents, path string, appendMode bool) value {
+	return writeFileData(pos, path, []byte(contents), appendMode)
+}
+
+// writeBytesFile writes one byte per Int in one internal open-write-close
+// that always truncates (#211's lean surface: no append). Values outside
+// 0..255 fail file-bytes-range before the file is opened, so a range
+// failure never creates or truncates anything.
+func writeBytesFile(pos position, path string, items []value) value {
+	data := make([]byte, len(items))
+	for i, item := range items {
+		n := item.number
+		if n.Negative() || !n.Fits64() || n.AsInt64() > 255 {
+			return value{result: &inputResult{err: errorAt(pos, CodeFileBytesRange, "file.write-bytes byte %s is outside 0..255", zhexrt.Str(n))}}
+		}
+		data[i] = byte(n.AsInt64())
+	}
+	return writeFileData(pos, path, data, false)
+}
+
+// writeFileData is the shared open-write-close of the two write words,
+// with file.write's phase taxonomy and mode rules.
+func writeFileData(pos position, path string, data []byte, appendMode bool) value {
 	flags := os.O_WRONLY | os.O_CREATE
 	if appendMode {
 		flags |= os.O_APPEND
@@ -108,8 +130,8 @@ func writeTextFile(pos position, contents, path string, appendMode bool) value {
 	if err != nil {
 		return value{result: &inputResult{err: fileWriteError(pos, path, "open", err)}}
 	}
-	n, err := osWrite(f, []byte(contents))
-	if err == nil && n != len(contents) {
+	n, err := osWrite(f, data)
+	if err == nil && n != len(data) {
 		err = io.ErrShortWrite
 	}
 	if err != nil {

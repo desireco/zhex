@@ -70,7 +70,7 @@ var hostWords = []string{
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
-	"file.read", "file.open", "file.read-line", "file.close", "file.write", "file.stream", "file.list", "file.exists", "file.size", "file.free-space",
+	"file.read", "file.open", "file.read-line", "file.close", "file.write", "file.write-bytes", "file.stream", "file.list", "file.exists", "file.size", "file.free-space",
 	"file.join", "file.base", "file.extension", "file.directory-of",
 	"file.make-folder", "file.delete", "file.delete-folder", "file.move",
 	"console.arg", "console.args-count", "console.exit", "console.fail",
@@ -1447,6 +1447,9 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if x.text == "text.from-code-points" && i == 0 {
 				expected = "List<Int>"
 			}
+			if x.text == "file.write-bytes" && i == 1 {
+				expected = "List<Int>"
+			}
 			var err error
 			args[i], err = c.expressionExpected(arg, env, expected)
 			if err != nil {
@@ -2184,6 +2187,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			result = unitType
 		case "file.write":
 			params = []valueType{stringType, stringType, boolType}
+			result = unitFileResultType
+		case "file.write-bytes":
+			params = []valueType{stringType, "List<Int>"}
 			result = unitFileResultType
 		case "file.list":
 			params = []valueType{stringType}

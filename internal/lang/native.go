@@ -2102,6 +2102,9 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 			return fmt.Sprintf("zhexrt.FileWrite(%s, %s, %s, false)", pos, args[0], args[1])
 		}
 		return fmt.Sprintf("zhexrt.FileWrite(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "file.write-bytes":
+		need(2)
+		return fmt.Sprintf("zhexrt.FileWriteBytes(%s, %s, %s)", pos, args[0], args[1])
 	case "file.list":
 		need(1)
 		return fmt.Sprintf("zhexrt.FileList(%s, %s)", pos, args[0])

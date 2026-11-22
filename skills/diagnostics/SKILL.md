@@ -292,6 +292,14 @@ Fix: The message names both; fix the line to match the expected grammar.
 
 Learn: https://desireco.github.io/zhex/errors.html#expected-token
 
+## file-bytes-range
+
+`file.write-bytes` received a byte value outside 0 through 255; the message names the first offending value.
+
+Fix: The failure lives inside the `Result`, is checked before the file is opened, and never creates or truncates a file.
+
+Learn: https://desireco.github.io/zhex/errors.html#file-bytes-range
+
 ## file-delete
 
 `file.delete` could not delete the path: it is missing, it is a nonempty folder (the safety default removes a file or an empty folder only; `file.delete-folder(recursive: true)` removes a tree), or the process may not remove it.

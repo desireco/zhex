@@ -170,3 +170,16 @@ func TestNativeRuntimeDiagnostics(t *testing.T) {
 		})
 	}
 }
+
+// TestNativeFileWriteBytes pins the native byte write end to end: the
+// happy path lands on disk (verified through file.size, since 0xFF alone
+// is not valid UTF-8 and file.read would refuse it), and the range
+// failure renders exactly as the interpreter's diagnostic.
+func TestNativeFileWriteBytes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "b.bin")
+	diffCase(t, "bytes",
+		"file.write-bytes(\""+path+"\", [0, 255, 65, 128]) try\n"+
+			"print(\"size: \" + file.size(\""+path+"\") try)\n", "")
+	diffCase(t, "bytes-range",
+		"file.write-bytes(\""+path+"\", [65, 256]) try\nprint(\"unreachable\")\n", "")
+}

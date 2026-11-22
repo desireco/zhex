@@ -48,10 +48,18 @@ The `file.stream` form is available only as the source of a `for` loop.
 | Signature | Result and behavior |
 | --- | --- |
 | `file.write(String, String, Bool = false) -> Result<Unit, FileError>` | On success, `Unit`: the contents are written to the path. The optional third argument appends instead of truncating. |
+| `file.write-bytes(String, List<Int>) -> Result<Unit, FileError>` | On success, `Unit`: the bytes are written to the path. Values must be 0 through 255. |
 
 `file.write(contents, path, append)` takes the contents first, then the path. Omitting `append` (or passing `false`) creates the file or truncates an existing one; `append = true` appends and creates the file if it is missing. The trailing `append` argument is a built-in constant default: calls may omit it, and a partial such as `file.write(_, "out.txt")` keeps it deferred, like a user-word default.
 
 No parent directory is created, and the write is not atomic — a failure can leave a partial or truncated file. The open, write, and close happen inside the operation, so no writable file resource escapes. A created file uses mode 0644 subject to the process umask, and the write follows symlinks.
+
+`file.write-bytes(path, bytes)` is the binary counterpart: the path first, then a `List<Int>` holding one byte per `Int`. It always creates or truncates — there is no append mode — and it shares `file.write`'s parent-directory, mode, and phase rules. Every value must be 0 through 255; the first value outside that range fails `file-bytes-range` inside the `Result` before the file is opened, so a range failure never creates or truncates anything. There is no byte read and no byte type: the list is the byte representation. This is how binary formats start (a ZIP's `mimetype` entry, a fixed-width header), because `file.write` encodes its text as UTF-8 and a code point at or above U+0080 never lands as one byte.
+
+```zhex
+let saved = file.write-bytes("/tmp/mimetype", [109, 105, 109, 101, 116, 121, 112, 101]) catch problem
+    print("Byte save failed: " + error.code(problem))
+```
 
 ```zhex
 let saved = file.write(report, "/") catch problem
@@ -134,6 +142,6 @@ See the [file-work example](../examples.html#file-work), which builds a work fol
 
 Line reading removes one trailing line feed (`LF`) and removes an immediately preceding carriage return (`CR`) with it. A bare final `CR` without `LF` is retained. A final nonempty line without a newline is still read. An empty file produces no lines in a loop.
 
-Opening or reading can fail, and invalid UTF-8 is rejected. Whole-file open failures use `file-open`; streaming read failures and end-of-file use `file-read`; invalid text uses `file-utf8`. A write that cannot open, write, or close the path fails `file-write`, naming the path, the failing phase, and the operating system's reason; a failed write may leave a partial or truncated file, and a missing parent directory is never created. Add `try` to propagate a failure or `catch` to handle it locally. See [results and error handling](results.html).
+Opening or reading can fail, and invalid UTF-8 is rejected. Whole-file open failures use `file-open`; streaming read failures and end-of-file use `file-read`; invalid text uses `file-utf8`. A write that cannot open, write, or close the path fails `file-write`, naming the path, the failing phase, and the operating system's reason; a failed write may leave a partial or truncated file, and a missing parent directory is never created. `file.write-bytes` fails `file-write` the same way, and a byte value outside 0 through 255 fails `file-bytes-range` before the file is touched. Add `try` to propagate a failure or `catch` to handle it locally. See [results and error handling](results.html).
 
 See the [text-stats example](../examples.html#text-stats), which counts a whole file or streams its lines depending on the supplied arguments.

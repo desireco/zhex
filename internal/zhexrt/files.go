@@ -164,6 +164,36 @@ func writeErr(pos Pos, path, phase string, cause error) *Error {
 	return &Error{Pos: pos, Code: "file-write", Message: message, Details: map[string]string{"path": path, "reason": osFailureReason(cause), "phase": phase}}
 }
 
+// FileWriteBytes writes one byte per Int, 0..255, in one open-write-close
+// that always truncates (the lean #211 surface: no append). A value outside
+// 0..255 fails file-bytes-range inside the Result before the file is
+// opened; the message matches the interpreter's byte-for-byte.
+func FileWriteBytes(pos Pos, path string, bytes *List[Int]) Result[Unit] {
+	data := make([]byte, len(bytes.Items))
+	for i, item := range bytes.Items {
+		if item.Negative() || !item.Fits64() || item.AsInt64() > 255 {
+			return Result[Unit]{Err: &Error{Pos: pos, Code: "file-bytes-range", Message: fmt.Sprintf("file.write-bytes byte %s is outside 0..255", Str(item))}}
+		}
+		data[i] = byte(item.AsInt64())
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return Result[Unit]{Err: writeErr(pos, path, "open", err)}
+	}
+	n, err := f.Write(data)
+	if err == nil && n != len(data) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		_ = f.Close()
+		return Result[Unit]{Err: writeErr(pos, path, "write", err)}
+	}
+	if err := f.Close(); err != nil {
+		return Result[Unit]{Err: writeErr(pos, path, "close", err)}
+	}
+	return Ok(Unit{})
+}
+
 // FileList lists bare entry names, sorted, dot entries included.
 func FileList(pos Pos, folder string) Result[*List[string]] {
 	entries, err := os.ReadDir(folder)

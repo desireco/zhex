@@ -479,6 +479,8 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{}, nil
 	case "file.write":
 		return writeTextFile(x.pos, args[0].text, args[1].text, args[2].boolean), nil
+	case "file.write-bytes":
+		return writeBytesFile(x.pos, args[0].text, args[1].list.items), nil
 	case "file.list":
 		folder := args[0].text
 		entries, err := osReadDir(folder)

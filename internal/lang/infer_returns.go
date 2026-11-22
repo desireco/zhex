@@ -812,6 +812,7 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 	add("file.read-line", stringFileResultType, fileType)
 	add("file.close", unitType, fileType)
 	add("file.write", unitFileResultType, stringType, stringType, boolType)
+	add("file.write-bytes", unitFileResultType, stringType, "List<Int>")
 	add("file.list", stringListFileResultType, stringType)
 	add("file.size file.free-space", intFileResultType, stringType)
 	add("file.join", stringType, stringType, stringType)

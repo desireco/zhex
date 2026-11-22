@@ -107,6 +107,7 @@ const (
 	CodeFileOpen         Code = "file-open"
 	CodeFileRead         Code = "file-read"
 	CodeFileWrite        Code = "file-write"
+	CodeFileBytesRange   Code = "file-bytes-range"
 	CodeFileUTF8         Code = "file-utf8"
 	CodeFileExists       Code = "file-exists"
 	CodeFileList         Code = "file-list"
@@ -141,7 +142,7 @@ var diagnosticCodes = []Code{
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
 	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeTextCodePoint, CodeBufferRange,
-	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
+	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileBytesRange, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
 	CodeDoctestMismatch, CodeDoctestCheck, CodeTestFailed,
 	CodeNotAvailableInBuild,
 }
