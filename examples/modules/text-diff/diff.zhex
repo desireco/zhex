@@ -1,0 +1,160 @@
+# A line-grain diff and patch library: the revisions primitive. diff.lines
+# computes the changes between two texts, diff.apply replays them — the law
+# is apply(diff(a, b) try, a) == b. This is the engine the static site
+# generator will later use for its changed-files pass; v1 is line grain,
+# doc/block grain arrives as a follow-up.
+#
+# Pinned contracts:
+# - Lines: CRLF normalizes to LF before diffing (the md.parse convention),
+#   split keeps the trailing empty entry after a final newline, and apply
+#   joins with LF — so a patched text always comes back with LF endings.
+# - Algorithm: Myers O(ND) greedy forward pass over the edit graph with the
+#   per-d snapshot of the k-diagonal frontier kept as the trace, then an
+#   iterative backtrack emits Keep/Delete/Insert in text order (prepending
+#   onto the output list, which keeps the whole word loop-shaped — no
+#   recursion, so diff size is never bounded by the 256-call depth limit).
+# - The trace holds one List<Int> copy per edit round: O(D * (N + M))
+#   memory, the standard space trade of the snapshot formulation. Document-
+#   scale texts (thousands of lines, modest edit distance) sit well inside
+#   it; a memory-tight linear-space refinement is the follow-up if ever
+#   needed.
+# - diff.apply is the checked channel: every Keep and Delete must match the
+#   cursor's line exactly, the cursor must not run past the last line, and
+#   no source line may stay unconsumed at the end — any misalignment fails
+#   diff-apply instead of patching silently past the damage.
+
+type Change = choice
+    Keep(line: String)
+    Delete(line: String)
+    Insert(line: String)
+
+## Splits on LF after normalizing CRLF, keeping the trailing empty entry
+## of a final newline so a later join restores the exact text.
+word _split-lines(text: String) -> List<String>
+    text.split(text.replace(text, "\r\n", "\n"), "\n")
+
+## A fresh list of `count` zeros — the diagonal frontier array.
+word _zeros(count: Int) -> List<Int>
+    var out = list.new()
+    for index in range(0, count)
+        out = list.append(out, 0)
+    out
+
+## A fresh copy of an Int list — one trace snapshot.
+word _copy(values: List<Int>) -> List<Int>
+    var out = list.new()
+    for value in values
+        out = list.append(out, value)
+    out
+
+## Diffs two texts line by line with the Myers O(ND) algorithm and returns
+## the changes in text order: Keep walks a shared line, Delete drops one
+## from a, Insert adds one from b.
+## > list.length(lines("a\nb", "a\nb"))
+## 2
+## > list.length(lines("a\nc", "a\nb\nc"))
+## 3
+word lines(a: String, b: String) -> List<Change>
+    let as = _split-lines(a)
+    let bs = _split-lines(b)
+    let n = list.length(as)
+    let m = list.length(bs)
+    let offset = n + m
+    var v = _zeros(2 * (n + m) + 1)
+    var trace = list.new()
+    var found = false
+    var depth = 0
+    var d = 0
+    while not found
+        trace = list.append(trace, _copy(v))
+        var k = -d
+        while k <= d and not found
+            let x = if k == -d or (k != d and v[k - 1 + offset] < v[k + 1 + offset])
+                v[k + 1 + offset]
+            else
+                v[k - 1 + offset] + 1
+            var y = x - k
+            var cursor = x
+            while cursor < n and y < m and as[cursor] == bs[y]
+                cursor = cursor + 1
+                y = y + 1
+            v[k + offset] = cursor
+            if cursor >= n and y >= m
+                found = true
+                depth = d
+            k = k + 2
+        d = d + 1
+    _backtrack(as, bs, trace, offset, depth)
+
+## Walks the trace backwards from (n, m), prepending each emitted change so
+## the result comes out in text order without recursion.
+word _backtrack(as: List<String>, bs: List<String>, trace: List<List<Int>>, offset: Int, depth: Int) -> List<Change>
+    var out = list.new()
+    var x = list.length(as)
+    var y = list.length(bs)
+    var d = depth
+    while d >= 0
+        let snap = trace[d]
+        let k = x - y
+        let prev-k = if k == -d or (k != d and snap[k - 1 + offset] < snap[k + 1 + offset])
+            k + 1
+        else
+            k - 1
+        let prev-x = snap[prev-k + offset]
+        let prev-y = prev-x - prev-k
+        while x > prev-x and y > prev-y
+            out = list.insert(out, 0, Change.Keep(as[x - 1]))
+            x = x - 1
+            y = y - 1
+        if d > 0
+            if x == prev-x
+                out = list.insert(out, 0, Change.Insert(bs[prev-y]))
+            else
+                out = list.insert(out, 0, Change.Delete(as[prev-x]))
+        x = prev-x
+        y = prev-y
+        d = d - 1
+    out
+
+## Applies changes to a text: Keep and Delete consume the next source line
+## (and must match it exactly), Insert emits. The result is the patched
+## text, or a diff-apply failure naming the first misalignment — a Keep or
+## Delete that disagrees with the cursor, a cursor run past the last line,
+## or source lines left unconsumed when the changes end.
+## > (apply("a\nb", lines("a\nb", "a\nc")) try)
+## a
+## c
+## > (apply("", lines("", "")) try) == ""
+## true
+## > (apply("x\n", [Change.Delete("y")]) catch "failed")
+## failed
+word apply(text: String, changes: List<Change>) -> Result<String, Error>
+    let src = _split-lines(text)
+    var out = list.new()
+    var i = 0
+    var bad = ""
+    var pos = 0
+    for change in changes
+        if bad == ""
+            match change
+                case Keep(line)
+                    if i < list.length(src) and src[i] == line
+                        out = list.append(out, line)
+                        i = i + 1
+                    else
+                        bad = "Keep at patch position " + int.to-string(pos) + " does not match the text"
+                case Delete(line)
+                    if i < list.length(src) and src[i] == line
+                        i = i + 1
+                    else
+                        bad = "Delete at patch position " + int.to-string(pos) + " does not match the text"
+                case Insert(line)
+                    out = list.append(out, line)
+        pos = pos + 1
+    if bad != ""
+        err(error.new("diff-apply", bad))
+    else
+        if i == list.length(src)
+            ok(text.join(out, "\n"))
+        else
+            err(error.new("diff-apply", "changes end with " + int.to-string(list.length(src) - i) + " source line(s) unconsumed"))

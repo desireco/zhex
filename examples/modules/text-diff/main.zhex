@@ -1,0 +1,30 @@
+# A revision, shown and replayed: the diff module turns two versions of a
+# status note into line changes, the change list prints as a review-style
+# excerpt, and applying it back onto the old text must reproduce the new
+# text exactly — the patch law, checked live.
+
+use diff
+
+word show(change: diff.Change) -> String
+    match change
+        case diff.Change.Keep(line)
+            "  " + line
+        case diff.Change.Delete(line)
+            "- " + line
+        case diff.Change.Insert(line)
+            "+ " + line
+
+let before = "release 0.1 draft\nthe runner is quiet\nno news on the wasm gate\nsee you next week\n"
+
+let after = "release 0.1 final\nthe runner is quiet\nthe wasm gate is green\nsee you next week\nship it\n"
+
+let changes = diff.lines(before, after)
+
+for change in changes
+    print(show(change))
+
+let patched = diff.apply(before, changes) try
+if patched == after
+    print "patch law holds: the replayed diff reproduces the revision"
+else
+    print "patch law broken"
