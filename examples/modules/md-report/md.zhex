@@ -72,6 +72,23 @@
 #   deliberate read past the end, the same channel as md.table's strict
 #   rows, never a silent shape. md.section-text is that slice rendered,
 #   one composition away.
+# - Section editing is the writer's story over the same flat list: every
+#   op is keyed by the Section index md.outline reports and returns a
+#   fresh Doc — Doc is a value here like parse and render, never a mutated
+#   receiver. md.remove-section drops the heading's whole slice (its
+#   subsections with it); md.replace-section swaps the slice for another
+#   Doc's blocks; md.insert-section splices another Doc's blocks in before
+#   the block index `at` (0..block count inclusive); md.move-section lifts
+#   the slice out and splices it before block index `to` — a `to` inside
+#   the section's own slice is the identity, the smallest honest rule (the
+#   section already sits before that block). Those four fail through
+#   md.section's checked read channel when the index is out of range or
+#   not a heading. md.promote and md.demote shift every Heading in the
+#   section's slice by one level, clamped at 1 and 6, and are total on
+#   purpose: a level shift can never fail (the clamp absorbs the edge)
+#   and an index that selects no heading selects no slice — nothing
+#   shifts and the Doc comes back unchanged, the same answer md.outline
+#   gives that index, never a silent shape change.
 # - CRLF line endings are normalized to LF first,
 #   and inline content is kept verbatim — no unescaping, inline parsing
 #   is a later story.
@@ -294,17 +311,8 @@ word outline(doc: Doc) -> List<Section>
 ## > render(section(parse("# A\n\n## B"), 1) try)
 ## ## B
 word section(doc: Doc, index: Int) -> Result<Doc, Error>
-    let head = doc.blocks[index] catch problem
-        return err(problem)
-    match head
-        case Block.Heading(level, _text)
-            ok(Doc(_section-blocks(doc, index, level)))
-        case _
-            # shortcut: reads one past the end on purpose so the failure
-            # is the checked out-of-range diagnostic — md.table's channel
-            # for malformed input — never a silent shape; upgrade: error.new
-            let _past = doc.blocks[list.length(doc.blocks)] try
-            ok(Doc(list.new()))
+    let level = _heading-level-at(doc, index) try
+    ok(Doc(_section-blocks(doc, index, level)))
 
 ## Renders the section at a heading's block index to text — section and
 ## render composed once.
@@ -313,8 +321,119 @@ word section(doc: Doc, index: Int) -> Result<Doc, Error>
 word section-text(doc: Doc, index: Int) -> Result<String, Error>
     ok(render(section(doc, index) try))
 
+## Drops the section starting at the heading at block index — its whole
+## slice, nested subsections with it — and returns the fresh Doc without
+## it. Fails through md.section's checked read channel on a non-heading
+## or out-of-range index.
+## > render(remove-section(parse("# A\n\n## B"), 1) try)
+## # A
+word remove-section(doc: Doc, index: Int) -> Result<Doc, Error>
+    let level = _heading-level-at(doc, index) try
+    ok(Doc(_blocks-without(doc, index, _section-end(doc, index, level))))
+
+## Swaps the section at the heading's block index for another Doc's
+## blocks, subsections and all. Fails through md.section's checked read
+## channel on a non-heading or out-of-range index.
+## > render(replace-section(parse("## B"), 0, parse("# C")) try)
+## # C
+word replace-section(doc: Doc, index: Int, replacement: Doc) -> Result<Doc, Error>
+    let level = _heading-level-at(doc, index) try
+    ok(Doc(_splice(_blocks-without(doc, index, _section-end(doc, index, level)), index, replacement.blocks)))
+
+## Splices another Doc's blocks in before block index `at`
+## (0..block count inclusive). Fails through the checked read channel
+## naming the offending index.
+## > render(insert-section(parse(""), 0, parse("# C")) try)
+## # C
+word insert-section(doc: Doc, at: Int, addition: Doc) -> Result<Doc, Error>
+    let _checked = _check-at(doc, at) try
+    ok(Doc(_splice(doc.blocks, at, addition.blocks)))
+
+## Shifts every Heading in the section's slice one level up, clamped at 1
+## — a level-one heading stays level one while its inner headings still
+## shift. Total on purpose: a level shift can never fail (the clamp
+## absorbs the edge) and an index that selects no heading selects no
+## slice, so nothing shifts and the Doc comes back unchanged — the same
+## answer md.outline gives that index, never a silent shape change.
+## > render(promote(parse("## B"), 0))
+## # B
+word promote(doc: Doc, index: Int) -> Doc
+    _shift(doc, index, -1)
+
+## Shifts every Heading in the section's slice one level down, clamped at
+## 6. Total for the same reason as md.promote.
+## > render(demote(parse("# A"), 0))
+## ## A
+word demote(doc: Doc, index: Int) -> Doc
+    _shift(doc, index, 1)
+
+## Lifts the section at the heading's block index out and splices it
+## before block index `to` (0..block count inclusive). A `to` inside the
+## section's own slice is the identity — the section already sits before
+## that block — so the Doc comes back unchanged. Fails through the
+## checked read channel on a bad index or destination.
+## > render(move-section(parse("# A"), 0, 0) try)
+## # A
+word move-section(doc: Doc, index: Int, to: Int) -> Result<Doc, Error>
+    let level = _heading-level-at(doc, index) try
+    let end = _section-end(doc, index, level)
+    if to >= index and to < end
+        ok(doc)
+    else
+        let _checked = _check-at(doc, to) try
+        var pos = to
+        if to > index
+            pos = to - (end - index)
+        ok(Doc(_splice(_blocks-without(doc, index, end), pos, _slice-blocks(doc, index, end))))
+
+word _shift(doc: Doc, index: Int, delta: Int) -> Doc
+    var end = index
+    if index >= 0 and index < list.length(doc.blocks)
+        match doc.blocks[index]
+            case Block.Heading(level, _t)
+                end = _section-end(doc, index, level)
+            case _
+                end = index
+    var blocks: List<Block> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        if i >= index and i < end
+            let _shifted = list.append(blocks, _shifted-heading(doc.blocks[i], delta))
+        else
+            let _kept = list.append(blocks, doc.blocks[i])
+        i = i + 1
+    Doc(blocks)
+
+word _shifted-heading(block: Block, delta: Int) -> Block
+    match block
+        case Block.Heading(level, text)
+            Block.Heading(_clamped(level + delta), text)
+        case _
+            block
+
 word _section-blocks(doc: Doc, index: Int, level: Int) -> List<Block>
-    var out: List<Block> = list.new()
+    _slice-blocks(doc, index, _section-end(doc, index, level))
+
+# The heading's level at a block index, or the failure md.section and the
+# editing ops share: an out-of-range index errs through the checked read
+# naming the offending index; a non-heading index errs through the same
+# deliberate read past the end — md.table's channel, never a silent shape.
+word _heading-level-at(doc: Doc, index: Int) -> Result<Int, Error>
+    let head = doc.blocks[index] catch problem
+        return err(problem)
+    match head
+        case Block.Heading(level, _text)
+            ok(level)
+        case _
+            # shortcut: reads one past the end on purpose so the failure
+            # is the checked out-of-range diagnostic — md.table's channel
+            # for malformed input — never a silent shape; upgrade: error.new
+            let _past = doc.blocks[list.length(doc.blocks)] try
+            ok(0)
+
+# The exclusive end of the section starting at a heading's block index:
+# the next heading of level <= its own, or the end of the document.
+word _section-end(doc: Doc, index: Int, level: Int) -> Int
     var i = index
     var open = true
     while i < list.length(doc.blocks) and open
@@ -322,12 +441,53 @@ word _section-blocks(doc: Doc, index: Int, level: Int) -> List<Block>
             case Block.Heading(next, _t)
                 if i != index and next <= level
                     open = false
-                else
-                    let _kept = list.append(out, doc.blocks[i])
             case _
-                let _kept = list.append(out, doc.blocks[i])
+                let _skip = ""
+        if open
+            i = i + 1
+    i
+
+word _slice-blocks(doc: Doc, start: Int, end: Int) -> List<Block>
+    var out: List<Block> = list.new()
+    var i = start
+    while i < end
+        let _kept = list.append(out, doc.blocks[i])
         i = i + 1
     out
+
+word _blocks-without(doc: Doc, start: Int, end: Int) -> List<Block>
+    var out: List<Block> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        if i < start or i >= end
+            let _kept = list.append(out, doc.blocks[i])
+        i = i + 1
+    out
+
+# A fresh copy of base with addition spliced in before block index `at`;
+# callers check `at` against 0..list.length(base) inclusive first.
+word _splice(base: List<Block>, at: Int, addition: List<Block>) -> List<Block>
+    var out: List<Block> = list.new()
+    var i = 0
+    while i < at
+        let _kept = list.append(out, base[i])
+        i = i + 1
+    for block in addition
+        let _added = list.append(out, block)
+    while i < list.length(base)
+        let _kept = list.append(out, base[i])
+        i = i + 1
+    out
+
+# Checks an insertion point, 0..block count inclusive: a bad `at` errs
+# through the checked read naming the offending index.
+word _check-at(doc: Doc, at: Int) -> Result<Bool, Error>
+    if at < 0 or at > list.length(doc.blocks)
+        let _bad = doc.blocks[at] catch problem
+            return err(problem)
+        ok(false)
+    else
+        ok(true)
 
 word _render-plain(fragments: List<String>, block: Block) -> Unit
     match block

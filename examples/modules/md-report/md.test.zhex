@@ -273,4 +273,85 @@ let _past-end = failed-slice(spine, 99, "section past the last block")
 let _negative = failed-slice(spine, -1, "section on a negative index")
 let _empty-doc = failed-slice(md.parse(""), 0, "section on an empty document")
 
-print "md parse tests passed"
+# section editing — list operations on the flat block list, keyed by the
+# Section index md.outline reports; spine headings sit at 0, 8, 10, 12 and
+# the Chapter section spans blocks 8..12 with Deep riding along
+
+# remove-section drops the whole slice, subsections with it
+let no-chapter = md.remove-section(spine, 8) try
+expect-count(no-chapter, 10, "remove drops the section slice")
+expect-heading(no-chapter, 8, 2, "Second", "remove keeps later sections, shifted up")
+test.check(md.render(no-chapter) == "# Book\n\nintro\n\n---\n\n- item\n\n1. one\n\n> note\n\n```\ncode\n```\n\n| h |\n| --- |\n| r |\n\n## Second\n\nlast", "remove renders the document without the section")
+let no-book = md.remove-section(spine, 0) try
+expect-count(no-book, 0, "removing the level-one section takes every block")
+
+# replace-section swaps the slice for another Doc's blocks
+let swapped = md.replace-section(spine, 8, md.parse("## New\n\nfresh")) try
+expect-count(swapped, 12, "replace keeps the block count honest")
+expect-heading(swapped, 8, 2, "New", "replace lands the replacement at the index")
+expect-paragraph(swapped, 9, "fresh", "replace carries the replacement body")
+expect-heading(swapped, 10, 2, "Second", "replace keeps later sections in place")
+test.check(md.render(swapped) == "# Book\n\nintro\n\n---\n\n- item\n\n1. one\n\n> note\n\n```\ncode\n```\n\n| h |\n| --- |\n| r |\n\n## New\n\nfresh\n\n## Second\n\nlast", "replace renders the edited document")
+
+# insert-section splices another Doc's blocks in before a block index
+let with-preface = md.insert-section(spine, 8, md.parse("## Preface\n\nwords")) try
+expect-count(with-preface, 16, "insert splices the addition's blocks in")
+expect-heading(with-preface, 8, 2, "Preface", "insert lands before the given block index")
+expect-heading(with-preface, 10, 2, "Chapter", "insert pushes the old blocks down")
+let at-top = md.insert-section(spine, 0, md.parse("# Cover")) try
+expect-heading(at-top, 0, 1, "Cover", "insert at zero is the new first block")
+let at-end = md.insert-section(spine, 14, md.parse("## Tail")) try
+expect-heading(at-end, 14, 2, "Tail", "insert at the block count appends")
+test.check(md.render(md.parse(md.render(no-chapter))) == md.render(no-chapter), "an edited document round trips through parse and render")
+
+# promote and demote shift every heading in the slice, clamped at 1 and 6
+let lifted = md.promote(spine, 8)
+expect-heading(lifted, 8, 1, "Chapter", "promote lifts the section heading")
+expect-heading(lifted, 10, 2, "Deep", "promote lifts nested headings with it")
+expect-paragraph(lifted, 9, "text", "promote leaves non-headings alone")
+let pinned = md.promote(spine, 0)
+expect-heading(pinned, 0, 1, "Book", "promote clamps a level-one heading at one")
+expect-heading(pinned, 8, 1, "Chapter", "the clamp still shifts inner headings")
+expect-heading(pinned, 10, 2, "Deep", "inner headings shift under the clamped top")
+let sunk = md.demote(spine, 12)
+expect-heading(sunk, 12, 3, "Second", "demote lowers the section heading")
+expect-heading(md.demote(md.parse("###### Deep"), 0), 0, 6, "Deep", "demote clamps at level six")
+test.check(md.render(md.promote(spine, 1)) == md.render(spine), "promote on a non-heading index is a no-op")
+test.check(md.render(md.promote(spine, 99)) == md.render(spine), "promote past the end is a no-op")
+
+# move-section lifts the slice out and splices it before a block index
+let moved-up = md.move-section(spine, 8, 0) try
+expect-count(moved-up, 14, "move keeps every block")
+expect-heading(moved-up, 0, 2, "Chapter", "move lands the section before the target")
+expect-heading(moved-up, 4, 1, "Book", "the displaced blocks shift down")
+let moved-down = md.move-section(spine, 12, 0) try
+expect-heading(moved-down, 0, 2, "Second", "a later section moves before an earlier one")
+expect-heading(moved-down, 2, 1, "Book", "the rest keeps its order")
+let moved-end = md.move-section(spine, 8, 14) try
+expect-heading(moved-end, 10, 2, "Chapter", "move to the block count sends the section to the end")
+test.check(md.render(md.move-section(spine, 8, 12) try) == md.render(spine), "moving to the slice's own edge is the identity")
+test.check(md.render(md.move-section(spine, 8, 9) try) == md.render(spine), "a to inside the section's own range is the identity")
+
+# failure paths: every fallible op rides md.section's checked out-of-range
+# channel, naming the offending index
+let bad-remove = md.remove-section(spine, 99) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "remove past the end: out-of-range message")
+    md.Doc([])
+expect-count(bad-remove, 0, "remove past the end fails to an empty Doc")
+let non-heading = md.remove-section(spine, 1) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "remove on a non-heading: the channel's past-end read")
+    md.Doc([])
+let bad-insert = md.insert-section(spine, 15, md.parse("# X")) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "insert past the block count: out-of-range message")
+    md.Doc([])
+let bad-negative = md.insert-section(spine, -1, md.parse("# X")) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "insert at a negative index: out-of-range message")
+    md.Doc([])
+let bad-move-to = md.move-section(spine, 8, 15) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "move past the block count: out-of-range message")
+    md.Doc([])
+let bad-move-from = md.move-section(spine, 1, 0) catch problem
+    test.check(text.contains(error.message(problem), "out of range"), "move on a non-heading index: out-of-range message")
+    md.Doc([])
+
+print "md parse and section editing tests passed"
