@@ -354,4 +354,104 @@ let bad-move-from = md.move-section(spine, 1, 0) catch problem
     test.check(text.contains(error.message(problem), "out of range"), "move on a non-heading index: out-of-range message")
     md.Doc([])
 
-print "md parse and section editing tests passed"
+# the round-trip law, as the module docs state it: render(parse(text))
+# == text for canonical text, and one pass canonicalizes the shape
+# divergences (loose lists, alignment markers, cell padding, CRLF) so
+# the second pass is the identity
+word _round-trips(text: String, label: String)
+    test.check(md.render(md.parse(text)) == text, label)
+
+word _canonicalizes(text: String, label: String)
+    let once = md.render(md.parse(text))
+    test.check(md.render(md.parse(once)) == once, label)
+
+# corpus-grade fixtures under the equality law — four documents whose
+# rendered positions carry no escapable punctuation
+let tech-doc = "# Build Report\n\nThe pipeline runs three stages and writes one artifact\n\n## Compile\n\nSource files compile to a module\n\n```zhex\nlet x = 1\nlet y = x * 2\n```\n\n## Timing\n\n| stage | ms  | note |\n| ----- | --- | ---- |\n| build | 90  | fast |\n| link  | 140 | slow |\n\nSee the timing table above"
+_round-trips(tech-doc, "technical doc with code and a table round trips")
+
+let outline-doc = "# Handbook\n\nIntro words for the top section\n\n## Part One\n\nFirst part prose\n\n### Step A\n\nDetail for step a\n\n### Step B\n\nDetail for step b\n\n## Part Two\n\nSecond part prose\n\n---\n\n## Part Three\n\nThird part prose after a rule"
+_round-trips(outline-doc, "outline-heavy doc round trips")
+
+let list-doc = "# Checklist\n\nThree groups of work\n\n- first task\n- second task\n  - nested detail\n  - another detail\n- third task\n\n1. plan the work\n2. do the work\n3) review the work\n\n> a quoted remark\n> another remark\n\nClosing paragraph"
+_round-trips(list-doc, "list-heavy doc round trips")
+
+let everything-doc = "# Title\n\nOpening paragraph\n\n---\n\n- bullet one\n  - bullet two\n\n1. ordered one\n2. ordered two\n\n> quoted line\n\n```\ncode line\n```\n\n| h1 | h2 |\n| --- | --- |\n| a  | b  |\n\nClosing paragraph"
+_round-trips(everything-doc, "every block kind in one doc round trips")
+
+# messy but punctuation-free texts under the canonicalization law — the
+# first pass tightens and normalizes, the second is the identity
+_canonicalizes("- one\n\n- two\n\n  - nested", "a loose list canonicalizes")
+_canonicalizes("| a | b |\n| :-- | --: |\n| 1 |", "an aligned short-cell table canonicalizes")
+_canonicalizes("one\r\n\r\n- a\r\n- b", "crlf input canonicalizes to lf")
+_canonicalizes("```\nplain line\n```", "a code block is already canonical")
+
+# the documented exclusion: escapable punctuation in a rendered position
+# escapes on every pass, so neither law can hold — parse never unescapes
+test.check(md.render(md.parse("Hello *world*")) == "Hello \\*world\\*", "punctuation escapes on the first pass")
+test.check(md.render(md.parse(md.render(md.parse("Hello *world*")))) != md.render(md.parse("Hello *world*")), "escaping is not idempotent")
+
+# property-style sweep: deterministic composed documents from canonical
+# block fragments, a few hundred cases checked under the equality law
+type Gen = record
+    seed: Int
+    text: String
+
+word _step(seed: Int) -> Int
+    (seed * 1103515245 + 12345) % 2147483648
+
+word _pick(pool: List<String>, seed: Int) -> String
+    pool[seed % list.length(pool)]
+
+word _kinds() -> List<String>
+    ["heading", "paragraph", "rule", "bullet", "ordered", "quote", "code", "table"]
+
+word _fragment(kind: String, seed: Int) -> String
+    if kind == "heading"
+        _pick(["# Alpha", "## Beta Settings", "### Gamma Notes", "#### Delta"], seed)
+    elif kind == "paragraph"
+        _pick(["plain words here", "second line of prose", "numbers 1 2 3", "one line\ntwo lines"], seed)
+    elif kind == "rule"
+        "---"
+    elif kind == "bullet"
+        _pick(["- first", "- second", "- third", "  - nested one", "- a\n- b", "- x\n  - y\n- z"], seed)
+    elif kind == "ordered"
+        _pick(["1. plan", "2. do", "1. one\n2. two", "3) middle", "  1. inner"], seed)
+    elif kind == "quote"
+        _pick(["> a quoted line", "> another quote", "> one\n> two"], seed)
+    elif kind == "code"
+        _pick(["```\nplain line\n```", "```zhex\nlet x = 1\n```", "```\na\n\nb\n```"], seed)
+    else
+        _pick(["| aaa | bbb |\n| --- | --- |\n| 111 | 222 |", "| xyz |\n| --- |\n| 789 |", "| aaa |\n| --- |\n| zzz |"], seed)
+
+# One composed document from the seed: 1-6 fragments, never two adjacent
+# fragments of the same kind (a blank line between same-kind item runs
+# would tighten on render, which the equality law excludes by design).
+word _case(seed: Int) -> Gen
+    var s = seed
+    let count = 1 + s % 6
+    s = _step(s)
+    let kinds = _kinds()
+    var frags: List<String> = list.new()
+    var prev = ""
+    var j = 0
+    while j < count
+        var index = s % 8
+        s = _step(s)
+        if kinds[index] == prev
+            index = (index + 1) % 8
+        let _frag = list.append(frags, _fragment(kinds[index], s))
+        s = _step(s)
+        prev = kinds[index]
+        j = j + 1
+    Gen(s, text.join(frags, "\n\n"))
+
+var sweep-seed = 987654321
+var sweep-i = 0
+while sweep-i < 240
+    let generated = _case(sweep-seed)
+    sweep-seed = generated.seed
+    _round-trips(generated.text, "sweep case " + sweep-i)
+    sweep-i = sweep-i + 1
+
+print "md parse, section editing, and round-trip tests passed"

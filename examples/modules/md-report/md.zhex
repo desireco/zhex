@@ -98,8 +98,19 @@
 #   except that a run of consecutive same-kind items or quotes joins with
 #   single newlines as one list — every parsed list is tight, so a blank
 #   line inside a list is dropped and loose lists tighten on the round
-#   trip; rules render as ---. The round trip render(parse(text)) is
-#   byte-stable for text without escapable ASCII punctuation.
+#   trip; rules render as ---.
+# - The round-trip law, pinned in md.test.zhex: render(parse(text)) ==
+#   text holds for canonical text — no escapable ASCII punctuation in
+#   heading, paragraph, or table-cell text (item, quote, and code text
+#   is verbatim and unrestricted), tight lists, and tables already in
+#   the write side's normalized shape. The looser canonicalization law,
+#   render(parse(render(parse(text)))) == render(parse(text)), holds for
+#   any text whose rendered positions are punctuation-free: one pass
+#   absorbs the shape divergences — loose lists tightening, alignment
+#   markers dropping, cell padding normalizing, CRLF reducing to LF —
+#   after which the equality law holds. Escapable punctuation in a
+#   rendered position escapes on every pass (parse never unescapes), so
+#   it is excluded from both laws; md.test.zhex pins that edge too.
 
 word heading(level: Int, text: String) -> String
     _repeat("#", _clamped(level)) + " " + _esc(text)
