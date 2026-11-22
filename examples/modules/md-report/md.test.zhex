@@ -222,4 +222,55 @@ test.check(md.render(md.parse("| a | b |\n| :-- | --: |\n| 1 | 2 |")) == "| a | 
 test.check(md.render(md.parse("| a | b |\n| --- | --- |\n| 1 |")) == "| a | b |\n| --- | --- |\n| 1 |   |", "a padded cell renders padded")
 test.check(md.render(full) == "# T\n\nintro\n\n---\n\n- a\n\n1. one\n\n> note\n\n```\nx\n```\n\n| h |\n| --- |\n| r |\n\noutro", "the full mixed document round trips")
 
+# outline and section slicing
+word expect-section(row: md.Section, index: Int, level: Int, text: String, label: String)
+    test.check(row.index == index, label + ": index")
+    test.check(row.level == level, label + ": level")
+    test.check(row.text == text, label + ": text")
+
+let spine = md.parse("# Book\n\nintro\n\n---\n\n- item\n\n1. one\n\n> note\n\n```\ncode\n```\n\n| h |\n| --- |\n| r |\n\n## Chapter\n\ntext\n\n### Deep\n\ndeep text\n\n## Second\n\nlast")
+expect-count(spine, 14, "spine block count")
+let rows = md.outline(spine)
+test.check(list.length(rows) == 4, "outline lists every heading among all block kinds")
+expect-section(rows[0], 0, 1, "Book", "outline row: first heading")
+expect-section(rows[1], 8, 2, "Chapter", "outline row carries its block index")
+expect-section(rows[2], 10, 3, "Deep", "outline row: level-three heading")
+expect-section(rows[3], 12, 2, "Second", "outline row: last heading")
+test.check(list.length(md.outline(md.parse("no headings here"))) == 0, "a heading-less document has an empty outline")
+test.check(list.length(md.outline(md.parse(""))) == 0, "an empty document has an empty outline")
+
+# a level-one section runs to the end; nested subsections ride along
+let whole = md.section(spine, 0) try
+expect-count(whole, 14, "a level-one section spans every block")
+test.check(md.render(whole) == md.render(spine), "a level-one section renders the whole document")
+let chapter = md.section(spine, 8) try
+expect-count(chapter, 4, "a section keeps its nested subsections")
+expect-heading(chapter, 0, 2, "Chapter", "section starts at its own heading")
+expect-heading(chapter, 2, 3, "Deep", "a deeper subsection rides along")
+expect-paragraph(chapter, 3, "deep text", "the subsection body rides along")
+test.check(md.render(chapter) == "## Chapter\n\ntext\n\n### Deep\n\ndeep text", "a mid section renders heading to same-level heading")
+let deep = md.section(spine, 10) try
+expect-count(deep, 2, "a deepest section stops at any following heading")
+let last = md.section(spine, 12) try
+expect-count(last, 2, "the last section runs to the end of the document")
+expect-heading(last, 0, 2, "Second", "the last section starts at its heading")
+expect-paragraph(last, 1, "last", "the last section keeps its trailing body")
+
+# section-text is the slice rendered, one composition away
+test.check(md.section-text(spine, 8) try == "## Chapter\n\ntext\n\n### Deep\n\ndeep text", "section-text renders the slice")
+
+# failure paths: slicing can fail, so section is a checked Result whose
+# failure rides the interpreter's out-of-range diagnostic
+word failed-slice(doc: md.Doc, index: Int, label: String) -> md.Doc
+    let slice = md.section(doc, index) catch problem
+        test.check(text.contains(error.message(problem), "out of range"), label + ": out-of-range message")
+        md.Doc([])
+    test.check(list.length(slice.blocks) == 0, label + ": fails to an empty Doc")
+    slice
+
+let _not-heading = failed-slice(spine, 1, "section on a non-heading index")
+let _past-end = failed-slice(spine, 99, "section past the last block")
+let _negative = failed-slice(spine, -1, "section on a negative index")
+let _empty-doc = failed-slice(md.parse(""), 0, "section on an empty document")
+
 print "md parse tests passed"

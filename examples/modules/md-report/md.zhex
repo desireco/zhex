@@ -61,6 +61,17 @@
 #   verbatim, no unescaping. Data rows are the following pipe-led lines:
 #   a short row pads with empty cells, an overlong row drops its excess
 #   cells, and any other line ends the table.
+# - md.outline is a derived view of the flat list: every Heading block as
+#   a Section(index, level, text) row in source order — index is the block
+#   index md.section slices from; nothing is nested.
+# - md.section(doc, index) slices blocks from the heading at that index up
+#   to (not including) the next heading of level <= its own, so nested
+#   subsections ride along; it returns Result<Doc, Error> because slicing
+#   can fail where md.parse is total — a non-heading or out-of-range index
+#   reports the interpreter's checked out-of-range diagnostic through a
+#   deliberate read past the end, the same channel as md.table's strict
+#   rows, never a silent shape. md.section-text is that slice rendered,
+#   one composition away.
 # - CRLF line endings are normalized to LF first,
 #   and inline content is kept verbatim — no unescaping, inline parsing
 #   is a later story.
@@ -147,6 +158,13 @@ type Block = choice
 # A parsed document: the block list in source order, nothing nested.
 type Doc = record
     blocks: List<Block>
+
+# One outline row: a heading's place in the flat block list. index is the
+# block index md.section slices from; level and text mirror the Heading.
+type Section = record
+    index: Int
+    level: Int
+    text: String
 
 ## Parses Markdown text into a flat Doc of blocks; total, never a Result.
 ## > render(parse("## Notes"))
@@ -252,6 +270,64 @@ word render(doc: Doc) -> String
                 i = i + 1
             let _list = list.append(fragments, text.join(lines, "\n"))
     text.join(fragments, "\n\n")
+
+## Lists every Heading block as a Section row (index, level, text) in
+## source order — a derived view of the flat list, never nested children.
+## > list.length(outline(parse("# A\n\npara\n\n## B")))
+## 2
+word outline(doc: Doc) -> List<Section>
+    var rows: List<Section> = list.new()
+    var i = 0
+    while i < list.length(doc.blocks)
+        match doc.blocks[i]
+            case Block.Heading(level, text)
+                let _row = list.append(rows, Section(i, level, text))
+            case _
+                let _skip = ""
+        i = i + 1
+    rows
+
+## Slices the section starting at the heading at block index: the slice
+## runs to the next heading of level <= its own (nested subsections ride
+## along) and renders or fails as one composition —
+## render(section(doc, index) try).
+## > render(section(parse("# A\n\n## B"), 1) try)
+## ## B
+word section(doc: Doc, index: Int) -> Result<Doc, Error>
+    let head = doc.blocks[index] catch problem
+        return err(problem)
+    match head
+        case Block.Heading(level, _text)
+            ok(Doc(_section-blocks(doc, index, level)))
+        case _
+            # shortcut: reads one past the end on purpose so the failure
+            # is the checked out-of-range diagnostic — md.table's channel
+            # for malformed input — never a silent shape; upgrade: error.new
+            let _past = doc.blocks[list.length(doc.blocks)] try
+            ok(Doc(list.new()))
+
+## Renders the section at a heading's block index to text — section and
+## render composed once.
+## > section-text(parse("# A\n\n## B"), 1) try
+## ## B
+word section-text(doc: Doc, index: Int) -> Result<String, Error>
+    ok(render(section(doc, index) try))
+
+word _section-blocks(doc: Doc, index: Int, level: Int) -> List<Block>
+    var out: List<Block> = list.new()
+    var i = index
+    var open = true
+    while i < list.length(doc.blocks) and open
+        match doc.blocks[i]
+            case Block.Heading(next, _t)
+                if i != index and next <= level
+                    open = false
+                else
+                    let _kept = list.append(out, doc.blocks[i])
+            case _
+                let _kept = list.append(out, doc.blocks[i])
+        i = i + 1
+    out
 
 word _render-plain(fragments: List<String>, block: Block) -> Unit
     match block
