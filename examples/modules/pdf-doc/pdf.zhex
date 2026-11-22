@@ -108,34 +108,12 @@ type Chapter = record
     title: String
     paragraphs: List<String>
 
-## Word-by-word greedy wrap at a character width: a line breaks at the
-## last word that fits, an over-long word overflows alone rather than
-## breaking mid-word, and an empty line wraps to one empty line. Width
-## counts characters — a monospace approximation of Helvetica and the
-## local stand-in until a host text.wrap word lands (#196 decides it).
-word _wrap(line: String, width: Int) -> List<String>
-    var out: List<String> = list.new()
-    var cur = ""
-    var any = false
-    for w in text.split(line, " ")
-        if text.length(w) > 0
-            if not any
-                cur = w
-                any = true
-            elif text.length(cur) + 1 + text.length(w) <= width
-                cur = cur + " " + w
-            else
-                out = list.append(out, cur)
-                cur = w
-    if any
-        list.append(out, cur)
-    else
-        list.append(out, "")
-
 ## One chapter as a flat line list: the escaped title, a blank, then
 ## each paragraph wrapped at the width and escaped, blanks between
-## paragraphs. Escaping here is where the Latin-1 fence meets the
-## chapter path — a paragraph outside the fence fails pdf-latin1.
+## paragraphs. Wrapping is the host text.wrap word (#196 adopted this
+## module's law verbatim). Escaping here is where the Latin-1 fence
+## meets the chapter path — a paragraph outside the fence fails
+## pdf-latin1.
 word chapter-lines(c: Chapter, width: Int) -> Result<List<String>, Error>
     var lines: List<String> = list.new()
     lines = list.append(lines, escape(c.title) try)
@@ -145,7 +123,7 @@ word chapter-lines(c: Chapter, width: Int) -> Result<List<String>, Error>
         if not first
             lines = list.append(lines, "")
         first = false
-        for piece in _wrap(para, width)
+        for piece in text.wrap(para, width)
             lines = list.append(lines, escape(piece) try)
     ok(lines)
 

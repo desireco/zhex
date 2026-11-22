@@ -91,9 +91,9 @@ var corpusTable = map[string]corpusRow{
 	"modules/epub-book/zip.zhex":       {blockers: []string{"text.to-code-points"}},
 	"modules/epub-book/zip.test.zhex":  {blockers: []string{"text.to-code-points", "console.fail"}},
 	"modules/epub-book/test.zhex":      {blockers: []string{"console.fail"}},
-	"modules/pdf-doc/main.zhex":        {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
-	"modules/pdf-doc/pdf.zhex":         {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new"}},
-	"modules/pdf-doc/pdf.test.zhex":    {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new", "console.fail"}},
+	"modules/pdf-doc/main.zhex":        {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new", "text.wrap"}},
+	"modules/pdf-doc/pdf.zhex":         {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new", "text.wrap"}},
+	"modules/pdf-doc/pdf.test.zhex":    {blockers: []string{"text.to-code-points", "text.from-code-points", "error.new", "text.wrap", "console.fail"}},
 	"modules/pdf-doc/test.zhex":        {blockers: []string{"console.fail"}},
 	// the diff module's checked apply channel needs error.new, outside
 	// the compiled subset; the test files add console.fail
