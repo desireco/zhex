@@ -112,10 +112,10 @@
 #   rendered position escapes on every pass (parse never unescapes), so
 #   it is excluded from both laws; md.test.zhex pins that edge too.
 #
-# Export side (md.to-html):
+# Export side (md.to-html, md.to-html-page):
 # - Every block kind renders as escaped HTML, blocks joined with single
-#   newlines; the fragment is the deliverable, the full page form is a
-#   later story.
+#   newlines; the fragment is the fragment deliverable, and
+#   md.to-html-page wraps it in the full document form.
 # - Text positions (headings, paragraphs, list items, quotes, table
 #   cells) entity-escape & < > ' " through _html-esc, a pinned twin of
 #   html.escape-text in the html module — use resolves siblings only, so
@@ -469,6 +469,40 @@ word to-html(doc: Doc) -> String
             _html-plain(fragments, doc.blocks[i])
             i = i + 1
     text.join(fragments, "\n")
+
+## Renders a Doc to a complete HTML document: md.to-html's fragment as
+## the body of the html module's html.page shape, inlined byte-for-byte
+## (use resolves siblings only, so md cannot import html — the same
+## known-risk split as _html-esc, and md.test.zhex pins the bytes):
+## doctype, head, entity-escaped title, body, each on its own line. Total
+## like to-html — a plain String, never a Result. The title is explicit
+## per html.page's shape; the outline-derived default is the caller's
+## one-line idiom — the first Heading's text through md.outline, the
+## indexed read's catch supplying a zero Section (whose text is the empty
+## string) when the document opens on no heading:
+## to-html-page(doc, (outline(doc)[0] catch Section(0, 0, "")).text).
+## > to-html-page(parse("# T"), "T")
+## <!DOCTYPE html>
+## <html>
+## <head>
+## <title>T</title>
+## </head>
+## <body>
+## <h1>T</h1>
+## </body>
+## </html>
+## > to-html-page(parse("para"), (outline(parse("para"))[0] catch Section(0, 0, "")).text)
+## <!DOCTYPE html>
+## <html>
+## <head>
+## <title></title>
+## </head>
+## <body>
+## <p>para</p>
+## </body>
+## </html>
+word to-html-page(doc: Doc, title: String) -> String
+    "<!DOCTYPE html>\n<html>\n<head>\n<title>" + _html-esc(title) + "</title>\n</head>\n<body>\n" + to-html(doc) + "\n</body>\n</html>"
 
 word _shift(doc: Doc, index: Int, delta: Int) -> Doc
     var end = index

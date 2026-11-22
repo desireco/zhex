@@ -505,4 +505,23 @@ test.check(md.to-html(md.parse("*bold* and _italic_")) == "<p>*bold* and _italic
 # the full mixed document, byte-exact end to end
 test.check(md.to-html(full) == "<h1>T</h1>\n<p>intro</p>\n<hr>\n<ul>\n<li>a</li>\n</ul>\n<ol>\n<li>one</li>\n</ol>\n<blockquote>\n<p>note</p>\n</blockquote>\n<pre><code>x</code></pre>\n<table>\n<tr><td>h</td></tr>\n<tr><td>r</td></tr>\n</table>\n<p>outro</p>", "every block kind exports in one document")
 
+# the full page form: to-html's fragment as the body of html.page's
+# document shape, inlined byte-for-byte (the modules cannot import each
+# other — use resolves siblings only — so the wrapper bytes are pinned
+# here; the shape matches the html module's html.page output)
+test.check(md.to-html-page(md.parse(""), "") == "<!DOCTYPE html>\n<html>\n<head>\n<title></title>\n</head>\n<body>\n\n</body>\n</html>", "an empty document is the bare page shape")
+test.check(md.to-html-page(full, "T") == "<!DOCTYPE html>\n<html>\n<head>\n<title>T</title>\n</head>\n<body>\n<h1>T</h1>\n<p>intro</p>\n<hr>\n<ul>\n<li>a</li>\n</ul>\n<ol>\n<li>one</li>\n</ol>\n<blockquote>\n<p>note</p>\n</blockquote>\n<pre><code>x</code></pre>\n<table>\n<tr><td>h</td></tr>\n<tr><td>r</td></tr>\n</table>\n<p>outro</p>\n</body>\n</html>", "the full mixed document exports as one page, byte-exact")
+test.check(md.to-html-page(full, "T") == "<!DOCTYPE html>\n<html>\n<head>\n<title>T</title>\n</head>\n<body>\n" + md.to-html(full) + "\n</body>\n</html>", "the page is the pinned wrapper around the fragment")
+
+# the title is text and escapes like every text position
+test.check(md.to-html-page(md.parse("body"), "a & b <c> 'd' \"e\"") == "<!DOCTYPE html>\n<html>\n<head>\n<title>a &amp; b &lt;c&gt; &#39;d&#39; &#34;e&#34;</title>\n</head>\n<body>\n<p>body</p>\n</body>\n</html>", "the page title entity-escapes all five positions, ampersand first")
+
+# the outline-default idiom: the first Heading's text as the title, the
+# indexed read's catch supplying a zero Section (empty text) when the
+# document opens on no heading
+test.check((md.outline(full)[0] catch md.Section(0, 0, "")).text == "T", "the idiom reads the first heading's text")
+test.check((md.outline(md.parse("no headings"))[0] catch md.Section(0, 0, "")).text == "", "the idiom falls back to the empty string")
+test.check(md.to-html-page(full, (md.outline(full)[0] catch md.Section(0, 0, "")).text) == md.to-html-page(full, "T"), "the idiom titles the page with the first heading")
+test.check(md.to-html-page(md.parse("no headings"), (md.outline(md.parse("no headings"))[0] catch md.Section(0, 0, "")).text) == md.to-html-page(md.parse("no headings"), ""), "the idiom's fallback is the empty title")
+
 print "md parse, section editing, round-trip, and html export tests passed"
