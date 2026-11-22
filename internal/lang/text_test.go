@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -386,6 +387,126 @@ func TestWrapElementLimit(t *testing.T) {
 	}
 	if out.Len() != 0 {
 		t.Fatalf("limit must stop the run before output, got %q", out.String())
+	}
+}
+
+// TestTextSentences pins the #218 sentence layer: the written-down boundary
+// law — a run of the terminators . ! ?, optional closing quotes or
+// brackets, then whitespace or the end — with every sentence keeping its
+// punctuation and the whitespace between sentences dropped.
+func TestTextSentences(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"each terminator ends a sentence", "print(text.join(text.sentences(\"One. Two! Three?\"), \"|\"))\n", "One.|Two!|Three?\n"},
+		{"closing quotes attach to the sentence", "print(text.join(text.sentences(\"He said \\\"Stop.\\\" Then left.\"), \"|\"))\n", "He said \"Stop.\"|Then left.\n"},
+		{"single quotes attach", "print(text.join(text.sentences(\"He called it 'fine.' Then left.\"), \"|\"))\n", "He called it 'fine.'|Then left.\n"},
+		{"typographic quotes attach", "print(text.join(text.sentences(\"“Done.” Next. ‘Done.’ Next.\"), \"|\"))\n", "“Done.”|Next.|‘Done.’|Next.\n"},
+		{"brackets attach", "print(text.join(text.sentences(\"(Really?) Yes. [Why?] Because.\"), \"|\"))\n", "(Really?)|Yes.|[Why?]|Because.\n"},
+		{"a terminator after the closers still ends the sentence", "print(text.join(text.sentences(\"(What?)! Next.\"), \"|\"))\n", "(What?)!|Next.\n"},
+		{"consecutive terminators stay together", "print(text.join(text.sentences(\"Wait... Really? What?! Fine.\"), \"|\"))\n", "Wait...|Really?|What?!|Fine.\n"},
+		{"mixed consecutive terminators stay together", "print(text.join(text.sentences(\"What!? Really.\"), \"|\"))\n", "What!?|Really.\n"},
+		{"a terminator needs whitespace or the end after it", "print(text.join(text.sentences(\"3.14 is pi. a.b.c\"), \"|\"))\n", "3.14 is pi.|a.b.c\n"},
+		{"abbreviations split", "print(text.join(text.sentences(\"Dr. Smith arrived, e.g. today.\"), \"|\"))\n", "Dr.|Smith arrived, e.g.|today.\n"},
+		{"interior whitespace stays inside the sentence", "print(text.join(text.sentences(\"One two.  Three   four.\"), \"|\"))\n", "One two.|Three   four.\n"},
+		{"a newline inside a sentence stays", "print(text.join(text.sentences(\"One\\ntwo. Three.\"), \"|\"))\n", "One\ntwo.|Three.\n"},
+		{"newlines separate sentences", "print(text.join(text.sentences(\"One.\\nTwo.\\n\\nThree.\"), \"|\"))\n", "One.|Two.|Three.\n"},
+		{"whitespace around sentences is dropped", "print(\"[\" + text.join(text.sentences(\"  One.  Two!  \"), \"|\") + \"]\")\n", "[One.|Two!]\n"},
+		{"empty text is an empty list", "print(list.length(text.sentences(\"\")))\n", "0\n"},
+		{"whitespace-only text is an empty list", "print(list.length(text.sentences(\" \\n\\t\")))\n", "0\n"},
+		{"Unicode whitespace-only text is an empty list", "print(list.length(text.sentences(\"\\u00a0\\u2028 \")))\n", "0\n"},
+		{"a final stretch without a terminator is a sentence", "print(text.join(text.sentences(\"One. Two\"), \"|\"))\n", "One.|Two\n"},
+		{"text without a terminator is one sentence", "print(text.join(text.sentences(\"hello world\"), \"|\"))\n", "hello world\n"},
+		{"terminators alone are sentences", "print(text.join(text.sentences(\"... ?!\"), \"|\"))\n", "...|?!\n"},
+		{"apostrophes inside words are ordinary", "print(text.join(text.sentences(\"It's John's. Right?\"), \"|\"))\n", "It's John's.|Right?\n"},
+		{"a bracket without a terminator does not end a sentence", "print(text.join(text.sentences(\"(a b) c.\"), \"|\"))\n", "(a b) c.\n"},
+		{"non-ASCII text splits on the same terminators", "print(text.join(text.sentences(\"Été. À bientôt 😀. 🙂?\"), \"|\"))\n", "Été.|À bientôt 😀.|🙂?\n"},
+		{"returns fresh lists", "let a = text.sentences(\"A. B.\")\nlet b = text.sentences(\"A. B.\")\nlist.append(a, \"C.\")\nprint(list.length(a))\nprint(list.length(b))\n", "3\n2\n"},
+		{"flows", "flow \"One. Two!\"\n    text.sentences\n    list.length\n    print\n", "2\n"},
+		{"partial", "let sentences = text.sentences(_)\nprint(list.length(sentences(\"A. B.\")))\n", "2\n"},
+		{"a word returning the sentences infers List<String>", "word split(text: String)\n    text.sentences(text)\nprint(list.length(split(\"A. B.\")))\n", "2\n"},
+		{"an editing pass finds the long sentence", "word long(sentence: String) -> Bool\n    text.word-count(sentence) > 3\nlet long-ones = list.filter(text.sentences(\"A short one. This sentence is far too long. Tiny.\"), long(_))\nprint(text.join(long-ones, \"|\"))\n", "This sentence is far too long.\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := runText(t, tc.source)
+			if got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestTextSentencesJoinRoundTrip pins the rejoin law: every sentence keeps
+// its punctuation and closers, so joining with a single space restores a
+// text exactly, and joining with the separator a text used restores that
+// one too — the round trip loses only the whitespace between sentences.
+func TestTextSentencesJoinRoundTrip(t *testing.T) {
+	for name, text := range map[string]string{
+		"terminators":     `One. Two! Three?`,
+		"closers":         `He said "Stop!" and left. (Really?) Yes.`,
+		"groups":          `Wait... Really? What?!`,
+		"unterminated":    `One. Two`,
+		"interior breaks": "One\ntwo. Three   four.",
+		"abbreviations":   `Dr. Smith. e.g. this.`,
+		"empty":           ``,
+	} {
+		t.Run(name, func(t *testing.T) {
+			source := "print(text.join(text.sentences(" + strconv.Quote(text) + "), \" \") == " + strconv.Quote(text) + ")\n"
+			if got := runText(t, source); got != "true\n" {
+				t.Fatalf("joining with a space must restore %q, got %q", text, got)
+			}
+		})
+	}
+	if got := runText(t, "print(text.join(text.sentences("+strconv.Quote("A.\n\nB.")+"), "+strconv.Quote("\n\n")+"))\n"); got != "A.\n\nB.\n" {
+		t.Fatalf("joining with the paragraph separator must restore the text, got %q", got)
+	}
+	if got := runText(t, "print(\"[\" + text.join(text.sentences("+strconv.Quote("  A.\n\nB. ")+"), \" \") + \"]\")\n"); got != "[A. B.]\n" {
+		t.Fatalf("the round trip is exact only modulo the joining space, got %q", got)
+	}
+}
+
+// TestTextSentencesTyping pins the argument diagnostics and the
+// List<String> result of text.sentences.
+func TestTextSentencesTyping(t *testing.T) {
+	cases := []struct{ name, source, want string }{
+		{"argument count zero", "print(list.length(text.sentences()))\n", "text.sentences requires 1 arguments, found 0"},
+		{"argument count two", "print(list.length(text.sentences(\"a\", \"b\")))\n", "text.sentences requires 1 arguments, found 2"},
+		{"value type", "print(list.length(text.sentences(1)))\n", "argument 1 of text.sentences requires type String, found Int"},
+		{"result type", "let counts: List<Int> = text.sentences(\"A.\")\n", "binding counts has type List<String>; declared List<Int>"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var out strings.Builder
+			err := Run("typing.zhex", tc.source, strings.NewReader(""), &out)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("wanted %q, got %v", tc.want, err)
+			}
+		})
+	}
+}
+
+// TestSentencesElementLimit pins the hard stop before materializing: more
+// sentences than the runtime element limit fails with the shared
+// collection-limit code, the same limit as text.split — the limit itself
+// passes, and the limit counts sentences, not terminators.
+func TestSentencesElementLimit(t *testing.T) {
+	var out strings.Builder
+	source := "print(list.length(text.sentences(text.repeat(\"a. \", 1000001))))\n"
+	err := Run("sentences.zhex", source, strings.NewReader(""), &out)
+	if err == nil || !strings.Contains(err.Error(), "text.sentences exceeds element limit") {
+		t.Fatalf("wanted element limit diagnostic, got %v", err)
+	}
+	report, ok := Report(err)
+	if !ok || !strings.Contains(report, `"code":"collection-limit"`) {
+		t.Fatalf("wanted code collection-limit, got %s", report)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("limit must stop the run before output, got %q", out.String())
+	}
+	if got := runText(t, "print(list.length(text.sentences(text.repeat(\"a. \", 1000000))))\n"); got != "1000000\n" {
+		t.Fatalf("the limit itself must pass, got %q", got)
+	}
+	if got := runText(t, "print(list.length(text.sentences(text.repeat(\"a.\", 1000001) + \" x\")))\n"); got != "2\n" {
+		t.Fatalf("a million terminators in two sentences must pass, got %q", got)
 	}
 }
 

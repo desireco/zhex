@@ -183,3 +183,14 @@ func TestNativeFileWriteBytes(t *testing.T) {
 	diffCase(t, "bytes-range",
 		"file.write-bytes(\""+path+"\", [65, 256]) try\nprint(\"unreachable\")\n", "")
 }
+
+// TestNativeTextSentences pins the #218 sentence layer on the native
+// target: the boundary law's output and the collection-limit diagnostic
+// render exactly as the interpreter's, the zhexrt body being the shared one.
+func TestNativeTextSentences(t *testing.T) {
+	diffCase(t, "sentences",
+		"print(text.join(text.sentences(\"One. Two! Three?\"), \"|\"))\n"+
+			"print(text.join(text.sentences(\"He said \\\"Stop.\\\" Then left. Wait... Really?\"), \"|\"))\n", "")
+	diffCase(t, "sentences-limit",
+		"print(list.length(text.sentences(text.repeat(\"a. \", 1000001))))\n", "")
+}

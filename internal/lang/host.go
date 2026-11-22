@@ -484,6 +484,18 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{text: zhexrt.TextInsert(args[0].text, args[1].number, args[2].text)}, nil
 	case "text.remove":
 		return value{text: zhexrt.TextRemove(args[0].text, args[1].number, args[2].number)}, nil
+	case "text.sentences":
+		// The pre-check mirrors zhexrt.TextSentences' so the shared body
+		// cannot panic here; past it, the boundary law lives in one place.
+		if int64(zhexrt.SentenceCount(args[0].text)) > maxCollectionElements {
+			return value{}, errorAt(x.pos, CodeCollectionLimit, "text.sentences exceeds element limit")
+		}
+		sentences := zhexrt.TextSentences(rtPos(x.pos), args[0].text)
+		items := make([]value, len(sentences.Items))
+		for i, sentence := range sentences.Items {
+			items[i] = value{text: sentence}
+		}
+		return value{list: &listValue{items: items}}, nil
 	case "buffer.new":
 		return value{buffer: &bufferValue{}}, nil
 	case "buffer.add-line":

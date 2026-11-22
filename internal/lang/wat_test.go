@@ -573,6 +573,8 @@ print(1)
 		{"console-arg", `let a = console.arg(0) try`, "console.arg is not available in this build"},
 		{"wide-int-literal", `print(170141183460469231731687303715884105727)`, "integers beyond the signed 64-bit range is not available in this build"},
 		{"error-new", `let e = error.new("x", "boom")`, "error.new is not available in this build"},
+		// text.sentences fences until the #218 sentence layer joins the wasm host subset
+		{"text-sentences", `let sentences = text.sentences("A. B.")`, "text.sentences is not available in this build"},
 		{"checked-file-exists", `let yes = file.exists("x") try`, "checked file.exists is not available in this build"},
 		{"array-shape", `
 let grid = array.new([2, 2], 0)

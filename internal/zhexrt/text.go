@@ -3,6 +3,7 @@ package zhexrt
 import (
 	"math"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -224,4 +225,56 @@ func TextRemove(s string, start, end Int) string {
 		return s
 	}
 	return string(runes[:start.AsInt64()]) + string(runes[end.AsInt64():])
+}
+
+// forEachSentence walks s's sentences in order under the #218 boundary
+// law: a terminator (. ! ?) closes a sentence, the closing quotes and
+// brackets " ' ” ’ ) ] stay attached to it, and the next whitespace or
+// the end of the text ends it — so consecutive terminators stay together
+// and the whitespace between sentences is dropped. A stretch with no
+// terminator runs to the next boundary; there is no abbreviation list, so
+// "Dr." and "e.g." end a sentence.
+func forEachSentence(s string, visit func(sentence string)) {
+	start, closed := -1, false
+	for i, r := range s {
+		if unicode.IsSpace(r) {
+			if closed {
+				visit(s[start:i])
+				start, closed = -1, false
+			}
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+		switch {
+		case strings.ContainsRune(".!?", r):
+			closed = true
+		case !strings.ContainsRune("\"'”’)]", r):
+			closed = false
+		}
+	}
+	if start >= 0 {
+		visit(s[start:])
+	}
+}
+
+// SentenceCount counts a text's sentences without building anything: the
+// limit pre-check, made before any list materializes.
+func SentenceCount(s string) int {
+	count := 0
+	forEachSentence(s, func(string) { count++ })
+	return count
+}
+
+// TextSentences is text.sentences: the sentences as a fresh list, failing
+// collection-limit past the element limit — the text.split limit.
+func TextSentences(pos Pos, s string) *List[string] {
+	count := SentenceCount(s)
+	if int64(count) > MaxElements {
+		Fail(pos, "collection-limit", "text.sentences exceeds element limit")
+	}
+	items := make([]string, 0, count)
+	forEachSentence(s, func(sentence string) { items = append(items, sentence) })
+	return &List[string]{Items: items}
 }

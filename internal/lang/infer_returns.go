@@ -806,6 +806,7 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 	add("text.wrap", "List<String>", stringType, intType)
 	add("text.insert", stringType, stringType, intType, stringType)
 	add("text.remove", stringType, stringType, intType, intType)
+	add("text.sentences", "List<String>", stringType)
 	add("buffer.new", bufferType)
 	add("buffer.add-line", bufferType, bufferType, stringType)
 	add("buffer.line-count", intType, bufferType)

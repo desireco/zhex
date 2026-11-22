@@ -1997,6 +1997,9 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 	case "text.remove":
 		need(3)
 		return fmt.Sprintf("zhexrt.TextRemove(%s, %s, %s)", args[0], args[1], args[2])
+	case "text.sentences":
+		need(1)
+		return fmt.Sprintf("zhexrt.TextSentences(%s, %s)", pos, args[0])
 
 	// list words
 	case "list.new":
