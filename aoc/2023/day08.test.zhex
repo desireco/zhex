@@ -22,4 +22,7 @@ test.check(day08.guard(day08.parse("RL")) == "no network in input", "instruction
 test.check(day08.guard(day08.parse("RL\n\nBBB = (CCC, DDD)")) == "node AAA is missing from the network", "missing AAA reported")
 test.check(day08.guard(day08.parse("RL\n\nAAA = (BBB, CCC)")) == "node AAA names missing neighbor BBB", "dangling neighbor reported")
 test.check(day08.guard(network) == "", "sample network passes the guard")
+test.check(day08.guard(day08.parse("L\n\nAAA = (AAA, AAA)")) == "the walk from AAA never reaches ZZZ", "a self-loop at AAA reports the unreachable goal")
+test.check(day08.guard(day08.parse("L\n\nAAA = (BBB, BBB)\nBBB = (AAA, AAA)")) == "the walk from AAA never reaches ZZZ", "a two-node cycle reports the unreachable goal")
+test.check(day08.guard(day08.parse("R\n\nAAA = (BBB, BBB)\nBBB = (CCC, CCC)\nCCC = (BBB, BBB)")) == "the walk from AAA never reaches ZZZ", "a network with no ZZZ reports the unreachable goal")
 print "day 8 guard tests passed"

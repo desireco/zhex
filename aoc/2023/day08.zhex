@@ -90,8 +90,35 @@ word part-two(network: Network) -> Int
             answer = _lcm(answer, _ghost-length(network, name))
     answer
 
+# Whether a walk from a start ever reaches its goal: any-z wants any node
+# ending in Z (the ghost walkers), otherwise the goal is ZZZ. A walk is a
+# (node, turn) state machine, so once it has taken more steps than there
+# are directions times nodes it has repeated a state and can never finish.
+word _walk-finite(network: Network, start: String, any-z: Bool) -> Bool
+    var current = start
+    var steps = 0
+    var turn = 0
+    let bound = text.length(network.directions) * map.length(network.nodes)
+    var reached = _at-goal(current, any-z)
+    while not reached and steps < bound
+        current = _neighbor(network.nodes, current, text.slice(network.directions, turn, turn + 1))
+        steps = steps + 1
+        turn = turn + 1
+        if turn == text.length(network.directions)
+            turn = 0
+        reached = _at-goal(current, any-z)
+    reached
+
+word _at-goal(name: String, any-z: Bool) -> Bool
+    if any-z
+        text.ends-with(name, "Z")
+    else
+        name == "ZZZ"
+
 # The reason the input cannot be walked, or "" when it can. Guards against
-# empty or truncated input so the walk cannot stall on a missing node.
+# empty or truncated input, and against networks whose walk from AAA (or
+# any ghost walker) cycles without ever reaching its goal — the bounded
+# _walk-finite checks below prove the real walks terminate.
 word guard(network: Network) -> String
     if map.length(network.nodes) == 0
         "no network in input"
@@ -105,7 +132,15 @@ word guard(network: Network) -> String
             for side in [junction.left, junction.right]
                 if text.length(problem) == 0 and not map.contains(network.nodes, side)
                     problem = "node " + name + " names missing neighbor " + side
-        problem
+        if text.length(problem) > 0
+            problem
+        elif not _walk-finite(network, "AAA", false)
+            "the walk from AAA never reaches ZZZ"
+        else
+            for name, junction in network.nodes
+                if text.length(problem) == 0 and text.ends-with(name, "A") and not _walk-finite(network, name, true)
+                    problem = "the walk from " + name + " never reaches a node ending in Z"
+            problem
 
 # Advent of Code 2023, day 8 — Haunted Wasteland.
 # Reads the network from stdin until end of input, prints both answers.
