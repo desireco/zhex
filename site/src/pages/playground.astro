@@ -223,6 +223,8 @@ print(greet("you"))
       function rejectCalls(rejection) {
         for (const pending of calls.values()) pending.reject(rejection);
         calls.clear();
+        // A live run hears the failure the way a worker message would bring it.
+        for (const stream of streams.values()) stream.onEvent({ type: "error", message: rejection.message });
         streams.clear();
       }
 
