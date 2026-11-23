@@ -24,7 +24,11 @@
 // (a missing trailing newline is added) and close() ends the stream — a read
 // past close fails with the coded end-of-file failure, exactly like
 // runSource's supplied stdin running out. Bulk-delivering more than 16
-// lines before the program reads parks the deliver callback until it drains.
+// lines before the program reads parks the deliver callback until it drains,
+// but never past close or the run's end. A caller abandoning a run must call
+// close(): it unparks a blocked read as end-of-file, lets the run goroutine
+// finish, and Releases the handle's deliver/close wrappers (the run's exit
+// Releases them too, whichever comes first).
 // newSession carries the REPL law —
 // words, names, and adopted modules survive entries; enter(source) ->
 // {echo, error, report, exit} with the redefined note and print output in the

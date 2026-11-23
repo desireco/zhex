@@ -471,6 +471,7 @@ type interactiveResult struct {
 	Chunks         []string `json:"chunks"`
 	ChunksAtSettle []string `json:"chunksAtSettle"`
 	LoopLagMs      int      `json:"loopLagMs"`
+	LateDeliverMs  int      `json:"lateDeliverMs"`
 	Result         struct {
 		Output      string `json:"output"`
 		Diagnostics string `json:"diagnostics"`
@@ -578,6 +579,41 @@ func TestEngineInteractiveRunEOF(t *testing.T) {
 		if parsed.Code != "console-input" {
 			t.Fatalf("report code %q, want console-input", parsed.Code)
 		}
+	})
+}
+
+// TestEngineInteractiveLateDeliverNeverParks pins the end-of-life laws of
+// the handle: a deliver that arrives after the run finished — or after
+// close() — returns instead of parking its goroutine on the full line
+// channel (a parked js.FuncOf callback blocks the JS event loop forever),
+// and the deliver/close wrappers are Released at run end and at close, so
+// each run's functions stop leaking for the module's lifetime.
+func TestEngineInteractiveLateDeliverNeverParks(t *testing.T) {
+	late := func(t *testing.T, got interactiveResult) {
+		t.Helper()
+		if got.LateDeliverMs > 2000 {
+			t.Fatalf("late deliver took %dms — it parked", got.LateDeliverMs)
+		}
+	}
+	t.Run("deliver after the run finished returns", func(t *testing.T) {
+		got := runInteractiveJob(t, map[string]any{"source": "print(\"done\")\n", "lines": []string{}, "close": false, "lateDeliver": 20, "settleMs": 50})
+		if joined := strings.Join(got.Chunks, ""); joined != "done\n" {
+			t.Fatalf("engine output %q, want done", joined)
+		}
+		if got.Result.Exit != 0 {
+			t.Fatalf("engine exit %d, want 0", got.Result.Exit)
+		}
+		late(t, got)
+	})
+	t.Run("deliver after close returns", func(t *testing.T) {
+		got := runInteractiveJob(t, map[string]any{"source": "let a = read-line(\"\") try\nprint(a)\n", "lines": []string{"a"}, "lateDeliver": 20})
+		if joined := strings.Join(got.Chunks, ""); joined != "a\n" {
+			t.Fatalf("engine output %q, want a", joined)
+		}
+		if got.Result.Exit != 0 {
+			t.Fatalf("engine exit %d, want 0", got.Result.Exit)
+		}
+		late(t, got)
 	})
 }
 

@@ -86,7 +86,18 @@ async function main() {
     const deadline = Date.now() + 10000;
     while (!result && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
     if (!result) throw new Error("interactive run never finished");
-    console.log(JSON.stringify({ chunks, chunksAtSettle, loopLagMs, result }));
+    let lateDeliverMs = null;
+    let lateDeliverError = null;
+    if (job.lateDeliver) {
+      const late = Date.now();
+      try {
+        for (let i = 0; i < job.lateDeliver; i++) handle.deliver("late");
+      } catch (e) {
+        lateDeliverError = String(e);
+      }
+      lateDeliverMs = Date.now() - late;
+    }
+    console.log(JSON.stringify({ chunks, chunksAtSettle, loopLagMs, lateDeliverMs, lateDeliverError, result }));
   } else {
     throw new Error("unknown mode " + mode);
   }
