@@ -874,6 +874,7 @@ for (const [s, want] of [
 }
 for (const [s, want] of [
   ['a/b', 'a'], ['/x/y', '/x'], ['x', '.'], ['/x', '/'], ['a//b', 'a'], ['a/b/c', 'a/b'],
+  ['', '.'],
 ]) {
   t('dir ' + JSON.stringify(s), () => { fresh(); eq(str('t_dir', s), want, 'dir'); });
 }

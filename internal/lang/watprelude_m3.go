@@ -819,6 +819,13 @@ const watM3Path = `
   (local $n i32)
   (local $i i32)
   (local.set $n (array.len (local.get $s)))
+  ;; the empty string is "." before any index-0 read: i32.and in the tail
+  ;; below evaluates both operands, so s[0] must never run on an empty s
+  (if (i32.eqz (local.get $n))
+    (then
+      (return (array.new_fixed $zhex_string 1 (i32.const 46)))
+    )
+  )
   (local.set $i (local.get $n))
   (block $found
     (loop $scan
