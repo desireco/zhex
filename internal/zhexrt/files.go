@@ -290,9 +290,9 @@ func moveErr(pos Pos, source, target, reason, format string, args ...any) *Error
 }
 
 // FileMove renames source to target, files and folders. overwrite
-// replaces an existing file only; a folder target is refused.
-// shortcut: overwrite uses plain rename, which refuses existing targets on
-// Windows; add a platform-tagged replace file when Windows matters.
+// replaces an existing file only; a folder target is refused. Overwrite
+// routes through replaceRename because a Windows rename refuses an
+// existing target (movePath in internal/lang/files.go).
 func FileMove(pos Pos, source, target string, overwrite bool) Result[Unit] {
 	if info, err := os.Lstat(target); err == nil {
 		if info.IsDir() {
@@ -304,7 +304,11 @@ func FileMove(pos Pos, source, target string, overwrite bool) Result[Unit] {
 	} else if !os.IsNotExist(err) {
 		return Result[Unit]{Err: moveErr(pos, source, target, osFailureReason(err), "cannot move %q to %q: %v", source, target, err)}
 	}
-	if err := os.Rename(source, target); err != nil {
+	rename := os.Rename
+	if overwrite {
+		rename = replaceRename
+	}
+	if err := rename(source, target); err != nil {
 		return Result[Unit]{Err: moveErr(pos, source, target, osFailureReason(err), "cannot move %q to %q: %v", source, target, err)}
 	}
 	return Ok(Unit{})
