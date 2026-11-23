@@ -883,7 +883,7 @@ word _table-cells(line: String) -> List<String>
     var body = line
     if text.starts-with(body, "|")
         body = text.slice(body, 1, text.length(body))
-    if text.ends-with(body, "|") and text.length(body) > 0
+    if text.ends-with(body, "|") and text.slice(body, text.length(body) - 2, text.length(body) - 1) != "\\"
         body = text.slice(body, 0, text.length(body) - 1)
     var cells: List<String> = list.new()
     var cur = ""

@@ -194,6 +194,7 @@ expect-table(md.parse("| a | b |\n| :-- | --: |\n| 1 | 2 |"), 0, ["a", "b"], [["
 expect-table(md.parse("| a | b |\n| --- | --- |\n| 1 |"), 0, ["a", "b"], [["1", ""]], "a short row pads with an empty cell")
 expect-table(md.parse("| a | b |\n| --- | --- |\n| 1 | 2 | 3 |"), 0, ["a", "b"], [["1", "2"]], "an overlong row drops its excess cells")
 expect-table(md.parse("| a\\|b | c |\n| --- | --- |\n| x | y |"), 0, ["a\\|b", "c"], [["x", "y"]], "a backslashed pipe stays in the cell")
+expect-table(md.parse("| a | b |\n| --- | --- |\n| x | \\|"), 0, ["a", "b"], [["x", "\\|"]], "a row ending in an escaped pipe keeps the pipe")
 expect-paragraph(md.parse("| a | b |\n| --- |\n| 1 |"), 0, "| a | b |\n| --- |\n| 1 |", "a narrower delimiter row is paragraph text")
 let after-table = md.parse("| a |\n| --- |\n| 1 |\n\nafter")
 expect-count(after-table, 2, "a blank line ends the table")
