@@ -114,10 +114,12 @@ func MulOvf(a, b Int) (Int, bool) {
 	h3, l3 := bits.Mul64(uint64(am.Hi), uint64(bm.Hi))
 	mid, c1 := bits.Add64(h0, l1, 0)
 	mid, c2 := bits.Add64(mid, l2, 0)
-	// Bits above 127 are h1 + h2 + carries + a1b1 in full.
-	top, c3 := bits.Add64(h1, h2, c1+c2)
+	// Bits above 127 are h1 + h2 + carries + a1b1 in full. bits.Add64's
+	// carry-in must be 0 or 1, so c1+c2 joins the sum as an operand.
+	top, c3 := bits.Add64(h1, h2, 0)
 	top, c4 := bits.Add64(top, h3, 0)
-	if top != 0 || c3 != 0 || c4 != 0 || l3 != 0 {
+	top, c5 := bits.Add64(top, c1+c2, 0)
+	if top != 0 || c3 != 0 || c4 != 0 || c5 != 0 || l3 != 0 {
 		return Int{}, true
 	}
 	magnitude := Int{Lo: l0, Hi: int64(mid)}
