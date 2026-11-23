@@ -92,3 +92,19 @@ func TestMalformedChainKeepsUnexpectedCharacter(t *testing.T) {
 		}
 	}
 }
+
+// A leading dot that cannot start an expression still quotes the source
+// text exactly: the lexer strips the dot from field tokens, so the parser
+// must put it back — the message names ".x", never "x".
+func TestLeadingDotExpressionErrorQuotesTheDot(t *testing.T) {
+	for _, source := range []string{
+		".x\n",
+		"let a = .x\n",
+		"print(.x)\n",
+	} {
+		_, err := Compile("test.zhex", source)
+		if err == nil || !strings.Contains(err.Error(), `expected an expression, found ".x"`) {
+			t.Fatalf("source %q must quote the dot, got: %v", source, err)
+		}
+	}
+}

@@ -917,7 +917,13 @@ func (p *parser) primary() *expression {
 		}
 		return x
 	}
-	panic(errorAt(t.pos, CodeExpectedExpression, "expected an expression, found %q", t.text))
+	// Field tokens carry their name without the leading dot; the message
+	// quotes source text, so put the dot back.
+	found := t.text
+	if t.kind == "field" {
+		found = "." + found
+	}
+	panic(errorAt(t.pos, CodeExpectedExpression, "expected an expression, found %q", found))
 }
 
 func (p *parser) callArguments(x *expression) {
