@@ -30,6 +30,7 @@ func TestBranchReceiverMismatchHintCoversEachMutationWord(t *testing.T) {
 		{"let m = {\"a\": 1}\nif map.contains(m, \"a\")\n    map.remove(m, \"a\")\n", "map.remove"},
 		{"let m = {\"a\": 1}\nif map.contains(m, \"a\")\n    map.into(m, {})\n", "map.into"},
 		{"let b = buffer.new()\nlet m = {\"a\": 1}\nif map.contains(m, \"a\")\n    buffer.add-line(b, \"x\")\n", "buffer.add-line"},
+		{"let b = buffer.new()\nbuffer.add-line(b, \"x\")\nlet m = {\"a\": 1}\nif map.contains(m, \"a\")\n    buffer.set-line(b, 0, \"y\") try\n", "buffer.set-line"},
 	}
 	for _, tc := range cases {
 		got := runError(t, tc.source)

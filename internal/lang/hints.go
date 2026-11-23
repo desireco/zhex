@@ -129,6 +129,7 @@ var mutationReceivers = map[string]string{
 	"map.remove":      "map",
 	"map.into":        "map",
 	"buffer.add-line": "buffer",
+	"buffer.set-line": "buffer",
 }
 
 // mutationReceiverHint explains a branch-type mismatch caused by a mutation
@@ -148,6 +149,11 @@ func mutationReceiverHint(left, right valueType, body, otherwise []*statement) s
 		return ""
 	}
 	x := arm[len(arm)-1].expr
+	// A checked mutation word (buffer.set-line) carries postfix try at the
+	// arm tail; look through it to the call it unwraps.
+	for x != nil && x.kind == "try" {
+		x = x.left
+	}
 	if x == nil || x.kind != "call" {
 		return ""
 	}
