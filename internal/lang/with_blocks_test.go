@@ -129,6 +129,12 @@ func TestOrphanWithErrorsAtTheWithLine(t *testing.T) {
 		if !strings.Contains(err.Error(), "hint:") {
 			t.Fatalf("want a hint naming the fix:\n%v", err)
 		}
+		// A REPL user cannot put with directly below a bare seed line — the
+		// seed line submits as its own entry — so the hint must name the
+		// explicit flow form.
+		if !strings.Contains(err.Error(), "write the explicit `flow` form") {
+			t.Fatalf("want the REPL clause naming the flow form:\n%v", err)
+		}
 	}
 }
 

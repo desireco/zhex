@@ -792,7 +792,7 @@ Learn: https://desireco.github.io/zhex/errors.html#use-reserved
 
 A `with` line did not directly follow the expression line it continues.
 
-Fix: Put `with` on the next line below the seed expression, at the same indentation, with no blank line between.
+Fix: Put `with` on the next line below the seed expression, at the same indentation, with no blank line between. In the REPL, write the explicit `flow` form — `flow` on the seed line with `with` directly below it — because the REPL submits a bare seed line as its own entry.
 
 Learn: https://desireco.github.io/zhex/errors.html#with-location
 

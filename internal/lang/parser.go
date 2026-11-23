@@ -459,7 +459,7 @@ func (p *parser) parseStatement() *statement {
 func (p *parser) orphanWith() error {
 	w := p.current()
 	return withHint(errorAt(w.pos, CodeWithLocation, "with must directly follow the expression line above it"),
-		"put with on the line directly below the seed expression, at the same indentation, with no blank line between")
+		"put with on the line directly below the seed expression, at the same indentation, with no blank line between; in the REPL, write the explicit `flow` form — `flow` on the seed line with `with` directly below it — because the REPL submits a bare seed line as its own entry")
 }
 
 // atWithFuse reports a with line that fuses x as its fixed seed: same

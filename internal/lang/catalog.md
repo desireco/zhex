@@ -69,7 +69,7 @@ A token cannot start an expression where one is required.
 A `flow` block needs at least one step word. Write one word per line; the first receives the seed value.
 
 ## with-location
-A `with` line did not directly follow the expression line it continues. Put `with` on the next line below the seed expression, at the same indentation, with no blank line between.
+A `with` line did not directly follow the expression line it continues. Put `with` on the next line below the seed expression, at the same indentation, with no blank line between. In the REPL, write the explicit `flow` form — `flow` on the seed line with `with` directly below it — because the REPL submits a bare seed line as its own entry.
 
 ## with-seed
 A `with` block's seed produces Unit, so no step can receive it. Give `with` a value-producing expression line.
