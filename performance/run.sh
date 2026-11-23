@@ -5,8 +5,10 @@
 # the deterministic inputs, verifies every engine's output is byte-identical
 # BEFORE any timing (a mismatch is a hard failure with the diff), then runs
 # one warm-up plus five measured runs per engine/benchmark and reports the
-# median wall time in ms (and median peak RSS in KB when /usr/bin/time is
-# installed). Absent engines are marked honestly, never approximated.
+# median wall time in ms (and, when GNU /usr/bin/time is installed, the median
+# peak RSS in KB from five more untimed runs — never from the timed ones, which
+# GNU time would slow by about 0.7 ms each). Absent engines are marked
+# honestly, never approximated.
 #
 # Fairness law (see README.md): same algorithm and data-structure shapes per
 # benchmark in every language, each engine's ordinary idiomatic form, no
@@ -165,27 +167,25 @@ done
 WALL_NS=0
 RSS_KB=""
 
-timed_execute() { # one measured run; sets WALL_NS and RSS_KB
-    local engine=$1 bench=$2 start end
-    engine_cmd "$engine" "$bench"
+timed_execute() { # one measured run; sets WALL_NS
+    # Always the bare command: GNU time adds about 0.7 ms per run, which
+    # would land in every wall number — a fifth of the fastest C row.
+    local start end
     start=$(date +%s%N)
-    if [ -n "$GNU_TIME" ]; then
-        if [ "$bench" = filterstream ]; then
-            (cd "$HERE" && "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}") <"$INPUTS/filterstream.txt" >/dev/null
-        else
-            (cd "$HERE" && "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}") >/dev/null
-        fi
-        RSS_KB=$(cat "$BUILD/rss.tmp")
-    else
-        if [ "$bench" = filterstream ]; then
-            (cd "$HERE" && "${CMD[@]}") <"$INPUTS/filterstream.txt" >/dev/null
-        else
-            (cd "$HERE" && "${CMD[@]}") >/dev/null
-        fi
-        RSS_KB=""
-    fi
+    execute "$1" "$2" /dev/null
     end=$(date +%s%N)
     WALL_NS=$((end - start))
+}
+
+rss_execute() { # one untimed run under GNU time; sets RSS_KB (peak RSS in KB)
+    local engine=$1 bench=$2
+    engine_cmd "$engine" "$bench"
+    if [ "$bench" = filterstream ]; then
+        (cd "$HERE" && "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}") <"$INPUTS/filterstream.txt" >/dev/null
+    else
+        (cd "$HERE" && "$GNU_TIME" -f %M -o "$BUILD/rss.tmp" "${CMD[@]}") >/dev/null
+    fi
+    RSS_KB=$(cat "$BUILD/rss.tmp")
 }
 
 median() { printf '%s\n' "$@" | sort -n | awk -v n="$RUNS" 'NR == int((n + 1) / 2) {print; exit}'; }
@@ -195,15 +195,19 @@ for bench in $BENCHES; do
         [ -n "${ABSENT[$engine]:-}" ] && continue
         log "timing $bench / $engine"
         walls=()
-        rsses=()
         execute "$engine" "$bench" /dev/null # warm-up
         for _ in $(seq $RUNS); do
             timed_execute "$engine" "$bench"
             walls+=("$WALL_NS")
-            [ -n "$RSS_KB" ] && rsses+=("$RSS_KB")
         done
         median "${walls[@]}" >"$BUILD/time-$bench-$engine"
-        if [ "${#rsses[@]}" -gt 0 ]; then
+        if [ -n "$GNU_TIME" ]; then
+            # Memory comes from its own pass, after the timed runs.
+            rsses=()
+            for _ in $(seq $RUNS); do
+                rss_execute "$engine" "$bench"
+                rsses+=("$RSS_KB")
+            done
             median "${rsses[@]}" >"$BUILD/rss-$bench-$engine"
         else
             : >"$BUILD/rss-$bench-$engine"
@@ -224,7 +228,7 @@ REPORT="$BUILD/report.md"
     echo "- runs: 1 warm-up + $RUNS measured, median wall time in ms"
     echo "- verify: all present engines produced byte-identical outputs before timing"
     if [ -n "$GNU_TIME" ]; then
-        echo "- memory: median peak RSS in KB via /usr/bin/time %M (engines-as-deployed, runtime baseline included)"
+        echo "- memory: median peak RSS in KB via /usr/bin/time %M, from $RUNS more untimed runs after the timed ones (engines-as-deployed, runtime baseline included)"
     else
         echo "- memory: peak RSS column unavailable — GNU /usr/bin/time is not installed"
     fi
