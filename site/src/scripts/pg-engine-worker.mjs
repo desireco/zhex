@@ -2,9 +2,8 @@
 // worker instead of the page's thread, so a program that never ends cannot
 // freeze the page. Stop ends the worker; the page starts a fresh one for the
 // next run. Nothing here touches the DOM — the page talks in messages, this
-// script answers them, and the loader's steps (exec script, wasm bytes,
-// instantiate, wait for the API) run inside init because the loader module
-// itself needs `document`, which a worker does not have.
+// script answers them — and the engine loads through the shipped loader
+// (zhex-engine.js, cmd/zhex/engine/loader.js), never a copy of its steps.
 //
 // Page → worker (every answer carries the request's id):
 //   {type: "init", base}              load the engine from base → {type: "ready"}
@@ -39,15 +38,10 @@ const post = message => self.postMessage(message);
 
 async function init(base) {
   try {
-    importScripts(base + "zhex-engine-exec.js");
-    const go = new globalThis.Go();
-    const bytes = await (await fetch(base + "zhex-engine.wasm")).arrayBuffer();
-    const { instance } = await WebAssembly.instantiate(bytes, go.importObject);
-    // Not awaited: the engine's main blocks forever serving the API, so
-    // go.run never resolves. Readiness is globalThis.zhex appearing.
-    go.run(instance);
-    while (!globalThis.zhex) await new Promise(resolve => setTimeout(resolve, 0));
-    engine = globalThis.zhex;
+    // The shipped loader, by the absolute base the page sends; inside a
+    // classic worker it runs the runtime with importScripts.
+    const { loadEngine } = await import(base + "zhex-engine.js");
+    engine = await loadEngine(base);
     engine.setResolve(name => modules[name] ? { path: `${name}.zhex`, source: modules[name] } : null);
     post({ type: "ready" });
   } catch {

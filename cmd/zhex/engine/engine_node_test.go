@@ -296,6 +296,48 @@ func runProbe(t *testing.T, source, stdin string, extra ...string) probeResult {
 	return result
 }
 
+// TestEngineLoaderWorkerBranch pins the loader in a classic Web Worker
+// (#224), where there is no `document` for a script tag: loadEngine runs the
+// runtime file through importScripts, fetches the module, and returns the
+// running engine — the playground's worker loads through this one loader,
+// never a copy of its steps.
+func TestEngineLoaderWorkerBranch(t *testing.T) {
+	engineModule(t)
+	dir := t.TempDir()
+	shipped := func(source, name string) string {
+		t.Helper()
+		data, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		target := filepath.Join(dir, name)
+		if err := os.WriteFile(target, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return target
+	}
+	wantExec := shipped(wasmExecJS, "zhex-engine-exec.js")
+	wantWasm := shipped(enginePath, "zhex-engine.wasm")
+	var result struct {
+		Imported []string `json:"imported"`
+		Fetched  []string `json:"fetched"`
+		Output   string   `json:"output"`
+		Missing  string   `json:"missing"`
+	}
+	if err := json.Unmarshal(runEngineRaw(t, "loader", dir), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(result.Imported, []string{wantExec}) || !reflect.DeepEqual(result.Fetched, []string{wantWasm}) {
+		t.Fatalf("loader asked importScripts for %v and fetch for %v, want [%s] and [%s]", result.Imported, result.Fetched, wantExec, wantWasm)
+	}
+	if result.Output != "loader\n" {
+		t.Fatalf("engine from the loader printed %q, want %q", result.Output, "loader\n")
+	}
+	if result.Missing == "" {
+		t.Fatal("a runtime file that cannot load resolved loadEngine instead of rejecting it")
+	}
+}
+
 // TestEngineRunSourceTrace pins the opt-in trace: off by default, on it
 // streams the --trace JSONL vocabulary.
 func TestEngineRunSourceTrace(t *testing.T) {

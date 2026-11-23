@@ -5,14 +5,55 @@
 //   node engine.cjs <wasm_exec.js> <module.wasm> probes <sources.json>
 //   node engine.cjs <wasm_exec.js> <module.wasm> session <job.json>
 //   node engine.cjs <wasm_exec.js> <module.wasm> interactive <job.json>
+//   node engine.cjs <wasm_exec.js> <module.wasm> loader <dir>
 // `use` modules resolve through the engine's host resolve hook: run mode
 // reads siblings of the entry file (like zhex run), session jobs name module
 // files explicitly — the host supplies module sources exactly as the
 // playground will (#88 fetches the shipped siblings).
+// loader is not differential: it runs the shipped ../loader.js the way the
+// playground's engine worker does (#224), with <dir> holding the runtime and
+// the module under their shipped names.
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 const [wasmExec, modulePath, mode, ...args] = process.argv.slice(2);
 require(path.resolve(wasmExec));
+
+// A classic Web Worker has no `document`, so loader.js runs the runtime with
+// importScripts there. This stands in for a worker's two globals —
+// importScripts evaluates the file in this context (require would answer
+// from its cache, and the runtime was already required above), fetch reads
+// the file — then loads loader.js as a module, the way a worker's dynamic
+// import() does, and answers what the loader asked for.
+async function loaderMode(dir) {
+  let imported = [];
+  let fetched = [];
+  delete globalThis.Go;
+  globalThis.importScripts = (file) => {
+    imported.push(file);
+    vm.runInThisContext(fs.readFileSync(file, "utf8"), { filename: file });
+  };
+  globalThis.fetch = async (url) => {
+    fetched.push(url);
+    return { arrayBuffer: async () => fs.readFileSync(url) };
+  };
+  const source = fs.readFileSync(path.join(__dirname, "..", "loader.js"), "utf8");
+  const { loadEngine } = await import("data:text/javascript," + encodeURIComponent(source));
+  const zhex = await loadEngine(dir + "/");
+  const loaded = { imported, fetched, output: zhex.runSource('print("loader")', "").output };
+  // A runtime that cannot load rejects the loader, as a failed script tag
+  // does on a page. The asking above is recorded; this asks afresh.
+  delete globalThis.Go;
+  imported = [];
+  fetched = [];
+  let missing = "";
+  try {
+    await loadEngine(path.join(dir, "missing") + "/");
+  } catch (error) {
+    missing = String(error);
+  }
+  console.log(JSON.stringify({ ...loaded, missing }));
+}
 
 async function main() {
   const go = new globalThis.Go();
@@ -103,7 +144,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+(mode === "loader" ? loaderMode(args[0]) : main()).catch((error) => {
   console.error(error);
   process.exit(1);
 });

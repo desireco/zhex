@@ -1,8 +1,10 @@
 // Command engine is the Zhex interpreter as a browser-ready WebAssembly
 // module (#91, Track A of docs/wasm-plan.md): one shared engine that the
-// site's playground (#88) and the read-line spike harness load through
-// loader.js — never a copy. Built with GOOS=js GOARCH=wasm (see the justfile's
-// engine recipe), it exposes the engine API on globalThis.zhex:
+// site's playground (#88, from inside its Web Worker, #224) and the
+// read-line spike harness load through loader.js — never a copy. On a page
+// the loader adds a script tag; in a classic worker it calls importScripts.
+// Built with GOOS=js GOARCH=wasm (see the justfile's engine recipe), it
+// exposes the engine API on globalThis.zhex:
 //
 //	runSource(source, stdin) -> {output, diagnostics, report, trace, exit}
 //	runInteractive(source, onOutput, onDone) -> {deliver(line), close()}
