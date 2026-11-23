@@ -97,6 +97,7 @@ word _le32(out: List<Int>, n: Int) -> List<Int>
 ## The 30-byte local file header plus the name: signature 0x04034b50,
 ## version 2.0, flags 0, method 0, zero time and date, then CRC, sizes,
 ## name length, and an empty extra field.
+## shortcut: size is written modulo 2^32, so an entry over 4 GiB corrupts the archive, upgrade to ZIP64 when books get that big.
 word _local-header(name-bytes: List<Int>, crc: Int, size: Int) -> List<Int>
     var out: List<Int> = list.new()
     out = _le32(out, 67324752)
@@ -137,6 +138,7 @@ word _central-header(name-bytes: List<Int>, crc: Int, size: Int, offset: Int) ->
     _extend(out, name-bytes)
 
 ## The 22-byte end-of-central-directory record.
+## shortcut: count is written modulo 2^16, so over 65535 entries corrupts the archive, upgrade to ZIP64 when a book needs more files.
 word _eocd(count: Int, directory-size: Int, directory-offset: Int) -> List<Int>
     var out: List<Int> = list.new()
     out = _le32(out, 101010256)
