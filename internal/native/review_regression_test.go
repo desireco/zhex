@@ -161,6 +161,16 @@ func TestNativeReviewNestedDefaultCalls(t *testing.T) {
 	diffCase(t, "nested-default", "word f(a: Int, b: Int = 1) -> Int\n    a + b\nprint(f(f(1)))\n", "")
 }
 
+// TestNativeReviewDepthLimitCallSite pins the depth-limit diagnostic at the
+// 257th call's site — the interpreter reports the call, not the callee's
+// declaration — for self and mutual recursion.
+func TestNativeReviewDepthLimitCallSite(t *testing.T) {
+	diffCase(t, "depth-self",
+		"word count(n: Int) -> Int\n    count(n - 1)\nprint(\"before\")\nprint(count(3))\n", "")
+	diffCase(t, "depth-mutual",
+		"word ping(n: Int) -> Int\n    pong(n - 1)\nword pong(n: Int) -> Int\n    ping(n - 1)\nprint(\"before\")\nprint(ping(3))\n", "")
+}
+
 // TestNativeReviewFlowTry pins the postfix try on a flow step: the step's
 // Result unwraps and its failure propagates exactly as the interpreter does
 // (eval unwraps at each step), in the four shapes — a discarded step at top

@@ -643,6 +643,10 @@ func (e *nativeEmitter) emitWord(w *word) {
 	for _, param := range w.params {
 		params = append(params, e.localName(param.name)+" "+e.goType(param.pos, param.typ))
 	}
+	// __site carries the call's position so the depth-limit diagnostic
+	// reports the 257th call site, like the interpreter (eval reports the
+	// call expression, never the declaration)
+	params = append(params, "__site zhexrt.Pos")
 	name := e.packageName(wordKey(w), wordGoName(w))
 	if w.inferred {
 		e.line("func %s(%s) (%s, *zhexrt.Error) {", name, strings.Join(params, ", "), resultType)
@@ -650,7 +654,7 @@ func (e *nativeEmitter) emitWord(w *word) {
 		e.line("func %s(%s) %s {", name, strings.Join(params, ", "), resultType)
 	}
 	e.depth++
-	e.line("zhexrt.EnterWord(%s, %q)", e.posVar(w.pos), wordGoName(w))
+	e.line("zhexrt.EnterWord(__site, %q)", wordGoName(w))
 	e.line("defer zhexrt.LeaveWord()")
 	e.line("var __result %s", resultType)
 	e.statements(w.body, "__result")
@@ -716,12 +720,12 @@ func (e *nativeEmitter) emitEntry() {
 		if main := entryMainWord(e.p); main != nil {
 			name := e.packageName(wordKey(main), wordGoName(main))
 			if main.inferred {
-				e.line("_, err := %s()", name)
+				e.line("_, err := %s(%s)", name, e.posVar(main.pos))
 				e.line("return err")
 			} else if _, ok := resultInner(main.result); ok {
-				e.line("return %s().Err", name)
+				e.line("return %s(%s).Err", name, e.posVar(main.pos))
 			} else {
-				e.line("%s()", name)
+				e.line("%s(%s)", name, e.posVar(main.pos))
 			}
 		}
 	} else {
@@ -1565,6 +1569,7 @@ func (e *nativeEmitter) callValue(x *expression) (v, errv string) {
 		arguments = append(arguments, defaultExpr)
 	}
 	args := e.exprs(arguments)
+	args = append(args, e.posVar(x.pos))
 	name := e.packageName(wordKey(x.word), wordGoName(x.word))
 	call := fmt.Sprintf("%s(%s)", name, strings.Join(args, ", "))
 	if !x.word.inferred {
@@ -1746,6 +1751,10 @@ func (e *nativeEmitter) partialExpr(x *expression) string {
 		callArgs = append(callArgs, e.exprs(defaults)...)
 		defaultPre := e.fn.pre.String()
 		e.fn.pre = savedPre
+		// shortcut: the site is the partial's creation, not its invocation
+		// (the interpreter re-attributes to the invoke); threading it would
+		// change function-value types — upgrade when a depth case needs it
+		callArgs = append(callArgs, e.posVar(x.pos))
 		if x.word.inferred {
 			body = defaultPre + fmt.Sprintf("__v, __e := %s(%s)\nreturn zhexrt.Result[%s]{Value: __v, Err: __e}", name, strings.Join(callArgs, ", "), e.goType(x.pos, x.word.success))
 		} else {

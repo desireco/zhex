@@ -23,7 +23,7 @@ func TestNativeEmitsReadableGo(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"func double(n zhexrt.Int) zhexrt.Int {",
+		"func double(n zhexrt.Int, __site zhexrt.Pos) zhexrt.Int {",
 		"zhexrt.Mul(_",
 		"zhexrt.Print(_",
 		"func main() {\n\tzhexrt.Run(zhexMain)\n}",
