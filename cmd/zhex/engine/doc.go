@@ -38,5 +38,8 @@
 // console.arg, and env.load fail with not-available-in-build diagnostics
 // (internal/lang/boundary.go); the lexical path words, read-line against the
 // supplied stdin or the delivered interactive stream, console.args-count,
-// and env.get keep working.
+// and env.get keep working. timezone.load is not fenced either — the
+// interpreter embeds the time database (internal/lang/temporal.go imports
+// time/tzdata), so zone names resolve without the operating system and an
+// unknown name fails inside its own Result with timezone-load.
 package main
