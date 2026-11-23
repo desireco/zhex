@@ -16,7 +16,15 @@ import (
 // binary to re-execute.
 var buildZhexOnce struct {
 	sync.Once
-	path string
+	dir string // holds the built zhex binary; TestMain removes it
+}
+
+// TestMain removes the once-built binary's temp dir on every exit path: a
+// per-test cleanup would delete it under the tests that follow the first.
+func TestMain(m *testing.M) {
+	code := m.Run()
+	os.RemoveAll(buildZhexOnce.dir)
+	os.Exit(code)
 }
 
 func zhexBinary(t *testing.T) string {
@@ -26,13 +34,12 @@ func zhexBinary(t *testing.T) string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		bin := filepath.Join(dir, "zhex")
-		if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
+		buildZhexOnce.dir = dir // recorded before the build, so a failed one cleans up too
+		if out, err := exec.Command("go", "build", "-o", filepath.Join(dir, "zhex"), ".").CombinedOutput(); err != nil {
 			t.Fatalf("go build: %v: %s", err, out)
 		}
-		buildZhexOnce.path = bin
 	})
-	return buildZhexOnce.path
+	return filepath.Join(buildZhexOnce.dir, "zhex")
 }
 
 // runZhexTest points the runner's re-executable at the built binary.

@@ -28,6 +28,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+	// os.Exit skips the defer (there for a build panic), so the exit path removes the dir itself.
 	defer os.RemoveAll(dir)
 	for _, build := range []struct{ out, pkg string }{
 		{filepath.Join(dir, "zhex"), "zhex/cmd/zhex"},
@@ -40,7 +41,9 @@ func TestMain(m *testing.M) {
 		}
 	}
 	zhexBin, dogfoodBin = filepath.Join(dir, "zhex"), filepath.Join(dir, "dogfood")
-	os.Exit(m.Run())
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
 }
 
 // runMerged runs one binary over a piped script with stderr sharing stdout's
