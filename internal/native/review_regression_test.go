@@ -160,3 +160,20 @@ func TestNativeReviewImportedSignatureTypes(t *testing.T) {
 func TestNativeReviewNestedDefaultCalls(t *testing.T) {
 	diffCase(t, "nested-default", "word f(a: Int, b: Int = 1) -> Int\n    a + b\nprint(f(f(1)))\n", "")
 }
+
+// TestNativeReviewFlowTry pins the postfix try on a flow step: the step's
+// Result unwraps and its failure propagates exactly as the interpreter does
+// (eval unwraps at each step), in the four shapes — a discarded step at top
+// level, a step feeding a later step, a step as a block tail, and a step
+// inside a word with an inferred Result signature.
+func TestNativeReviewFlowTry(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing.txt")
+	for _, tc := range []struct{ name, source string }{
+		{"flow-try-discard", fmt.Sprintf("print(\"before\")\nflow %q\n    file.read try\nprint(\"done\")\n", missing)},
+		{"flow-try-feed", fmt.Sprintf("print(\"before\")\nflow %q\n    file.read try\n    text.length\n    print\nprint(\"done\")\n", missing)},
+		{"flow-try-tail", fmt.Sprintf("print(\"before\")\nlet n = flow %q\n    file.read try\n    text.length\nprint(n)\n", missing)},
+		{"flow-try-word", fmt.Sprintf("word length-of(path: String)\n    flow path\n        file.read try\n        text.length\nprint(\"before\")\nlet n = length-of(%q) try\nprint(n)\n", missing)},
+	} {
+		t.Run(tc.name, func(t *testing.T) { diffCase(t, tc.name, tc.source, "") })
+	}
+}

@@ -1,0 +1,11 @@
+# A fallible flow step as a block tail: the binding takes the unwrapped
+# success value, then the failing tail propagates before print.
+print("before")
+let good = flow "42"
+    text.to-int try
+    int.to-string
+print(good)
+let n = flow "nope.txt"
+    file.read try
+    text.length
+print(n)

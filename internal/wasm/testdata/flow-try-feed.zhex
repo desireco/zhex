@@ -1,0 +1,12 @@
+# A fallible flow step feeding a later step: the unwrapped success value
+# threads on (42), then the failing read propagates before its consumer.
+print("before")
+flow "42"
+    text.to-int try
+    int.to-string
+    print
+flow "nope.txt"
+    file.read try
+    text.length
+    print
+print("done")

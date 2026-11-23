@@ -1,0 +1,6 @@
+# A discarded flow step marked try: the failure propagates and "done" never
+# prints, exactly as zhex run reports.
+print("before")
+flow "nope.txt"
+    file.read try
+print("done")

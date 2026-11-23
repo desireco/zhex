@@ -1,0 +1,10 @@
+# A fallible flow step inside a word with an inferred Result signature: the
+# escape becomes the word's failure, unhandled at top level.
+word length-of(path: String)
+    flow path
+        file.read try
+        text.length
+
+print("before")
+let n = length-of("nope.txt") try
+print(n)

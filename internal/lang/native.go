@@ -1177,6 +1177,12 @@ func (e *nativeEmitter) emitFlow(s *statement, target string) {
 			first = seedTemp
 		}
 		value := e.stepValue(step, first)
+		if step.propagate {
+			// a step marked try unwraps its Result and propagates the
+			// failure to the word boundary exactly as the interpreter does
+			// at each step (eval)
+			value = e.unwrapStep(value)
+		}
 		e.flushPre()
 		if last && target != "" && step.typ != unitType {
 			e.line("%s = %s", target, value)
@@ -1200,6 +1206,18 @@ func (e *nativeEmitter) stepValue(step *expression, first string) string {
 	e.flowFirst = first
 	defer func() { e.flowFirst = "" }()
 	return e.expr(step)
+}
+
+// unwrapStep materializes a step's Result and unwraps it, propagating a
+// failure to the current function's error return — the statement-level
+// twin of tryExpr's Result branch.
+func (e *nativeEmitter) unwrapStep(value string) string {
+	temp := e.temp()
+	e.pre("%s := %s", temp, value)
+	e.pre("if %s.Err != nil {", temp)
+	e.failReturn(temp + ".Err")
+	e.pre("}")
+	return temp + ".Value"
 }
 
 // flushPre writes the hoisted expression preamble ahead of the statement
