@@ -27,24 +27,25 @@ corpus:
 test-race:
     go test -race ./...
 
-# Build the browser engine (#91): the interpreter as a wasm module under site/public/, named apart from the examples pass in site/public/wasm/. Skipped when its inputs are unchanged; just engine-fresh forces a rebuild.
+# Build the browser engine (#91): the interpreter as a wasm module under site/public/, named apart from the examples pass in site/public/wasm/. Skipped when its inputs are unchanged; just engine-fresh forces a rebuild. The cache's hash marker is site/.engine-hash, outside public/ so Astro does not publish it.
 engine:
     #!/bin/bash
     mkdir -p site/public
     # Every non-test file under the engine's packages (go:embed inputs included), go.mod, and go.sum key the cache.
     hash="$(go version; find cmd/zhex/engine internal/lang internal/zhexrt -type f ! -name '*_test.go' -print0 | sort -z | xargs -0 sha256sum | sha256sum; sha256sum go.mod go.sum "$([ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ] && echo "$(go env GOROOT)/lib/wasm/wasm_exec.js" || echo "$(go env GOROOT)/misc/wasm/wasm_exec.js")")"
-    if [ -s site/public/zhex-engine.wasm ] && [ -f site/public/zhex-engine-exec.js ] && [ -f site/public/zhex-engine.js ] && [ -f site/public/.engine-hash ] && [ "$(cat site/public/.engine-hash)" = "$hash" ]; then
+    if [ -s site/public/zhex-engine.wasm ] && [ -f site/public/zhex-engine-exec.js ] && [ -f site/public/zhex-engine.js ] && [ -f site/.engine-hash ] && [ "$(cat site/.engine-hash)" = "$hash" ]; then
         echo "engine: up to date"
     else
         GOOS=js GOARCH=wasm go build -o site/public/zhex-engine.wasm ./cmd/zhex/engine &&
         { cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" site/public/zhex-engine-exec.js 2>/dev/null || cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" site/public/zhex-engine-exec.js; } &&
         cp cmd/zhex/engine/loader.js site/public/zhex-engine.js &&
-        printf '%s' "$hash" > site/public/.engine-hash
+        printf '%s' "$hash" > site/.engine-hash &&
+        rm -f site/public/.engine-hash # the marker's earlier spot, which Astro copied into the published site
     fi
 
 # Force an engine rebuild, ignoring the hash cache.
 engine-fresh:
-    rm -f site/public/.engine-hash
+    rm -f site/.engine-hash
     just engine
 
 # Check Go source with vet, both builds.

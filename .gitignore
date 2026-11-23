@@ -12,4 +12,4 @@
 /site/public/wasm/
 /site/.wasm-manifest.json
 /site/public/zhex-engine*
-/site/public/.engine-hash
+/site/.engine-hash

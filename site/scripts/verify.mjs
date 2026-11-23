@@ -25,6 +25,9 @@ for (const example of data.Examples) {
     assert(examples.includes(module.Highlighted), `${module.URL} source`);
   }
 }
+// Cache bookkeeping is not a site asset: the engine recipe's hash marker used
+// to sit in site/public/, which Astro copies verbatim into _site.
+assert(!(await readdir('../_site')).includes('.engine-hash'), 'the engine cache marker does not ship');
 const errors = await read('errors.html');
 for (const entry of data.Catalog) assert(errors.includes(`id="${entry.Code}"`), `${entry.Code} anchor`);
 // #120: the docs landing retired — docs.html is a redirect to TL;DR.
