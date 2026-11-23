@@ -58,17 +58,11 @@ func TestNativeReviewArrayShape(t *testing.T) {
 
 func TestNativeReviewRelativeOutput(t *testing.T) {
 	requireGo(t)
-	dir, err := os.MkdirTemp(".", ".native-relative-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(dir) })
-	rel := filepath.Join(dir, "program")
-	outDir, err := filepath.Abs(rel)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := Compile("program.zhex", "print(\"hi\")\n", rel, nil); err != nil {
+	// t.TempDir(): a hard kill must never leave the output tree inside the
+	// repository; the relative `-o program` build inside it still exercises
+	// the bare binary name the CLI passes.
+	outDir := filepath.Join(t.TempDir(), "program")
+	if err := Compile("program.zhex", "print(\"hi\")\n", outDir, nil); err != nil {
 		t.Fatal(err)
 	}
 	out, diag, code := runBinary(t, filepath.Join(outDir, "program"), "")
