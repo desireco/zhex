@@ -43,6 +43,14 @@ jobs:
         run: go test ./...
       - name: Check Go source
         run: go vet ./...
+      # The doctests and aoc recipes' commands: just test runs both locally,
+      # but CI only built the site, so a broken doc example or a failing
+      # module test landed green.
+      - name: Test examples and Advent of Code puzzles
+        run: |
+          go build -o bin/zhex ./cmd/zhex
+          bin/zhex test examples
+          bin/zhex test aoc
       - name: Build the browser engine for the playground
         run: |
           mkdir -p site/public
