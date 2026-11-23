@@ -76,6 +76,46 @@ func TestBracketTypeHintOnRecordField(t *testing.T) {
 	}
 }
 
+// Result is the same mistake in the same places: the annotation goes
+// through parseType, the return signature through the special Result<...>
+// branch whose require("<") fails first.
+func TestBracketTypeHintOnResultAnnotation(t *testing.T) {
+	got := runError(t, "let r: Result[Int, Error] = ok(1)\n")
+	if !strings.Contains(got, `expected =, found "["`) {
+		t.Fatalf("first line changed: %q", got)
+	}
+	if !strings.Contains(got, "hint: types use angle brackets — write Result<Int, Error>, not Result[Int, Error]") {
+		t.Fatalf("missing Result annotation hint: %q", got)
+	}
+}
+
+func TestBracketTypeHintOnResultReturn(t *testing.T) {
+	got := runError(t, "word parse(text: String) -> Result[Int, Error]\n    ok(1)\n")
+	if !strings.Contains(got, `expected <, found "["`) {
+		t.Fatalf("first line changed: %q", got)
+	}
+	if !strings.Contains(got, "hint: types use angle brackets — write Result<Int, Error>, not Result[Int, Error]") {
+		t.Fatalf("missing Result return hint: %q", got)
+	}
+}
+
+func TestAngleResultSignaturesStillParse(t *testing.T) {
+	source := `word parse(text: String) -> Result<Int, ParseError>
+    ok(1)
+let r: Result<Int, ParseError> = parse("x")
+let v = r try
+print(v)
+print(parse("y") try)
+`
+	var out bytes.Buffer
+	if err := Run("ok.zhex", source, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\n1\n" {
+		t.Fatalf("output changed: %q", out.String())
+	}
+}
+
 // Indexing, collection literals, and a bracket after a name that is not a
 // built-in generic keep today's message without the hint.
 func TestBracketUsesOutsideGenericTypeAnnotations(t *testing.T) {

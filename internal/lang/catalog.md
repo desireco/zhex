@@ -42,7 +42,7 @@ A string contains an escape Zhex does not support, or invalid UTF-8. Strings are
 A character cannot start any token. Check for stray punctuation or a non-ASCII symbol; names are ASCII letters, digits, underscores, and hyphenated segments.
 
 ## expected-token
-The parser expected a specific token and found something else. The message names both; fix the line to match the expected grammar. When a `[` follows `List`, `Array`, `Map`, or `Option` in a type annotation, the hint names the angle-bracket spelling: write `List<Int>`, not `List[Int]`.
+The parser expected a specific token and found something else. The message names both; fix the line to match the expected grammar. When a `[` follows `List`, `Array`, `Map`, `Option`, or `Result` in a type annotation or result signature, the hint names the angle-bracket spelling: write `Result<Int, Error>`, not `Result[Int, Error]`.
 
 ## expected-name
 A keyword appears where a name is required. `word`, `let`, `var`, `if`, and the other keywords are reserved; choose a name that is not one of them.

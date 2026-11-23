@@ -288,7 +288,7 @@ Learn: https://desireco.github.io/zhex/errors.html#expected-name
 
 The parser expected a specific token and found something else.
 
-Fix: The message names both; fix the line to match the expected grammar. When a `[` follows `List`, `Array`, `Map`, or `Option` in a type annotation, the hint names the angle-bracket spelling: write `List<Int>`, not `List[Int]`.
+Fix: The message names both; fix the line to match the expected grammar. When a `[` follows `List`, `Array`, `Map`, `Option`, or `Result` in a type annotation or result signature, the hint names the angle-bracket spelling: write `Result<Int, Error>`, not `Result[Int, Error]`.
 
 Learn: https://desireco.github.io/zhex/errors.html#expected-token
 

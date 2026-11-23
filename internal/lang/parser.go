@@ -235,6 +235,7 @@ var genericTypeNames = map[string]bool{
 	"Array":  true,
 	"Map":    true,
 	"Option": true,
+	"Result": true,
 }
 
 // bracketTypeHint names the #223 mistake: a type annotation written with
@@ -398,7 +399,10 @@ func (p *parser) parseWord() *word {
 		return w
 	}
 	if p.at("Result") {
-		p.take()
+		name := p.take()
+		if p.at("[") {
+			p.pendingTypeHint = p.bracketTypeHint(name.text)
+		}
 		p.require("<")
 		inner := p.parseType()
 		p.require(",")
