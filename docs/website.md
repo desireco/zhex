@@ -11,7 +11,7 @@ npm ci --prefix site
 just site
 ```
 
-`just site` builds and then serves at [localhost:8000/zhex/](http://127.0.0.1:8000/zhex/); `just build-site` builds without serving, and `just site-fresh` recompiles every wasm artifact. `_site/` and `site/data.json` are generated; edit sources instead. `just test` runs Go tests and the complete website build. `go vet ./...` checks Go source.
+`just site` builds and then serves at [localhost:8000/zhex/](http://127.0.0.1:8000/zhex/); `just build-site` builds without serving, and `just site-fresh` recompiles every wasm artifact. `_site/` and `site/data.json` are generated, and so are two gitignored cache files, `site/.wasm-manifest.json` for the wasm artifacts and `site/.engine-hash` for the browser engine; edit sources instead, and the build removes the cached artifact of an example the current set no longer names — one deleted or newly fenced. `just test` runs Go tests and the complete website build. `go vet ./...` checks Go source.
 
 The Astro configuration sets the `/zhex` Pages base and emits stable `.html` URLs. `site/src/content/docs/` holds topic pages with `title`, `description`, `section`, and `order` frontmatter. Keep them consistent with `docs/initial-language.md`, `docs/getting-started.md`, and `docs/editors.md`. The legacy docs anchors and `/errors.html` catalog anchors remain available. `site/design/` ships verbatim, along with the example sources, roadmap, manifesto, and `llms.txt`.
 
@@ -23,4 +23,4 @@ The root `ROADMAP.md` uses a title, an introductory paragraph, and Done, Next, a
 
 ## Publishing
 
-The Pages workflow installs locked npm dependencies, tests Go, builds the site, and uploads `_site/`. Pull requests build without publishing; pushes to `main` and manual runs on `main` deploy to the `github-pages` environment. Only the deploy job receives Pages and identity-token write permissions. Repository Settings → Pages must use GitHub Actions as its source. Check the workflow and deployment URL after pushing; roll back by pushing the intended source revision and letting the workflow publish it.
+The Pages workflow installs locked npm dependencies, tests Go, runs the example and puzzle suites with one built binary (`bin/zhex test examples`, `bin/zhex test aoc`), builds the site, and uploads `_site/`. Pull requests build without publishing; pushes to `main` and manual runs on `main` deploy to the `github-pages` environment. Only the deploy job receives Pages and identity-token write permissions. Repository Settings → Pages must use GitHub Actions as its source. Check the workflow and deployment URL after pushing; roll back by pushing the intended source revision and letting the workflow publish it.

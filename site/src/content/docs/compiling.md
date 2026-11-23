@@ -39,9 +39,9 @@ A program that reads input takes it on standard input, so pipe the name in: `pri
 zhex compile examples/collatz.zhex --target=native
 ```
 
-The output is a self-contained program directory — `examples/collatz/` beside the source, holding a readable `main.go`, a `go.mod`, and the `zhexrt` runtime sources — so the generated code can be read and reviewed like any Go program. Words become Go functions with concrete signatures, and a failure at runtime renders exactly the diagnostic `zhex run` prints, source line and caret included.
+The output is a self-contained program directory — `examples/collatz/` beside the source, holding a readable `main.go`, a `go.mod`, and the `zhexrt` runtime sources — so the generated code can be read and reviewed like any Go program. Compiling into an existing directory replaces the copied runtime inside it, so files from an older release cannot linger in the build. Words become Go functions with concrete signatures, and a failure at runtime renders exactly the diagnostic `zhex run` prints, source line and caret included. The call-depth diagnostic points at the call that made the 257th call; one exception: a word called through a function value points at the place the function value was created.
 
-When the Go toolchain is installed, `zhex compile` builds the binary itself with `go build` (cross-compilation follows `GOOS`/`GOARCH`). Without Go, the sources and `go.mod` are still written and the compile prints the one instruction that finishes the job:
+When the Go toolchain is installed, `zhex compile` builds the binary itself with `go build` (cross-compilation follows `GOOS`/`GOARCH`, and a Windows target's binary ends in `.exe`). Without Go, the sources and `go.mod` are still written and the compile prints the one instruction that finishes the job:
 
 ```text
 go is not installed; the program source is in examples/collatz — build it with: (cd examples/collatz && go build)
@@ -86,6 +86,8 @@ hint: this construct is not compiled by zhex compile yet; run it with zhex run i
 ```
 
 Run such a program with `zhex run`, or rewrite it with constructs the build supports. The code is listed in the [error catalog](../errors.html#not-available-in-build).
+
+A runtime failure inside a compiled WebAssembly program reports as one plain line — `runtime error: division or remainder by zero`, for example — with no file, line, caret, or learn link, because the artifact does not carry the source position. `zhex run` and the native target show the full diagnostic with its position.
 
 Compiled programs are held to the interpreter: the repository's test suite compiles the examples corpus for WebAssembly and for the native target, and requires the same output, byte for byte, and the same exit status as `zhex run`.
 
