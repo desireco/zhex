@@ -4,7 +4,10 @@
 # offsets equal string lengths — the law document() counts by.
 # Text draws through the base-14 font Helvetica; characters outside the
 # Latin-1 fence (code points above 255) fail the escape Result rather
-# than strip or mojibake.
+# than strip or mojibake. The font declares /WinAnsiEncoding, so the
+# octal escapes 128..255 follow that table: code points 128..159 are
+# Windows punctuation (curly quotes, dashes, the euro), not the control
+# characters they are in Latin-1.
 
 ## One code point as PDF string source: ( ) and \ are backslash-escaped,
 ## ASCII stays literal, and 128..255 becomes a three-digit octal escape.
@@ -69,9 +72,11 @@ word pages-body(kids: List<Int>) -> String
 word page-body(parent: Int, contents: Int) -> String
     "<< /Type /Page /Parent " + parent + " 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents " + contents + " 0 R >>"
 
-## The Helvetica base-14 font resource every page shares.
+## The Helvetica base-14 font resource every page shares; WinAnsiEncoding
+## makes the 128..255 octal escapes extract as written instead of as
+## StandardEncoding (Café, not CafØ).
 word font-body() -> String
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
 
 ## One numbered indirect object wrapping a body.
 word obj(number: Int, body: String) -> String
