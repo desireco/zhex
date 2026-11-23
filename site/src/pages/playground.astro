@@ -52,6 +52,7 @@ const index = data.Examples.map(e => ({
           <textarea class="pg-editor" id="pg-editor" rows={16} spellcheck="false" autoCapitalize="off" autoComplete="off"></textarea>
           <div class="pg-run-actions">
             <button class="button pg-run" type="button">Run <span aria-hidden="true">→</span></button>
+            <button class="button pg-stop pg-stop-run" type="button" disabled>Stop</button>
             <button class="button pg-copy" type="button">Copy link</button>
           </div>
           <p class="pg-copy-note" role="status" hidden></p>
@@ -79,6 +80,7 @@ const index = data.Examples.map(e => ({
           <textarea class="pg-editor pg-entry" id="pg-entry" rows={4} spellcheck="false" autoCapitalize="off" autoComplete="off"></textarea>
           <div class="pg-run-actions">
             <button class="button pg-tour" type="button">Run the tour</button>
+            <button class="button pg-stop pg-stop-repl" type="button" disabled>Stop</button>
             <button class="button pg-copy pg-copy-repl" type="button">Copy link</button>
           </div>
           <p class="pg-copy-note pg-copy-note-repl" role="status" hidden></p>
@@ -98,16 +100,17 @@ const index = data.Examples.map(e => ({
     </script>
 
     <script>
-      // The browser playground (#88) over the shared #91 engine: one lazy
-      // load behind the open click, then two modes over the same module —
-      // Run (runSource, falling back to runInteractive when the program
-      // outreads its box — #158) and REPL (newSession, with the
+      // The browser playground (#88) over the shared #91 engine (#224): the
+      // engine lives in a Web Worker, so a program that never ends cannot
+      // freeze the page — Stop ends the worker and the next run starts a
+      // fresh one. The load still waits for the open click. Two modes over
+      // the worker: Run (runSource, falling back to runInteractive when the
+      // program outreads its box — #158) and REPL (newSession, with the
       // continuation probes mirroring the terminal REPL's law entry for
-      // entry). The engine's loader is shared with the read-line spike;
-      // this page only consumes it. Share links carry source, input, mode,
-      // and module siblings in the URL fragment; example cards arrive
-      // through ?example=<id>.
+      // entry). Share links carry source, input, mode, and module siblings
+      // in the URL fragment; example cards arrive through ?example=<id>.
       import { inputProblem } from "../scripts/input-check.mjs";
+      import workerSource from "../scripts/pg-engine-worker.mjs?raw";
 
       // BASE_URL arrives without its trailing slash in this build format;
       // every engine asset joins against the slash-terminated base.
@@ -128,6 +131,8 @@ const index = data.Examples.map(e => ({
       const runPanel = document.querySelector("#pg-panel-run");
       const editor = document.querySelector("#pg-editor");
       const runButton = document.querySelector(".pg-run");
+      const runStop = document.querySelector(".pg-stop-run");
+      const replStop = document.querySelector(".pg-stop-repl");
       const output = document.querySelector("[data-pg-output]");
       const liveBlock = document.querySelector("[data-pg-live]");
       const liveInput = document.querySelector("#pg-live-input");
@@ -153,10 +158,164 @@ print(greet("you"))
         "greet(42)", // the deliberate failure: a String word handed a number
       ];
 
-      let engine = null;
+      // --- the engine worker ---------------------------------------------
+      //
+      // One worker serves until Stop ends it; the next run starts a fresh
+      // one. call() posts a request and answers with the reply carrying the
+      // same id; runInteractive's replies keep coming after the call lands
+      // (started), so its id moves to `streams` and its output chunks and
+      // final result go to the handler below. Stop terminates the worker and
+      // bumps workerGen, so an answer from a dead run is dropped instead of
+      // landing in a new one's pane.
+
+      const stopError = new Error("stopped");
+      const loadError = new Error("the engine could not load");
+      const crashError = new Error("the engine stopped unexpectedly");
+      const workerUrl = URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+      const engineBase = new URL(base, location.href).href;
+      let worker = null;
+      let workerReady = null;
+      let resolveReady = null;
+      let rejectReady = null;
+      let workerGen = 0;
+      let callSeq = 0;
+      const calls = new Map();
+      const streams = new Map();
       let session = null;
       let sessionEnded = false;
       let moduleMap = {};
+      let runActive = false;
+      let entryDepth = 0;
+
+      function ensureWorker() {
+        if (!worker) {
+          workerReady = new Promise((resolve, reject) => {
+            resolveReady = resolve;
+            rejectReady = reject;
+          });
+          worker = new Worker(workerUrl);
+          worker.onmessage = event => route(event.data);
+          // An error while the engine still loads is the load failing; once
+          // loaded, the same event means the engine died mid-run.
+          worker.onerror = () => failWorker(rejectReady ? loadError : crashError);
+          worker.postMessage({ type: "init", base: engineBase });
+        }
+        return workerReady;
+      }
+
+      function dropWorker() {
+        if (worker) worker.terminate();
+        worker = null;
+        resolveReady = null;
+        rejectReady = null;
+        workerReady = null;
+        session = null;
+      }
+
+      function failWorker(rejection) {
+        dropWorker();
+        rejectCalls(rejection);
+        if (rejectReady) rejectReady(rejection);
+      }
+
+      function rejectCalls(rejection) {
+        for (const pending of calls.values()) pending.reject(rejection);
+        calls.clear();
+        streams.clear();
+      }
+
+      function call(message, onEvent) {
+        if (!worker) return Promise.reject(stopError);
+        return new Promise((resolve, reject) => {
+          const id = ++callSeq;
+          calls.set(id, { resolve, reject, gen: workerGen, onEvent: onEvent || null });
+          worker.postMessage({ ...message, id });
+        });
+      }
+
+      function route(message) {
+        if (message.type === "ready") {
+          const resolve = resolveReady;
+          resolveReady = null;
+          rejectReady = null;
+          if (worker) worker.postMessage({ type: "resolve", modules: moduleMap });
+          if (resolve) resolve(true);
+          return;
+        }
+        if (message.type === "load-failed") {
+          failWorker(loadError);
+          return;
+        }
+        if (message.id === undefined) return;
+        const pending = calls.get(message.id);
+        if (pending) {
+          if (pending.gen !== workerGen) { calls.delete(message.id); return; }
+          if (message.type === "error") {
+            calls.delete(message.id);
+            pending.reject(new Error(message.message));
+            return;
+          }
+          if (pending.onEvent) {
+            // The live run: this first reply (started) resolves the call,
+            // and the id's later messages stream to the handler.
+            calls.delete(message.id);
+            streams.set(message.id, { gen: pending.gen, onEvent: pending.onEvent });
+            pending.resolve(message);
+            return;
+          }
+          calls.delete(message.id);
+          pending.resolve(message);
+          return;
+        }
+        const stream = streams.get(message.id);
+        if (stream) {
+          if (stream.gen !== workerGen) { streams.delete(message.id); return; }
+          if (message.type === "result") streams.delete(message.id);
+          stream.onEvent(message);
+        }
+      }
+
+      function syncModules() {
+        if (worker) worker.postMessage({ type: "resolve", modules: moduleMap });
+      }
+
+      function updateStopButtons() {
+        const busy = runActive || entryDepth > 0;
+        runStop.disabled = !busy;
+        replStop.disabled = !busy;
+      }
+
+      function stopRun() {
+        const hadRun = runActive;
+        const hadEntry = entryDepth > 0;
+        if (!worker && !hadRun && !hadEntry) return;
+        workerGen++;
+        rejectCalls(stopError);
+        if (rejectReady) rejectReady(stopError);
+        dropWorker();
+        liveRun = null;
+        runActive = false;
+        // A half-typed entry keeps its text; only the run state resets.
+        pending = false;
+        blockPending = false;
+        openDelimiter = false;
+        submitting = false;
+        updateStopButtons();
+        if (hadRun) {
+          liveBlock.hidden = true;
+          liveInput.disabled = false;
+          sendButton.disabled = false;
+          endInputButton.disabled = false;
+          runButton.disabled = false;
+          diagnostics.textContent = "The program was stopped.";
+        }
+        if (hadEntry) {
+          transcriptBlock("The program was stopped. The session starts fresh — words defined earlier are gone.", "pg-out");
+        }
+      }
+
+      runStop.addEventListener("click", stopRun);
+      replStop.addEventListener("click", stopRun);
 
       // --- payloads ------------------------------------------------------
 
@@ -193,14 +352,16 @@ print(greet("you"))
         openButton.disabled = true;
         loading.hidden = false;
         try {
-          const module = await import(/* @vite-ignore */ `${base}zhex-engine.js`);
-          engine = await module.loadEngine(base);
-        } catch {
+          // The engine itself downloads inside the worker; the worker
+          // script is a local blob, so nothing is fetched before this click.
+          await ensureWorker();
+        } catch (failure) {
           loading.hidden = true;
-          loadFailed.hidden = false;
+          if (failure === stopError) openButton.disabled = false;
+          else loadFailed.hidden = false;
           return;
         }
-        engine.setResolve(name => moduleMap[name] ? { path: `${name}.zhex`, source: moduleMap[name] } : null);
+        loading.hidden = true;
         activate();
       });
 
@@ -209,6 +370,7 @@ print(greet("you"))
           || examplePayload(new URLSearchParams(location.search).get("example"));
         const mode = payload?.r === "repl" ? "repl" : "run";
         moduleMap = payload?.m || {};
+        syncModules();
 
         editor.value = payload ? payload.s : tourProgram;
         setUpInput(payload?.i);
@@ -251,7 +413,7 @@ print(greet("you"))
         });
         // The REPL's empty state is the tour: a first arrival with nothing
         // typed fires it, exactly as shipped.
-        if (indexToSelect === 1 && transcript.childElementCount === 0 && entry.value.trim() === "" && engine && !sessionEnded) runTour();
+        if (indexToSelect === 1 && transcript.childElementCount === 0 && entry.value.trim() === "" && !sessionEnded) runTour();
         if (focus) tabs[indexToSelect].focus();
       }
 
@@ -289,21 +451,32 @@ print(greet("you"))
           beginInteractive(source, [], "");
           return;
         }
-        let result;
-        try {
-          result = engine.runSource(source, stdinValue());
-        } catch (failure) {
-          runButton.disabled = false;
-          throw failure;
-        }
-        if (readPastBox(result)) {
-          beginInteractive(source, suppliedLines(),
-            "The program read past the input box, so it started again with the box's lines sent.");
-          return;
-        }
-        runButton.disabled = false;
-        output.textContent = result.output;
-        renderDiagnostics(source, result);
+        runActive = true;
+        updateStopButtons();
+        (async () => {
+          try {
+            await ensureWorker();
+            const answer = await call({ type: "runSource", source, stdin: stdinValue() });
+            runActive = false;
+            updateStopButtons();
+            if (readPastBox(answer.result)) {
+              beginInteractive(source, suppliedLines(),
+                "The program read past the input box, so it started again with the box's lines sent.");
+              return;
+            }
+            runButton.disabled = false;
+            output.textContent = answer.result.output;
+            renderDiagnostics(source, answer.result);
+          } catch (failure) {
+            runActive = false;
+            updateStopButtons();
+            runButton.disabled = false;
+            if (failure === stopError) return; // the stop already said so
+            diagnostics.textContent = failure === loadError
+              ? "The playground could not load. Check your connection and reload the page to try again."
+              : `The run failed — ${failure.message}.`;
+          }
+        })();
       }
 
       // The word read-line as a standalone name — hyphens join names, so
@@ -331,10 +504,10 @@ print(greet("you"))
 
       // --- the live run: output streams, sent lines deliver (#122) ------
 
-      let interactive = null;
+      let liveRun = null;
 
       function beginInteractive(source, supplied, note) {
-        interactive = null;
+        liveRun = null;
         runButton.disabled = true;
         output.textContent = "";
         diagnostics.textContent = "";
@@ -349,24 +522,40 @@ print(greet("you"))
         sendButton.disabled = false;
         endInputButton.disabled = false;
         liveBlock.hidden = false;
-        try {
-          interactive = {
-            handle: engine.runInteractive(source, chunk => output.append(chunk),
-              result => finishInteractive(source, result)),
-          };
-        } catch (failure) {
-          interactive = null;
-          liveBlock.hidden = true;
-          runButton.disabled = false;
-          diagnostics.textContent = `The interactive run could not start — ${failure}.`;
-          return;
-        }
-        for (const line of supplied) interactive.handle.deliver(line);
-        liveInput.focus();
+        runActive = true;
+        updateStopButtons();
+        (async () => {
+          try {
+            await ensureWorker();
+            await call({ type: "runInteractive", source }, message => {
+              if (message.type === "output") {
+                // One text node per run: a program printing in a loop would
+                // otherwise leave thousands of sibling nodes behind.
+                if (output.lastChild instanceof Text) output.lastChild.data += message.text;
+                else output.append(message.text);
+                return;
+              }
+              finishInteractive(source, message.result);
+            });
+            liveRun = true;
+            for (const line of supplied) worker.postMessage({ type: "deliver", line });
+            liveInput.focus();
+          } catch (failure) {
+            runActive = false;
+            updateStopButtons();
+            liveRun = null;
+            liveBlock.hidden = true;
+            runButton.disabled = false;
+            if (failure === stopError) return; // the stop already said so
+            diagnostics.textContent = `The interactive run could not start — ${failure.message}.`;
+          }
+        })();
       }
 
       function finishInteractive(source, result) {
-        interactive = null;
+        liveRun = null;
+        runActive = false;
+        updateStopButtons();
         liveBlock.hidden = true;
         output.textContent = result.output;
         renderDiagnostics(source, result);
@@ -374,15 +563,15 @@ print(greet("you"))
       }
 
       function sendLine() {
-        if (!interactive) return;
-        interactive.handle.deliver(liveInput.value.replace(/\r$/, ""));
+        if (!liveRun || !worker) return;
+        worker.postMessage({ type: "deliver", line: liveInput.value.replace(/\r$/, "") });
         liveInput.value = "";
         liveInput.focus();
       }
 
       function endInteractiveInput() {
-        if (!interactive) return;
-        interactive.handle.close();
+        if (!liveRun || !worker) return;
+        worker.postMessage({ type: "closeInput" });
         liveInput.disabled = true;
         sendButton.disabled = true;
         endInputButton.disabled = true;
@@ -479,14 +668,25 @@ print(greet("you"))
       }
 
       // --- REPL mode: the terminal law, entry for entry ------------------
+      //
+      // Every entry runs on the worker, so the answers come back a message
+      // later; the entries queue through one chain to keep their order, and
+      // the session state lives in the worker (a fresh worker means a fresh
+      // session).
 
       let pending = false;
       let blockPending = false;
       let openDelimiter = false;
+      let submitting = false;
+      let replChain = Promise.resolve();
 
-      function ensureSession() {
-        if (!session) session = engine.newSession(stdinValue());
-        return session;
+      function queueRepl(step) {
+        entryDepth += 1;
+        updateStopButtons();
+        const run = replChain.then(step);
+        replChain = run.catch(() => {});
+        const landed = () => { entryDepth -= 1; updateStopButtons(); };
+        run.then(landed, landed);
       }
 
       function transcriptBlock(text, className) {
@@ -496,28 +696,55 @@ print(greet("you"))
         transcript.append(block);
       }
 
-      function fireEntry(source) {
-        ensureSession();
-        transcriptBlock(source, "pg-in");
-        const result = session.enter(source);
-        const out = session.takeOutput();
-        const fail = session.takeDiagnostics();
-        if (out) transcriptBlock(out, "pg-out");
-        if (result.echo) transcriptBlock(result.echo, "pg-out");
-        if (fail) transcriptBlock(fail, "pg-fail");
-        if (result.report) {
-          try {
-            diagnosticBlock(transcript, source, JSON.parse(result.report));
-          } catch {
-            transcriptBlock(result.report, "pg-fail");
-          }
-        } else if (result.error) {
-          transcriptBlock(result.error, "pg-fail");
+      const loadFailedCopy = "The playground could not load. Check your connection and reload the page to try again.";
+
+      async function ensureSession() {
+        await ensureWorker();
+        if (!session) {
+          await call({ type: "newSession", stdin: stdinValue() });
+          session = true;
         }
-        if (result.exit !== null && result.exit !== undefined) {
-          transcriptBlock(`Exit status ${result.exit}. Reload the page for a fresh session.`, "pg-fail");
-          sessionEnded = true;
-          entry.disabled = true;
+      }
+
+      async function runWordsStep() {
+        transcriptBlock("words", "pg-in");
+        try {
+          await ensureSession();
+          const answer = await call({ type: "words" });
+          transcriptBlock(answer.list.join("\n"), "pg-out");
+        } catch (failure) {
+          if (failure !== stopError) transcriptBlock(failure === loadError ? loadFailedCopy : String(failure), "pg-fail");
+        }
+      }
+
+      const queueWords = () => queueRepl(runWordsStep);
+
+      async function fireEntry(source) {
+        transcriptBlock(source, "pg-in");
+        try {
+          await ensureSession();
+          const answer = await call({ type: "enter", source });
+          const result = answer.result;
+          if (answer.output) transcriptBlock(answer.output, "pg-out");
+          if (result.echo) transcriptBlock(result.echo, "pg-out");
+          if (answer.diagnostics) transcriptBlock(answer.diagnostics, "pg-fail");
+          if (result.report) {
+            try {
+              diagnosticBlock(transcript, source, JSON.parse(result.report));
+            } catch {
+              transcriptBlock(result.report, "pg-fail");
+            }
+          } else if (result.error) {
+            transcriptBlock(result.error, "pg-fail");
+          }
+          if (result.exit !== null && result.exit !== undefined) {
+            transcriptBlock(`Exit status ${result.exit}. Reload the page for a fresh session.`, "pg-fail");
+            sessionEnded = true;
+            entry.disabled = true;
+          }
+        } catch (failure) {
+          if (failure === stopError) return; // the stop already said so
+          transcriptBlock(failure === loadError ? loadFailedCopy : String(failure), "pg-fail");
         }
       }
 
@@ -536,14 +763,12 @@ print(greet("you"))
       // continuationIndent mirrors the terminal editor: the open delimiter's
       // depth, else the last statement's indent, one level deeper while a
       // block body is still missing.
-      function continuationIndent(source) {
-        const delimiter = engine.delimiterIndent(source);
-        if (delimiter !== null && delimiter !== undefined) return delimiter;
+      function continuationIndent(probe, source) {
+        if (probe.delimiter !== null && probe.delimiter !== undefined) return probe.delimiter;
         const last = source.split("\n").pop();
         let indent = last.match(/^ */)[0].length;
-        const logical = engine.lastStatementIndent(source);
-        if (logical !== null && logical !== undefined) indent = logical;
-        if (engine.isIncomplete(source)) indent += 4;
+        if (probe.lastStatement !== null && probe.lastStatement !== undefined) indent = probe.lastStatement;
+        if (probe.incomplete) indent += 4;
         return indent;
       }
 
@@ -554,76 +779,98 @@ print(greet("you"))
         entry.setSelectionRange(at + text.length, at + text.length);
       }
 
-      function submitLine() {
+      // The three continuation probes answer together in one round trip to
+      // the worker; a stop while asking leaves the entry as the visitor
+      // typed it (null sends submitLine home without touching anything).
+      async function askProbe(source) {
+        try {
+          await ensureWorker();
+          const answer = await call({ type: "probe", source });
+          return answer.probe;
+        } catch (failure) {
+          if (failure === stopError) return null;
+          throw failure;
+        }
+      }
+
+      async function submitLine() {
         const at = entry.selectionStart ?? entry.value.length;
         const before = entry.value.slice(0, at);
         const startOfLine = before.lastIndexOf("\n") + 1;
         const line = before.slice(startOfLine).replace(/\r$/, "");
         const value = entry.value;
 
-        if (!pending) {
-          if (line.trim() === "") return;
-          if (line === "words" && !commentOnly(before.slice(0, startOfLine))) {
+        if (submitting) return;
+        submitting = true;
+        try {
+          if (!pending) {
+            if (line.trim() === "") return;
+            if (line === "words" && !commentOnly(before.slice(0, startOfLine))) {
+              entry.value = "";
+              queueWords();
+              return;
+            }
+            if (commentOnly(value)) {
+              pending = true;
+              openDelimiter = false;
+              blockPending = false;
+              insertAtCursor("\n");
+              return;
+            }
+            const probe = await askProbe(value);
+            if (!probe) return;
+            if (probe.incomplete) {
+              pending = true;
+              openDelimiter = probe.delimiter !== null && probe.delimiter !== undefined;
+              blockPending = !openDelimiter;
+              insertAtCursor("\n" + " ".repeat(continuationIndent(probe, value)));
+              return;
+            }
             entry.value = "";
-            runWords();
+            queueRepl(() => fireEntry(value));
             return;
           }
-          if (commentOnly(value)) {
-            pending = true;
-            openDelimiter = false;
-            blockPending = false;
-            insertAtCursor("\n");
-            return;
-          }
-          if (engine.isIncomplete(value)) {
-            pending = true;
-            openDelimiter = engine.delimiterIndent(value) !== null && engine.delimiterIndent(value) !== undefined;
-            blockPending = !openDelimiter;
-            insertAtCursor("\n" + " ".repeat(continuationIndent(value)));
-            return;
-          }
-          entry.value = "";
-          fireEntry(value);
-          return;
-        }
 
-        const blank = line.trim() === "";
-        if (!blank && line === "words" && commentOnly(before.slice(0, startOfLine))) {
-          pending = false;
-          entry.value = "";
-          runWords();
-          return;
-        }
-        if (!blank || openDelimiter) {
-          if (commentOnly(value)) {
-            insertAtCursor("\n");
+          const blank = line.trim() === "";
+          if (!blank && line === "words" && commentOnly(before.slice(0, startOfLine))) {
+            pending = false;
+            entry.value = "";
+            queueWords();
             return;
           }
-          const delimiter = engine.delimiterIndent(value);
-          openDelimiter = delimiter !== null && delimiter !== undefined;
-          if (openDelimiter || blockPending || engine.isIncomplete(value)) {
-            if (!openDelimiter && !blockPending) blockPending = true;
-            insertAtCursor("\n" + " ".repeat(continuationIndent(value)));
+          if (!blank || openDelimiter) {
+            if (commentOnly(value)) {
+              insertAtCursor("\n");
+              return;
+            }
+            const probe = await askProbe(value);
+            if (!probe) {
+              pending = false;
+              blockPending = false;
+              return;
+            }
+            openDelimiter = probe.delimiter !== null && probe.delimiter !== undefined;
+            if (openDelimiter || blockPending || probe.incomplete) {
+              if (!openDelimiter && !blockPending) blockPending = true;
+              insertAtCursor("\n" + " ".repeat(continuationIndent(probe, value)));
+              return;
+            }
+            pending = false;
+            blockPending = false;
+            entry.value = "";
+            queueRepl(() => fireEntry(value));
             return;
           }
+          // A blank line with no open delimiter submits, without the blank.
           pending = false;
           blockPending = false;
           entry.value = "";
-          fireEntry(value);
-          return;
+          queueRepl(() => fireEntry(before));
+        } catch (failure) {
+          if (failure !== stopError) transcriptBlock(failure === loadError ? loadFailedCopy : String(failure), "pg-fail");
+        } finally {
+          submitting = false;
         }
-        // A blank line with no open delimiter submits, without the blank.
-        pending = false;
-        blockPending = false;
-        entry.value = "";
-        fireEntry(before);
-      }
-
-      function runWords() {
-        ensureSession();
-        transcriptBlock("words", "pg-in");
-        const list = session.words();
-        transcriptBlock(list.join("\n"), "pg-out");
       }
 
       entry.addEventListener("keydown", event => {
@@ -635,7 +882,6 @@ print(greet("you"))
         }
         if (event.key !== "Enter" || event.shiftKey) return;
         event.preventDefault();
-        if (!engine) return;
         submitLine();
       });
 
@@ -644,7 +890,7 @@ print(greet("you"))
       // as shipped.
       function runTour() {
         if (sessionEnded) return;
-        for (const source of tourEntries) fireEntry(source);
+        for (const source of tourEntries) queueRepl(() => fireEntry(source));
       }
 
       document.querySelector(".pg-tour").addEventListener("click", runTour);
