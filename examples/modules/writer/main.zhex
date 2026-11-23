@@ -38,9 +38,6 @@ word block-text(block: md.Block) -> String
         case _
             ""
 
-word sentence-length(sentence: String) -> Int
-    text.length(sentence)
-
 word is-long-word(part: String) -> Bool
     text.length(part) > 5
 
@@ -61,7 +58,7 @@ match list.find(md.outline(draft), is-moving(_))
         let paragraphs = list.filter(section.blocks, is-paragraph(_))
         let body = text.join(list.map(paragraphs, block-text(_)), " ")
         let sentences = text.sentences(body)
-        let ranked = list.sort-by(sentences, sentence-length(_))
+        let ranked = list.sort-by(sentences, text.length(_))
         let longest = ranked[list.length(ranked) - 1]
         print("the longest sentence in the moving section:")
         print(longest)

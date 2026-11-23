@@ -124,7 +124,7 @@ func TestNativeRuntimeErrorDiagnostic(t *testing.T) {
 // top-level try.
 func TestNativeTryCatch(t *testing.T) {
 	diffCase(t, "recovery",
-		"let rawRetries = \"abc\"\nlet retries = text.to-int rawRetries catch\n    print(\"That is not a whole number. I'll use 3 retries.\")\n    3\nprint(\"Retries: \" + int.to-string(retries))\n", "")
+		"let raw-retries = \"abc\"\nlet retries = text.to-int raw-retries catch\n    print(\"That is not a whole number. I'll use 3 retries.\")\n    3\nprint(\"Retries: \" + int.to-string(retries))\n", "")
 	diffCase(t, "unhandled", "let n = text.to-int(\"x\") try\nprint(\"unreachable\")\n", "")
 }
 
