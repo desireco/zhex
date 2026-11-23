@@ -20,14 +20,15 @@ does Zhex stack against the languages people actually compare?
   engine's version, host, and date).
 - **Absent engines are marked honestly** — the harness discovers runtimes at
   run time; a missing runtime reads `NOT INSTALLED`, never an approximation.
-- **Peak RSS, when `/usr/bin/time` is installed**, is the median of the five
-  measured runs. Honest caveat: the number **includes each engine's own
+- **Peak RSS, when `/usr/bin/time` is installed**, is the median of five more,
+  untimed runs after the timed ones. The timed runs always execute the bare
+  command: GNU time adds about 0.7 ms to a run, which would land in every
+  wall number. Honest caveat: the number **includes each engine's own
   runtime baseline** — Node/Ruby/Python carry tens of MB of runtime, C is
   tiny, Go binaries a few MB, zhex-interp includes the Go runtime plus the
   interpreter. The column compares engines-as-deployed, not algorithms in
-  isolation, and says so. When GNU `/usr/bin/time` is absent (as on the
-  machine behind the table below), the column is marked unavailable rather
-  than approximated.
+  isolation, and says so. When GNU `/usr/bin/time` is absent, the column is
+  marked unavailable rather than approximated.
 
 ## Benchmarks
 
@@ -68,42 +69,78 @@ Expect a few minutes: the interpreter's gridsim row dominates.
 
 ## Results
 
-Recorded 2026-11-19 from one `just perf` run (the raw copy is
-`results.txt`); median wall time in ms, 1 warm-up + 5 measured runs.
-Machine: AMD Ryzen 7 6800H, Linux 7.2.15-1-omarchy x86_64, go1.27.4,
-GCC 16.2.1, node v22.23.1, bun 1.4.4, ruby 3.4.10, Python 3.14.8. PHP
-sources ship; php is not installed on this machine, so its column reads
-NOT INSTALLED. The peak-RSS column was unavailable for the same reason —
-GNU `/usr/bin/time` is not installed here (on Arch: `pacman -S time`;
-the harness picks it up automatically when present).
+Recorded 2026-11-23 from one `just perf` run on a calm machine (the raw
+copy is `results.txt`); median wall time in ms, 1 warm-up + 5 measured
+runs, and median peak RSS in KB from five more untimed runs. Machine: AMD
+Ryzen 7 6800H, Linux 7.2.15-1-omarchy x86_64, with the engines exactly as
+the report records them (php is not installed, so its column reads NOT
+INSTALLED):
 
-| benchmark | zhex-interp | zhex-native | go | c | node | bun | ruby | python3 | php |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| fibrec | 1323.7 | 19.1 | 6.5 | 3.1 | 35.3 | 36.9 | 102.7 | 96.5 | NOT INSTALLED |
-| intloop | 919.8 | 266.1 | 7.4 | 7.2 | 47.1 | 51.4 | 77.6 | 90.9 | NOT INSTALLED |
-| stringbuild | 402.0 | 38.6 | 36.0 | 15.1 | 101.8 | 77.0 | 171.3 | 84.5 | NOT INSTALLED |
-| wordcount | 262.0 | 14.0 | 11.8 | 9.6 | 52.1 | 53.8 | 101.5 | 52.7 | NOT INSTALLED |
-| gridsim | 4310.0 | 378.1 | 6.9 | 4.4 | 54.7 | 51.5 | 317.4 | 688.7 | NOT INSTALLED |
-| filterstream | 138.2 | 12.7 | 7.0 | 4.7 | 59.9 | 62.2 | 66.7 | 17.6 | NOT INSTALLED |
-| *geomean (ms)* | 651.4 | 48.6 | 10.0 | 6.4 | 55.4 | 54.2 | 119.7 | 88.3 | — |
+| engine | version |
+|---|---|
+| zhex-interp | zhex b4657c1 go version go1.27.4 linux/amd64 |
+| zhex-native | zhex b4657c1 go version go1.27.4 linux/amd64 |
+| go | go version go1.27.4 linux/amd64 |
+| c | cc (GCC) 16.2.1 20260810 |
+| node | v22.23.1 |
+| bun | bun 1.4.4 |
+| ruby | ruby 3.4.10 |
+| python3 | Python 3.14.8 |
+| php | NOT INSTALLED |
+
+### Median wall time (ms)
+
+| benchmark | zhex-interp|zhex-native|go|c|node|bun|ruby|python3|php |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:||
+| fibrec | 1354.6 | 24.9 | 8.7 | 3.7 | 43.5 | 36.7 | 105.2 | 102.7 | NOT INSTALLED |
+| intloop | 873.0 | 265.9 | 7.9 | 7.1 | 46.2 | 52.9 | 75.7 | 87.9 | NOT INSTALLED |
+| stringbuild | 389.9 | 34.4 | 33.6 | 14.8 | 98.2 | 81.6 | 172.7 | 84.8 | NOT INSTALLED |
+| wordcount | 248.8 | 15.2 | 11.9 | 10.6 | 51.9 | 57.0 | 106.6 | 50.1 | NOT INSTALLED |
+| gridsim | 4323.6 | 394.3 | 8.1 | 5.1 | 59.9 | 51.9 | 337.2 | 714.0 | NOT INSTALLED |
+| filterstream | 137.8 | 13.1 | 7.3 | 4.9 | 62.1 | 63.7 | 71.0 | 18.8 | NOT INSTALLED |
+| *geomean (ms)* | 639.4 | 51.1 | 10.8 | 6.8 | 58.0 | 55.7 | 123.3 | 89.5 | — |
+
+### Median peak RSS (KB)
+
+| benchmark | zhex-interp|zhex-native|go|c|node|bun|ruby|python3|php |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:||
+| fibrec | 16568 | 6044 | 3568 | 1752 | 54040 | 44212 | 13396 | 9384 | NOT INSTALLED |
+| intloop | 16388 | 10920 | 5624 | 1640 | 56060 | 44332 | 13376 | 9480 | NOT INSTALLED |
+| stringbuild | 61060 | 41752 | 34476 | 13812 | 103004 | 69516 | 62920 | 42628 | NOT INSTALLED |
+| wordcount | 23792 | 12816 | 12184 | 4376 | 61492 | 44284 | 18700 | 14796 | NOT INSTALLED |
+| gridsim | 116832 | 17292 | 7784 | 4344 | 62032 | 44404 | 15956 | 12180 | NOT INSTALLED |
+| filterstream | 14836 | 10228 | 10012 | 1560 | 61764 | 45280 | 14300 | 9736 | NOT INSTALLED |
+
+Each memory number is the engine's whole process at its largest — runtime
+included — so the column compares engines as shipped. The interpreter's
+gridsim row is the outlier, about 117 MB against 17 MB for the native
+build, because the interpreter's collections are pointer-based. Node and
+Bun carry 44-62 MB of runtime, and C sits at 1.6-14 MB.
 
 Reading it honestly:
 
-- **zhex-native lands with the JIT engines**: geomean 48.6 ms vs node
-  55.4 and bun 54.2 — faster than both on four of six benchmarks. The
-  clear exception is `intloop` (266 ms): the native target keeps the
-  language's 128-bit `Int` contract, so hot integer division pays
-  big-Int costs the 64-bit engines do not.
-- **zhex-interp is 3.5–69x the native column** per workload (geomean
-  13.4x), consistent with the #6 three-engine table — the same fib-rec
-  1323 ms / 19 ms pair reproduces here.
+- **zhex-native lands with the JIT engines**: geomean 51.1 ms vs node
+  58.0 and bun 55.7 — faster than both on four of six benchmarks. The
+  clear exceptions are `intloop` (266 ms) and `gridsim`: the native
+  target keeps the language's 128-bit `Int` contract, so hot integer
+  division pays big-Int costs the 64-bit engines do not.
+- **zhex-interp is 3.3-54x the native column** per workload (geomean
+  12.5x), consistent with the #6 three-engine table — the same fib-rec
+  1355 ms / 25 ms pair reproduces here.
 - **Compiled vs scripted is one order of magnitude** on this mix: go
-  10.0 / c 6.4 vs node 55.4 / bun 54.2 / python 88.3 / ruby 119.7.
-- Surprises worth knowing: Python 3.14 beats Ruby everywhere here and
-  beats the JS engines on the string/map/I-O shapes (its loops lose);
-  Node beats Bun on short-lived scripts (startup, not steady-state);
-  Python's C-level line loop makes `filterstream` the fastest scripted
-  run at 17.6 ms.
+  10.8 / c 6.8 vs node 58.0 / bun 55.7 / python 89.5 / ruby 123.3.
+- Surprises worth knowing: Python 3.14 beats Ruby on four of six here
+  (Ruby's loops win `intloop` and `gridsim`) and beats the JS engines on
+  the map and I-O shapes; Node beats Bun on short-lived scripts (startup,
+  not steady-state); Python's C-level line loop makes `filterstream` the
+  fastest scripted run at 18.8 ms.
+
+Run-to-run movement: a three-run smoke check two minutes earlier put C's
+fibrec row at 3.2 ms and Go's at 6.8 ms, where this run shows 3.7 and
+8.7 — rows of a few milliseconds move by up to a third between runs, so
+compare rows and orders of magnitude, not single cells. The memory
+column was measured twice that day, once under heavy load and once on a
+calm machine, and the two agreed within one percent.
 
 ## Honest caveats
 
