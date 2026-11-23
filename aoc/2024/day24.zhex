@@ -2,10 +2,9 @@
 # Wires hold Bool values; AND, OR, and XOR gates wait for both inputs. Part 1
 # evaluates the wiring to a fixpoint — gates fire once both inputs are known,
 # passes repeat until nothing changes — and reads the z wires as a binary
-# number, z00 least significant. Part 2 (finding the four swapped output
-# pairs of the ripple-carry adder) resisted three structural solver designs
-# in the Go oracle and stays pending: see docs/aoc-2024.md and the gap
-# ticket.
+# number, z00 least significant. Part 2 walks the adder stage by stage, names
+# each stage's sum pair from its anchors, applies only the repairs the adder
+# template forces, and proves the result before it answers.
 
 type Circuit = record
     values: Map<String, Bool>
@@ -80,10 +79,469 @@ word part-one(circuit: Circuit) -> Int
         place = place * 2
     total
 
+# Swapping gate outputs moves writers, never readers: which gate writes each
+# wire as given, and which gates read it, stay put. The walk looks everything
+# up through them.
+type Index = record
+    circuit: Circuit
+    outputs: Map<String, Bool>
+    origin: Map<String, Int>
+    xor-reader: Map<String, Int>
+    and-reader: Map<String, Int>
+    or-reader: Map<String, Int>
+    digits: List<Int>
+    generates: List<Int>
+    bits: Int
+
+# The walk's state: the outputs as repaired so far, the gate writing each wire
+# now, the carry gate into the next stage, and the first failed check.
+type Walk = record
+    outs: List<String>
+    holder: Map<String, Int>
+    carry: Int
+    swaps: Int
+    note: String
+
+type Outcome = choice
+    Answer(text: String)
+    Refused(reason: String)
+
+## The number of input bits: one x wire per bit.
+word _bits(circuit: Circuit) -> Int
+    var count = 0
+    for name, value in circuit.values
+        if text.starts-with(name, "x")
+            count = count + 1
+    count
+
+## The two-digit wire name of a prefix and a bit.
+word _wire-name(prefix: String, bit: Int) -> String
+    if bit < 10
+        prefix + "0" + int.to-string(bit)
+    else
+        prefix + int.to-string(bit)
+
+## The value a map holds for a key; -1 when it holds none.
+word _at(table: Map<String, Int>, key: String) -> Int
+    match table[key]
+        case Option.Some(found)
+            found
+        case Option.None
+            -1
+
+## The gate reading x and y of one bit with the given operation; -1 when none does.
+word _input-gate(circuit: Circuit, bit: Int, op: String) -> Int
+    let x = _wire-name("x", bit)
+    let y = _wire-name("y", bit)
+    var found = -1
+    for g in range(0, list.length(circuit.ops))
+        if found < 0 and circuit.ops[g] == op
+            if (circuit.lefts[g] == x and circuit.rights[g] == y) or (circuit.lefts[g] == y and circuit.rights[g] == x)
+                found = g
+    found
+
+## The readers and writers of every wire, and each bit's two input gates.
+word _index(circuit: Circuit) -> Index
+    let outputs: Map<String, Bool> = {}
+    let origin: Map<String, Int> = {}
+    let xors: Map<String, Int> = {}
+    let ands: Map<String, Int> = {}
+    let ors: Map<String, Int> = {}
+    for g in range(0, list.length(circuit.ops))
+        outputs[circuit.outs[g]] = true
+        origin[circuit.outs[g]] = g
+        if circuit.ops[g] == "XOR"
+            xors[circuit.lefts[g]] = g
+            xors[circuit.rights[g]] = g
+        elif circuit.ops[g] == "AND"
+            ands[circuit.lefts[g]] = g
+            ands[circuit.rights[g]] = g
+        else
+            ors[circuit.lefts[g]] = g
+            ors[circuit.rights[g]] = g
+    let bits = _bits(circuit)
+    let digits: List<Int> = []
+    let generates: List<Int> = []
+    for bit in range(0, bits)
+        let digit = list.append(digits, _input-gate(circuit, bit, "XOR"))
+        let generate = list.append(generates, _input-gate(circuit, bit, "AND"))
+    Index(circuit, outputs, origin, xors, ands, ors, digits, generates, bits)
+
+## A fresh walk over the wiring as given.
+word _start(circuit: Circuit, index: Index) -> Walk
+    let outs: List<String> = []
+    for label in circuit.outs
+        let added = list.append(outs, label)
+    let holder: Map<String, Int> = {}
+    for label, g in index.origin
+        holder[label] = g
+    Walk(outs, holder, index.generates[0], 0, "")
+
+## The gate writing a wire now; -1 when no gate writes it.
+word _holder(walk: Walk, label: String) -> Int
+    _at(walk.holder, label)
+
+## The walk with a failed check recorded.
+word _refuse(walk: Walk, reason: String) -> Walk
+    Walk(walk.outs, walk.holder, walk.carry, walk.swaps, reason)
+
+## Swap the outputs of two gates: a repair the adder template forces.
+word _swap(walk: Walk, g: Int, h: Int) -> Walk
+    if h < 0
+        _refuse(walk, "a repair names a wire no gate writes")
+    elif g == h
+        _refuse(walk, "a repair names one gate twice")
+    elif walk.swaps == 4
+        _refuse(walk, "the wiring needs more than four swaps")
+    else
+        let a = walk.outs[g]
+        let b = walk.outs[h]
+        walk.outs[g] = b
+        walk.outs[h] = a
+        walk.holder[a] = h
+        walk.holder[b] = g
+        Walk(walk.outs, walk.holder, walk.carry, walk.swaps + 1, "")
+
+## The other input of a gate.
+word _other(circuit: Circuit, g: Int, label: String) -> String
+    if circuit.lefts[g] == label
+        circuit.rights[g]
+    else
+        circuit.lefts[g]
+
+## Two gates reading the same two wires.
+word _same-inputs(circuit: Circuit, g: Int, h: Int) -> Bool
+    (circuit.lefts[g] == circuit.lefts[h] and circuit.rights[g] == circuit.rights[h]) or (circuit.lefts[g] == circuit.rights[h] and circuit.rights[g] == circuit.lefts[h])
+
+## The XOR gate of the sum pair reading a wire; -1 when the wire is an input or no XOR gate reads it.
+word _pair-at(index: Index, label: String) -> Int
+    if map.contains(index.outputs, label)
+        _at(index.xor-reader, label)
+    else
+        -1
+
+## The AND gate reading the same two wires as a gate; -1 when there is none.
+word _twin(index: Index, g: Int) -> Int
+    let circuit = index.circuit
+    var found = -1
+    if g >= 0
+        let h = _at(index.and-reader, circuit.lefts[g])
+        if h >= 0 and _same-inputs(circuit, g, h)
+            found = h
+    found
+
+## The sum pair whose XOR gate holds the z wire of a stage; -1 when that gate is not one of a pair.
+word _z-pair(walk: Walk, index: Index, stage: Int) -> Int
+    let circuit = index.circuit
+    let g = _holder(walk, _wire-name("z", stage))
+    if g < 0 or circuit.ops[g] != "XOR" or not map.contains(index.outputs, circuit.lefts[g]) or _twin(index, g) < 0
+        -1
+    else
+        g
+
+## The value two of three anchors agree on; -1 when the two that speak disagree or none does.
+word _agree(first: Int, second: Int, third: Int) -> Int
+    if first >= 0 and (first == second or first == third)
+        first
+    elif second >= 0 and second == third
+        second
+    elif first >= 0 and second < 0 and third < 0
+        first
+    elif second >= 0 and first < 0 and third < 0
+        second
+    elif third >= 0 and first < 0 and second < 0
+        third
+    else
+        -1
+
+## The one OR gate reading the outputs of two gates; -1 when no one OR gate reads both.
+word _or-of(walk: Walk, index: Index, g: Int, h: Int) -> Int
+    let first = _at(index.or-reader, walk.outs[g])
+    let second = _at(index.or-reader, walk.outs[h])
+    if first >= 0 and first == second
+        first
+    else
+        -1
+
+## Find a stage's carry-out OR gate. When it is missing, the generate AND or the carry AND is displaced: the OR gate still reads the other one, so its second input names the displaced wire.
+word _carry-out(walk: Walk, index: Index, stage: Int, carry-and: Int) -> Walk
+    let generate = index.generates[stage]
+    var next = walk
+    var gate = _or-of(next, index, generate, carry-and)
+    if gate < 0
+        let or-gate = _at(index.or-reader, next.outs[carry-and])
+        if or-gate >= 0
+            let label = _other(index.circuit, or-gate, next.outs[carry-and])
+            if next.outs[generate] != label
+                next = _swap(next, generate, _holder(next, label))
+        if next.note == ""
+            gate = _or-of(next, index, generate, carry-and)
+    if gate < 0 and next.note == ""
+        let or-gate = _at(index.or-reader, next.outs[generate])
+        if or-gate >= 0
+            let label = _other(index.circuit, or-gate, next.outs[generate])
+            if next.outs[carry-and] != label
+                next = _swap(next, carry-and, _holder(next, label))
+        if next.note == ""
+            gate = _or-of(next, index, generate, carry-and)
+    if gate < 0
+        _refuse(next, "stage " + stage + ": no OR gate reads the generate and carry AND")
+    else
+        Walk(next.outs, next.holder, gate, next.swaps, next.note)
+
+## One stage of the walk. Three anchors name the sum pair — the carry wire's readers, the digit gate's output, and the XOR gate holding z — so the pair's two wires are the ones the digit gate and the carry gate should write. Only the repairs that follow from the adder template are applied.
+word _stage(walk: Walk, index: Index, stage: Int) -> Walk
+    let circuit = index.circuit
+    let digit = index.digits[stage]
+    let carry = walk.carry
+    let digit-wire = walk.outs[digit]
+    let carry-wire = walk.outs[carry]
+    let z = _wire-name("z", stage)
+    let pair = _agree(_pair-at(index, carry-wire), _pair-at(index, digit-wire), _z-pair(walk, index, stage))
+    let carry-and = _twin(index, pair)
+    var next = _refuse(walk, "stage " + stage + ": no sum pair holds the carry and the digit")
+    if carry-and >= 0
+        let first = circuit.lefts[pair]
+        let second = circuit.rights[pair]
+        # the wires the digit gate and the carry gate should write
+        var digit-target = ""
+        var carry-target = ""
+        var oriented = false
+        if digit-wire == first or digit-wire == second
+            digit-target = digit-wire
+            carry-target = _other(circuit, pair, digit-wire)
+            oriented = true
+        elif carry-wire == first or carry-wire == second
+            carry-target = carry-wire
+            digit-target = _other(circuit, pair, carry-wire)
+            oriented = true
+        next = _refuse(walk, "stage " + stage + ": the sum pair holds neither the digit nor the carry")
+        if oriented
+            next = walk
+            if carry-wire != carry-target
+                next = _swap(next, carry, _holder(next, carry-target))
+            if next.note == "" and digit-wire != digit-target
+                next = _swap(next, digit, _holder(next, digit-target))
+            if next.note == "" and next.outs[pair] != z
+                next = _swap(next, pair, _holder(next, z))
+            if next.note == ""
+                next = _carry-out(next, index, stage, carry-and)
+    next
+
+## The whole walk: the half adder, every full adder, and the last carry.
+word _repair(walk: Walk, index: Index) -> Walk
+    var next = walk
+    if next.outs[index.digits[0]] != "z00"
+        next = _swap(next, index.digits[0], _holder(next, "z00"))
+    for stage in range(1, index.bits)
+        if next.note == ""
+            next = _stage(next, index, stage)
+    if next.note == "" and next.outs[next.carry] != _wire-name("z", index.bits)
+        next = _swap(next, next.carry, _holder(next, _wire-name("z", index.bits)))
+    next
+
+## Every moved wire's partner moved the other way — the gate writing this wire now was given another one, and the gate that was given this wire now writes that other one — so the moves are disjoint swaps.
+word _pairs-up(walk: Walk, index: Index, names: List<String>) -> Bool
+    let circuit = index.circuit
+    var ok = true
+    for name in names
+        let given = circuit.outs[_holder(walk, name)]
+        if walk.outs[_at(index.origin, name)] != given
+            ok = false
+    ok
+
+word _is(first: Int, second: Int) -> Bool
+    first == second
+
+## Add a gate to the evaluation order; false when it is already there.
+word _place(order: List<Int>, gate: Int) -> Bool
+    if list.any(order, _is(_, gate))
+        false
+    else
+        let added = list.append(order, gate)
+        true
+
+## Stage i as the adder template draws it: the carry and digit wires feed one sum pair whose XOR gate writes z, and one OR gate reads the generate and carry AND. That OR gate, or -1.
+word _stage-shape(walk: Walk, index: Index, stage: Int, carry: Int, order: List<Int>) -> Int
+    let circuit = index.circuit
+    let digit = index.digits[stage]
+    let pair = _pair-at(index, walk.outs[carry])
+    var gate = -1
+    if pair >= 0
+        let carry-and = _twin(index, pair)
+        if carry-and >= 0 and walk.outs[digit] == _other(circuit, pair, walk.outs[carry]) and walk.outs[pair] == _wire-name("z", stage)
+            gate = _or-of(walk, index, index.generates[stage], carry-and)
+    if gate >= 0
+        let fresh = _place(order, digit) and _place(order, pair) and _place(order, _twin(index, pair)) and _place(order, index.generates[stage]) and _place(order, gate)
+        if not fresh
+            gate = -1
+    gate
+
+## The repaired wiring gate by gate in stage order, every gate once; a short list when it is not the template. The half adder's AND gate is both bit 0's generate and the carry into stage 1.
+word _template(walk: Walk, index: Index) -> List<Int>
+    let order: List<Int> = []
+    var carry = -1
+    var ok = _holder(walk, "z00") == index.digits[0]
+    if ok
+        let digit = list.append(order, index.digits[0])
+        let generate = list.append(order, index.generates[0])
+        carry = index.generates[0]
+    for stage in range(1, index.bits)
+        if ok
+            let gate = _stage-shape(walk, index, stage, carry, order)
+            ok = gate >= 0
+            if gate >= 0
+                carry = gate
+    if ok and walk.outs[carry] == _wire-name("z", index.bits)
+        order
+    else
+        []
+
+## One x and y pair through the repaired wiring, gate by gate in stage order.
+word _sums(walk: Walk, index: Index, order: List<Int>, x: Int, y: Int) -> Bool
+    let circuit = index.circuit
+    let known: Map<String, Bool> = {}
+    var place = 1
+    for bit in range(0, index.bits)
+        known[_wire-name("x", bit)] = x / place % 2 == 1
+        known[_wire-name("y", bit)] = y / place % 2 == 1
+        place = place * 2
+    for g in order
+        known[walk.outs[g]] = _apply(circuit.ops[g], _bool-at(known, circuit.lefts[g]), _bool-at(known, circuit.rights[g]))
+    var total = 0
+    place = 1
+    for bit in range(0, index.bits + 1)
+        if _bool-at(known, _wire-name("z", bit))
+            total = total + place
+        place = place * 2
+    total == x + y
+
+## x + y on four edge pairs and 64 pairs from an in-program Park-Miller generator.
+word _adds(walk: Walk, index: Index, order: List<Int>) -> Bool
+    var full = 0
+    var place = 1
+    for bit in range(0, index.bits)
+        full = full + place
+        place = place * 2
+    var ok = _sums(walk, index, order, 0, 0) and _sums(walk, index, order, full, full) and _sums(walk, index, order, 1, 1) and _sums(walk, index, order, full, 1)
+    var state = 20241224
+    for vector in range(0, 64)
+        if ok
+            var x = 0
+            var y = 0
+            place = 1
+            for bit in range(0, index.bits)
+                state = state * 48271 % 2147483647
+                if state / 65536 % 2 == 1
+                    x = x + place
+                state = state * 48271 % 2147483647
+                if state / 65536 % 2 == 1
+                    y = y + place
+                place = place * 2
+            ok = _sums(walk, index, order, x, y)
+    ok
+
+## The proof before any answer: exactly eight wires moved in four disjoint swaps, the repaired wiring is the adder template with every gate used once, and it adds x to y.
+word _certify(walk: Walk, index: Index) -> Outcome
+    if walk.note != ""
+        Outcome.Refused(walk.note)
+    else
+        let moved: List<String> = []
+        for g in range(0, list.length(index.circuit.outs))
+            if walk.outs[g] != index.circuit.outs[g]
+                let added = list.append(moved, walk.outs[g])
+        let names = list.sort(moved)
+        if list.length(names) != 8
+            Outcome.Refused("the repair moves " + list.length(names) + " wires, not eight")
+        elif not _pairs-up(walk, index, names)
+            Outcome.Refused("the moved wires do not form four disjoint pairs")
+        else
+            let order = _template(walk, index)
+            if list.length(order) != list.length(index.circuit.outs)
+                Outcome.Refused("the repaired wiring is not a ripple-carry adder")
+            elif _adds(walk, index, order)
+                Outcome.Answer(text.join(names, ","))
+            else
+                Outcome.Refused("the repaired wiring does not add x to y")
+
+word _missing(g: Int) -> Bool
+    g < 0
+
+## The x wire a gate reads; "" when it reads none.
+word _x-input(circuit: Circuit, g: Int) -> String
+    if text.starts-with(circuit.lefts[g], "x")
+        circuit.lefts[g]
+    elif text.starts-with(circuit.rights[g], "x")
+        circuit.rights[g]
+    else
+        ""
+
+## A plain AND system: one AND gate per bit reading that bit's x and y, the puzzle's own small part-two example.
+word _and-system(circuit: Circuit) -> Bool
+    let seen: Map<String, Bool> = {}
+    var ok = list.length(circuit.ops) == _bits(circuit)
+    for g in range(0, list.length(circuit.ops))
+        let x = _x-input(circuit, g)
+        if x != ""
+            seen[x] = true
+        ok = ok and x != "" and circuit.ops[g] == "AND" and _other(circuit, g, x) == "y" + text.slice(x, 1, text.length(x)) and text.starts-with(circuit.outs[g], "z")
+    ok and map.length(seen) == _bits(circuit)
+
+## The z wire a plain AND system's gate should write: the z of its own bit.
+word _and-target(circuit: Circuit, g: Int) -> String
+    let x = _x-input(circuit, g)
+    "z" + text.slice(x, 1, text.length(x))
+
+## A plain AND system's answer: every misplaced gate pairs with the gate holding its z wire, with at least one pair.
+word _and-answer(circuit: Circuit) -> Outcome
+    let index = _index(circuit)
+    let moved: List<String> = []
+    let done: Map<String, Bool> = {}
+    var ok = true
+    var pairs = 0
+    for g in range(0, list.length(circuit.ops))
+        let want = _and-target(circuit, g)
+        if circuit.outs[g] != want and not map.contains(done, circuit.outs[g])
+            let h = _at(index.origin, want)
+            if h >= 0 and h != g and _and-target(circuit, h) == circuit.outs[g]
+                done[circuit.outs[g]] = true
+                done[want] = true
+                let a = list.append(moved, circuit.outs[g])
+                let b = list.append(moved, want)
+                pairs = pairs + 1
+            else
+                ok = false
+    if not ok
+        Outcome.Refused("the AND system's misplaced gates do not pair up")
+    elif pairs == 0
+        Outcome.Refused("the AND system has no swapped pair")
+    else
+        Outcome.Answer(text.join(list.sort(moved), ","))
+
+## Part two: the names of the swapped wires sorted and comma-joined, or the reason the wiring is refused.
+word solve(circuit: Circuit) -> Outcome
+    if _and-system(circuit)
+        _and-answer(circuit)
+    else
+        let index = _index(circuit)
+        if index.bits < 2
+            Outcome.Refused("the wiring has fewer than two input bits")
+        elif list.any(index.digits, _missing(_)) or list.any(index.generates, _missing(_))
+            Outcome.Refused("a bit has no digit XOR or generate AND gate")
+        else
+            _certify(_repair(_start(circuit, index), index), index)
+
+## Part two's answer line: the swapped wire names, or "pending" when the wiring is refused.
+word part-two(circuit: Circuit) -> String
+    match solve(circuit)
+        case Outcome.Answer(names)
+            names
+        case Outcome.Refused(reason)
+            "pending"
+
 # Advent of Code 2024, day 24 — Crossed Wires.
-# Reads the wiring from stdin until end of input, prints part one's answer;
-# part two (the four swapped output pairs of the ripple-carry adder) is
-# honestly pending — see docs/aoc-2024.md day 24 and its gap ticket.
+# Reads the wiring from stdin until end of input, prints both answers. A
+# refused wiring prints "pending" and, on the next line, the reason.
 
 word main()
     # shortcut: wire lines never match this sentinel; it stands in for the
@@ -98,4 +556,9 @@ word main()
             let added = buffer.add-line(input, line)
     let circuit = parse(buffer.to-text(input))
     print(part-one(circuit))
-    print "pending"
+    match solve(circuit)
+        case Outcome.Answer(names)
+            print names
+        case Outcome.Refused(reason)
+            print "pending"
+            print reason

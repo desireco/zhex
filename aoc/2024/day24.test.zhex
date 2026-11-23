@@ -1,8 +1,191 @@
 use day24
 use test
 
-let sample = "x00: 1\nx01: 0\nx02: 1\nx03: 1\nx04: 0\ny00: 1\ny01: 1\ny02: 1\ny03: 1\ny04: 1\n\nntg XOR fgs -> mjb\ny02 OR x01 -> tnw\nkwq OR kpj -> z05\nx00 OR x03 -> fst\ntgd XOR rvg -> z01\nvdt OR tnw -> bfw\nbfw AND frj -> z10\nffh OR nrd -> bqk\ny00 AND y03 -> djm\ny03 OR y00 -> psh\nbqk OR frj -> z08\ntnw OR fst -> frj\ngnj AND tgd -> z11\nbfw XOR mjb -> z00\nx03 OR x00 -> vdt\ngnj AND wpb -> z02\nx04 AND y00 -> kjc\ndjm OR pbm -> qhw\nnrd AND vdt -> hwm\nkjc AND fst -> rvg\ny04 OR y02 -> fgs\ny01 AND x02 -> pbm\nntg OR kjc -> kwq\npsh XOR fgs -> tgd\nqhw XOR tgd -> z09\npbm OR djm -> kpj\nx03 XOR y03 -> ffh\nx00 XOR y04 -> ntg\nbfw OR bqk -> z06\nnrd XOR fgs -> wpb\nfrj XOR qhw -> z04\nbqk OR frj -> z07\ny03 OR x01 -> nrd\nhwm AND bqk -> z03\ntgd XOR rvg -> z12\ntnw OR pbm -> gnj"
-let circuit = day24.parse(sample)
+# One swapped output pair: a kind and the stage it sits in. The four kinds the
+# puzzle's inputs carry, one swap of each: ZA a z wire with its stage's
+# generate AND, ZE a z wire with its stage's carry AND, ZC a z wire with its
+# stage's carry-out, DA a digit XOR with its stage's generate AND. EA is a kind
+# outside them: a carry AND with a later stage's generate AND.
+type Swap = record
+    kind: String
+    stage: Int
 
-test.check(day24.part-one(circuit) == 2024, "day 24 part 1")
+type Built = record
+    text: String
+    names: String
+
+## The k-th internal wire name: three letters that never start with x, y, or z, placed by a step coprime to the 15548 such names, so names never collide and carry no meaning.
+word _name(k: Int, seed: Int) -> String
+    let placed = (k + 37 * seed) * 7513 % 15548
+    text.from-code-points([97 + placed / 676, 97 + (placed / 26) % 26, 97 + placed % 26])
+
+## A two-digit number.
+word _two(n: Int) -> String
+    text.pad-left(int.to-string(n), 2, "0")
+
+## The z wire of a bit.
+word _z(bit: Int) -> String
+    "z" + _two(bit)
+
+## A wire of the adder by role and stage: d the digit XOR, a the generate AND, e the carry AND, g the carry into a stage.
+word _wire(names: List<String>, bits: Int, role: String, stage: Int) -> String
+    if role == "d"
+        names[stage]
+    elif role == "a"
+        names[bits + stage]
+    elif role == "e"
+        names[2 * bits + stage - 1]
+    else
+        names[3 * bits + stage - 2]
+
+## The two wires a swap kind exchanges at a stage.
+word _swapped(names: List<String>, bits: Int, swap: Swap) -> List<String>
+    let stage = swap.stage
+    var first = ""
+    var second = ""
+    if swap.kind == "ZA"
+        first = _z(stage)
+        second = _wire(names, bits, "a", stage)
+    elif swap.kind == "ZE"
+        first = _z(stage)
+        second = _wire(names, bits, "e", stage)
+    elif swap.kind == "ZC"
+        first = _z(stage)
+        second = _wire(names, bits, "g", stage + 1)
+    elif swap.kind == "DA"
+        first = _wire(names, bits, "d", stage)
+        second = _wire(names, bits, "a", stage)
+    else
+        first = _wire(names, bits, "e", stage)
+        second = _wire(names, bits, "a", stage + 5)
+    [first, second]
+
+## The first gate writing a wire.
+word _writing(outs: List<String>, label: String) -> Int
+    var found = -1
+    for g in range(0, list.length(outs))
+        if found < 0 and outs[g] == label
+            found = g
+    found
+
+## A correct ripple-carry adder of the given width — a half adder at bit 0, full adders above it, the last carry on the top z wire — with the given output pairs swapped, and the swapped wires' names sorted and comma-joined.
+word build(bits: Int, seed: Int, swaps: List<Swap>) -> Built
+    let names: List<String> = []
+    for k in range(0, 4 * bits - 2)
+        let named = list.append(names, _name(k, seed))
+    let ins: List<String> = []
+    let outs: List<String> = []
+    let half-x = list.append(ins, "x00 XOR y00")
+    let half-z = list.append(outs, "z00")
+    let half-a = list.append(ins, "x00 AND y00")
+    let half-g = list.append(outs, _wire(names, bits, "g", 1))
+    for stage in range(1, bits)
+        let x = "x" + _two(stage)
+        let y = "y" + _two(stage)
+        let d = _wire(names, bits, "d", stage)
+        let a = _wire(names, bits, "a", stage)
+        let e = _wire(names, bits, "e", stage)
+        let g = _wire(names, bits, "g", stage)
+        var carry-out = _z(bits)
+        if stage < bits - 1
+            carry-out = _wire(names, bits, "g", stage + 1)
+        let gx = list.append(ins, x + " XOR " + y)
+        let ox = list.append(outs, d)
+        let ga = list.append(ins, x + " AND " + y)
+        let oa = list.append(outs, a)
+        let gs = list.append(ins, d + " XOR " + g)
+        let os = list.append(outs, _z(stage))
+        let ge = list.append(ins, d + " AND " + g)
+        let oe = list.append(outs, e)
+        let gc = list.append(ins, a + " OR " + e)
+        let oc = list.append(outs, carry-out)
+    let moved: List<String> = []
+    for swap in swaps
+        let wires = _swapped(names, bits, swap)
+        let first = _writing(outs, wires[0])
+        let second = _writing(outs, wires[1])
+        outs[first] = wires[1]
+        outs[second] = wires[0]
+        let m1 = list.append(moved, wires[0])
+        let m2 = list.append(moved, wires[1])
+    let lines: List<String> = []
+    for bit in range(0, bits)
+        let lx = list.append(lines, "x" + _two(bit) + ": " + (bit + seed) % 2)
+        let ly = list.append(lines, "y" + _two(bit) + ": " + (bit + seed + 1) % 2)
+    let blank = list.append(lines, "")
+    for g in range(0, list.length(ins))
+        let line = list.append(lines, ins[g] + " -> " + outs[g])
+    Built(text.join(lines, "\n"), text.join(list.sort(moved), ","))
+
+## The solver names exactly the swapped wires.
+word expect-solved(built: Built, label: String) -> Unit
+    match day24.solve(day24.parse(built.text))
+        case day24.Outcome.Answer(names)
+            test.check(names == built.names, label)
+        case day24.Outcome.Refused(reason)
+            test.check(false, label + ": refused, " + reason)
+
+## The solver refuses the wiring instead of answering.
+word expect-refused(built: Built, label: String) -> Unit
+    match day24.solve(day24.parse(built.text))
+        case day24.Outcome.Answer(names)
+            test.check(false, label + ": answered " + names)
+        case day24.Outcome.Refused(reason)
+            test.check(true, label)
+
+# The part-two example from the puzzle page: a plain AND system, six gates,
+# two swapped pairs.
+let example = "x00: 0\nx01: 1\nx02: 0\nx03: 1\nx04: 0\nx05: 1\ny00: 0\ny01: 0\ny02: 1\ny03: 1\ny04: 0\ny05: 1\n\nx00 AND y00 -> z05\nx01 AND y01 -> z02\nx02 AND y02 -> z01\nx03 AND y03 -> z03\nx04 AND y04 -> z04\nx05 AND y05 -> z00"
+let example-circuit = day24.parse(example)
+test.check(day24.part-one(example-circuit) == 9, "day 24 part 2 example: part one")
+test.check(day24.part-two(example-circuit) == "z00,z01,z02,z05", "day 24 part 2 example: the swapped wires")
+
+# The part-one example: a 36-gate system that is not an adder, so part two
+# refuses it honestly.
+let first = "x00: 1\nx01: 0\nx02: 1\nx03: 1\nx04: 0\ny00: 1\ny01: 1\ny02: 1\ny03: 1\ny04: 1\n\nntg XOR fgs -> mjb\ny02 OR x01 -> tnw\nkwq OR kpj -> z05\nx00 OR x03 -> fst\ntgd XOR rvg -> z01\nvdt OR tnw -> bfw\nbfw AND frj -> z10\nffh OR nrd -> bqk\ny00 AND y03 -> djm\ny03 OR y00 -> psh\nbqk OR frj -> z08\ntnw OR fst -> frj\ngnj AND tgd -> z11\nbfw XOR mjb -> z00\nx03 OR x00 -> vdt\ngnj AND wpb -> z02\nx04 AND y00 -> kjc\ndjm OR pbm -> qhw\nnrd AND vdt -> hwm\nkjc AND fst -> rvg\ny04 OR y02 -> fgs\ny01 AND x02 -> pbm\nntg OR kjc -> kwq\npsh XOR fgs -> tgd\nqhw XOR tgd -> z09\npbm OR djm -> kpj\nx03 XOR y03 -> ffh\nx00 XOR y04 -> ntg\nbfw OR bqk -> z06\nnrd XOR fgs -> wpb\nfrj XOR qhw -> z04\nbqk OR frj -> z07\ny03 OR x01 -> nrd\nhwm AND bqk -> z03\ntgd XOR rvg -> z12\ntnw OR pbm -> gnj"
+let first-circuit = day24.parse(first)
+test.check(day24.part-one(first-circuit) == 2024, "day 24 part 1")
+test.check(day24.part-two(first-circuit) == "pending", "day 24 part 1 example: part two is pending")
+
+# Each kind the puzzle's inputs carry, four swaps of it at spaced stages.
+let kinds: List<String> = ["ZA", "ZE", "ZC", "DA"]
+let widths: List<Int> = [10, 24, 45]
+let seeds: List<Int> = [1, 2, 3]
+for kind in kinds
+    for bits in widths
+        for seed in seeds
+            let low = 1 + seed % 2
+            let swaps: List<Swap> = [Swap(kind, low), Swap(kind, low + 2), Swap(kind, low + 4), Swap(kind, low + 6)]
+            expect-solved(build(bits, seed, swaps), kind + " four times, " + bits + " bits, seed " + seed)
+
+# One swap of each kind, spread over the adder as the real inputs carry them.
+for bits in widths
+    for seed in [1, 2, 3, 4, 5]
+        let quarter = (bits - 2) / 4
+        let swaps: List<Swap> = [Swap("ZA", 1), Swap("ZE", 1 + quarter), Swap("ZC", 1 + 2 * quarter), Swap("DA", 1 + 3 * quarter)]
+        expect-solved(build(bits, seed, swaps), "one of each kind, " + bits + " bits, seed " + seed)
+
+# The same stage holding two swaps, and two swapped stages side by side.
+let together: List<Swap> = [Swap("ZC", 4), Swap("DA", 5), Swap("ZA", 9), Swap("ZE", 5)]
+expect-solved(build(12, 2, together), "a shared stage and adjacent stages")
+let neighbours: List<Swap> = [Swap("ZA", 2), Swap("ZE", 3), Swap("ZC", 7), Swap("DA", 8)]
+expect-solved(build(20, 3, neighbours), "two pairs of adjacent stages")
+
+# What the solver refuses: fewer or more than four swaps, and a kind outside
+# the ones the puzzle's inputs carry.
+expect-refused(build(45, 1, []), "a clean adder")
+expect-refused(build(45, 1, [Swap("ZA", 3), Swap("ZE", 14), Swap("ZC", 27)]), "three swaps")
+expect-refused(build(45, 1, [Swap("ZA", 1), Swap("ZE", 10), Swap("ZC", 20), Swap("DA", 30), Swap("ZA", 40)]), "five swaps")
+expect-refused(build(45, 1, [Swap("ZA", 3), Swap("ZE", 14), Swap("ZC", 27), Swap("EA", 36)]), "a carry AND with a later stage's generate AND")
+match day24.solve(day24.parse(build(45, 4, []).text))
+    case day24.Outcome.Answer(names)
+        test.check(false, "a clean adder: answered " + names)
+    case day24.Outcome.Refused(reason)
+        test.check(reason == "the repair moves 0 wires, not eight", "a clean adder: the reason")
+match day24.solve(day24.parse(build(45, 5, [Swap("ZA", 3), Swap("ZE", 14), Swap("ZC", 27), Swap("DA", 36), Swap("ZA", 8)]).text))
+    case day24.Outcome.Answer(names)
+        test.check(false, "five swaps: answered " + names)
+    case day24.Outcome.Refused(reason)
+        test.check(reason == "the wiring needs more than four swaps", "five swaps: the reason")
+
 print "day 24 tests passed"
