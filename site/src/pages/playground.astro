@@ -272,7 +272,8 @@ print(greet("you"))
         const stream = streams.get(message.id);
         if (stream) {
           if (stream.gen !== workerGen) { streams.delete(message.id); return; }
-          if (message.type === "result") streams.delete(message.id);
+          // The result ends the stream; so does the worker reporting it failed.
+          if (message.type === "result" || message.type === "error") streams.delete(message.id);
           stream.onEvent(message);
         }
       }
@@ -314,6 +315,9 @@ print(greet("you"))
         if (hadEntry) {
           transcriptBlock("The program was stopped. The session starts fresh — words defined earlier are gone.", "pg-out");
         }
+        // The clicked Stop is disabled now and lost the focus: hand it on
+        // to the control of the panel in front (a hidden one cannot take it).
+        (replPanel.hidden ? runButton : entry).focus();
       }
 
       runStop.addEventListener("click", stopRun);
@@ -455,6 +459,10 @@ print(greet("you"))
         }
         runActive = true;
         updateStopButtons();
+        // The pane stays usable during the run: it shows the run in
+        // progress, not the previous run's answer.
+        output.textContent = "";
+        diagnostics.textContent = "The program is running.";
         (async () => {
           try {
             await ensureWorker();
@@ -537,21 +545,34 @@ print(greet("you"))
                 else output.append(message.text);
                 return;
               }
+              if (message.type === "error") {
+                // The worker reports the run failed: the same recovery as
+                // the catch below, with its message shown.
+                resetLiveRun();
+                diagnostics.textContent = `The run failed — ${message.message}.`;
+                return;
+              }
               finishInteractive(source, message.result);
             });
             liveRun = true;
             for (const line of supplied) worker.postMessage({ type: "deliver", line });
             liveInput.focus();
           } catch (failure) {
-            runActive = false;
-            updateStopButtons();
-            liveRun = null;
-            liveBlock.hidden = true;
-            runButton.disabled = false;
+            resetLiveRun();
             if (failure === stopError) return; // the stop already said so
             diagnostics.textContent = `The interactive run could not start — ${failure.message}.`;
           }
         })();
+      }
+
+      // A live run that ends without a result — it could not start, or the
+      // worker reported it failed — leaves the pane ready for the next run.
+      function resetLiveRun() {
+        runActive = false;
+        updateStopButtons();
+        liveRun = null;
+        liveBlock.hidden = true;
+        runButton.disabled = false;
       }
 
       function finishInteractive(source, result) {
@@ -715,7 +736,7 @@ print(greet("you"))
           const answer = await call({ type: "words" });
           transcriptBlock(answer.list.join("\n"), "pg-out");
         } catch (failure) {
-          if (failure !== stopError) transcriptBlock(failure === loadError ? loadFailedCopy : String(failure), "pg-fail");
+          if (failure !== stopError) transcriptBlock(failure === loadError ? loadFailedCopy : failure.message, "pg-fail");
         }
       }
 
@@ -746,7 +767,7 @@ print(greet("you"))
           }
         } catch (failure) {
           if (failure === stopError) return; // the stop already said so
-          transcriptBlock(failure === loadError ? loadFailedCopy : String(failure), "pg-fail");
+          transcriptBlock(failure === loadError ? loadFailedCopy : failure.message, "pg-fail");
         }
       }
 
@@ -820,7 +841,9 @@ print(greet("you"))
               return;
             }
             const probe = await askProbe(value);
-            if (!probe) return;
+            // A stop (null), or an Enter superseded by typing that came
+            // while the probe waited: the box keeps what was typed since.
+            if (!probe || entry.value !== value) return;
             if (probe.incomplete) {
               pending = true;
               openDelimiter = probe.delimiter !== null && probe.delimiter !== undefined;
@@ -846,6 +869,7 @@ print(greet("you"))
               return;
             }
             const probe = await askProbe(value);
+            if (entry.value !== value) return; // superseded by later typing, the entry stays pending
             if (!probe) {
               pending = false;
               blockPending = false;
@@ -869,7 +893,7 @@ print(greet("you"))
           entry.value = "";
           queueRepl(() => fireEntry(before));
         } catch (failure) {
-          if (failure !== stopError) transcriptBlock(failure === loadError ? loadFailedCopy : String(failure), "pg-fail");
+          if (failure !== stopError) transcriptBlock(failure === loadError ? loadFailedCopy : failure.message, "pg-fail");
         } finally {
           submitting = false;
         }
