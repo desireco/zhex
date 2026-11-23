@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"zhex/internal/lang"
@@ -30,14 +31,20 @@ func (e *MissingToolError) Error() string {
 }
 
 // Compile checks the source, emits the Go program under outDir, and
-// builds the binary named after outDir with `go build`. Checker errors
-// pass through unchanged so the CLI renders them exactly as run does;
-// without go on PATH the sources are still written and the returned
-// MissingToolError names the build. Cross-compilation follows
-// GOOS/GOARCH, which the toolchain reads from the environment.
+// builds the binary named after outDir (.exe on a Windows target) with
+// `go build`. Checker errors pass through unchanged so the CLI renders
+// them exactly as run does; without go on PATH the sources are still
+// written and the returned MissingToolError names the build.
+// Cross-compilation follows GOOS/GOARCH, which the toolchain reads from
+// the environment.
 func Compile(path, source, outDir string, resolve func(string) (lang.ModuleSource, bool)) error {
 	mainGo, err := lang.CompileNativeSource(path, source, resolve)
 	if err != nil {
+		return err
+	}
+	// rewrite the runtime directory from scratch: a file left by an
+	// earlier run must never join this build
+	if err := os.RemoveAll(filepath.Join(outDir, "zhexrt")); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(outDir, "zhexrt"), 0o755); err != nil {
@@ -59,11 +66,30 @@ func Compile(path, source, outDir string, resolve func(string) (lang.ModuleSourc
 	if err != nil {
 		return &MissingToolError{Dir: outDir}
 	}
-	binary := filepath.Base(filepath.Clean(outDir))
+	binary := binaryName(outDir)
 	build := exec.Command(tool, "build", "-o", binary, ".")
 	build.Dir = outDir
 	if out, err := build.CombinedOutput(); err != nil {
 		return fmt.Errorf("go build failed: %s", strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// buildTarget answers the GOOS the toolchain will build for: the
+// environment's GOOS when cross-compiling, else this process's.
+func buildTarget() string {
+	if goos := os.Getenv("GOOS"); goos != "" {
+		return goos
+	}
+	return runtime.GOOS
+}
+
+// binaryName is the built artifact's file name — outDir's base, plus .exe
+// for a Windows target so the file runs there.
+func binaryName(outDir string) string {
+	name := filepath.Base(filepath.Clean(outDir))
+	if buildTarget() == "windows" {
+		return name + ".exe"
+	}
+	return name
 }

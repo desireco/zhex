@@ -151,6 +151,48 @@ func TestNativeMissingGoWritesSources(t *testing.T) {
 	}
 }
 
+// TestNativeRebuildReplacesStaleRuntime: compiling again into the same
+// directory is the normal rebuild — the runtime directory is rewritten from
+// scratch, so files from an earlier run never join the build.
+func TestNativeRebuildReplacesStaleRuntime(t *testing.T) {
+	requireGo(t)
+	outDir := filepath.Join(t.TempDir(), "program")
+	if err := Compile("program.zhex", "print(\"one\")\n", outDir, nil); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(outDir, "zhexrt", "stale.go")
+	if err := os.WriteFile(stale, []byte("this is not Go source\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outDir, "zhexrt", "int.go"), []byte("package zhexrt\n\n// an obsolete copy\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Compile("program.zhex", "print(\"two\")\n", outDir, nil); err != nil {
+		t.Fatalf("rebuild over a stale runtime: %v", err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale runtime file survived the rebuild: %v", err)
+	}
+	out, diag, code := runBinary(t, filepath.Join(outDir, binaryName(outDir)), "")
+	if out != "two\n" || diag != "" || code != 0 {
+		t.Fatalf("stdout=%q stderr=%q status=%d", out, diag, code)
+	}
+}
+
+// TestBinaryNameSuffixesWindowsTargets: the built file needs .exe to run on
+// Windows; the target GOOS is the environment's when cross-compiling, else
+// the host's.
+func TestBinaryNameSuffixesWindowsTargets(t *testing.T) {
+	t.Setenv("GOOS", "windows")
+	if got := binaryName(filepath.Join("out", "program")); got != "program.exe" {
+		t.Fatalf("windows target binary name = %q, want program.exe", got)
+	}
+	t.Setenv("GOOS", "linux")
+	if got := binaryName(filepath.Join("out", "program")); got != "program" {
+		t.Fatalf("linux target binary name = %q, want program", got)
+	}
+}
+
 // TestNativeRuntimeDiagnostics pins the M4 contract on explicit failure
 // fixtures: runtime errors render exactly as zhex run's diagnostics —
 // first line, source excerpt, caret — never raw Go panics, and the exit
