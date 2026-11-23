@@ -672,6 +672,19 @@ func (c *checker) withStepError(step *expression, namespace string) error {
 	return errorAt(step.pos, CodeWithStep, "with step %q resolves neither as %q nor as a word in scope", step.text, namespace+"."+step.text)
 }
 
+// checkWithStep is the with-step resolution rule in one place: qualify the
+// step namespace-first, then fail with-step when the name answers neither
+// as a word/constructor nor in the caller's scope. The inference and
+// checking passes share it; each passes its own scope probe because they
+// keep different scope shapes.
+func (c *checker) checkWithStep(step *expression, namespace string, inScope func(string) bool) error {
+	c.qualifyWithStep(step, namespace)
+	if !c.stepNameResolves(step.text) && !inScope(step.text) {
+		return c.withStepError(step, namespace)
+	}
+	return nil
+}
+
 // rewriteWithSteps qualifies every with-block step name ahead of the passes
 // that read step names — inference, effect collection, and body checking —
 // so they all see the same final spelling. Rewrite-only: the neither-place
@@ -986,9 +999,8 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 				return "", errorAt(step.pos, CodeArgumentType, "named arguments cannot be used in a flow step")
 			}
 			if s.with != "" {
-				c.qualifyWithStep(step, s.with)
-				if !c.stepNameResolves(step.text) && env.find(step.text) == nil {
-					return "", c.withStepError(step, s.with)
+				if err := c.checkWithStep(step, s.with, func(name string) bool { return env.find(name) != nil }); err != nil {
+					return "", err
 				}
 			}
 			if step.propagate && isCheckedCollectionOperation(step.text) {

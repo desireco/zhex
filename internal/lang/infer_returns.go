@@ -189,10 +189,9 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 		value := seed
 		for _, step := range stmt.steps {
 			if stmt.with != "" {
-				s.checker.qualifyWithStep(step, stmt.with)
-				if !s.checker.stepNameResolves(step.text) && env[step.text] == nil {
+				if err := s.checker.checkWithStep(step, stmt.with, func(name string) bool { return env[name] != nil }); err != nil {
 					if s.err == nil {
-						s.err = s.checker.withStepError(step, stmt.with)
+						s.err = err
 					}
 					return freshType()
 				}
