@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { inline } from "../inline.mjs";
+import { row } from "../inline.mjs";
 import data from "../../data.json";
 const sections = data.Roadmap.Sections;
 const done = sections[0];
@@ -17,7 +17,7 @@ const done = sections[0];
     <section class={`section roadmap-section ${section.Title === "Next" ? "next" : ""}`} aria-labelledby={`stage-${section.Title}`}>
       <div class="wrap roadmap-stage">
         <div><p class="eyebrow">{section.Title}</p><h2 id={`stage-${section.Title}`}>{section.Title === "Next" ? "Make it useful day to day." : "Room to grow."}</h2><p class="aside">{section.Summary}</p></div>
-        <ul>{section.Items.map(item => <li>{item.Lead ? <Fragment><strong>{item.Lead}</strong>: </Fragment> : null}<Fragment set:html={inline(item.Text)} />{(item.facts ?? []).length > 0 && <ul class="facts">{item.facts.map(fact => <li set:html={inline(fact)} />)}</ul>}</li>)}</ul>
+        <ul>{section.Items.map(item => <li set:html={row(item)} />)}</ul>
       </div>
     </section>
     ))}
