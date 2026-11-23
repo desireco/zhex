@@ -151,38 +151,43 @@ word _title-page(title: String, lines: List<String>) -> String
 ## page draws the 24pt title with the first body-lines - 2 wrapped lines
 ## beside it (the title's height rides above the budget), and continuation
 ## pages are plain 12pt text-blocks of body-lines lines each. Returns one
-## content-ops string per page, escaping already applied.
+## content-ops string per page, escaping already applied. A body-lines
+## below one with chapters to place fails pdf-body-lines instead of
+## building empty pages until the collection limit.
 word book-pages(chapters: List<Chapter>, width: Int, body-lines: Int) -> Result<List<String>, Error>
-    var pages: List<String> = list.new()
-    var body: List<String> = list.new()
-    var page-lines: List<String> = list.new()
-    for c in chapters
-        let lines = chapter-lines(c, width) try
-        body = list.new()
-        var i = 2
-        while i < list.length(lines)
-            body = list.append(body, lines[i])
-            i = i + 1
-        var at = 0
-        var title-page = true
-        while title-page or at < list.length(body)
-            var room = body-lines
-            if title-page
-                room = body-lines - 2
-            if room < 0
-                room = 0
-            page-lines = list.new()
-            var n = 0
-            while n < room and at < list.length(body)
-                page-lines = list.append(page-lines, body[at])
-                at = at + 1
-                n = n + 1
-            if title-page
-                pages = list.append(pages, _title-page(lines[0], page-lines))
-                title-page = false
-            else
-                pages = list.append(pages, text-block(12, 14, page-lines) try)
-    ok(pages)
+    if body-lines < 1 and list.length(chapters) > 0
+        err(error.new("pdf-body-lines", "body-lines must be at least one line per page"))
+    else
+        var pages: List<String> = list.new()
+        var body: List<String> = list.new()
+        var page-lines: List<String> = list.new()
+        for c in chapters
+            let lines = chapter-lines(c, width) try
+            body = list.new()
+            var i = 2
+            while i < list.length(lines)
+                body = list.append(body, lines[i])
+                i = i + 1
+            var at = 0
+            var title-page = true
+            while title-page or at < list.length(body)
+                var room = body-lines
+                if title-page
+                    room = body-lines - 2
+                if room < 0
+                    room = 0
+                page-lines = list.new()
+                var n = 0
+                while n < room and at < list.length(body)
+                    page-lines = list.append(page-lines, body[at])
+                    at = at + 1
+                    n = n + 1
+                if title-page
+                    pages = list.append(pages, _title-page(lines[0], page-lines))
+                    title-page = false
+                else
+                    pages = list.append(pages, text-block(12, 14, page-lines) try)
+        ok(pages)
 
 ## The whole book as one document string: catalog, page tree with every
 ## kid, the shared Helvetica font, then page and content objects pairwise

@@ -108,6 +108,11 @@ for p in pages
         title-pages = title-pages + 1
 test.check(title-pages == 3, "one title page per chapter, three chapters")
 
+# body-lines below one with chapters to place fails instead of looping
+# empty pages to the collection limit
+let no-lines = pdf.book-pages(chapters, 20, 0) catch ["failed"]
+test.check(list.length(no-lines) == 1 and list.contains(no-lines, "failed"), "body-lines below one fails pdf-body-lines")
+
 # the whole book: page tree counts the pages, and the xref law holds
 let book = pdf.book(chapters, 20, 4) try
 test.check(text.contains(book, "/Count 5"), "the page tree counts five pages")
