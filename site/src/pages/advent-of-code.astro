@@ -20,12 +20,12 @@ const years = [...new Set(days.map(day => day.Year))];
 const teaserYear = years[years.length - 1] + 1;
 const latestYear = years[years.length - 1];
 ---
-<Base title="Advent of Code — Zhex" description="Advent of Code puzzles solved in Zhex — three archive years, with the next one starting each December." current="advent-of-code">
+<Base title="Advent of Code — Zhex" description={`Advent of Code puzzles solved in Zhex — ${years.length} archive years, with the next one starting each December.`} current="advent-of-code">
   <main id="main" class="wrap">
     <section class="page-intro aoc-intro">
-      <p class="eyebrow">The archive: 2023, 2024, 2025</p>
+      <p class="eyebrow">The archive: {years.join(", ")}</p>
       <h1 id="aoc-title">Advent of Code.</h1>
-      <p class="lede">Each December we work through that year's Advent of Code puzzles in Zhex, one small program per day; three archive years are here so far. Every door links to its puzzle on adventofcode.com, with our own summary of what the puzzle asks — most days cover both parts, and every part appears only after it is solved there.</p>
+      <p class="lede">Each December we work through that year's Advent of Code puzzles in Zhex, one small program per day; {years.length} archive years are here so far. Every door links to its puzzle on adventofcode.com, with our own summary of what the puzzle asks — most days cover both parts, and every part appears only after it is solved there.</p>
     </section>
 
     <div class="aoc-tabs" role="tablist" aria-label="Advent of Code years">
@@ -129,9 +129,12 @@ const latestYear = years[years.length - 1];
         });
       });
 
-      // A #tab-id hash opens that year directly, so year links are shareable.
-      const initial = tabs.findIndex(tab => tab.id === location.hash.slice(1));
-      if (initial > 0) select(initial, false);
+      // A #aoc-tab-<year> or #aoc-day-<year>-<n> hash opens that year's tab
+      // first — this module script runs before the browser scrolls to the
+      // fragment — so a year or day link is shareable.
+      const day = /^#aoc-day-(\d+)-/.exec(location.hash);
+      const initial = tabs.findIndex(tab => tab.id === (day ? `aoc-tab-${day[1]}` : location.hash.slice(1)));
+      if (initial !== -1) select(initial, false);
     </script>
 
     <script>

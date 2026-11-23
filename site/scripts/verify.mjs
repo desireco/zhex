@@ -85,6 +85,7 @@ for (const year of years) {
 }
 const teaserYear = years[years.length - 1] + 1;
 assert(aoc.includes(`id="aoc-tab-${teaserYear}"`), `teaser year ${teaserYear} tab renders`);
+assert(aoc.includes(`The archive: ${years.join(", ")}`) && aoc.includes(`${years.length} archive years`), 'the eyebrow and lede name the archive years from the data, not by hand');
 // #128: the page mounts a run panel exactly on wasm-backed doors and the
 // fence note exactly on fenced ones — empty and working doors render
 // neither, so the counts must track the data.
