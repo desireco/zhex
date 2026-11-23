@@ -70,12 +70,13 @@ for (const entry of search) {
 }
 const roadmap = await read('roadmap.html');
 for (const cssClass of ['roadmap-section done', 'roadmap-section next']) assert(roadmap.includes(cssClass), `${cssClass} styling`);
-// #126: the AoC page renders one door per Aoc row, both year tabs, and the
-// exact honest status labels; no door count is hardcoded.
+// #126: the AoC page renders one door per Aoc row, the year tabs in both
+// selected and unselected states, and the exact honest status labels; no door
+// count is hardcoded.
 const aoc = await read('advent-of-code.html');
 assert.equal((aoc.match(/class="aoc-door"/g) || []).length, data.Aoc.length, 'one door per AoC day');
 assert(aoc.includes('Starts December 1'), '2026 tab teaser');
-assert(aoc.includes('aria-selected="true"') && aoc.includes('aria-selected="false"'), 'both year tabs render');
+assert(aoc.includes('aria-selected="true"') && aoc.includes('aria-selected="false"'), 'year tabs render selected and unselected');
 if (data.Aoc.some((day) => day.Status === 'empty')) assert(aoc.includes('Not solved yet'), 'honest empty status label');
 assert(aoc.includes('Show solution'), 'solution reveal per day');
 for (const day of data.Aoc) assert(aoc.includes(`id="aoc-day-${day.Year}-${day.Day}"`) && aoc.includes(day.OfficialURL), `day ${day.Year}-${day.Day} view`);

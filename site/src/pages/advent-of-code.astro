@@ -103,8 +103,8 @@ const latestYear = years[years.length - 1];
     </script>
 
     <script>
-      // Two year tabs (#126): click or arrow keys move the selection, and
-      // the hidden panels keep the page one document for find-in-page.
+      // Year tabs (#126): click or arrow keys move the selection, and the
+      // hidden panels keep the page one document for find-in-page.
       const tabs = [...document.querySelectorAll('.aoc-tab')];
       const panels = tabs.map(tab => document.getElementById(tab.getAttribute('aria-controls')));
 
