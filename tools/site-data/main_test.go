@@ -755,3 +755,150 @@ func TestArtifactHashTracksCommentedTransitiveImports(t *testing.T) {
 		t.Fatal("changing a module imported beside a comment did not invalidate the artifact")
 	}
 }
+
+// The oracle check compares the oracle's lines with the recorded answers but
+// never looked at the status: a solved row could record "pending" for part 2
+// and still render as solved. Only a part1 row may carry it.
+func TestLoadAocRejectsPendingAnswerOnASolvedDay(t *testing.T) {
+	root := t.TempDir()
+	write := func(name, contents string) {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("aoc/2023/samples/day01.txt", "5\n")
+	write("aoc/2023/day01.zhex", "print(10)\nprint(\"pending\")\n")
+
+	original := aocSpecs
+	defer func() { aocSpecs = original }()
+	specs := emptyYear(2023, 1)
+	specs[0].answers = []string{"10", "pending"}
+	aocSpecs = specs
+
+	specs[0].status = "solved"
+	if _, err := loadAoc(root); err == nil || !strings.Contains(err.Error(), "2023") || !strings.Contains(err.Error(), "day 1") || !strings.Contains(err.Error(), "pending") {
+		t.Fatalf("solved day recording a pending answer was accepted: %v", err)
+	}
+	specs[0].status = "part1"
+	if _, err := loadAoc(root); err != nil {
+		t.Fatalf("part1 day recording a pending answer is the honest convention: %v", err)
+	}
+}
+
+// A missing imported module is the compiler's to report: hashing must not
+// fail first with a bare read error, or the checker's own diagnostic never
+// appears. The absent file stays out of the hash, so one that appears later
+// still invalidates the artifact.
+func TestWasmCacheLetsTheCompilerReportAMissingModule(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "main.zhex")
+	source := "use missing\nprint(missing.answer())\n"
+	before, err := artifactHash(path, source, "fp")
+	if err != nil {
+		t.Fatalf("hashing a source whose module is absent: %v", err)
+	}
+	cache := &wasmCache{dir: dir, fresh: true, entries: map[string]cacheEntry{}, current: map[string]bool{}, fp: "fp"}
+	_, err = cache.compile("main.wasm", path, source, "example main.zhex")
+	if err == nil || !strings.Contains(err.Error(), `module "missing" not found`) || strings.Contains(err.Error(), "no such file") {
+		t.Fatalf("missing module error = %v; want the compiler's own diagnostic", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "missing.zhex"), []byte("word answer() -> Int\n    1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, err := artifactHash(path, source, "fp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Fatal("a module appearing later did not change the hash")
+	}
+}
+
+// An example deleted or newly fenced keeps its old .wasm in the artifact dir
+// forever without this, and the verify step then fails the build on the stale
+// artifact until someone deletes it by hand. Only artifacts go: anything else
+// in the dir is not this tool's to remove.
+func TestWasmCachePrunesArtifactsOutsideTheCurrentSet(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"kept.wasm", "deleted-example.wasm", "newly-fenced.wasm", ".manifest.json", "notes.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cache := &wasmCache{dir: dir, current: map[string]bool{"kept.wasm": true}}
+	if err := cache.prune(); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	// os.ReadDir sorts: the survivors are the kept artifact and the one file
+	// this tool never wrote.
+	if strings.Join(names, " ") != "kept.wasm notes.txt" {
+		t.Fatalf("artifact dir holds %v after pruning; want kept.wasm and notes.txt only", names)
+	}
+}
+
+// The manifest is the cache's bookkeeping, not a site asset: it used to sit
+// inside the artifact dir under site/public/, where Astro copied it into the
+// published site. It is written outside that dir, and the production path
+// stays under site/, outside site/public/, and gitignored.
+func TestWasmManifestStaysOutOfThePublishedTree(t *testing.T) {
+	// newWasmCache fingerprints the compiler packages, which sit at the repo
+	// root, not under this package's directory.
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(original)
+
+	dir := t.TempDir()
+	manifest := filepath.Join(t.TempDir(), "manifest.json")
+	cache, err := newWasmCache(dir, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache.entries["hello.wasm"] = cacheEntry{Hash: "h"}
+	if err := cache.save(); err != nil {
+		t.Fatal(err)
+	}
+	if entries, err := os.ReadDir(dir); err != nil || len(entries) != 0 {
+		t.Fatalf("artifact dir holds %v (%v); the manifest belongs outside it", entries, err)
+	}
+	if _, err := os.Stat(manifest); err != nil {
+		t.Fatalf("manifest was not written where it was told: %v", err)
+	}
+	reloaded, err := newWasmCache(dir, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry, ok := reloaded.entries["hello.wasm"]; !ok || entry.Hash != "h" {
+		t.Fatalf("saved manifest did not reload: %+v", reloaded.entries)
+	}
+	if !strings.HasPrefix(wasmManifestPath, "site/") || strings.HasPrefix(wasmManifestPath, "site/public/") {
+		t.Fatalf("wasm manifest path %q must sit under site/ but outside site/public/", wasmManifestPath)
+	}
+	ignore, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(ignore), "/"+wasmManifestPath+"\n") {
+		t.Fatalf(".gitignore has no /%s entry", wasmManifestPath)
+	}
+}

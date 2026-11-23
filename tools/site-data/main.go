@@ -776,7 +776,8 @@ func loadAoc(root string) ([]AocDay, error) {
 			// Fenced days escape the wasm verify loop, so the recorded
 			// answers are pinned here: the oracle's stdout lines must equal
 			// the row's ExpectedAnswers positionally (2024 day 24 prints
-			// "pending" for its honestly-unsolved part 2).
+			// "pending" for its honestly-unsolved part 2), and only a part1
+			// row may record one.
 			if len(spec.answers) == 0 {
 				return nil, fmt.Errorf("aoc %d day %d: %s day needs expected answers for the oracle check", spec.year, spec.day, spec.status)
 			}
@@ -785,6 +786,9 @@ func loadAoc(root string) ([]AocDay, error) {
 				part := at + 1
 				if part > len(lines) || strings.TrimSpace(lines[at]) != strings.TrimSpace(answer) {
 					return nil, fmt.Errorf("aoc %d day %d: expected answer for part %d is %q but the oracle printed %q", spec.year, spec.day, part, answer, strings.Join(lines, "\n"))
+				}
+				if answer == "pending" && spec.status != "part1" {
+					return nil, fmt.Errorf("aoc %d day %d: a %s day cannot record a pending answer for part %d; only a part1 day can", spec.year, spec.day, spec.status, part)
 				}
 			}
 			day.Code = string(highlight(string(source)))
@@ -820,22 +824,29 @@ type cacheEntry struct {
 // sources, and the Go toolchain version. A hash miss, a missing or empty
 // artifact, or any manifest doubt recompiles.
 type wasmCache struct {
-	dir     string
-	fresh   bool
-	fp      string
-	entries map[string]cacheEntry
+	dir      string
+	manifest string
+	fresh    bool
+	fp       string
+	entries  map[string]cacheEntry
+	// current names the artifacts this build names; prune removes the rest.
+	current map[string]bool
 	rebuilt int
 	total   int
 }
 
-func newWasmCache(dir string) (*wasmCache, error) {
+// wasmManifestPath records the cache's hashes. It sits outside site/public/,
+// which Astro copies into the published site, and is gitignored.
+const wasmManifestPath = "site/.wasm-manifest.json"
+
+func newWasmCache(dir, manifest string) (*wasmCache, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	c := &wasmCache{dir: dir, fresh: os.Getenv("ZHEX_WASM_FRESH") != "", entries: map[string]cacheEntry{}}
+	c := &wasmCache{dir: dir, manifest: manifest, fresh: os.Getenv("ZHEX_WASM_FRESH") != "", entries: map[string]cacheEntry{}, current: map[string]bool{}}
 	if !c.fresh {
 		// A manifest that fails to read or parse stays empty: full rebuild.
-		if b, err := os.ReadFile(filepath.Join(dir, ".manifest.json")); err == nil {
+		if b, err := os.ReadFile(manifest); err == nil {
 			json.Unmarshal(b, &c.entries)
 		}
 	}
@@ -852,6 +863,7 @@ func newWasmCache(dir string) (*wasmCache, error) {
 // diagnostic for out-of-subset sources. label names the artifact in errors.
 func (c *wasmCache) compile(name, path, source, label string) (string, error) {
 	c.total++
+	c.current[name] = true
 	hash, err := artifactHash(path, source, c.fp)
 	if err != nil {
 		return "", err
@@ -884,7 +896,30 @@ func (c *wasmCache) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(c.dir, ".manifest.json"), b, 0o644)
+	return os.WriteFile(c.manifest, b, 0o644)
+}
+
+// prune removes what the current set no longer names: an example deleted or
+// newly fenced kept its .wasm forever otherwise, and the verify step then
+// failed the build on the stale artifact until someone deleted it by hand.
+// The manifest this tool used to keep here, which Astro copied into the
+// published site, goes with it. Nothing else in the dir is this tool's to
+// remove.
+func (c *wasmCache) prune() error {
+	entries, err := os.ReadDir(c.dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if c.current[name] || (!strings.HasSuffix(name, ".wasm") && name != ".manifest.json") {
+			continue
+		}
+		if err := os.Remove(filepath.Join(c.dir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // artifactFresh requires a non-empty regular file; anything else recompiles.
@@ -906,7 +941,7 @@ func compilerFingerprint() (string, error) {
 			if err != nil {
 				return err
 			}
-			if d.IsDir() || d.Name() == "main_test.go" || strings.HasSuffix(d.Name(), "_test.go") {
+			if d.IsDir() || strings.HasSuffix(d.Name(), "_test.go") {
 				return nil
 			}
 			b, err := os.ReadFile(path)
@@ -955,8 +990,8 @@ func moduleDeps(path, source string, seen map[string]bool) error {
 		seen[modPath] = true
 		b, err := os.ReadFile(modPath)
 		if err != nil {
-			// The compile itself reports the missing module loudly; here
-			// the name still contributes its (absent) bytes to the hash.
+			// Absent: the compile reports the missing module with its own
+			// diagnostic, which hashing must not pre-empt.
 			continue
 		}
 		if err := moduleDeps(modPath, string(b), seen); err != nil {
@@ -983,6 +1018,9 @@ func artifactHash(path, source, fp string) (string, error) {
 	sort.Strings(names)
 	for _, n := range names {
 		b, err := os.ReadFile(n)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue // the compile reports an absent module with its own diagnostic
+		}
 		if err != nil {
 			return "", err
 		}
@@ -995,11 +1033,12 @@ func artifactHash(path, source, fp string) (string, error) {
 // artifact into dir (flat names: modules/main becomes modules-main.wasm,
 // demos join as demo-<id>.wasm) and records on the matching Example the
 // relative artifact URL (Wasm) or the fence diagnostic message (WasmNote),
-// skipping artifacts whose inputs are unchanged since the last run.
+// skipping artifacts whose inputs are unchanged since the last run; when it
+// returns, dir holds exactly the current artifacts.
 // Any other failure — a missing assembler, an emitter bug — fails the build
 // loudly: no silent button-less site.
 func compileExamples(data *pageData, dir string) error {
-	cache, err := newWasmCache(dir)
+	cache, err := newWasmCache(dir, wasmManifestPath)
 	if err != nil {
 		return err
 	}
@@ -1058,6 +1097,9 @@ func compileExamples(data *pageData, dir string) error {
 		} else {
 			data.Aoc[i].WasmNote = note
 		}
+	}
+	if err := cache.prune(); err != nil {
+		return err
 	}
 	if err := cache.save(); err != nil {
 		return err
