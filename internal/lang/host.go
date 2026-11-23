@@ -372,37 +372,20 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 	case "text.index-of":
 		return value{number: zhexrt.TextIndexOf(args[0].text, args[1].text)}, nil
 	case "text.slice":
-		runes := []rune(args[0].text)
-		start, end := args[1].number, args[2].number
-		length := zhexrt.I64(int64(len(runes)))
-		if start.Negative() {
-			start = zhexrt.I64(0)
-		}
-		if zhexrt.Cmp(end, length) > 0 {
-			end = length
-		}
-		if zhexrt.Cmp(start, end) >= 0 {
-			return value{}, nil
-		}
-		return value{text: string(runes[start.AsInt64():end.AsInt64()])}, nil
+		return value{text: zhexrt.TextSlice(rtPos(x.pos), args[0].text, args[1].number, args[2].number)}, nil
 	case "text.replace":
-		if args[1].text == "" {
-			return value{}, errorAt(x.pos, CodeReplaceEmpty, "text.replace old text is empty")
+		replaced, err := rtFail(func() string { return zhexrt.TextReplace(rtPos(x.pos), args[0].text, args[1].text, args[2].text) })
+		if err != nil {
+			return value{}, err
 		}
-		return value{text: strings.ReplaceAll(args[0].text, args[1].text, args[2].text)}, nil
+		return value{text: replaced}, nil
 	case "text.split":
-		count := int64(1)
-		if args[1].text == "" {
-			count = int64(utf8.RuneCountInString(args[0].text))
-		} else {
-			count = int64(strings.Count(args[0].text, args[1].text)) + 1
+		parts, err := rtFail(func() *zhexrt.List[string] { return zhexrt.TextSplit(rtPos(x.pos), args[0].text, args[1].text) })
+		if err != nil {
+			return value{}, err
 		}
-		if count > maxCollectionElements {
-			return value{}, errorAt(x.pos, CodeCollectionLimit, "text.split exceeds element limit")
-		}
-		parts := strings.Split(args[0].text, args[1].text)
-		items := make([]value, len(parts))
-		for i, part := range parts {
+		items := make([]value, len(parts.Items))
+		for i, part := range parts.Items {
 			items[i] = value{text: part}
 		}
 		return value{list: &listValue{items: items}}, nil
@@ -411,68 +394,52 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		for i, item := range args[0].list.items {
 			parts[i] = item.text
 		}
-		return value{text: strings.Join(parts, args[1].text)}, nil
+		return value{text: zhexrt.TextJoin(&zhexrt.List[string]{Items: parts}, args[1].text)}, nil
 	case "text.to-code-points":
-		count := int64(utf8.RuneCountInString(args[0].text))
-		if count > maxCollectionElements {
-			return value{}, errorAt(x.pos, CodeCollectionLimit, "text.to-code-points exceeds element limit")
+		points, err := rtFail(func() *zhexrt.List[zhexrt.Int] { return zhexrt.TextToCodePoints(rtPos(x.pos), args[0].text) })
+		if err != nil {
+			return value{}, err
 		}
-		items := make([]value, 0, count)
-		for _, r := range args[0].text {
-			items = append(items, value{number: zhexrt.I64(int64(r))})
+		items := make([]value, len(points.Items))
+		for i, cp := range points.Items {
+			items[i] = value{number: cp}
 		}
 		return value{list: &listValue{items: items}}, nil
 	case "text.from-code-points":
-		var b strings.Builder
-		for _, item := range args[0].list.items {
-			cp := item.number
-			// Surrogate halves have no UTF-8 encoding; rune(cp) is safe past
-			// these guards because cp already fits a valid code point.
-			if cp.Negative() || !cp.Fits64() || cp.AsInt64() > 0x10FFFF || cp.AsInt64() >= 0xD800 && cp.AsInt64() <= 0xDFFF {
-				return value{}, errorAt(x.pos, CodeTextCodePoint, "text.from-code-points code point %s is invalid", zhexrt.Str(cp))
-			}
-			b.WriteRune(rune(cp.AsInt64()))
+		codes := make([]zhexrt.Int, len(args[0].list.items))
+		for i, item := range args[0].list.items {
+			codes[i] = item.number
 		}
-		return value{text: b.String()}, nil
+		text, err := rtFail(func() string { return zhexrt.TextFromCodePoints(rtPos(x.pos), &zhexrt.List[zhexrt.Int]{Items: codes}) })
+		if err != nil {
+			return value{}, err
+		}
+		return value{text: text}, nil
 	case "text.starts-with":
 		return value{boolean: zhexrt.TextStartsWith(args[0].text, args[1].text)}, nil
 	case "text.ends-with":
 		return value{boolean: zhexrt.TextEndsWith(args[0].text, args[1].text)}, nil
 	case "text.repeat":
-		count := args[1].number
-		if count.Negative() {
-			return value{}, errorAt(x.pos, CodeTextRepeatCount, "text.repeat count is negative")
+		text, err := rtFail(func() string { return zhexrt.TextRepeat(rtPos(x.pos), args[0].text, args[1].number) })
+		if err != nil {
+			return value{}, err
 		}
-		// A count whose result the runtime cannot allocate is out of range,
-		// not a build: makeslice rejects anything past MaxAllocBytes.
-		if !count.Fits64() || len(args[0].text) > 0 && uint64(count.AsInt64()) > zhexrt.MaxAllocBytes/uint64(len(args[0].text)) {
-			return value{}, errorAt(x.pos, CodeTextRepeatCount, "text.repeat count %s is out of range", zhexrt.Str(count))
-		}
-		return value{text: strings.Repeat(args[0].text, int(count.AsInt64()))}, nil
+		return value{text: text}, nil
 	case "text.pad-left", "text.pad-right":
-		width, fill := args[1].number, args[2].text
-		if width.Negative() {
-			return value{}, errorAt(x.pos, CodeTextPadWidth, "%s width is negative", x.text)
+		pad := func(fn func(zhexrt.Pos, string, zhexrt.Int, string) string) (string, error) {
+			return rtFail(func() string { return fn(rtPos(x.pos), args[0].text, args[1].number, args[2].text) })
 		}
-		if utf8.RuneCountInString(fill) != 1 {
-			return value{}, errorAt(x.pos, CodeTextPadFill, "%s fill must be exactly one code point", x.text)
-		}
-		if !width.Fits64() {
-			return value{}, errorAt(x.pos, CodeTextPadWidth, "%s width %s is out of range", x.text, zhexrt.Str(width))
-		}
-		pad := ""
-		if deficit := width.AsInt64() - int64(utf8.RuneCountInString(args[0].text)); deficit > 0 {
-			// The final text is the pad plus the text itself, so both sides
-			// must fit the makeslice law.
-			if uint64(deficit) > (zhexrt.MaxAllocBytes-uint64(len(args[0].text)))/uint64(len(fill)) {
-				return value{}, errorAt(x.pos, CodeTextPadWidth, "%s width %s is out of range", x.text, zhexrt.Str(width))
-			}
-			pad = strings.Repeat(fill, int(deficit))
-		}
+		var padded string
+		var err error
 		if x.text == "text.pad-left" {
-			return value{text: pad + args[0].text}, nil
+			padded, err = pad(zhexrt.TextPadLeft)
+		} else {
+			padded, err = pad(zhexrt.TextPadRight)
 		}
-		return value{text: args[0].text + pad}, nil
+		if err != nil {
+			return value{}, err
+		}
+		return value{text: padded}, nil
 	case "text.wrap":
 		// The pre-check mirrors zhexrt.TextWrap's so the shared body
 		// cannot panic here; past it, the greedy law lives in one place.

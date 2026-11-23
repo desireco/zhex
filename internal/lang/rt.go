@@ -28,3 +28,19 @@ func fromRT(err *zhexrt.Error) error {
 	}
 	return d
 }
+
+// rtFail runs one zhexrt word body that can Fail, adapting its panic into
+// the interpreter's error shape so the shared body stays single-sourced and
+// a runtime diagnostic never escapes as a Go panic.
+func rtFail[T any](fn func() T) (v T, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			e, ok := r.(*zhexrt.Error)
+			if !ok {
+				panic(r)
+			}
+			err = fromRT(e)
+		}
+	}()
+	return fn(), nil
+}
