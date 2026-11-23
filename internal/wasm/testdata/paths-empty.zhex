@@ -1,0 +1,9 @@
+# The path words on the empty string: directory-of answers "." (the
+# compiled dir-of must not read index 0 of an empty string), base answers
+# ".", extension is empty, and join collapses empty sides.
+print(file.directory-of(""))
+print(file.base(""))
+print(file.extension(""))
+print(file.join("", ""))
+print(file.join("", "b"))
+print(file.join("a", ""))

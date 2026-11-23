@@ -1,0 +1,6 @@
+# A stdin line longer than the compiled read-line buffer's 4096 starting
+# capacity, so the refill's doubling branch runs before the line delivers.
+let long = read-line("") try
+print(text.length(long))
+let short = read-line("") try
+print(short)

@@ -1,0 +1,26 @@
+# list.sort-by over the shapes no other fixture runs: Bool elements by an
+# Int key, Bool elements by a String key, and Int elements by a String key
+# (code-point order: "1" < "10" < "2"), stability keeping source order on
+# equal keys.
+word flag-rank(flag: Bool) -> Int
+    if flag
+        1
+    else
+        0
+
+word flag-word(flag: Bool) -> String
+    if flag
+        "yes"
+    else
+        "no"
+
+word text-key(n: Int) -> String
+    int.to-string(n)
+
+let flags = [true, false, true, false]
+for flag in list.sort-by(flags, flag-rank(_))
+    print(flag)
+for flag in list.sort-by(flags, flag-word(_))
+    print(flag)
+for n in list.sort-by([2, 10, 1, 10, 2], text-key(_))
+    print(n)

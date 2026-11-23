@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"zhex/internal/lang"
@@ -169,6 +170,20 @@ func TestNativeReviewDepthLimitCallSite(t *testing.T) {
 		"word count(n: Int) -> Int\n    count(n - 1)\nprint(\"before\")\nprint(count(3))\n", "")
 	diffCase(t, "depth-mutual",
 		"word ping(n: Int) -> Int\n    pong(n - 1)\nword pong(n: Int) -> Int\n    ping(n - 1)\nprint(\"before\")\nprint(ping(3))\n", "")
+}
+
+// TestNativeReviewFixtureGaps runs the differential shapes no fixture
+// covered before this review: the path words on the empty string, the
+// three until-then unexercised sort-by routines (Bool elements by Int and
+// String keys, Int elements by a String key), and a stdin line longer than
+// the read-line buffer's 4096-byte starting capacity.
+func TestNativeReviewFixtureGaps(t *testing.T) {
+	diffCase(t, "paths-empty",
+		"print(file.directory-of(\"\"))\nprint(file.base(\"\"))\nprint(file.extension(\"\"))\nprint(file.join(\"\", \"\"))\nprint(file.join(\"\", \"b\"))\nprint(file.join(\"a\", \"\"))\n", "")
+	diffCase(t, "sort-by-shapes",
+		"word flag-rank(flag: Bool) -> Int\n    if flag\n        1\n    else\n        0\n\nword flag-word(flag: Bool) -> String\n    if flag\n        \"yes\"\n    else\n        \"no\"\n\nword text-key(n: Int) -> String\n    int.to-string(n)\n\nlet flags = [true, false, true, false]\nfor flag in list.sort-by(flags, flag-rank(_))\n    print(flag)\nfor flag in list.sort-by(flags, flag-word(_))\n    print(flag)\nfor n in list.sort-by([2, 10, 1, 10, 2], text-key(_))\n    print(n)\n", "")
+	diffCase(t, "readline-long",
+		"let long = read-line(\"\") try\nprint(text.length(long))\nlet short = read-line(\"\") try\nprint(short)\n", strings.Repeat("a", 5000)+"\nshort\n")
 }
 
 // TestNativeReviewFlowTry pins the postfix try on a flow step: the step's

@@ -590,6 +590,7 @@ func TestDifferential(t *testing.T) {
 		"text", "text-to-int", "maps", "callbacks", "sort", "while", "string-int", "array-select",
 		"fold-ref",
 		"flow-try-discard", "flow-try-feed", "flow-try-tail", "flow-try-word",
+		"paths-empty", "sort-by-shapes",
 	} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name, lang.WatSkinBrowser)
@@ -944,6 +945,7 @@ func m3DifferentialCases() []m3Case {
 		{name: "readline", stdin: "Ada\nGrace\n"},
 		{name: "readline-blank", stdin: "Ada\n\nGrace\n"},
 		{name: "readline-detail", stdin: "Ada\n\nGrace\n"},
+		{name: "readline-long", stdin: strings.Repeat("a", 5000) + "\nshort\n"},
 		{name: "grow-stream", stdin: "\r\n" + strings.Repeat("é", 5000) + "\r\npartial\r"},
 		{name: "buffers"},
 		{name: "duration"},
