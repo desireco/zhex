@@ -446,6 +446,26 @@ func TestAssembleRejectsInvalidWat(t *testing.T) {
 	}
 }
 
+// TestAssembleFailureLeavesNoTempWat pins the cleanup side of the staging
+// contract: the temporary .wat assemble writes in TMPDIR is removed on the
+// failure paths (here a parse failure with the assembler present; the
+// missing-tool path creates no temp file at all).
+func TestAssembleFailureLeavesNoTempWat(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	if err := assemble("(module\n  (bogus", filepath.Join(t.TempDir(), "bad.wasm")); err == nil {
+		t.Fatal("expected the invalid WAT to fail assembly")
+	}
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("temporary .wat files left behind: %v", entries)
+	}
+}
+
 // runWasmtime executes a WASI module under the wasmtime CLI the way the
 // WASI skin is validated (DESIGN-M3 §1c): the fixture root is preopened at
 // /, env pairs are passed with --env, and stdin comes from a file. Returns
