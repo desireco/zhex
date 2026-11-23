@@ -5,11 +5,14 @@ import { parseLifeFrames } from '../src/scripts/life-frames.mjs';
 const encoder = new TextEncoder();
 const data = JSON.parse(await readFile('data.json', 'utf8'));
 const runnable = data.Examples.filter(e => e.Wasm);
-// 23 = the corpus's 28 in-subset files minus the two library files (math.zhex,
-// md.zhex) that appear only as Modules of their entry example, never as
-// runnable entries, minus the three demos-page programs under examples/demos/
-// that are not examples-page cards; twin pin of corpusTable in
-// internal/wasm/corpus_test.go.
+// Pinned by hand as the twin of corpusTable in internal/wasm/corpus_test.go:
+// 23 is that table's in-subset files, less the demos-page programs under
+// examples/demos/ that are not examples-page cards, and the library files
+// that appear only as Modules of their entry example, never as runnable
+// entries. The site data cannot supply this number — its only count of
+// runnable examples is the very list below — so a card that silently turns
+// fenced is caught here and nowhere else in the site build. Bump it when the
+// corpus changes.
 assert.equal(runnable.length, 23, 'runnable example count');
 for (const example of data.Examples) {
   assert.ok(!example.Wasm || !example.WasmNote, `${example.ID} cannot be runnable and fenced at once`);
