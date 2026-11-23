@@ -1,6 +1,7 @@
 package lang
 
 import (
+	"fmt"
 	"strings"
 	"zhex/internal/zhexrt"
 )
@@ -9,6 +10,10 @@ type parser struct {
 	tokens       []token
 	index, depth int
 	sourceLines  []string
+	// pendingTypeHint rides the next failing require: parseType defers the
+	// bracket-form hint (#223) because only the caller knows which token
+	// was expected there.
+	pendingTypeHint string
 }
 
 func (p *parser) lines() []string {
@@ -134,7 +139,12 @@ func (p *parser) at(kind string) bool {
 	}
 	return t.kind == "name" && t.text == kind
 }
-func (p *parser) take() token { t := p.current(); p.index++; return t }
+func (p *parser) take() token {
+	t := p.current()
+	p.index++
+	p.pendingTypeHint = ""
+	return t
+}
 func (p *parser) accept(kind string) bool {
 	if p.at(kind) {
 		p.take()
@@ -144,7 +154,11 @@ func (p *parser) accept(kind string) bool {
 }
 func (p *parser) require(kind string) token {
 	if !p.at(kind) {
-		panic(errorAt(p.current().pos, CodeExpectedToken, "expected %s, found %q", kind, p.current().text))
+		d := errorAt(p.current().pos, CodeExpectedToken, "expected %s, found %q", kind, p.current().text)
+		if p.pendingTypeHint != "" {
+			d = withHint(d, p.pendingTypeHint)
+		}
+		panic(d)
 	}
 	return p.take()
 }
@@ -208,7 +222,79 @@ func (p *parser) parseType() valueType {
 		p.require(">")
 		return valueType(t.text + "<" + strings.Join(args, ", ") + ">")
 	}
+	if p.at("[") {
+		p.pendingTypeHint = p.bracketTypeHint(t.text)
+	}
 	return valueType(t.text)
+}
+
+// genericTypeNames are the built-in generic types whose bracket
+// misspelling earns the #223 hint.
+var genericTypeNames = map[string]bool{
+	"List":   true,
+	"Array":  true,
+	"Map":    true,
+	"Option": true,
+}
+
+// bracketTypeHint names the #223 mistake: a type annotation written with
+// square brackets after a generic name, as in List[Int]. It reads the
+// bracketed source verbatim and rewrites it with angle brackets; the
+// lexer has already rejected unbalanced brackets by parse time, so a
+// miss here just leaves the diagnostic hintless as before.
+func (p *parser) bracketTypeHint(name string) string {
+	if !genericTypeNames[name] {
+		return ""
+	}
+	depth, end := 0, -1
+	for i := p.index; i < len(p.tokens); i++ {
+		switch p.tokens[i].kind {
+		case "[":
+			depth++
+		case "]":
+			depth--
+			if depth == 0 {
+				end = i
+			}
+		case "eof":
+			return ""
+		}
+		if end >= 0 {
+			break
+		}
+	}
+	if end < 0 {
+		return ""
+	}
+	text := strings.Join(strings.Fields(p.sourceSlice(p.tokens[p.index].pos, p.tokens[end].end)), " ")
+	if text == "" {
+		return ""
+	}
+	swap := strings.NewReplacer("[", "<", "]", ">")
+	return fmt.Sprintf("types use angle brackets — write %s, not %s", name+swap.Replace(text), name+text)
+}
+
+// sourceSlice cuts the entry's source between two positions; columns are
+// 1-based rune counts and the end position points past the token's last
+// rune. It returns "" for positions the source cannot satisfy.
+func (p *parser) sourceSlice(start, end position) string {
+	lines := p.lines()
+	if lines == nil || start.line < 1 || end.line < start.line || start.line > len(lines) || end.line > len(lines) {
+		return ""
+	}
+	first := []rune(strings.TrimSuffix(lines[start.line-1], "\r"))
+	last := []rune(strings.TrimSuffix(lines[end.line-1], "\r"))
+	if start.column-1 > len(first) || end.column-1 > len(last) {
+		return ""
+	}
+	if start.line == end.line {
+		if end.column < start.column {
+			return ""
+		}
+		return string(first[start.column-1 : end.column-1])
+	}
+	mid := append([]string{string(first[start.column-1:])}, lines[start.line:end.line-1]...)
+	return strings.Join(append(mid, string(last[:end.column-1])), "\n")
 }
 
 func (p *parser) parseRecord() *recordType {
