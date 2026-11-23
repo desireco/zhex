@@ -130,11 +130,19 @@ const latestYear = years[years.length - 1];
       });
 
       // A #aoc-tab-<year> or #aoc-day-<year>-<n> hash opens that year's tab
-      // first — this module script runs before the browser scrolls to the
-      // fragment — so a year or day link is shareable.
-      const day = /^#aoc-day-(\d+)-/.exec(location.hash);
-      const initial = tabs.findIndex(tab => tab.id === (day ? `aoc-tab-${day[1]}` : location.hash.slice(1)));
-      if (initial !== -1) select(initial, false);
+      // first, so a year or day link is shareable. On opening this module
+      // script runs before the browser scrolls to the fragment. On a later
+      // hash change (a pasted link, Back or Forward) the browser has already
+      // tried and failed to scroll to a hidden target, so the scroll is ours.
+      function openHash(scroll) {
+        const day = /^#aoc-day-(\d+)-/.exec(location.hash);
+        const initial = tabs.findIndex(tab => tab.id === (day ? `aoc-tab-${day[1]}` : location.hash.slice(1)));
+        if (initial === -1) return;
+        select(initial, false);
+        if (scroll) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+      }
+      openHash(false);
+      window.addEventListener('hashchange', () => openHash(true));
     </script>
 
     <script>
