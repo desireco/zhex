@@ -177,6 +177,33 @@ func TestExamples(t *testing.T) {
 	}
 }
 
+// Module folders under examples copy files because use resolves siblings
+// only (writer carries its own md.zhex; every folder with a .test.zhex
+// carries test.zhex). The copies must stay byte-equal to their original.
+func TestDuplicatedModuleFiles(t *testing.T) {
+	root := "../../examples/modules"
+	copies := map[string][]string{
+		// original path: copy paths — add one line per new copy.
+		"test.zhex":         {"epub-book/test.zhex", "md-report/test.zhex", "pdf-doc/test.zhex", "text-diff/test.zhex", "writer/test.zhex"},
+		"md-report/md.zhex": {"writer/md.zhex"},
+	}
+	for original, duplicates := range copies {
+		want, err := os.ReadFile(filepath.Join(root, original))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, duplicate := range duplicates {
+			got, err := os.ReadFile(filepath.Join(root, duplicate))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(want, got) {
+				t.Errorf("%s differs from %s — modules must be copied verbatim", duplicate, original)
+			}
+		}
+	}
+}
+
 func TestInputFailures(t *testing.T) {
 	for _, input := range []string{"", "\n", "  \n", "abc\n", "1.5\n", "170141183460469231731687303715884105728\n", "-170141183460469231731687303715884105729\n", "\xff\n"} {
 		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
