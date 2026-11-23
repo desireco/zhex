@@ -31,7 +31,8 @@ test-race:
 engine:
     #!/bin/bash
     mkdir -p site/public
-    hash="$(go version; find cmd/zhex/engine internal/lang internal/zhexrt -name '*.go' ! -name '*_test.go' -print0 | sort -z | xargs -0 sha256sum | sha256sum; sha256sum "$([ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ] && echo "$(go env GOROOT)/lib/wasm/wasm_exec.js" || echo "$(go env GOROOT)/misc/wasm/wasm_exec.js")" cmd/zhex/engine/loader.js)"
+    # Every non-test file under the engine's packages (go:embed inputs included), go.mod, and go.sum key the cache.
+    hash="$(go version; find cmd/zhex/engine internal/lang internal/zhexrt -type f ! -name '*_test.go' -print0 | sort -z | xargs -0 sha256sum | sha256sum; sha256sum go.mod go.sum "$([ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ] && echo "$(go env GOROOT)/lib/wasm/wasm_exec.js" || echo "$(go env GOROOT)/misc/wasm/wasm_exec.js")")"
     if [ -s site/public/zhex-engine.wasm ] && [ -f site/public/zhex-engine-exec.js ] && [ -f site/public/zhex-engine.js ] && [ -f site/public/.engine-hash ] && [ "$(cat site/public/.engine-hash)" = "$hash" ]; then
         echo "engine: up to date"
     else
