@@ -606,7 +606,7 @@ func TestLoadAocRejectsUnknownInputKinds(t *testing.T) {
 // TestLiveAocRowsMatchTheOracle pins every real part1/solved manifest row to
 // its ExpectedAnswers through the full loader, closing the fenced-day gap
 // (review finding F1): the 2024 day-22 drift class now fails the build.
-// 2024 day 24 composes with the convention: its second answer line is the
+// A part1 row composes with the convention: its second answer line is the
 // literal "pending" and the oracle prints "pending" for part 2, so straight
 // positional line equality holds for every live row.
 func TestLiveAocRowsMatchTheOracle(t *testing.T) {

@@ -775,9 +775,8 @@ func loadAoc(root string) ([]AocDay, error) {
 			day.Output = output.String()
 			// Fenced days escape the wasm verify loop, so the recorded
 			// answers are pinned here: the oracle's stdout lines must equal
-			// the row's ExpectedAnswers positionally (2024 day 24 prints
-			// "pending" for its honestly-unsolved part 2), and only a part1
-			// row may record one.
+			// the row's ExpectedAnswers positionally, and only a part1
+			// row may record a pending answer.
 			if len(spec.answers) == 0 {
 				return nil, fmt.Errorf("aoc %d day %d: %s day needs expected answers for the oracle check", spec.year, spec.day, spec.status)
 			}
