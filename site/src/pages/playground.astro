@@ -213,9 +213,11 @@ print(greet("you"))
       }
 
       function failWorker(rejection) {
+        // Reject before dropping: dropWorker clears rejectReady, and the
+        // open click is still waiting on that promise.
+        if (rejectReady) rejectReady(rejection);
         dropWorker();
         rejectCalls(rejection);
-        if (rejectReady) rejectReady(rejection);
       }
 
       function rejectCalls(rejection) {
