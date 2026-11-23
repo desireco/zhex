@@ -351,6 +351,9 @@ func TestPadAndRepeatValidationIsABugSignal(t *testing.T) {
 		{"text-pad-fill", "print(text.pad-left(\"a\", 2, \"\"))\n", "bad.zhex:1:7: text.pad-left fill must be exactly one code point"},
 		{"text-pad-fill", "print(text.pad-right(\"a\", 2, \"ab\"))\n", "bad.zhex:1:7: text.pad-right fill must be exactly one code point"},
 		{"text-repeat-count", "print(text.repeat(\"a\", -1))\n", "bad.zhex:1:7: text.repeat count is negative"},
+		{"text-repeat-count", "print(text.repeat(\"x\", 4611686018427387904))\n", "bad.zhex:1:7: text.repeat count 4611686018427387904 is out of range"},
+		{"text-pad-width", "print(text.pad-left(\"x\", 4611686018427387904, \"0\"))\n", "bad.zhex:1:7: text.pad-left width 4611686018427387904 is out of range"},
+		{"text-pad-width", "print(text.pad-right(\"x\", 4611686018427387904, \"0\"))\n", "bad.zhex:1:7: text.pad-right width 4611686018427387904 is out of range"},
 	} {
 		t.Run(tc.code, func(t *testing.T) {
 			err := Run("bad.zhex", tc.source, strings.NewReader(""), &strings.Builder{})

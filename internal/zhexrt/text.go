@@ -1,7 +1,7 @@
 package zhexrt
 
 import (
-	"math"
+	"runtime"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -9,6 +9,21 @@ import (
 
 // The text words, moved from the interpreter's host functions: the same
 // rune semantics, the same failure codes and messages.
+
+// MaxAllocBytes is the largest single byte allocation the Go runtime
+// accepts — runtime.maxAlloc, 1<<48 bytes (256 TiB) of heap address space
+// on 64-bit targets and 1<<32 (4 GiB) under js/wasm, whose linear memory
+// stops there (runtime/malloc.go's heapAddrBits is the source of both
+// numbers). A repeat or pad whose result would pass it fails with the
+// word's range code; past that boundary makeslice panics instead of
+// failing, and no word may let a program value reach it.
+var MaxAllocBytes uint64 = 1 << 48
+
+func init() {
+	if runtime.GOARCH == "wasm" {
+		MaxAllocBytes = 1 << 32
+	}
+}
 
 func TextReverse(s string) string {
 	runes := []rune(s)
@@ -124,8 +139,9 @@ func TextRepeat(pos Pos, s string, n Int) string {
 	if n.Negative() {
 		Fail(pos, "text-repeat-count", "text.repeat count is negative")
 	}
-	// A count whose result no string could hold is out of range, not a build.
-	if !n.Fits64() || len(s) > 0 && n.AsInt64() > int64(math.MaxInt)/int64(len(s)) {
+	// A count whose result the runtime cannot allocate is out of range, not
+	// a build: makeslice rejects anything past MaxAllocBytes.
+	if !n.Fits64() || len(s) > 0 && uint64(n.AsInt64()) > MaxAllocBytes/uint64(len(s)) {
 		Fail(pos, "text-repeat-count", "text.repeat count %s is out of range", Str(n))
 	}
 	return strings.Repeat(s, int(n.AsInt64()))
@@ -146,6 +162,11 @@ func textPad(pos Pos, word, s string, width Int, fill string) string {
 		Fail(pos, "text-pad-width", "%s width %s is out of range", word, Str(width))
 	}
 	if w := width.AsInt64(); w > length {
+		// The final text is the pad plus s itself, so both sides must fit
+		// the makeslice law.
+		if uint64(w-length) > (MaxAllocBytes-uint64(len(s)))/uint64(len(fill)) {
+			Fail(pos, "text-pad-width", "%s width %s is out of range", word, Str(width))
+		}
 		return strings.Repeat(fill, int(w-length))
 	}
 	return ""

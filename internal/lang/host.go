@@ -3,7 +3,6 @@ package lang
 import (
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -444,8 +443,9 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		if count.Negative() {
 			return value{}, errorAt(x.pos, CodeTextRepeatCount, "text.repeat count is negative")
 		}
-		// A count whose result no string could hold is out of range, not a build.
-		if !count.Fits64() || len(args[0].text) > 0 && count.AsInt64() > int64(math.MaxInt)/int64(len(args[0].text)) {
+		// A count whose result the runtime cannot allocate is out of range,
+		// not a build: makeslice rejects anything past MaxAllocBytes.
+		if !count.Fits64() || len(args[0].text) > 0 && uint64(count.AsInt64()) > zhexrt.MaxAllocBytes/uint64(len(args[0].text)) {
 			return value{}, errorAt(x.pos, CodeTextRepeatCount, "text.repeat count %s is out of range", zhexrt.Str(count))
 		}
 		return value{text: strings.Repeat(args[0].text, int(count.AsInt64()))}, nil
@@ -462,6 +462,11 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		}
 		pad := ""
 		if deficit := width.AsInt64() - int64(utf8.RuneCountInString(args[0].text)); deficit > 0 {
+			// The final text is the pad plus the text itself, so both sides
+			// must fit the makeslice law.
+			if uint64(deficit) > (zhexrt.MaxAllocBytes-uint64(len(args[0].text)))/uint64(len(fill)) {
+				return value{}, errorAt(x.pos, CodeTextPadWidth, "%s width %s is out of range", x.text, zhexrt.Str(width))
+			}
 			pad = strings.Repeat(fill, int(deficit))
 		}
 		if x.text == "text.pad-left" {
