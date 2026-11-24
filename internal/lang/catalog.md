@@ -6,7 +6,7 @@ and `hint:` line are additive detail. Machine readers use
 `zhex run <file> --report=json`.
 
 ## list-range
-The list index is negative or outside its current length, or the list is empty where `list.first`, `list.last`, or `list.pop` needs an element. Use a valid zero-based index, or handle the empty case with `catch` or a `list.length` check.
+The list index is negative or outside its current length, an insert index is past the end, or the list is empty where `list.first` or `list.last` needs an element. Use a valid zero-based index, or handle the empty case with `catch` or a `list.length` check.
 
 ## stack-range
 The stack is empty where `stack.pop`, `stack.peek`, `stack.dup`, or `stack.drop` needs the top element, or has fewer than two elements where `stack.swap` needs the top pair. Check `stack.length` first, or handle the empty case with `catch`.

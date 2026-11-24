@@ -562,10 +562,6 @@ func TestWatFencesOutOfSubsetConstructs(t *testing.T) {
 let xs: List<Int> = list.new()
 list.append(xs, 1) try
 `, "checked list.append is not available in this build"},
-		{"checked-pop", `
-let xs: List<Int> = list.new()
-let top = list.pop(xs) try
-`, "checked list.pop is not available in this build"},
 		{"checked-first", `
 let xs: List<Int> = list.new()
 let head = list.first(xs) try

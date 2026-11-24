@@ -502,7 +502,7 @@ Learn: https://desireco.github.io/zhex/errors.html#json-type
 
 ## list-range
 
-The list index is negative or outside its current length, or the list is empty where `list.first`, `list.last`, or `list.pop` needs an element.
+The list index is negative or outside its current length, an insert index is past the end, or the list is empty where `list.first` or `list.last` needs an element.
 
 Fix: Use a valid zero-based index, or handle the empty case with `catch` or a `list.length` check.
 

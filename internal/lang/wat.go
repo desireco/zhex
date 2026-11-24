@@ -2012,15 +2012,14 @@ func (e *watEmitter) builtinCall(x *expression) {
 		_, inner, _ := collectionInner(x.inputType)
 		e.expr(x.args[0])
 		e.line("call " + watListLength(watSpecOf(inner)))
-	case "list.pop", "list.first", "list.last":
+	case "list.first", "list.last":
 		// the end words (plain form only; try/catch fence with the other
-		// checked collection operations): pop returns the removed element
-		// while first/last read index 0 / len-1 through the plain get.
+		// checked collection operations): first/last read index 0 / len-1
+		// through the plain get.
 		_, inner, _ := collectionInner(x.inputType)
 		spec := watSpecOf(inner)
 		e.expr(x.args[0])
 		e.line("call " + map[string]string{
-			"list.pop":   watListPop(spec),
 			"list.first": watListFirst(spec),
 			"list.last":  watListLast(spec),
 		}[x.text])

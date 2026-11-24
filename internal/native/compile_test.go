@@ -237,20 +237,19 @@ func TestNativeTextSentences(t *testing.T) {
 		"print(list.length(text.sentences(text.repeat(\"a. \", 1000001))))\n", "")
 }
 
-// TestNativeListEnds pins #159 on the native target: list.pop removes and
-// returns the last element (the sanctioned exception), list.first/last read
-// the ends, the flow receiver form threads the stack, an empty end fails
-// list-range with the family diagnostic, and pop during iteration refuses
-// before any change — every row differential against the interpreter.
+// TestNativeListEnds pins #159's surviving end words on the native
+// target: list.first/list.last read the ends without changing the list,
+// and an empty end fails list-range with the family diagnostic — every
+// row differential against the interpreter. (#236 moved popping to
+// stack.pop; TestNativeStackWords carries that coverage.)
 func TestNativeListEnds(t *testing.T) {
 	diffCase(t, "list-ends",
-		"let xs = [1, 2, 3]\nprint(list.first(xs))\nprint(list.last(xs))\nprint(list.pop(xs))\nprint(list.length(xs))\n"+
-			"let words = [\"a\", \"b\", \"c\"]\nprint(list.pop(words))\nprint(list.last(words))\n"+
-			"let stack: List<Int> = list.new()\nlet top = flow stack\n    list.append 4\n    list.append 5\n    list.pop\nprint(top)\nprint(list.length(stack))\n"+
-			"var total = 0\nwhile list.length(xs) > 0\n    total = total + list.pop(xs)\nprint(total)\n", "")
-	diffCase(t, "list-ends-empty", "let xs: List<Int> = []\nprint(list.pop(xs))\nprint(\"unreachable\")\n", "")
+		"let xs = [1, 2, 3]\nprint(list.first(xs))\nprint(list.last(xs))\nprint(list.length(xs))\n"+
+			"let words = [\"a\", \"b\", \"c\"]\nprint(list.last(words))\nprint(list.length(words))\n"+
+			"let stack: List<Int> = list.new()\nfor n in [1, 2, 3]\n    list.append(stack, n)\nprint(list.last(stack))\nprint(list.first(stack))\n", "")
 	diffCase(t, "list-ends-first-empty", "let xs: List<String> = []\nprint(list.first(xs))\nprint(\"unreachable\")\n", "")
-	diffCase(t, "list-ends-iterating", "let xs = [1, 2]\nfor v in xs\n    list.pop(xs)\nprint(\"unreachable\")\n", "")
+	diffCase(t, "list-ends-last-empty", "let xs: List<Int> = []\nprint(list.last(xs))\nprint(\"unreachable\")\n", "")
+	diffCase(t, "list-ends-iterating", "let xs = [1, 2]\nfor v in xs\n    list.insert(xs, 0, 9)\nprint(\"unreachable\")\n", "")
 }
 
 // TestNativeIntShifts pins #231 on the native target: the five bitwise

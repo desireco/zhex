@@ -111,7 +111,7 @@ Every built-in diagnostic code with its one-line meaning and its learn URL, one 
 - [json-range](https://desireco.github.io/zhex/errors.html#json-range): A JSON integer or collection exceeds the supported range.
 - [json-syntax](https://desireco.github.io/zhex/errors.html#json-syntax): JSON text is invalid or contains more than one value.
 - [json-type](https://desireco.github.io/zhex/errors.html#json-type): A JSON value does not match the expected Zhex type.
-- [list-range](https://desireco.github.io/zhex/errors.html#list-range): The list index is negative or outside its current length, or the list is empty where `list.first`, `list.last`, or `list.pop` needs an element.
+- [list-range](https://desireco.github.io/zhex/errors.html#list-range): The list index is negative or outside its current length, an insert index is past the end, or the list is empty where `list.first` or `list.last` needs an element.
 - [main-parameters](https://desireco.github.io/zhex/errors.html#main-parameters): A file whose top level has no statements names `word main` as its entry point, and `zhex run` and `zhex compile` call it with no arguments.
 - [module-body](https://desireco.github.io/zhex/errors.html#module-body): An imported file contains top-level statements.
 - [nesting-limit](https://desireco.github.io/zhex/errors.html#nesting-limit): Expressions or blocks nest past the parser's limit.

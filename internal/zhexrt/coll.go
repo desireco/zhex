@@ -297,22 +297,6 @@ func ListInsert[T any](pos Pos, l *List[T], index Int, item T) Result[*List[T]] 
 	return Ok(l)
 }
 
-// ListPop removes the last element and returns it — the one sanctioned
-// exception to mutation words returning their collection. The empty failure
-// keeps the family diagnostic: the same message and index/length details
-// xs[len - 1] produced on an empty list.
-func ListPop[T any](pos Pos, l *List[T]) Result[T] {
-	if l.Active > 0 {
-		return collectionFailure[T](pos, "collection-iterating", "list.pop", "collection is being iterated", nil)
-	}
-	if len(l.Items) == 0 {
-		return collectionFailure[T](pos, "list-range", "list.pop", "list index is out of range", map[string]string{"index": "-1", "length": "0"})
-	}
-	last := l.Items[len(l.Items)-1]
-	l.Items = l.Items[:len(l.Items)-1]
-	return Ok(last)
-}
-
 // ListFirst and ListLast read the ends without changing the list; the
 // empty failure mirrors the indexed read at 0 / len-1.
 func ListFirst[T any](pos Pos, l *List[T]) Result[T] {
@@ -677,8 +661,8 @@ func BufferSetLine(pos Pos, b *Buffer, index Int, line string) Result[*Buffer] {
 func BufferToText(b *Buffer) string { return strings.Join(b.Lines, "\n") }
 
 // Stack is Zhex Stack<T>: a shared-mutable LIFO whose top is the end of
-// the slice (the shape list.pop established). There are no traversal
-// words in v1, so there is no Active guard to keep.
+// the slice. There are no traversal words in v1, so there is no Active
+// guard to keep.
 type Stack[T any] struct {
 	Items []T
 }

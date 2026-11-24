@@ -379,16 +379,6 @@ const watPreludeListI64 = `
 (func $zhex_list_last_i64 (param $list (ref $zhex_list_i64)) (result i64)
   (call $zhex_list_get_i64 (local.get $list)
     (i64.sub (i64.extend_i32_u (struct.get $zhex_list_i64 $len (local.get $list))) (i64.const 1))))
-
-(func $zhex_list_pop_i64 (param $list (ref $zhex_list_i64)) (result i64)
-  (local $len i32)
-  (if (i32.ne (struct.get $zhex_list_i64 $active (local.get $list)) (i32.const 0))
-    (then (call $zhex_fail (i32.const 10))))
-  (local.set $len (struct.get $zhex_list_i64 $len (local.get $list)))
-  (if (i32.eq (local.get $len) (i32.const 0))
-    (then (call $zhex_fail (i32.const 3))))
-  (struct.set $zhex_list_i64 $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
-  (array.get $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
 `
 
 // watPreludeListI32: List<Bool> — same shape as the i64 family.
@@ -458,16 +448,6 @@ const watPreludeListI32 = `
 (func $zhex_list_last_i32 (param $list (ref $zhex_list_i32)) (result i32)
   (call $zhex_list_get_i32 (local.get $list)
     (i64.sub (i64.extend_i32_u (struct.get $zhex_list_i32 $len (local.get $list))) (i64.const 1))))
-
-(func $zhex_list_pop_i32 (param $list (ref $zhex_list_i32)) (result i32)
-  (local $len i32)
-  (if (i32.ne (struct.get $zhex_list_i32 $active (local.get $list)) (i32.const 0))
-    (then (call $zhex_fail (i32.const 10))))
-  (local.set $len (struct.get $zhex_list_i32 $len (local.get $list)))
-  (if (i32.eq (local.get $len) (i32.const 0))
-    (then (call $zhex_fail (i32.const 3))))
-  (struct.set $zhex_list_i32 $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
-  (array.get $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
 `
 
 // watPreludeListRef: lists of reference values (strings, records, choices).
@@ -537,16 +517,6 @@ const watPreludeListRef = `
 (func $zhex_list_last_ref (param $list (ref $zhex_list_ref)) (result (ref null eq))
   (call $zhex_list_get_ref (local.get $list)
     (i64.sub (i64.extend_i32_u (struct.get $zhex_list_ref $len (local.get $list))) (i64.const 1))))
-
-(func $zhex_list_pop_ref (param $list (ref $zhex_list_ref)) (result (ref null eq))
-  (local $len i32)
-  (if (i32.ne (struct.get $zhex_list_ref $active (local.get $list)) (i32.const 0))
-    (then (call $zhex_fail (i32.const 10))))
-  (local.set $len (struct.get $zhex_list_ref $len (local.get $list)))
-  (if (i32.eq (local.get $len) (i32.const 0))
-    (then (call $zhex_fail (i32.const 3))))
-  (struct.set $zhex_list_ref $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
-  (array.get $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
 `
 
 // watPreludeStackI64/I32/Ref: the stack words (#236) over the list repr —

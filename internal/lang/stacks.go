@@ -7,8 +7,8 @@ import (
 )
 
 // stackValue is Zhex Stack<T>: a shared-mutable LIFO whose top is the end
-// of the backing store, the shape list.pop established (#236). There are
-// no traversal words in v1, so there is no iterating guard to keep.
+// of the backing store. There are no traversal words in v1, so there is no
+// iterating guard to keep.
 type stackValue struct {
 	items []value
 }
