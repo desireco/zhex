@@ -66,7 +66,7 @@ word _flip-v(form: Form) -> Form
         list.append(cells, (form.height - 1 - r) * form.width + c)
     Form(form.width, form.height, list.sort(cells), form.pixels)
 
-word _add-form(forms: List<Form>, keys: List<String>, form: Form)
+word _add-form(forms: List<Form>, keys: List<String>, form: Form) -> Unit
     let key = _key(form)
     var seen = false
     for known in keys

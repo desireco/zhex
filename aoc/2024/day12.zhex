@@ -34,7 +34,7 @@ word _has(cells: List<Int>, id: Int) -> Bool
 
 # Add the neighbor to the region when it holds the same plant and is
 # not collected yet; returns Unit and mutates both lists.
-word _reach(grid: List<String>, cells: List<Int>, seen: List<Int>, row: Int, column: Int, plant: String, width: Int)
+word _reach(grid: List<String>, cells: List<Int>, seen: List<Int>, row: Int, column: Int, plant: String, width: Int) -> Unit
     let id = row * width + column
     if _same(grid, row, column, plant) and not _has(seen, id)
         list.append(cells, id)
