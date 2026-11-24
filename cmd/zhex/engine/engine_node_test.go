@@ -752,3 +752,39 @@ func jsonEqual(t *testing.T, a, b []byte) bool {
 	}
 	return reflect.DeepEqual(va, vb)
 }
+
+// TestEngineBranchStatementOrdinaryLines pins #226 in the browser engine:
+// a branch on an ordinary line drops what its arms produce, so the arms
+// may end with any type - in a loop body, at the top level, nested in an
+// arm, and as every line of a Unit word. Every run is differential against
+// the interpreter in this process.
+func TestEngineBranchStatementOrdinaryLines(t *testing.T) {
+	engineModule(t)
+	cases := []struct {
+		name   string
+		source string
+		output string
+	}{
+		{"loop", "let xs = [1]\nfor n in range(0, 4)\n    if n > 1\n        list.append xs, n\nprint(int.to-string(list.length(xs)))\n", "3\n"},
+		{"arms", "let xs = [1]\nif xs[0] == 1\n    list.append(xs, 9)\n    print(1)\nelse\n    print(\"one\")\nprint(int.to-string(list.length(xs)))\n", "1\n2\n"},
+		{"match", "type Shape = choice\n    Dot\n    Ring(radius: Int)\n\nlet shapes = [Shape.Dot, Shape.Ring(3)]\nlet seen: List<Shape> = []\nfor s in shapes\n    match s\n        case Shape.Dot\n            print(\"dot\")\n        case Shape.Ring(radius)\n            list.append(seen, Shape.Dot)\n            print(int.to-string(radius))\nprint(int.to-string(list.length(seen)))\n", "dot\n3\n1\n"},
+		{"unit words", "word store(xs: List<Int>, keep: Bool) -> Unit\n    if keep\n        list.append(xs, 7)\n    else\n        print(\"dropped\")\n\nlet xs = [1]\nstore(xs, true)\nstore(xs, false)\nword fill(xs: List<Int>) -> Unit\n    list.append(xs, 5)\nfill(xs)\nword unit() -> Unit\n    1 + 1\nunit()\nprint(int.to-string(list.length(xs)))\n", "dropped\n3\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var interpreted bytes.Buffer
+			runErr := lang.Run("probe.zhex", tc.source, strings.NewReader(""), &interpreted)
+			wantOut, wantCode := interpreted.String(), exitStatus(runErr)
+			if runErr != nil {
+				t.Fatalf("interpreter run: %v", runErr)
+			}
+			result := runProbe(t, tc.source, "")
+			if result.Output != wantOut || result.Output != tc.output {
+				t.Fatalf("engine output %q, want %q (interpreter %q)", result.Output, tc.output, wantOut)
+			}
+			if result.Exit != wantCode {
+				t.Fatalf("engine exit %d, want %d", result.Exit, wantCode)
+			}
+		})
+	}
+}

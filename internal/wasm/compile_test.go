@@ -611,6 +611,7 @@ func TestDifferential(t *testing.T) {
 		"fold-ref",
 		"flow-try-discard", "flow-try-feed", "flow-try-tail", "flow-try-word",
 		"paths-empty", "sort-by-shapes",
+		"branch-statement",
 	} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name, lang.WatSkinBrowser)

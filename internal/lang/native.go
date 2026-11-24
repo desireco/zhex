@@ -657,7 +657,13 @@ func (e *nativeEmitter) emitWord(w *word) {
 	e.line("zhexrt.EnterWord(__site, %q)", wordGoName(w))
 	e.line("defer zhexrt.LeaveWord()")
 	e.line("var __result %s", resultType)
-	e.statements(w.body, "__result")
+	if w.result == unitType {
+		// A Unit word reads nothing: every line of its body is an
+		// ordinary line (#226), so the tail assigns nothing.
+		e.statements(w.body, "")
+	} else {
+		e.statements(w.body, "__result")
+	}
 	e.emitCleanups()
 	if w.inferred {
 		e.line("return __result, nil")

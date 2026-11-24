@@ -301,7 +301,13 @@ func (e *watEmitter) wordFunction(w *word) string {
 // a plain success value once for an inferred Result word (eval.call's
 // `result.result == nil` wrap, made static: a tail whose type is already a
 // Result — ok/err constructor or propagating try — passes through unwrapped).
+// A Unit word reads nothing, so every line of its body is ordinary (#226):
+// the tail emits for effect, whatever type it ends with.
 func (e *watEmitter) emitTail(body []*statement, w *word) {
+	if w.result == unitType {
+		e.blockNeutral(body)
+		return
+	}
 	tail := e.blockValueType(body)
 	e.blockValue(body)
 	if e.resultLocal == "" || tail == neverType {
@@ -604,11 +610,47 @@ func (e *watEmitter) blockValue(body []*statement) {
 }
 
 func (e *watEmitter) statementNeutral(s *statement) {
+	// A branch on an ordinary line drops what its arms produce (#226): a
+	// plain if or match, each arm dropping its own tail, since the checker
+	// lets those arms end with any type.
+	if s.kind == "if" {
+		e.ifNeutral(s)
+		return
+	}
+	if s.kind == "expression" && s.expr.kind == "match" {
+		e.matchExprMode(s.expr, true)
+		return
+	}
 	typ := e.statementValueType(s)
 	e.statementValue(s)
 	if typ != unitType && typ != neverType {
 		e.line("drop")
 	}
+}
+
+// blockNeutral emits every statement for effect, the arm body of a branch
+// whose value nothing reads.
+func (e *watEmitter) blockNeutral(body []*statement) {
+	for _, s := range body {
+		e.statementNeutral(s)
+	}
+}
+
+// ifNeutral emits a statement if with no result type: each arm drops its
+// tail value inside the arm, mirroring the checker's ordinary-line rule.
+func (e *watEmitter) ifNeutral(s *statement) {
+	e.expr(s.expr) // Bool condition
+	e.line("if")
+	e.depth++
+	e.blockNeutral(s.body)
+	e.depth--
+	if s.otherwise != nil {
+		e.line("else")
+		e.depth++
+		e.blockNeutral(s.otherwise)
+		e.depth--
+	}
+	e.line("end")
 }
 
 func (e *watEmitter) statementValue(s *statement) {
@@ -2423,10 +2465,18 @@ func (e *watEmitter) indexWrite(x *expression) {
 // matchExpr emits the ref.test if-chain in source arm order; the checker
 // guarantees exhaustiveness, so the last arm is the final else (§7).
 func (e *watEmitter) matchExpr(x *expression) {
+	e.matchExprMode(x, false)
+}
+
+// matchExprMode emits a match. withValue=true crosses one result type —
+// only sound where the checker made every arm agree (a read position).
+// withValue=false, each arm drops its own tail, the ordinary-line rule of
+// #226 for a match standing as a statement.
+func (e *watEmitter) matchExprMode(x *expression, neutral bool) {
 	m := e.temp("m", "(ref null eq)")
 	e.expr(x.left)
 	e.line("local.set " + m)
-	withValue := x.typ != unitType
+	withValue := !neutral && x.typ != unitType
 	vtype := ""
 	if withValue {
 		vtype = e.watValueType(x.typ)
@@ -2441,12 +2491,12 @@ func (e *watEmitter) matchExpr(x *expression) {
 			e.line("if")
 		}
 		e.depth++
-		e.armBody(x, arm, m)
+		e.armBody(x, arm, m, neutral)
 		e.depth--
 		e.line("else")
 		e.depth++
 	}
-	e.armBody(x, &x.arms[len(x.arms)-1], m)
+	e.armBody(x, &x.arms[len(x.arms)-1], m, neutral)
 	for i := 0; i < len(x.arms)-1; i++ {
 		e.depth--
 		e.line("end")
@@ -2455,7 +2505,7 @@ func (e *watEmitter) matchExpr(x *expression) {
 
 // armBody casts the subject to the arm's variant struct, stores the payload
 // bindings, and emits the arm's block value.
-func (e *watEmitter) armBody(x *expression, arm *matchArm, m string) {
+func (e *watEmitter) armBody(x *expression, arm *matchArm, m string, neutral bool) {
 	if arm.variant >= 0 {
 		v := e.variantStruct(x.left.typ, arm)
 		for j, b := range arm.bindings {
@@ -2481,6 +2531,10 @@ func (e *watEmitter) armBody(x *expression, arm *matchArm, m string) {
 				e.line("local.set " + e.local(b))
 			}
 		}
+	}
+	if neutral {
+		e.blockNeutral(arm.body)
+		return
 	}
 	e.blockValue(arm.body)
 }

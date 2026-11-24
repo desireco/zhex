@@ -1,0 +1,69 @@
+# #226 differential fixture: a branch on an ordinary line drops what its
+# arms produce, so the arms may end with any type - in a loop body, at the
+# top level, nested in an arm, and as every line of a Unit word. A
+# statement match follows the same rule. The mutation words stay on the
+# host paths the emitter must drop correctly.
+let xs = [1]
+for n in range(0, 4)
+    if n > 1
+        list.append xs, n
+for n in xs
+    print(int.to-string(n))
+
+if xs[0] == 1
+    list.append(xs, 9)
+    print(1)
+else
+    print("one")
+
+if xs[0] == 99
+    print("never")
+elif xs[0] == 1
+    print(42)
+else
+    print("other")
+
+type Shape = choice
+    Dot
+    Ring(radius: Int)
+
+let shapes = [Shape.Dot, Shape.Ring(3)]
+let seen: List<Shape> = []
+for s in shapes
+    match s
+        case Shape.Dot
+            print("dot")
+        case Shape.Ring(radius)
+            list.append(seen, Shape.Dot)
+            print(int.to-string(radius))
+print(int.to-string(list.length(seen)))
+
+word store(xs: List<Int>, keep: Bool) -> Unit
+    if keep
+        list.append(xs, 7)
+    else
+        print("dropped")
+
+store(xs, true)
+store(xs, false)
+
+word fill(xs: List<Int>) -> Unit
+    list.append(xs, 5)
+
+fill(xs)
+
+word unit() -> Unit
+    1 + 1
+
+unit()
+
+let total = 0
+for n in xs
+    if n > 1
+        if n > 2
+            print(int.to-string(n))
+        else
+            print("small")
+    else
+        print("first")
+print(int.to-string(list.length(xs)))

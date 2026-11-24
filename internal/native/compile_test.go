@@ -236,3 +236,23 @@ func TestNativeTextSentences(t *testing.T) {
 	diffCase(t, "sentences-limit",
 		"print(list.length(text.sentences(text.repeat(\"a. \", 1000001))))\n", "")
 }
+
+// TestNativeBranchStatementOrdinaryLines pins #226 on the native target: a
+// branch on an ordinary line drops what its arms produce, so the arms may
+// end with any type - in a loop body, at the top level, nested in an arm,
+// and as every line of a Unit word - and a statement match follows the
+// same rule. The mutation words keep their host-word receiver paths.
+func TestNativeBranchStatementOrdinaryLines(t *testing.T) {
+	diffCase(t, "branch-loop",
+		"let xs = [1]\nfor n in range(0, 4)\n    if n > 1\n        list.append xs, n\nprint(int.to-string(list.length(xs)))\n", "")
+	diffCase(t, "branch-arms",
+		"let xs = [1]\nif xs[0] == 1\n    list.append(xs, 9)\n    print(1)\nelse\n    print(\"one\")\nif xs[0] == 99\n    print(\"never\")\nelif xs[0] == 1\n    print(42)\nelse\n    print(\"other\")\nprint(int.to-string(list.length(xs)))\n", "")
+	diffCase(t, "branch-nested",
+		"let total = 0\nfor n in [1, 2, 3]\n    if n > 1\n        if n > 2\n            print(int.to-string(n))\n        else\n            print(\"small\")\n    else\n        print(\"first\")\n", "")
+	diffCase(t, "branch-unit-words",
+		"word store(xs: List<Int>, keep: Bool) -> Unit\n    if keep\n        list.append(xs, 7)\n    else\n        print(\"dropped\")\n\nlet xs = [1]\nstore(xs, true)\nstore(xs, false)\nword fill(xs: List<Int>) -> Unit\n    list.append(xs, 5)\nfill(xs)\nword unit() -> Unit\n    1 + 1\nunit()\nprint(int.to-string(list.length(xs)))\n", "")
+	diffCase(t, "branch-match-statement",
+		"type Shape = choice\n    Dot\n    Ring(radius: Int)\n\nlet shapes = [Shape.Dot, Shape.Ring(3)]\nlet seen: List<Shape> = []\nfor s in shapes\n    match s\n        case Shape.Dot\n            print(\"dot\")\n        case Shape.Ring(radius)\n            list.append(seen, Shape.Dot)\n            print(int.to-string(radius))\nprint(int.to-string(list.length(seen)))\n", "")
+	diffCase(t, "branch-map-statement",
+		"let m = {\"a\": 1}\nif map.contains(m, \"a\")\n    map.put(m, \"b\", 2)\nelse\n    print(\"kept\")\nprint(int.to-string(map.length(m)))\n", "")
+}
