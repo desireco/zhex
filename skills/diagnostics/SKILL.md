@@ -428,6 +428,22 @@ Fix: Include a date, time, and explicit RFC 3339 offset.
 
 Learn: https://desireco.github.io/zhex/errors.html#instant-parse
 
+## int-shift-count
+
+A shift word's count is negative.
+
+Fix: Shift counts are zero or more; compute the count from nonnegative values or guard it with a condition first.
+
+Learn: https://desireco.github.io/zhex/errors.html#int-shift-count
+
+## int-shift-width
+
+A shift count of 64 or more in a build whose Int is 64 bits wide: compiled WebAssembly and the browser engine.
+
+Fix: Keep the count below 64 there, or use the interpreter or a native build, whose Int carries the full 128-bit width.
+
+Learn: https://desireco.github.io/zhex/errors.html#int-shift-width
+
 ## integer-literal-range
 
 An integer literal is outside the signed 128-bit range.

@@ -67,7 +67,7 @@ var hostWords = []string{
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode", "json.parse", "xml.decode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values",
-	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "list.pop", "list.first", "list.last", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "list.pop", "list.first", "list.last", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "int.and", "int.or", "int.xor", "int.shift-left", "int.shift-right", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with", "text.repeat", "text.pad-left", "text.pad-right", "text.wrap", "text.insert", "text.remove", "text.sentences",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -2199,6 +2199,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			params = []valueType{intType}
 			result = stringType
 		case "int.mod-floor":
+			params = []valueType{intType, intType}
+			result = intType
+		case "int.and", "int.or", "int.xor", "int.shift-left", "int.shift-right":
 			params = []valueType{intType, intType}
 			result = intType
 		case "text.reverse":

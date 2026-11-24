@@ -95,6 +95,8 @@ const (
 
 	CodeIntegerOverflow  Code = "integer-overflow"
 	CodeDivisionZero     Code = "division-zero"
+	CodeIntShiftCount    Code = "int-shift-count"
+	CodeIntShiftWidth    Code = "int-shift-width"
 	CodeDepthLimit       Code = "depth-limit"
 	CodeUnsupportedCode  Code = "unsupported-code"
 	CodeConsoleOutput    Code = "console-output"
@@ -143,7 +145,7 @@ var diagnosticCodes = []Code{
 	CodeCompareType, CodeOrderingType, CodeAdditionType, CodeArithmeticType, CodeArgumentCount, CodeArgumentType,
 	CodeUnknownWord, CodePrintType, CodeRangeContext, CodeMainParameters,
 	CodeUseMissing, CodeUseCycle, CodeUseReserved, CodeUseLocation, CodeModuleBody, CodePrivateUse,
-	CodeIntegerOverflow, CodeDivisionZero, CodeDepthLimit, CodeUnsupportedCode,
+	CodeIntegerOverflow, CodeDivisionZero, CodeIntShiftCount, CodeIntShiftWidth, CodeDepthLimit, CodeUnsupportedCode,
 	CodeConsoleOutput, CodeConsoleInput, CodeConsoleUTF8, CodeTextToInt, CodeReplaceEmpty, CodeTextCodePoint, CodeTextPadWidth, CodeTextPadFill, CodeTextRepeatCount, CodeBufferRange,
 	CodeFileOpen, CodeFileRead, CodeFileWrite, CodeFileBytesRange, CodeFileUTF8, CodeFileExists, CodeFileList, CodeFileSize, CodeFileFreeSpace, CodeFileMakeFolder, CodeFileDelete, CodeFileDeleteFolder, CodeFileMove, CodeEnvRead, CodeEnvParse, CodeArgumentMissing,
 	CodeDoctestMismatch, CodeDoctestCheck, CodeTestFailed,

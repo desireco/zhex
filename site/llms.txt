@@ -102,6 +102,8 @@ Every built-in diagnostic code with its one-line meaning and its learn URL, one 
 - [immutable-name](https://desireco.github.io/zhex/errors.html#immutable-name): A name defined with `let` cannot be reassigned.
 - [indentation](https://desireco.github.io/zhex/errors.html#indentation): A line's indent is not a multiple of four spaces, or it opens more than one level at once.
 - [instant-parse](https://desireco.github.io/zhex/errors.html#instant-parse): An instant string is invalid.
+- [int-shift-count](https://desireco.github.io/zhex/errors.html#int-shift-count): A shift word's count is negative.
+- [int-shift-width](https://desireco.github.io/zhex/errors.html#int-shift-width): A shift count of 64 or more in a build whose Int is 64 bits wide: compiled WebAssembly and the browser engine.
 - [integer-literal-range](https://desireco.github.io/zhex/errors.html#integer-literal-range): An integer literal is outside the signed 128-bit range.
 - [integer-overflow](https://desireco.github.io/zhex/errors.html#integer-overflow): An arithmetic result does not fit in a signed 128-bit integer.
 - [json-depth](https://desireco.github.io/zhex/errors.html#json-depth): JSON nesting exceeds the supported depth of 256.

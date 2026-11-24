@@ -183,6 +183,12 @@ An arithmetic result does not fit in a signed 128-bit integer. Overflow is an er
 ## division-zero
 Division or remainder by zero. Guard the divisor with a condition first.
 
+## int-shift-count
+A shift word's count is negative. Shift counts are zero or more; compute the count from nonnegative values or guard it with a condition first.
+
+## int-shift-width
+A shift count of 64 or more in a build whose Int is 64 bits wide: compiled WebAssembly and the browser engine. Keep the count below 64 there, or use the interpreter or a native build, whose Int carries the full 128-bit width.
+
 ## depth-limit
 Word recursion passed the runtime depth limit of 256. Rewrite the recursion as a loop with `var` and `for`; loops have no depth limit.
 

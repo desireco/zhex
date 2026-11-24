@@ -350,6 +350,35 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			wrapped, _ = zhexrt.AddOvf(wrapped, modulus)
 		}
 		return value{number: wrapped}, nil
+	case "int.and", "int.or", "int.xor":
+		// Two's-complement bit operations over the full width — pure limb
+		// logic, no failure modes.
+		var bits func(a, b i128) i128
+		switch x.text {
+		case "int.and":
+			bits = zhexrt.And
+		case "int.or":
+			bits = zhexrt.Or
+		default:
+			bits = zhexrt.Xor
+		}
+		return value{number: bits(args[0].number, args[1].number)}, nil
+	case "int.shift-left", "int.shift-right":
+		// The js engine build carries the owner's 64-bit ruling (#231 rule
+		// 3): a count of 64 or more fails int-shift-width at runtime there,
+		// before the shared 128-bit body runs (shiftwidth_js.go).
+		if shiftCountWide(args[1].number) {
+			return value{}, errorAt(x.pos, CodeIntShiftWidth, "shift count of 64 or more exceeds this build's 64-bit Int width")
+		}
+		shift := zhexrt.ShiftRight
+		if x.text == "int.shift-left" {
+			shift = zhexrt.ShiftLeft
+		}
+		number, err := rtFail(func() i128 { return shift(rtPos(x.pos), args[0].number, args[1].number) })
+		if err != nil {
+			return value{}, err
+		}
+		return value{number: number}, nil
 	case "text.reverse":
 		return value{text: zhexrt.TextReverse(args[0].text)}, nil
 	case "read-line":

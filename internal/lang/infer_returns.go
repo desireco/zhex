@@ -149,6 +149,7 @@ func (s *returnInference) join(a, b *typeConstraint, pos position) *typeConstrai
 	s.equal(a, b, pos)
 	return a
 }
+
 // block infers one block under the shared ordinary-line law (#226): a
 // statement's value is read only when it is the last statement of a block
 // whose own value a reader consumes — the same readsValue the checking
@@ -842,6 +843,7 @@ var inferenceBuiltins = func() map[string]inferenceSignature {
 	}
 	add("int.to-string", stringType, intType)
 	add("int.mod-floor", intType, intType, intType)
+	add("int.and int.or int.xor int.shift-left int.shift-right", intType, intType, intType)
 	add("text.reverse text.upper text.lower text.trim", stringType, stringType)
 	add("text.to-int", intParseResultType, stringType)
 	add("text.length text.line-count text.word-count", intType, stringType)

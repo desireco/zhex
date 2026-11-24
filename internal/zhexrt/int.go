@@ -136,6 +136,49 @@ func MulOvf(a, b Int) (Int, bool) {
 	return magnitude, false
 }
 
+// And, Or, and Xor are the bitwise words: two's complement over the full
+// width, limbwise — no failure modes exist for bit operations.
+func And(a, b Int) Int { return Int{Lo: a.Lo & b.Lo, Hi: a.Hi & b.Hi} }
+func Or(a, b Int) Int  { return Int{Lo: a.Lo | b.Lo, Hi: a.Hi | b.Hi} }
+func Xor(a, b Int) Int { return Int{Lo: a.Lo ^ b.Lo, Hi: a.Hi ^ b.Hi} }
+
+// shiftCount splits a nonnegative count for the limb shift helpers:
+// ok is false when the count is the width or more, where the clamped
+// mathematical result applies instead.
+func shiftCount(n Int) (uint, bool) {
+	if n.Hi != 0 || n.Lo >= 128 {
+		return 0, false
+	}
+	return uint(n.Lo), true
+}
+
+// shl truncates a left shift over the two's-complement width; the caller
+// checks exactness (shift-left) — shifts by themselves never wrap silently
+// in the language.
+func shl(a Int, n uint) Int {
+	if n >= 128 {
+		return Int{}
+	}
+	if n >= 64 {
+		return Int{Lo: 0, Hi: int64(a.Lo << (n - 64))}
+	}
+	return Int{Lo: a.Lo << n, Hi: int64(uint64(a.Hi)<<n | a.Lo>>(64-n))}
+}
+
+// shr is the arithmetic (sign-keeping) right shift over the full width.
+func shr(a Int, n uint) Int {
+	if n >= 128 {
+		if a.Negative() {
+			return Int{Lo: ^uint64(0), Hi: -1}
+		}
+		return Int{}
+	}
+	if n >= 64 {
+		return Int{Lo: uint64(a.Hi >> (n - 64)), Hi: a.Hi >> 63}
+	}
+	return Int{Lo: a.Lo>>n | uint64(a.Hi)<<(64-n), Hi: a.Hi >> n}
+}
+
 // DivMod truncates toward zero, matching / and %. The divisor is nonzero
 // and the Min/-1 overflow case is the caller's to reject.
 func DivMod(a, b Int) (Int, Int) {
