@@ -1892,6 +1892,23 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 	case "int.to-string":
 		need(1)
 		return fmt.Sprintf("zhexrt.Str(%s)", args[0])
+	case "int.and", "int.or", "int.xor":
+		need(2)
+		// Pure limbwise bit operations (#231): two's complement over the
+		// full 128-bit width, no failure modes to carry a position for.
+		return fmt.Sprintf("zhexrt.%s(%s, %s)", map[string]string{
+			"int.and": "And",
+			"int.or":  "Or",
+			"int.xor": "Xor",
+		}[x.text], args[0], args[1])
+	case "int.shift-left", "int.shift-right":
+		need(2)
+		// The shared checked bodies (#231): int-shift-count on a negative
+		// count, integer-overflow when shift-left's result leaves the range.
+		return fmt.Sprintf("zhexrt.%s(%s, %s, %s)", map[string]string{
+			"int.shift-left":  "ShiftLeft",
+			"int.shift-right": "ShiftRight",
+		}[x.text], pos, args[0], args[1])
 	case "console.arg":
 		need(1)
 		return fmt.Sprintf("zhexrt.ArgsAt(%s, %s)", pos, args[0])

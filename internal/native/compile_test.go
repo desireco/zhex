@@ -253,6 +253,26 @@ func TestNativeListEnds(t *testing.T) {
 	diffCase(t, "list-ends-iterating", "let xs = [1, 2]\nfor v in xs\n    list.pop(xs)\nprint(\"unreachable\")\n", "")
 }
 
+// TestNativeIntShifts pins #231 on the native target: the five bitwise
+// words at the full 128-bit width, including counts past 64 that wasm
+// fences, the clamped mathematical result past 128, and every failure —
+// negative count, shift-left overflow — rendered byte-identically to the
+// interpreter's diagnostics.
+func TestNativeIntShifts(t *testing.T) {
+	diffCase(t, "int-bits",
+		"print(int.and(12, 10))\nprint(int.or(12, 10))\nprint(int.xor(12, 10))\nprint(int.and(-1, 255))\nprint(int.xor(-1, 5))\n"+
+			"print(int.and(-170141183460469231731687303715884105728, -1))\nprint(int.xor(-1267650600228229401496703205376, -1))\n"+
+			"print(int.shift-left(1, 63))\nprint(int.shift-left(1, 64))\nprint(int.shift-left(1, 126))\nprint(int.shift-right(1180591620717411303424, 63))\n"+
+			"print(int.shift-right(1180591620717411303424, 64))\nprint(int.shift-right(-1329227995784915872903807060280344576, 64))\n"+
+			"print(int.shift-right(-1, 127))\nprint(int.shift-left(-1, 127))\nprint(int.shift-right(5, 128))\nprint(int.shift-right(-1, 200))\nprint(int.shift-left(0, 200))\n"+
+			"let code = int.or(int.shift-left(5, 3), int.shift-left(2, 6))\nlet masked = flow code\n    int.shift-right 6\n    int.and 7\nprint(masked)\n"+
+			"word decode(code: Int, s: Int) -> Int\n    int.and(int.shift-right(code, 3 * s), 7)\nprint(decode(168, 1))\nprint(decode(168, 2))\n", "")
+	diffCase(t, "int-bits-negative-count", "print(int.shift-left(1, -1))\n", "")
+	diffCase(t, "int-bits-negative-count-right", "print(int.shift-right(8, -3))\n", "")
+	diffCase(t, "int-bits-overflow-edge", "print(int.shift-left(1, 127))\n", "")
+	diffCase(t, "int-bits-overflow-past-width", "print(int.shift-left(-1, 200))\n", "")
+}
+
 // TestNativeBranchStatementOrdinaryLines pins #226 on the native target: a
 // branch on an ordinary line drops what its arms produce, so the arms may
 // end with any type - in a loop body, at the top level, nested in an arm,
