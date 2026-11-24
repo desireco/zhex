@@ -788,3 +788,40 @@ func TestEngineBranchStatementOrdinaryLines(t *testing.T) {
 		})
 	}
 }
+
+// TestEngineListEnds pins #159 in the browser engine: pop removes and
+// returns the last element, first/last read the ends, the flow receiver
+// form threads the stack, and the empty-list failure comes back coded
+// (family list-range), never trapped. Every run is differential against
+// the interpreter in this process.
+func TestEngineListEnds(t *testing.T) {
+	engineModule(t)
+	cases := []struct {
+		name   string
+		source string
+		output string
+	}{
+		{"ends", "let xs = [1, 2, 3]\nprint(list.first(xs))\nprint(list.last(xs))\nprint(list.pop(xs))\nprint(list.length(xs))\nlet words = [\"a\", \"b\", \"c\"]\nprint(list.pop(words))\nprint(list.last(words))\n", "1\n3\n3\n2\nc\nb\n"},
+		{"flow tail", "let stack: List<Int> = list.new()\nlet top = flow stack\n    list.append 4\n    list.append 5\n    list.pop\nprint(top)\nprint(list.length(stack))\n", "5\n1\n"},
+		{"drain loop", "var total = 0\nlet xs = [1, 2, 3]\nwhile list.length(xs) > 0\n    total = total + list.pop(xs)\nprint(total)\n", "6\n"},
+		{"empty pop coded", "let xs: List<Int> = []\nlet top = list.pop(xs) catch problem\n    print(error.code(problem))\n    0\nprint(top)\n", "list-range\n0\n"},
+		{"empty last coded", "let xs: List<String> = []\nlet tail = list.last(xs) catch problem\n    print(error.code(problem))\n    \"\"\nprint(tail)\n", "list-range\n\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var interpreted bytes.Buffer
+			runErr := lang.Run("probe.zhex", tc.source, strings.NewReader(""), &interpreted)
+			wantOut, wantCode := interpreted.String(), exitStatus(runErr)
+			if runErr != nil {
+				t.Fatalf("interpreter run: %v", runErr)
+			}
+			result := runProbe(t, tc.source, "")
+			if result.Output != wantOut || result.Output != tc.output {
+				t.Fatalf("engine output %q, want %q (interpreter %q)", result.Output, tc.output, wantOut)
+			}
+			if result.Exit != wantCode {
+				t.Fatalf("engine exit %d, want %d", result.Exit, wantCode)
+			}
+		})
+	}
+}
