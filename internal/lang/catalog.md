@@ -6,7 +6,7 @@ and `hint:` line are additive detail. Machine readers use
 `zhex run <file> --report=json`.
 
 ## list-range
-The list index is negative or outside its current length. Use a valid zero-based index.
+The list index is negative or outside its current length, or the list is empty where `list.first`, `list.last`, or `list.pop` needs an element. Use a valid zero-based index, or handle the empty case with `catch` or a `list.length` check.
 
 ## collection-limit
 A list or array would exceed the runtime limit of 1,000,000 elements. Reduce its size.

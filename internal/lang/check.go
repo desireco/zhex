@@ -67,7 +67,7 @@ var hostWords = []string{
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode", "json.parse", "xml.decode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values",
-	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "text.reverse", "text.to-int", "read-line", "range",
+	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "list.pop", "list.first", "list.last", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with", "text.repeat", "text.pad-left", "text.pad-right", "text.wrap", "text.insert", "text.remove", "text.sentences",
 	"buffer.new", "buffer.add-line", "buffer.line-count", "buffer.line", "buffer.set-line", "buffer.to-text",
@@ -2089,6 +2089,20 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
 			}
 			params, result = args, valueType("Result<"+string(args[0])+", Error>")
+		case "list.pop", "list.first", "list.last":
+			if len(args) != 1 {
+				return "", errorAt(x.pos, CodeArgumentCount, "%s requires 1 argument, found %d", x.text, len(args))
+			}
+			kind, inner, ok := collectionInner(args[0])
+			if !ok || kind != "List" {
+				return "", errorAt(x.pos, CodeArgumentType, "%s requires a List", x.text)
+			}
+			// pop is the sanctioned exception to mutation words returning
+			// their collection: it yields the removed element; first/last are
+			// plain reads of the ends. All three stay checked collection
+			// operations, so the plain call unwraps to the element and
+			// try/catch select Result<element, Error>.
+			params, result = args, valueType("Result<"+string(inner)+", Error>")
 		case "list.sort":
 			if len(args) != 1 {
 				return "", errorAt(x.pos, CodeArgumentCount, "list.sort requires 1 argument, found %d", len(args))

@@ -156,6 +156,29 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		rest := append([]value{args[2]}, args[0].list.items[at:]...)
 		args[0].list.items = append(args[0].list.items[:at], rest...)
 		return value{result: &inputResult{value: args[0]}}, nil
+	case "list.pop":
+		// the sanctioned exception: the removed element comes back, not the
+		// list. The empty failure keeps the family's diagnostic — the same
+		// shape xs[list.length(xs) - 1] produced, index -1 against length 0.
+		if args[0].list.active > 0 {
+			return failedCollection(x.pos, CodeCollectionIterating, "list.pop", "collection is being iterated", nil), nil
+		}
+		if len(args[0].list.items) == 0 {
+			return failedCollection(x.pos, CodeListRange, "list.pop", "list index is out of range", map[string]string{"index": "-1", "length": "0"}), nil
+		}
+		last := args[0].list.items[len(args[0].list.items)-1]
+		args[0].list.items = args[0].list.items[:len(args[0].list.items)-1]
+		return value{result: &inputResult{value: last}}, nil
+	case "list.first":
+		if len(args[0].list.items) == 0 {
+			return failedCollection(x.pos, CodeListRange, "list.first", "list index is out of range", map[string]string{"index": "0", "length": "0"}), nil
+		}
+		return value{result: &inputResult{value: args[0].list.items[0]}}, nil
+	case "list.last":
+		if len(args[0].list.items) == 0 {
+			return failedCollection(x.pos, CodeListRange, "list.last", "list index is out of range", map[string]string{"index": "-1", "length": "0"}), nil
+		}
+		return value{result: &inputResult{value: args[0].list.items[len(args[0].list.items)-1]}}, nil
 	case "list.length":
 		return value{number: zhexrt.I64(int64(len(args[0].list.items)))}, nil
 	case "list.map":

@@ -7,7 +7,7 @@ import (
 )
 
 func isCheckedCollectionOperation(name string) bool {
-	return name == "array.new" || name == "array.resize" || name == "list.append" || name == "list.insert" || name == "file.exists"
+	return name == "array.new" || name == "array.resize" || name == "list.append" || name == "list.insert" || name == "list.pop" || name == "list.first" || name == "list.last" || name == "file.exists"
 }
 
 // sortListStable returns a fresh list of items in ascending key order; equal

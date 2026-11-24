@@ -486,9 +486,9 @@ Learn: https://desireco.github.io/zhex/errors.html#json-type
 
 ## list-range
 
-The list index is negative or outside its current length.
+The list index is negative or outside its current length, or the list is empty where `list.first`, `list.last`, or `list.pop` needs an element.
 
-Fix: Use a valid zero-based index.
+Fix: Use a valid zero-based index, or handle the empty case with `catch` or a `list.length` check.
 
 Learn: https://desireco.github.io/zhex/errors.html#list-range
 

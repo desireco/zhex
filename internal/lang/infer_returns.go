@@ -1125,6 +1125,15 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 			return namedType("Result", namedType("List", element), namedType("Error"))
 		}
 		return namedType("List", element)
+	case "list.pop", "list.first", "list.last":
+		element := freshType()
+		if len(args) > 0 {
+			s.equal(args[0], namedType("List", element), x.pos)
+		}
+		if checked {
+			return namedType("Result", element, namedType("Error"))
+		}
+		return element
 	case "array.new":
 		element := freshType()
 		if len(args) > 0 {
