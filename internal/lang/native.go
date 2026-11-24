@@ -2044,6 +2044,15 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 	case "list.insert":
 		need(3)
 		return fmt.Sprintf("zhexrt.ListInsert(%s, %s, %s, %s)", pos, args[0], args[1], args[2])
+	case "list.pop":
+		need(1)
+		return fmt.Sprintf("zhexrt.ListPop(%s, %s)", pos, args[0])
+	case "list.first":
+		need(1)
+		return fmt.Sprintf("zhexrt.ListFirst(%s, %s)", pos, args[0])
+	case "list.last":
+		need(1)
+		return fmt.Sprintf("zhexrt.ListLast(%s, %s)", pos, args[0])
 	case "list.length":
 		need(1)
 		return fmt.Sprintf("zhexrt.ListLength(%s)", args[0])

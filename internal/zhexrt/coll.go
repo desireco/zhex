@@ -199,6 +199,38 @@ func ListInsert[T any](pos Pos, l *List[T], index Int, item T) Result[*List[T]] 
 	return Ok(l)
 }
 
+// ListPop removes the last element and returns it — the one sanctioned
+// exception to mutation words returning their collection. The empty failure
+// keeps the family diagnostic: the same message and index/length details
+// xs[len - 1] produced on an empty list.
+func ListPop[T any](pos Pos, l *List[T]) Result[T] {
+	if l.Active > 0 {
+		return collectionFailure[T](pos, "collection-iterating", "list.pop", "collection is being iterated", nil)
+	}
+	if len(l.Items) == 0 {
+		return collectionFailure[T](pos, "list-range", "list.pop", "list index is out of range", map[string]string{"index": "-1", "length": "0"})
+	}
+	last := l.Items[len(l.Items)-1]
+	l.Items = l.Items[:len(l.Items)-1]
+	return Ok(last)
+}
+
+// ListFirst and ListLast read the ends without changing the list; the
+// empty failure mirrors the indexed read at 0 / len-1.
+func ListFirst[T any](pos Pos, l *List[T]) Result[T] {
+	if len(l.Items) == 0 {
+		return collectionFailure[T](pos, "list-range", "list.first", "list index is out of range", map[string]string{"index": "0", "length": "0"})
+	}
+	return Ok(l.Items[0])
+}
+
+func ListLast[T any](pos Pos, l *List[T]) Result[T] {
+	if len(l.Items) == 0 {
+		return collectionFailure[T](pos, "list-range", "list.last", "list index is out of range", map[string]string{"index": "-1", "length": "0"})
+	}
+	return Ok(l.Items[len(l.Items)-1])
+}
+
 // ListGet is the checked indexed read; plain reads harden the failure.
 func ListGet[T any](pos Pos, l *List[T], index Int) Result[T] {
 	if !index.Fits64() || index.AsInt64() < 0 || index.AsInt64() >= int64(len(l.Items)) {
