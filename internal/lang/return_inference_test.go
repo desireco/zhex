@@ -218,3 +218,24 @@ func TestInferredReturnsPreserveConditionDiagnostics(t *testing.T) {
 		t.Fatalf("original %v, combined %v", original, combined)
 	}
 }
+
+// TestInferredNeverTailNeedsUnitAnnotation pins the #226 fallout shape:
+// a word with no declared result whose tail always exits (console.exit is
+// Never) once borrowed its Unit from the join of a call site's if-arms —
+// a join the ordinary-line rule removed, since a branch nothing reads
+// drops what its arms produce. Before #226 this program compiled; now the
+// word asks for its annotation, and declaring -> Unit is the fix, exactly
+// what the branch hint advises.
+func TestInferredNeverTailNeedsUnitAnnotation(t *testing.T) {
+	got := runError(t, "word bye(status: Int)\n    console.exit(status)\nword run(done: Bool)\n    if done\n        bye(0)\n    print(\"after\")\nrun(false)\n")
+	if !strings.Contains(got, "cannot infer return type of \"bye\"") {
+		t.Fatalf("missing inference diagnostic: %q", got)
+	}
+	if !strings.Contains(got, "hint: add an explicit return annotation") {
+		t.Fatalf("missing annotation hint: %q", got)
+	}
+	annotated := "word bye(status: Int) -> Unit\n    console.exit(status)\nword run(done: Bool)\n    if done\n        bye(0)\n    print(\"after\")\nrun(false)\n"
+	if out := runOK(t, annotated); out != "after\n" {
+		t.Fatalf("annotated form must run: %q", out)
+	}
+}

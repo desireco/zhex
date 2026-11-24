@@ -32,7 +32,7 @@ word comment-only(source: String) -> Bool
                 all = false
     all and saw
 
-word end-of-file(buffer: String, pending: Bool)
+word end-of-file(buffer: String, pending: Bool) -> Unit
     if pending
         let candidate = buffer + "\n"
         if repl.open-delimiter(candidate)
