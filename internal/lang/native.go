@@ -270,6 +270,8 @@ func (e *nativeEmitter) goType(pos position, t valueType) string {
 			return "zhexrt.Option[" + e.goType(pos, args[0]) + "]"
 		case "Map":
 			return "*zhexrt.Map[" + e.goType(pos, args[0]) + ", " + e.goType(pos, args[1]) + "]"
+		case "Set":
+			return "*zhexrt.Set[" + e.goType(pos, args[0]) + "]"
 		}
 	}
 	if params, result, ok := functionTypeParts(t); ok {
@@ -1882,6 +1884,11 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 		if x.args[0].typ == boolType {
 			return fmt.Sprintf("zhexrt.PrintBool(%s, %s)", pos, args[0])
 		}
+		if elem, ok := setTypes(x.inputType); ok {
+			// the interpreter's set braces; String members stay quoted
+			show := map[valueType]string{intType: "zhexrt.SetStringInt", stringType: "zhexrt.SetStringString", boolType: "zhexrt.SetStringBool"}[elem]
+			return fmt.Sprintf("zhexrt.Print(%s, %s(%s))", pos, show, args[0])
+		}
 		return fmt.Sprintf("zhexrt.Print(%s, %s)", pos, args[0])
 	case "read-line":
 		need(1)
@@ -2047,6 +2054,25 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 	case "text.remove":
 		need(3)
 		return fmt.Sprintf("zhexrt.TextRemove(%s, %s, %s)", args[0], args[1], args[2])
+	// set words
+	case "set.new":
+		elem, _ := setTypes(x.typ)
+		return fmt.Sprintf("zhexrt.NewSet[%s]()", e.goType(x.pos, elem))
+	case "set.add":
+		need(2)
+		return fmt.Sprintf("zhexrt.SetAdd(%s, %q, %s, %s)", pos, x.text, args[0], args[1])
+	case "set.remove":
+		need(2)
+		return fmt.Sprintf("zhexrt.SetRemove(%s, %q, %s, %s)", pos, x.text, args[0], args[1])
+	case "set.contains":
+		need(2)
+		return fmt.Sprintf("zhexrt.SetContains(%s, %s)", args[0], args[1])
+	case "set.length":
+		need(1)
+		return fmt.Sprintf("zhexrt.SetLength(%s)", args[0])
+	case "set.values":
+		need(1)
+		return fmt.Sprintf("zhexrt.SetValues(%s, %q, %s)", pos, x.text, args[0])
 	case "text.sentences":
 		need(1)
 		return fmt.Sprintf("zhexrt.TextSentences(%s, %s)", pos, args[0])

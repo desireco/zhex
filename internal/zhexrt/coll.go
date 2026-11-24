@@ -98,6 +98,102 @@ func (m *Map[K, V]) guard(pos Pos, operation string) *Error {
 	return &Error{Pos: pos, Code: "collection-iterating", Operation: operation, Message: "collection is being iterated"}
 }
 
+// Set is Zhex Set<T>: insertion-ordered members unique by value (the
+// map-key domain). Active guards traversal-shaped mutation, the Map shape.
+type Set[T comparable] struct {
+	Entries []T
+	index   map[T]int
+	Active  int
+}
+
+func NewSet[T comparable]() *Set[T] { return &Set[T]{index: map[T]int{}} }
+
+func (s *Set[T]) put(item T) {
+	if _, ok := s.index[item]; ok {
+		return
+	}
+	s.index[item] = len(s.Entries)
+	s.Entries = append(s.Entries, item)
+}
+
+func (s *Set[T]) remove(item T) {
+	i, ok := s.index[item]
+	if !ok {
+		return
+	}
+	delete(s.index, item)
+	copy(s.Entries[i:], s.Entries[i+1:])
+	s.Entries[len(s.Entries)-1] = item
+	s.Entries = s.Entries[:len(s.Entries)-1]
+	for n := i; n < len(s.Entries); n++ {
+		s.index[s.Entries[n]] = n
+	}
+}
+
+func (s *Set[T]) guard(pos Pos, operation string) *Error {
+	if s.Active == 0 {
+		return nil
+	}
+	return &Error{Pos: pos, Code: "collection-iterating", Operation: operation, Message: "collection is being iterated"}
+}
+
+// SetAdd inserts a member (a present one is a no-op) and returns the
+// receiver; SetRemove deletes one (an absent one is a no-op) and returns
+// the receiver — the map.put/map.remove contract.
+func SetAdd[T comparable](pos Pos, operation string, s *Set[T], item T) *Set[T] {
+	if err := s.guard(pos, operation); err != nil {
+		panic(err)
+	}
+	s.put(item)
+	return s
+}
+
+func SetRemove[T comparable](pos Pos, operation string, s *Set[T], item T) *Set[T] {
+	if err := s.guard(pos, operation); err != nil {
+		panic(err)
+	}
+	s.remove(item)
+	return s
+}
+
+func SetContains[T comparable](s *Set[T], item T) bool {
+	_, ok := s.index[item]
+	return ok
+}
+
+func SetLength[T comparable](s *Set[T]) Int { return I64(int64(len(s.Entries))) }
+
+// SetValues extracts a fresh List in insertion order, the MapKeys shape.
+func SetValues[T comparable](pos Pos, operation string, s *Set[T]) *List[T] {
+	if len(s.Entries) > MaxElements {
+		Fail(pos, "collection-limit", "%s exceeds element limit", operation)
+	}
+	items := make([]T, len(s.Entries))
+	copy(items, s.Entries)
+	return &List[T]{Items: items}
+}
+
+// SetStringInt, SetStringString, and SetStringBool render the print form:
+// members in insertion order inside set braces, String members quoted so
+// the element type stays visible — the interpreter's renderSet.
+func SetStringInt(s *Set[Int]) string { return setBraces(s.Entries, func(v Int) string { return Str(v) }) }
+
+func SetStringString(s *Set[string]) string {
+	return setBraces(s.Entries, func(v string) string { return strconv.Quote(v) })
+}
+
+func SetStringBool(s *Set[bool]) string {
+	return setBraces(s.Entries, func(v bool) string { return strconv.FormatBool(v) })
+}
+
+func setBraces[T any](entries []T, show func(T) string) string {
+	parts := make([]string, len(entries))
+	for i, v := range entries {
+		parts[i] = show(v)
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
+}
+
 // MapInto merges source into m, replacing existing values on collisions,
 // and returns m.
 func MapInto[K comparable, V any](pos Pos, source *Map[K, V], m *Map[K, V]) *Map[K, V] {
