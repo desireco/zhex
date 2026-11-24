@@ -533,7 +533,6 @@ func TestChoicePayloadAndMatchRestrictions(t *testing.T) {
 		"type E = choice\n    A(x: Int)\nlet a = E.A(2)\nmatch a\n    case E.A(x)\n        x = 3\n",
 		"type E = choice\n    A\nlet x = E.A\nprint(x)\n",
 		"type E = choice\n    A\nlet x = E.A\nprint(x == x)\n",
-		"type E = choice\n    A\n    B\nlet x = E.A\nmatch x\n    case E.A\n        1\n    case E.B\n        true\n",
 	}
 	for _, src := range cases {
 		if _, err := Compile("test.zhex", src); err == nil {

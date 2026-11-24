@@ -57,6 +57,7 @@ type checker struct {
 	expected       valueType
 	blockExpected  valueType
 	flowExpected   valueType
+	valueReads     bool // the statement or expression being checked feeds a reader
 	inferenceBody  []*statement
 	inferenceScope *scope
 }
@@ -250,7 +251,7 @@ func CompileModules(entryPath, entrySource string, resolve func(name string) (Mo
 	if err = c.checkRecordDefaults(p.records); err != nil {
 		return nil, annotateSource(err, sources)
 	}
-	if _, err = c.block(p.body, newScope(nil)); err != nil {
+	if _, err = c.block(p.body, newScope(nil), false); err != nil {
 		return nil, annotateSource(err, sources)
 	}
 	p.sources = sources
@@ -447,7 +448,7 @@ func (c *checker) checkProgram(p *Program, top *scope) (valueType, error) {
 	if err := c.checkRecordDefaults(p.records); err != nil {
 		return "", err
 	}
-	return c.block(p.body, top)
+	return c.block(p.body, top, true)
 }
 
 // register adds a file's own words to the current view, rejecting
@@ -551,11 +552,12 @@ func (c *checker) checkWords(words []*word) error {
 		return err
 	}
 	for _, w := range words {
-		c.wordResult = w.result
-		c.blockExpected = w.result
+		expectedResult := w.result
 		if w.inferred {
-			c.blockExpected = w.success
+			expectedResult = w.success
 		}
+		c.wordResult = w.result
+		c.blockExpected = expectedResult
 		env := newScope(nil)
 		for i := range w.params {
 			param := &w.params[i]
@@ -565,18 +567,16 @@ func (c *checker) checkWords(words []*word) error {
 			}
 			param.binding = binding
 		}
-		result, err := c.block(w.body, env)
+		// A Unit word reads nothing, so every line of its body — the last
+		// one included — is an ordinary line (#226).
+		result, err := c.block(w.body, env, expectedResult != unitType)
 		if err != nil {
 			return err
 		}
 		if result == errorType && blockReturnsConcreteError(w.body) {
 			return errorAt(w.pos, CodeWordResult, "convert the concrete error explicitly with error.wrap before returning Error")
 		}
-		expectedResult := w.result
-		if w.inferred {
-			expectedResult = w.success
-		}
-		if result != expectedResult && result != neverType {
+		if expectedResult != unitType && result != expectedResult && result != neverType {
 			return errorAt(w.pos, CodeWordResult, "word %q return type is %s; declared %s", w.name, result, expectedResult)
 		}
 	}
@@ -760,7 +760,28 @@ func expressionReturnsConcreteError(x *expression) bool {
 	return b != nil && b.errorFamily != "" && b.errorFamily != "Error"
 }
 
-func (c *checker) block(body []*statement, env *scope) (valueType, error) {
+// readsValue is the one definition of an ordinary line, shared by the
+// checking pass and return inference (#226): a statement's value is read
+// only when it is the last statement of a block whose own value a reader
+// consumes; let, var, assign, and return right-hand sides are always read.
+// Every other line is ordinary — its value drops, so an if or match may
+// end its arms with any type.
+func readsValue(body []*statement, i int, blockReads bool) bool {
+	switch body[i].kind {
+	case "let", "var", "assign", "return":
+		return true
+	}
+	return blockReads && i == len(body)-1
+}
+
+// wordBodyReads reports whether a word body's value is read: a word whose
+// result is Unit drops every line including its last (#226); every other
+// word — declared, or still to infer — returns a value its caller reads.
+func wordBodyReads(w *word) bool {
+	return w.result != unitType
+}
+
+func (c *checker) block(body []*statement, env *scope, reads bool) (valueType, error) {
 	c.blockDepth++
 	defer func() { c.blockDepth-- }()
 	typ := unitType
@@ -772,6 +793,8 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 		} else {
 			c.expected = ""
 		}
+		previousReads := c.valueReads
+		c.valueReads = readsValue(body, i, reads)
 		if pending != nil {
 			x := s.expr
 			if (s.kind != "let" && s.kind != "expression") || x == nil || (x.kind != "try" && x.kind != "catch") || x.left == nil || x.left.kind != "name" || x.left.text != pending.name {
@@ -788,6 +811,7 @@ func (c *checker) block(body []*statement, env *scope) (valueType, error) {
 		typ, err = c.statement(s, env)
 		c.flowExpected = previousFlow
 		c.expected = previous
+		c.valueReads = previousReads
 		c.consuming = nil
 		if err != nil {
 			return "", err
@@ -885,13 +909,26 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			err := withHint(errorAt(s.expr.pos, CodeConditionType, "%s", narrated(fmt.Sprintf("condition must have type Bool, found %s", typ), narrate(s.expr))), tryHint(typ))
 			return "", withSpan(err, s.expr)
 		}
-		left, err := c.block(s.body, newScope(env))
+		reads := c.valueReads
+		left, err := c.block(s.body, newScope(env), reads)
 		if err != nil {
 			return "", err
 		}
-		right, err := c.block(s.otherwise, newScope(env))
+		right, err := c.block(s.otherwise, newScope(env), reads)
 		if err != nil {
 			return "", err
+		}
+		if !reads {
+			// An ordinary line: the arms' values drop, so they may end
+			// with any type (#226). A bare Result still never drops
+			// silently — hand its type to the enclosing guards.
+			if isResult(left) {
+				return left, nil
+			}
+			if isResult(right) {
+				return right, nil
+			}
+			return unitType, nil
 		}
 		if left == neverType {
 			return right, nil
@@ -916,7 +953,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
-		bodyType, err := c.block(s.body, inner)
+		bodyType, err := c.block(s.body, inner, false)
 		if err == nil && isResult(bodyType) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
 		}
@@ -953,7 +990,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 				return "", err
 			}
 		}
-		bodyType, err := c.block(s.body, inner)
+		bodyType, err := c.block(s.body, inner, false)
 		if err == nil && isResult(bodyType) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
 		}
@@ -967,7 +1004,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 		if err != nil {
 			return "", err
 		}
-		bodyType, err := c.block(s.body, inner)
+		bodyType, err := c.block(s.body, inner, false)
 		if err == nil && isResult(bodyType) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
 		}
@@ -977,7 +1014,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			err := withHint(errorAt(s.expr.pos, CodeConditionType, "%s", narrated(fmt.Sprintf("condition must have type Bool, found %s", typ), narrate(s.expr))), tryHint(typ))
 			return "", withSpan(err, s.expr)
 		}
-		bodyType, err := c.block(s.body, newScope(env))
+		bodyType, err := c.block(s.body, newScope(env), false)
 		if err == nil && isResult(bodyType) {
 			return "", errorAt(s.pos, CodeUnhandledResult, "loop body cannot discard a Result")
 		}
@@ -1073,8 +1110,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 	case "statement-value":
 		oldBlock, oldFlow, oldExpected := c.blockExpected, c.flowExpected, c.expected
 		c.blockExpected, c.flowExpected, c.expected = c.expected, c.expected, ""
+		oldReads := c.valueReads
+		c.valueReads = true // a binding or assignment right-hand side is read
 		var err error
 		typ, err = c.statement(x.statement, env)
+		c.valueReads = oldReads
 		c.blockExpected, c.flowExpected, c.expected = oldBlock, oldFlow, oldExpected
 		if err != nil {
 			return "", err
@@ -1477,6 +1517,8 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		}
 		return c.call(x, args)
 	case "match":
+		matchReads := c.valueReads
+		armResult := valueType("")
 		subject, err := c.expressionExpected(x.left, env, "")
 		if err != nil {
 			return "", err
@@ -1538,7 +1580,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			}
 			previousExpected := c.blockExpected
 			c.blockExpected = c.expected
-			result, err := c.block(arm.body, scope)
+			result, err := c.block(arm.body, scope, matchReads)
 			c.blockExpected = previousExpected
 			if err != nil {
 				return "", err
@@ -1546,16 +1588,30 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 			if result == errorType && blockReturnsConcreteError(arm.body) {
 				return "", errorAt(arm.pos, CodeArgumentType, "convert concrete errors with error.wrap before returning them from match")
 			}
-			if result != neverType {
+			if result != neverType && matchReads {
 				if branchType == "" {
 					branchType = result
 				} else if branchType != result {
 					return "", errorAt(arm.pos, CodeBranchType, "match case result types must match: %s and %s", branchType, result)
 				}
 			}
+			if result != neverType && isResult(result) {
+				armResult = result
+			}
 		}
 		if !hasDefault && len(seen) != len(choice.variants) {
 			return "", errorAt(x.pos, CodeArgumentType, "match must cover every variant or have a default case")
+		}
+		if !matchReads {
+			// An ordinary line: the arms' values drop, so they may end
+			// with any type (#226). A bare Result still never drops
+			// silently — hand its type to the enclosing guards.
+			if armResult != "" {
+				typ = armResult
+			} else {
+				typ = unitType
+			}
+			break
 		}
 		if branchType == "" {
 			branchType = neverType
@@ -1605,7 +1661,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 		}
 		oldExpected := c.blockExpected
 		c.blockExpected = inner
-		fallback, err := c.block(x.handler, handler)
+		fallback, err := c.block(x.handler, handler, true)
 		c.blockExpected = oldExpected
 		if err != nil {
 			return "", err

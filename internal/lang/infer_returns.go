@@ -23,6 +23,8 @@ type returnInference struct {
 	err          error
 	pending      []func() bool
 	allowed      []allowedTypes
+	valueReads   bool // the statement or expression being inferred feeds a reader
+	wordTail     bool // the statement being inferred is the word's answer
 }
 type allowedTypes struct {
 	value *typeConstraint
@@ -69,6 +71,31 @@ func (s *returnInference) equal(a, b *typeConstraint, pos position) {
 	if s.err == nil && !unifyTypes(a, b) {
 		s.err = withHint(errorAt(pos, CodeWordResult, "incompatible inferred types"), "add an explicit return annotation or correct the conflicting values")
 	}
+}
+
+// equalAnswer joins a word's answer. It is a distinct seam from equal so
+// the word-tail join (#226 decision 2) can carry its own hint — the text
+// lands with the hint change.
+// equalAnswer joins a word's answer. It is a distinct seam from equal so
+// the word-tail join (#226 decision 2) can carry its own hint — the text
+// lands with the hint change.
+func (s *returnInference) equalAnswer(a, b *typeConstraint, pos position, tail bool) {
+	hint := "add an explicit return annotation or correct the conflicting values"
+	_ = tail
+	if s.err == nil && !unifyTypes(a, b) {
+		s.err = withHint(errorAt(pos, CodeWordResult, "incompatible inferred types"), hint)
+	}
+}
+
+func (s *returnInference) joinAnswer(a, b *typeConstraint, pos position, tail bool) *typeConstraint {
+	if a.root().name == string(neverType) {
+		return b
+	}
+	if b.root().name == string(neverType) {
+		return a
+	}
+	s.equalAnswer(a, b, pos, tail)
+	return a
 }
 func (s *returnInference) constrain(t *typeConstraint, pos position, names ...string) {
 	s.allowed = append(s.allowed, allowedTypes{value: t, pos: pos, names: names})
@@ -121,9 +148,18 @@ func (s *returnInference) join(a, b *typeConstraint, pos position) *typeConstrai
 	s.equal(a, b, pos)
 	return a
 }
-func (s *returnInference) block(body []*statement, env inferScope) *typeConstraint {
+// block infers one block under the shared ordinary-line law (#226): a
+// statement's value is read only when it is the last statement of a block
+// whose own value a reader consumes — the same readsValue the checking
+// pass uses — and answer marks the word body whose last statement is the
+// word's answer.
+func (s *returnInference) block(body []*statement, env inferScope, reads bool, answer bool) *typeConstraint {
+	previousReads, previousTail := s.valueReads, s.wordTail
+	defer func() { s.valueReads, s.wordTail = previousReads, previousTail }()
 	result := namedType(string(unitType))
-	for _, stmt := range body {
+	for i, stmt := range body {
+		s.valueReads = readsValue(body, i, reads)
+		s.wordTail = answer && s.valueReads
 		result = s.statement(stmt, env)
 	}
 	return result
@@ -181,9 +217,15 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 			s.err = withSpan(err, stmt.expr)
 		}
 		s.equal(condition, namedType("Bool"), stmt.pos)
-		left := s.block(stmt.body, copyInferScope(env))
-		right := s.block(stmt.otherwise, copyInferScope(env))
-		return s.join(left, right, stmt.pos)
+		reads, tail := s.valueReads, s.wordTail
+		left := s.block(stmt.body, copyInferScope(env), reads, false)
+		right := s.block(stmt.otherwise, copyInferScope(env), reads, false)
+		if !reads {
+			// An ordinary line: the arms' values drop, so they may end
+			// with any type (#226).
+			return namedType(string(unitType))
+		}
+		return s.joinAnswer(left, right, stmt.pos, tail)
 	case "flow":
 		seed := s.expr(stmt.expr, env, false)
 		value := seed
@@ -221,7 +263,7 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 			s.err = withSpan(err, stmt.expr)
 		}
 		s.equal(condition, namedType("Bool"), stmt.pos)
-		s.block(stmt.body, copyInferScope(env))
+		s.block(stmt.body, copyInferScope(env), false, false)
 		return namedType(string(unitType))
 	case "for", "for-lines", "for-collection":
 		first := s.expr(stmt.expr, env, false)
@@ -245,7 +287,7 @@ func (s *returnInference) statement(stmt *statement, env inferScope) *typeConstr
 				nested[stmt.secondName] = element
 			}
 		}
-		s.block(stmt.body, nested)
+		s.block(stmt.body, nested, false, false)
 		return namedType(string(unitType))
 	}
 	s.err = errorAt(stmt.pos, CodeUnsupportedCode, "unsupported inference statement %q", stmt.kind)
@@ -273,8 +315,10 @@ func (s *returnInference) infer(words []*word) error {
 				s.equal(env[param.name], s.expr(param.defaultExpr, inferScope{}, false), param.pos)
 			}
 		}
-		value := s.block(w.body, env)
-		if value.root().name != string(neverType) {
+		value := s.block(w.body, env, wordBodyReads(w), true)
+		if value.root().name != string(neverType) && wordBodyReads(w) {
+			// A Unit word's body value drops, so it never constrains the
+			// declared Unit (#226).
 			s.equal(s.results[w], value, w.pos)
 		}
 	}
@@ -291,7 +335,7 @@ func (s *returnInference) infer(words []*word) error {
 				}
 			}
 		}
-		s.block(s.entry, env)
+		s.block(s.entry, env, false, false)
 	}
 	if s.err != nil {
 		return s.err
@@ -403,7 +447,11 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 	case "bool":
 		return namedType("Bool")
 	case "statement-value":
-		return s.statement(x.statement, env)
+		previousReads, previousTail := s.valueReads, s.wordTail
+		s.valueReads, s.wordTail = true, false // a binding right-hand side is read
+		out := s.statement(x.statement, env)
+		s.valueReads, s.wordTail = previousReads, previousTail
+		return out
 	case "name":
 		if choice, index := s.checker.resolveVariant(x.text); choice != nil && len(choice.variants[index].fields) == 0 {
 			if choice.typeParam != "" {
@@ -478,7 +526,7 @@ func (s *returnInference) expr(x *expression, env inferScope, checked bool) *typ
 			nested[x.text] = namedType("Error")
 			nested["\x00error:"+x.text] = family
 		}
-		fallback := s.block(x.handler, nested)
+		fallback := s.block(x.handler, nested, true, false)
 		if fallback.root().name != string(neverType) {
 			s.equal(inner, fallback, x.pos)
 		}
@@ -680,6 +728,7 @@ func (s *returnInference) collectionParts(collection, element, index *typeConstr
 }
 
 func (s *returnInference) match(x *expression, env inferScope) *typeConstraint {
+	reads, tail := s.valueReads, s.wordTail
 	subject := s.expr(x.left, env, false)
 	result := freshType()
 	normal := false
@@ -703,11 +752,15 @@ func (s *returnInference) match(x *expression, env inferScope) *typeConstraint {
 				}
 			}
 		}
-		branch := s.block(arm.body, nested)
-		if branch.root().name != string(neverType) {
+		branch := s.block(arm.body, nested, reads, false)
+		if branch.root().name != string(neverType) && reads {
 			normal = true
-			s.equal(result, branch, arm.pos)
+			s.equalAnswer(result, branch, arm.pos, tail)
 		}
+	}
+	if !reads {
+		// An ordinary line's arms drop their values (#226).
+		return namedType(string(unitType))
 	}
 	if !normal {
 		return namedType(string(neverType))

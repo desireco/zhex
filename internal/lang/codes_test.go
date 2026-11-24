@@ -156,7 +156,7 @@ func TestRaiseSitesUseTheirCodes(t *testing.T) {
 		{"immutable-name", "let a = 1\na = 2\n", "", nil, nil},
 		{"assignment-type", "var a = 1\na = \"x\"\n", "", nil, nil},
 		{"condition-type", "if 1\n    print(1)\n", "", nil, nil},
-		{"branch-type", "if true\n    1\nelse\n    \"x\"\n", "", nil, nil},
+		{"branch-type", "let v = if true\n    1\nelse\n    \"x\"\nprint(v)\n", "", nil, nil},
 		{"range-type", "for n in range(1, \"x\")\n    print(n)\n", "", nil, nil},
 		{"try-input", "let x = 1 try\nprint(x)\n", "", nil, nil},
 		{"unary-type", "print(not 1)\n", "", nil, nil},
