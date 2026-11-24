@@ -176,7 +176,9 @@ func SetValues[T comparable](pos Pos, operation string, s *Set[T]) *List[T] {
 // SetStringInt, SetStringString, and SetStringBool render the print form:
 // members in insertion order inside set braces, String members quoted so
 // the element type stays visible — the interpreter's renderSet.
-func SetStringInt(s *Set[Int]) string { return setBraces(s.Entries, func(v Int) string { return Str(v) }) }
+func SetStringInt(s *Set[Int]) string {
+	return setBraces(s.Entries, func(v Int) string { return Str(v) })
+}
 
 func SetStringString(s *Set[string]) string {
 	return setBraces(s.Entries, func(v string) string { return strconv.Quote(v) })
@@ -673,3 +675,103 @@ func BufferSetLine(pos Pos, b *Buffer, index Int, line string) Result[*Buffer] {
 }
 
 func BufferToText(b *Buffer) string { return strings.Join(b.Lines, "\n") }
+
+// Stack is Zhex Stack<T>: a shared-mutable LIFO whose top is the end of
+// the slice (the shape list.pop established). There are no traversal
+// words in v1, so there is no Active guard to keep.
+type Stack[T any] struct {
+	Items []T
+}
+
+func NewStack[T any]() *Stack[T] { return &Stack[T]{} }
+
+func stackRange[T any](pos Pos, operation, index string, length int) Result[T] {
+	return collectionFailure[T](pos, "stack-range", operation, "stack index is out of range", map[string]string{"index": index, "length": strconv.Itoa(length)})
+}
+
+// StackPush appends the new top and returns the receiver — the
+// mutation-words contract, list.append's shape.
+func StackPush[T any](pos Pos, s *Stack[T], item T) Result[*Stack[T]] {
+	if len(s.Items) >= MaxElements {
+		return collectionFailure[*Stack[T]](pos, "collection-limit", "stack.push", "stack exceeds element limit", nil)
+	}
+	s.Items = append(s.Items, item)
+	return Ok(s)
+}
+
+// StackPop removes and returns the top — the one sanctioned exception to
+// mutation words returning their collection. The empty failure keeps the
+// family diagnostic: index -1 against length 0.
+func StackPop[T any](pos Pos, s *Stack[T]) Result[T] {
+	if len(s.Items) == 0 {
+		return stackRange[T](pos, "stack.pop", "-1", 0)
+	}
+	last := s.Items[len(s.Items)-1]
+	s.Items = s.Items[:len(s.Items)-1]
+	return Ok(last)
+}
+
+// StackPeek reads the top without removing it; the empty failure mirrors
+// the pop.
+func StackPeek[T any](pos Pos, s *Stack[T]) Result[T] {
+	if len(s.Items) == 0 {
+		return stackRange[T](pos, "stack.peek", "-1", 0)
+	}
+	return Ok(s.Items[len(s.Items)-1])
+}
+
+func StackLength[T any](s *Stack[T]) Int { return I64(int64(len(s.Items))) }
+
+// StackDup, StackSwap, and StackDrop are the Forth ops: each returns the
+// receiver, failing stack-range when the top (or the top pair for swap)
+// is missing.
+func StackDup[T any](pos Pos, s *Stack[T]) Result[*Stack[T]] {
+	if len(s.Items) == 0 {
+		return stackRange[*Stack[T]](pos, "stack.dup", "-1", 0)
+	}
+	if len(s.Items) >= MaxElements {
+		return collectionFailure[*Stack[T]](pos, "collection-limit", "stack.dup", "stack exceeds element limit", nil)
+	}
+	s.Items = append(s.Items, s.Items[len(s.Items)-1])
+	return Ok(s)
+}
+
+func StackSwap[T any](pos Pos, s *Stack[T]) Result[*Stack[T]] {
+	if len(s.Items) < 2 {
+		return stackRange[*Stack[T]](pos, "stack.swap", "-2", len(s.Items))
+	}
+	n := len(s.Items)
+	s.Items[n-1], s.Items[n-2] = s.Items[n-2], s.Items[n-1]
+	return Ok(s)
+}
+
+func StackDrop[T any](pos Pos, s *Stack[T]) Result[*Stack[T]] {
+	if len(s.Items) == 0 {
+		return stackRange[*Stack[T]](pos, "stack.drop", "-1", 0)
+	}
+	s.Items = s.Items[:len(s.Items)-1]
+	return Ok(s)
+}
+
+// StackStringInt, StackStringString, and StackStringBool render the print
+// form: elements bottom-to-top in square brackets — the list literal's
+// shape, the top last — with String members quoted, the set convention.
+func StackStringInt(s *Stack[Int]) string {
+	return stackBrackets(s.Items, func(v Int) string { return Str(v) })
+}
+
+func StackStringString(s *Stack[string]) string {
+	return stackBrackets(s.Items, func(v string) string { return strconv.Quote(v) })
+}
+
+func StackStringBool(s *Stack[bool]) string {
+	return stackBrackets(s.Items, func(v bool) string { return strconv.FormatBool(v) })
+}
+
+func stackBrackets[T any](items []T, show func(T) string) string {
+	parts := make([]string, len(items))
+	for i, v := range items {
+		parts[i] = show(v)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}

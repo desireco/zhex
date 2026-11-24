@@ -272,6 +272,8 @@ func (e *nativeEmitter) goType(pos position, t valueType) string {
 			return "*zhexrt.Map[" + e.goType(pos, args[0]) + ", " + e.goType(pos, args[1]) + "]"
 		case "Set":
 			return "*zhexrt.Set[" + e.goType(pos, args[0]) + "]"
+		case "Stack":
+			return "*zhexrt.Stack[" + e.goType(pos, args[0]) + "]"
 		}
 	}
 	if params, result, ok := functionTypeParts(t); ok {
@@ -1889,6 +1891,11 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 			show := map[valueType]string{intType: "zhexrt.SetStringInt", stringType: "zhexrt.SetStringString", boolType: "zhexrt.SetStringBool"}[elem]
 			return fmt.Sprintf("zhexrt.Print(%s, %s(%s))", pos, show, args[0])
 		}
+		if elem, ok := stackTypes(x.inputType); ok {
+			// the interpreter's brackets, the top last; String members stay quoted
+			show := map[valueType]string{intType: "zhexrt.StackStringInt", stringType: "zhexrt.StackStringString", boolType: "zhexrt.StackStringBool"}[elem]
+			return fmt.Sprintf("zhexrt.Print(%s, %s(%s))", pos, show, args[0])
+		}
 		return fmt.Sprintf("zhexrt.Print(%s, %s)", pos, args[0])
 	case "read-line":
 		need(1)
@@ -2073,6 +2080,31 @@ func (e *nativeEmitter) rawBuiltinCall(x *expression, args []string) string {
 	case "set.values":
 		need(1)
 		return fmt.Sprintf("zhexrt.SetValues(%s, %q, %s)", pos, x.text, args[0])
+	// stack words
+	case "stack.new":
+		elem, _ := stackTypes(x.typ)
+		return fmt.Sprintf("zhexrt.NewStack[%s]()", e.goType(x.pos, elem))
+	case "stack.push":
+		need(2)
+		return fmt.Sprintf("zhexrt.StackPush(%s, %s, %s)", pos, args[0], args[1])
+	case "stack.pop":
+		need(1)
+		return fmt.Sprintf("zhexrt.StackPop(%s, %s)", pos, args[0])
+	case "stack.peek":
+		need(1)
+		return fmt.Sprintf("zhexrt.StackPeek(%s, %s)", pos, args[0])
+	case "stack.length":
+		need(1)
+		return fmt.Sprintf("zhexrt.StackLength(%s)", args[0])
+	case "stack.dup":
+		need(1)
+		return fmt.Sprintf("zhexrt.StackDup(%s, %s)", pos, args[0])
+	case "stack.swap":
+		need(1)
+		return fmt.Sprintf("zhexrt.StackSwap(%s, %s)", pos, args[0])
+	case "stack.drop":
+		need(1)
+		return fmt.Sprintf("zhexrt.StackDrop(%s, %s)", pos, args[0])
 	case "text.sentences":
 		need(1)
 		return fmt.Sprintf("zhexrt.TextSentences(%s, %s)", pos, args[0])
