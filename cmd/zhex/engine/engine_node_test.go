@@ -296,6 +296,75 @@ func runProbe(t *testing.T, source, stdin string, extra ...string) probeResult {
 	return result
 }
 
+// TestEngineIntShifts pins #231 in the browser engine: the five bitwise
+// words agree with the interpreter wherever the engine's 64-bit shift
+// ruling allows (values and masks below 2^64, counts under 64), and a
+// count of 64 or more fails the coded int-shift-width diagnostic — the
+// owner's width ruling for this build, where the in-process interpreter
+// at full width would succeed, so those rows pin the engine directly.
+func TestEngineIntShifts(t *testing.T) {
+	engineModule(t)
+	for _, tc := range []struct {
+		name   string
+		source string
+		output string
+	}{
+		{"bits", "print(int.and(12, 10))\nprint(int.or(12, 10))\nprint(int.xor(12, 10))\nprint(int.and(-1, 255))\nprint(int.xor(-1, 5))\n", "8\n14\n6\n255\n-6\n"},
+		{"shifts under sixty-four", "print(int.shift-left(21, 0))\nprint(int.shift-right(256, 1))\nprint(int.shift-left(3, 1))\nprint(int.shift-right(-9, 1))\nprint(int.shift-left(-1, 5))\nprint(int.shift-left(1, 62))\nprint(int.shift-right(4611686018427387904, 63))\n", "21\n128\n6\n-5\n-32\n4611686018427387904\n0\n"},
+		{"day-twelve shape", "let code = int.or(int.shift-left(5, 3), int.shift-left(2, 6))\nprint(int.and(int.shift-right(code, 3), 7))\nlet masked = flow code\n    int.shift-right 6\n    int.and 7\nprint(masked)\n", "5\n2\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var interpreted bytes.Buffer
+			if err := lang.Run("probe.zhex", tc.source, strings.NewReader(""), &interpreted); err != nil {
+				t.Fatalf("interpreter run: %v", err)
+			}
+			result := runProbe(t, tc.source, "")
+			if result.Output != interpreted.String() || result.Output != tc.output {
+				t.Fatalf("engine output %q, want %q (interpreter %q)", result.Output, tc.output, interpreted.String())
+			}
+			if result.Exit != 0 {
+				t.Fatalf("engine exit %d, want 0; diagnostics %q", result.Exit, result.Diagnostics)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name    string
+		source  string
+		column  int
+		code    string
+		message string
+	}{
+		{"width fence at sixty-four", "print(int.shift-left(0, 64))\n", 7, "int-shift-width", "shift count of 64 or more exceeds this build's 64-bit Int width"},
+		{"width fence on the right shift", "print(int.shift-right(8, 100))\n", 7, "int-shift-width", "shift count of 64 or more exceeds this build's 64-bit Int width"},
+		{"negative count is coded", "print(int.shift-left(1, -1))\n", 7, "int-shift-count", "shift count is negative"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A failed run reports through the engine's --report=json envelope
+			// (the source rides as "playground"), not the console.fail channel.
+			result := runProbe(t, tc.source, "")
+			if result.Exit != 1 || result.Output != "" || result.Diagnostics != "" {
+				t.Fatalf("engine exit %d output %q diagnostics %q, want a failed run", result.Exit, result.Output, result.Diagnostics)
+			}
+			var report struct {
+				Code    string `json:"code"`
+				File    string `json:"file"`
+				Line    int    `json:"line"`
+				Column  int    `json:"column"`
+				Message string `json:"message"`
+			}
+			if err := json.Unmarshal([]byte(result.Report), &report); err != nil {
+				t.Fatalf("report %q: %v", result.Report, err)
+			}
+			if report.Code != tc.code || report.Message != tc.message {
+				t.Fatalf("report code %q message %q, want %q / %q", report.Code, report.Message, tc.code, tc.message)
+			}
+			if report.File != "playground" || report.Line != 1 || report.Column != tc.column {
+				t.Fatalf("report position %s:%d:%d, want playground:1:%d", report.File, report.Line, report.Column, tc.column)
+			}
+		})
+	}
+}
+
 // TestEngineLoaderWorkerBranch pins the loader in a classic Web Worker
 // (#224), where there is no `document` for a script tag: loadEngine runs the
 // runtime file through importScripts, fetches the module, and returns the
