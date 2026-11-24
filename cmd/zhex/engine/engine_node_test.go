@@ -386,6 +386,27 @@ func TestEngineSetWords(t *testing.T) {
 	}
 }
 
+// TestEngineStackWords pins #236a1 in the browser engine: the eight stack
+// words flow through the shared evaluator (no engine code of their own),
+// so the differential oracle covers the LIFO round-trip, the Forth ops,
+// the with-stack flow idiom, the catchable underflow, and the bracket
+// print with the top last.
+func TestEngineStackWords(t *testing.T) {
+	engineModule(t)
+	source := "var s: Stack<Int> = stack.new\nstack.push(s, 10)\nstack.push(s, 20)\nstack.push(s, 30)\nprint(stack.length(s))\nprint(stack.peek(s))\nprint(stack.pop(s))\nprint(stack.peek(s))\nprint(stack.length(s))\nstack.swap(s)\nprint(stack.pop(s))\nstack.dup(s)\nprint(stack.length(s))\nstack.drop(s)\nprint(stack.pop(s))\nprint(stack.length(s))\nprint(s)\nvar names: Stack<String> = stack.new\nstack.push(names, \"Ada\")\nstack.push(names, \"Bo\")\nprint(stack.pop(names))\nprint(names)\nvar flags: Stack<Bool> = stack.new\nstack.push(flags, true)\nstack.push(flags, false)\nstack.swap(flags)\nprint(stack.peek(flags))\nprint(flags)\nlet top = flow s\nwith stack\n    push 7\n    dup\n    swap\n    drop\n    pop\nprint(top)\nlet empty: Stack<Int> = stack.new\nlet missing = stack.pop(empty) catch problem\n    print(error.code(problem))\n    0\nprint(missing)\nprint(empty)\n"
+	var interpreted bytes.Buffer
+	if err := lang.Run("probe.zhex", source, strings.NewReader(""), &interpreted); err != nil {
+		t.Fatalf("interpreter run: %v", err)
+	}
+	result := runProbe(t, source, "")
+	if result.Output != interpreted.String() {
+		t.Fatalf("engine output %q, want %q", result.Output, interpreted.String())
+	}
+	if result.Exit != 0 {
+		t.Fatalf("engine exit %d, want 0; diagnostics %q", result.Exit, result.Diagnostics)
+	}
+}
+
 // TestEngineLoaderWorkerBranch pins the loader in a classic Web Worker
 // (#224), where there is no `document` for a script tag: loadEngine runs the
 // runtime file through importScripts, fetches the module, and returns the
