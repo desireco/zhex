@@ -93,28 +93,28 @@ word _draw-border(cells: List<Int>, cols: Int, tiles: List<Spot>, xs: List<Int>,
                 for r in range(lo-row, hi-row + 1)
                     cells[r * cols + a-col] = 1
 
-# Flood-fill the outside from the margin corner; the stack is a plain
-# list pushed by list.append and drained by list.pop.
+# Flood-fill the outside from the margin corner; the frontier is a
+# Stack<Int> pushed by stack.push and drained by stack.pop.
 word _flood-outside(cells: List<Int>, rows: Int, cols: Int)
-    let stack: List<Int> = []
+    let stack: Stack<Int> = stack.new()
     cells[0] = 2
-    list.append(stack, 0)
-    while list.length(stack) > 0
-        let at = list.pop(stack)
+    stack.push(stack, 0)
+    while stack.length(stack) > 0
+        let at = stack.pop(stack)
         let r = at / cols
         let c = at % cols
         if c + 1 < cols and cells[at + 1] == 0
             cells[at + 1] = 2
-            list.append(stack, at + 1)
+            stack.push(stack, at + 1)
         if c > 0 and cells[at - 1] == 0
             cells[at - 1] = 2
-            list.append(stack, at - 1)
+            stack.push(stack, at - 1)
         if r + 1 < rows and cells[at + cols] == 0
             cells[at + cols] = 2
-            list.append(stack, at + cols)
+            stack.push(stack, at + cols)
         if r > 0 and cells[at - cols] == 0
             cells[at - cols] = 2
-            list.append(stack, at - cols)
+            stack.push(stack, at - cols)
 
 # Whether any cell of the inclusive compressed rectangle is outside; the
 # two corners may come in either order, so scan low..high per axis.
