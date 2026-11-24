@@ -608,6 +608,7 @@ func TestDifferential(t *testing.T) {
 	for _, name := range []string{
 		"fib", "core", "lists", "choices", "arrays",
 		"text", "text-to-int", "maps", "callbacks", "sort", "while", "string-int", "array-select",
+		"set",
 		"fold-ref",
 		"flow-try-discard", "flow-try-feed", "flow-try-tail", "flow-try-word",
 		"paths-empty", "sort-by-shapes",

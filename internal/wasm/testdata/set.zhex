@@ -1,0 +1,53 @@
+# Set fixture (#235a): the degenerate map under the six words — build,
+# dedupe, remove, contains, length, and insertion-order values for all
+# three element domains. Observed through scalar prints: print of a set
+# itself is interpreter-only in v1.
+
+word main()
+    var s: Set<Int> = set.new
+    var i = 0
+    while i < 200
+        set.add(s, i % 37)
+        i = i + 1
+    print(set.length(s))
+    print(set.contains(s, 36))
+    set.remove(s, 36)
+    print(set.contains(s, 36))
+    print(set.length(s))
+    var total = 0
+    let xs = set.values(s)
+    var j = 0
+    while j < list.length(xs)
+        total = total + xs[j]
+        j = j + 1
+    print(total)
+    set.remove(s, 500)
+    print(set.length(s))
+
+    var names: Set<String> = set.new
+    var k = 0
+    while k < 50
+        set.add(names, "n" + int.to-string(k % 13))
+        k = k + 1
+    print(set.length(names))
+    let ys = set.values(names)
+    print(ys[0])
+    print(ys[1])
+    print(set.contains(names, "n5"))
+    set.remove(names, "n0")
+    print(set.length(names))
+    print(set.contains(names, "n0"))
+
+    var flags: Set<Bool> = set.new
+    set.add(flags, true)
+    set.add(flags, false)
+    set.add(flags, true)
+    print(set.length(flags))
+    print(set.contains(flags, true))
+    print(set.contains(flags, false))
+
+    var empty: Set<Int> = set.new
+    print(set.length(empty))
+    print(set.contains(empty, 1))
+    let none = set.values(empty)
+    print(list.length(none))

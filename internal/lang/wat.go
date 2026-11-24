@@ -420,6 +420,10 @@ func (e *watEmitter) watValueType(t valueType) string {
 		if base == "Map" && len(args) == 2 {
 			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecOf(args[1])) + ")"
 		}
+		if base == "Set" && len(args) == 1 {
+			// The degenerate map: the key machinery, no payload (null eq).
+			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecRef) + ")"
+		}
 		watFence(e.pos, "generic type "+base)
 	}
 	if r := e.byID[string(t)]; r != nil {
@@ -503,6 +507,9 @@ func (e *watEmitter) refTarget(t valueType) string {
 		}
 		if base == "Map" && len(args) == 2 {
 			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecOf(args[1])) + ")"
+		}
+		if base == "Set" && len(args) == 1 {
+			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecRef) + ")"
 		}
 	}
 	if r := e.byID[string(t)]; r != nil && !r.choice {
@@ -1261,6 +1268,13 @@ func mapKeyArrType(k watMapKey) string {
 func (e *watEmitter) mapSpecs(x *expression) (watMapKey, watSpec) {
 	keyType, valType, _ := mapTypes(x.inputType)
 	return mapKeySpec(keyType), watSpecOf(valType)
+}
+
+// setSpecs is the repr pair of a set.* call's receiver: the degenerate
+// map, so the payload spec is always ref with null payloads.
+func (e *watEmitter) setSpecs(x *expression) (watMapKey, watSpec) {
+	elemType, _ := setTypes(x.inputType)
+	return mapKeySpec(elemType), watSpecRef
 }
 
 // mapLiteral builds an empty map of the contextually checked repr pair,
@@ -2098,6 +2112,34 @@ func (e *watEmitter) builtinCall(x *expression) {
 		e.expr(x.args[0]) // source (guard targets only)
 		e.expr(x.args[1])
 		e.line("call " + watMapInto(k, v)) // returns the target
+	case "set.new":
+		// A zero-arg word has no inputType; the result type names the domain.
+		elemType, _ := setTypes(x.typ)
+		e.line("call " + watMapNew(mapKeySpec(elemType), watSpecRef)) // the degenerate map: keys, no payload
+	case "set.add":
+		k, v := e.setSpecs(x)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("ref.null eq") // no payload: the member is the key
+		e.line("call " + watMapPut(k, v)) // present member is a payload rewrite
+	case "set.remove":
+		k, v := e.setSpecs(x)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watMapRemove(k, v)) // returns the same set (flows)
+	case "set.contains":
+		k, v := e.setSpecs(x)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + watMapContains(k, v))
+	case "set.length":
+		k, v := e.setSpecs(x)
+		e.expr(x.args[0])
+		e.line("call " + watMapLength(k, v))
+	case "set.values":
+		k, _ := e.setSpecs(x)
+		e.expr(x.args[0])
+		e.line("call " + watSetValues(k))
 	case "list.map":
 		if _, cbResult, _ := functionTypeParts(x.args[1].typ); isUnitValue(cbResult) {
 			// no void-result row exists in the callback grid (DESIGN-M4 §3a)

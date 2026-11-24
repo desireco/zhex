@@ -92,6 +92,10 @@ func watMapInto(k watMapKey, v watSpec) string {
 	return "$zhex_map_into_" + string(k) + "_" + string(v)
 }
 
+// setValues collects a set's members into a fresh List in insertion order
+// (DESIGN-M2 §3 degenerate-map shape: the keys array, no payload).
+func watSetValues(k watMapKey) string { return "$zhex_set_values_" + string(k) }
+
 // Closures (DESIGN-M2 §4): one uniform struct {fn, env} plus typed funcrefs
 // per callback signature. Params and result are element reprs (watSpec), so
 // e.g. (String)->Int and (List<Int>)->Int share $zhex_clo_ref_r_i64.
