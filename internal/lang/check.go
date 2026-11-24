@@ -68,6 +68,7 @@ var hostWords = []string{
 	"json.decode", "json.encode", "json.parse", "xml.decode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values",
 	"set.new", "set.add", "set.remove", "set.contains", "set.length", "set.values",
+	"stack.new", "stack.push", "stack.pop", "stack.peek", "stack.length", "stack.dup", "stack.swap", "stack.drop",
 	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "list.pop", "list.first", "list.last", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "int.and", "int.or", "int.xor", "int.shift-left", "int.shift-right", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with", "text.repeat", "text.pad-left", "text.pad-right", "text.wrap", "text.insert", "text.remove", "text.sentences",
@@ -147,7 +148,7 @@ func (c *checker) unknownNameHint(name string, names []string) string {
 	}
 	if HostWord(name) && name != "print" && name != "range" && name != "file.stream" {
 		args := "..."
-		if name == "buffer.new" || name == "list.new" || name == "set.new" || name == "console.args-count" || name == "instant.now" {
+		if name == "buffer.new" || name == "list.new" || name == "set.new" || name == "stack.new" || name == "console.args-count" || name == "instant.now" {
 			args = ""
 		}
 		return fmt.Sprintf("call %s(%s)", name, args)
@@ -174,7 +175,7 @@ type module struct {
 
 // reservedModulePrefixes are the host operations' prefixes; a module named
 // one of them would shadow every qualified host word.
-var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "array", "map", "json", "xml", "date", "time", "duration", "instant", "timezone", "zoned", "env"}
+var reservedModulePrefixes = []string{"text", "int", "buffer", "file", "console", "error", "list", "stack", "array", "map", "json", "xml", "date", "time", "duration", "instant", "timezone", "zoned", "env"}
 
 func reservedModule(name string) bool {
 	for _, prefix := range reservedModulePrefixes {
@@ -1446,6 +1447,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 					expected = elem
 				}
 			}
+			if x.text == "stack.push" && i == 1 && len(args) > 0 {
+				if elem, ok := stackTypes(args[0]); ok {
+					expected = elem
+				}
+			}
 			if (x.text == "map.put" || x.text == "map.contains" || x.text == "map.remove") && i > 0 && len(args) > 0 {
 				key, val, ok := mapTypes(args[0])
 				if ok {
@@ -1942,6 +1948,50 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			case "set.values":
 				result = valueType("List<" + string(elem) + ">")
 			}
+		case "stack.new", "stack.push", "stack.pop", "stack.peek", "stack.length", "stack.dup", "stack.swap", "stack.drop":
+			if x.text == "stack.new" {
+				if len(args) != 0 {
+					return "", errorAt(x.pos, CodeArgumentCount, "stack.new requires 0 arguments")
+				}
+				if _, ok := stackTypes(c.expected); !ok {
+					return "", errorAt(x.pos, CodeArgumentType, "stack.new requires an expected Stack type")
+				}
+				result = c.expected
+				params = nil
+				break
+			}
+			count := 1
+			if x.text == "stack.push" {
+				count = 2
+			}
+			if len(args) != count {
+				return "", errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments", x.text, count)
+			}
+			elem, ok := stackTypes(args[0])
+			if !ok {
+				return "", errorAt(x.pos, CodeArgumentType, "%s requires a Stack", x.text)
+			}
+			if x.text == "stack.push" && args[1] != elem {
+				return "", errorAt(x.pos, CodeArgumentType, "%s item requires %s", x.text, elem)
+			}
+			if x.text == "stack.push" && args[1] == errorType && x.args[1].binding != nil && x.args[1].binding.errorFamily != "" && x.args[1].binding.errorFamily != "Error" {
+				return "", errorAt(x.pos, CodeArgumentType, "convert concrete errors with error.wrap before storing them")
+			}
+			// pop is the sanctioned exception to mutation words returning
+			// their collection (the list.pop shape): it yields the removed
+			// top; peek reads it without removing. Both stay checked
+			// collection operations, so the plain call unwraps to the element
+			// and try/catch select Result<element, Error>. push/dup/swap/drop
+			// return the receiver, the mutation-words rule.
+			params = args
+			switch x.text {
+			case "stack.pop", "stack.peek":
+				params, result = args, valueType("Result<"+string(elem)+", Error>")
+			case "stack.length":
+				result = intType
+			default:
+				params, result = args, valueType("Result<"+string(args[0])+", Error>")
+			}
 		case "date.new", "time.new":
 			params = []valueType{intType, intType, intType}
 			result = dateType
@@ -2230,7 +2280,9 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			if len(args) != 1 {
 				return "", withSpan(errorAt(x.pos, CodeArgumentCount, "print requires 1 argument, found %d", len(args)), x)
 			}
-			if _, isSet := setTypes(args[0]); args[0] != intType && args[0] != stringType && args[0] != boolType && !isSet {
+			stackElem, isStack := stackTypes(args[0])
+			printableStack := isStack && (stackElem == intType || stackElem == stringType || stackElem == boolType)
+			if _, isSet := setTypes(args[0]); args[0] != intType && args[0] != stringType && args[0] != boolType && !isSet && !printableStack {
 				var span *expression
 				if len(x.args) > 0 {
 					span = x.args[0]

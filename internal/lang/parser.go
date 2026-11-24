@@ -235,6 +235,7 @@ var genericTypeNames = map[string]bool{
 	"Array":  true,
 	"Map":    true,
 	"Set":    true,
+	"Stack":  true,
 	"Option": true,
 	"Result": true,
 }

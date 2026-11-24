@@ -149,6 +149,16 @@ func (c *checker) normalizeTypeSeen(typ valueType, seen map[*recordType]bool) (v
 		}
 		return valueType("Set<" + string(elem) + ">"), true
 	}
+	if base, args, ok := typeApplication(typ); ok && base == "Stack" {
+		if len(args) != 1 {
+			return "", false
+		}
+		elem, eok := c.normalizeTypeSeen(args[0], seen)
+		if !eok || isResult(elem) {
+			return "", false
+		}
+		return valueType("Stack<" + string(elem) + ">"), true
+	}
 	if base, args, ok := typeApplication(typ); ok && base != "Result" && base != "List" && base != "Array" {
 		if record := c.types.visible[base]; record != nil && record.typeParam != "" && len(args) == 1 {
 			inner, ok := c.normalizeTypeSeen(args[0], seen)
@@ -268,7 +278,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 	}
 	for _, record := range records {
-		if record.name == "Map" || record.name == "Set" || record.name == "Option" || record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
+		if record.name == "Map" || record.name == "Set" || record.name == "Option" || record.name == "List" || record.name == "Stack" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
 			return errorAt(record.pos, CodeDuplicateName, "type %q is invalid or already defined", record.name)
 		}
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
@@ -287,7 +297,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 	}
 	for _, record := range records {
-		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "Map" || record.typeParam == "Set" || record.typeParam == "List" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
+		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "Map" || record.typeParam == "Set" || record.typeParam == "List" || record.typeParam == "Stack" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
 			return errorAt(record.pos, CodeDuplicateName, "invalid type parameter %q", record.typeParam)
 		}
 		variants := make(map[string]bool)
@@ -560,7 +570,7 @@ func (c *checker) normalizeTemplate(typ valueType, param string) (valueType, boo
 		}
 		normalized[i] = string(v)
 	}
-	if (base == "List" || base == "Array") && len(args) == 1 {
+	if (base == "List" || base == "Array" || base == "Stack") && len(args) == 1 {
 		return valueType(base + "<" + normalized[0] + ">"), true
 	}
 	if base == "Set" && len(args) == 1 && (normalized[0] == string(stringType) || normalized[0] == string(intType) || normalized[0] == string(boolType)) {
@@ -625,6 +635,14 @@ func containsResultType(typ valueType) bool {
 func setTypes(typ valueType) (valueType, bool) {
 	base, args, ok := typeApplication(typ)
 	if !ok || base != "Set" || len(args) != 1 {
+		return "", false
+	}
+	return args[0], true
+}
+
+func stackTypes(typ valueType) (valueType, bool) {
+	base, args, ok := typeApplication(typ)
+	if !ok || base != "Stack" || len(args) != 1 {
 		return "", false
 	}
 	return args[0], true

@@ -122,6 +122,58 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			items[i] = s.keyValue(k)
 		}
 		return value{list: &listValue{items: items}}, nil
+	case "stack.new":
+		return value{stack: &stackValue{}}, nil
+	case "stack.push":
+		if len(args[0].stack.items) >= maxCollectionElements {
+			return failedCollection(x.pos, CodeCollectionLimit, "stack.push", "stack exceeds element limit", nil), nil
+		}
+		args[0].stack.items = append(args[0].stack.items, args[1])
+		return value{result: &inputResult{value: args[0]}}, nil
+	case "stack.pop":
+		// the sanctioned exception (the list.pop shape): the removed top
+		// comes back, not the stack. The empty failure keeps the family's
+		// diagnostic — index -1 against length 0.
+		s := args[0].stack
+		if len(s.items) == 0 {
+			return failedCollection(x.pos, CodeStackRange, "stack.pop", "stack index is out of range", map[string]string{"index": "-1", "length": "0"}), nil
+		}
+		top := s.items[len(s.items)-1]
+		s.items[len(s.items)-1] = value{}
+		s.items = s.items[:len(s.items)-1]
+		return value{result: &inputResult{value: top}}, nil
+	case "stack.peek":
+		if len(args[0].stack.items) == 0 {
+			return failedCollection(x.pos, CodeStackRange, "stack.peek", "stack index is out of range", map[string]string{"index": "-1", "length": "0"}), nil
+		}
+		return value{result: &inputResult{value: args[0].stack.items[len(args[0].stack.items)-1]}}, nil
+	case "stack.length":
+		return value{number: zhexrt.I64(int64(len(args[0].stack.items)))}, nil
+	case "stack.dup":
+		s := args[0].stack
+		if len(s.items) == 0 {
+			return failedCollection(x.pos, CodeStackRange, "stack.dup", "stack index is out of range", map[string]string{"index": "-1", "length": "0"}), nil
+		}
+		if len(s.items) >= maxCollectionElements {
+			return failedCollection(x.pos, CodeCollectionLimit, "stack.dup", "stack exceeds element limit", nil), nil
+		}
+		s.items = append(s.items, s.items[len(s.items)-1])
+		return value{result: &inputResult{value: args[0]}}, nil
+	case "stack.swap":
+		s := args[0].stack
+		if len(s.items) < 2 {
+			return failedCollection(x.pos, CodeStackRange, "stack.swap", "stack index is out of range", map[string]string{"index": "-2", "length": strconv.Itoa(len(s.items))}), nil
+		}
+		s.items[len(s.items)-1], s.items[len(s.items)-2] = s.items[len(s.items)-2], s.items[len(s.items)-1]
+		return value{result: &inputResult{value: args[0]}}, nil
+	case "stack.drop":
+		s := args[0].stack
+		if len(s.items) == 0 {
+			return failedCollection(x.pos, CodeStackRange, "stack.drop", "stack index is out of range", map[string]string{"index": "-1", "length": "0"}), nil
+		}
+		s.items[len(s.items)-1] = value{}
+		s.items = s.items[:len(s.items)-1]
+		return value{result: &inputResult{value: args[0]}}, nil
 	case "array.new":
 		return arrayNew(x.pos, args[0].list, args[1]), nil
 	case "array.resize":
@@ -366,6 +418,9 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		text := formatValue(args[0], x.inputType)
 		if args[0].set != nil {
 			text = renderSet(x.inputType, args[0].set)
+		}
+		if args[0].stack != nil {
+			text = renderStack(x.inputType, args[0].stack)
 		}
 		return value{}, r.write(x.pos, text+"\n")
 	case "int.to-string":
@@ -718,6 +773,9 @@ func formatValue(v value, typ valueType) string {
 	}
 	if v.set != nil {
 		return fmt.Sprintf("set(%d members)", len(v.set.entries))
+	}
+	if v.stack != nil {
+		return fmt.Sprintf("stack(%d elements)", len(v.stack.items))
 	}
 	if v.mapping != nil {
 		return fmt.Sprintf("map(%d entries)", len(v.mapping.entries))

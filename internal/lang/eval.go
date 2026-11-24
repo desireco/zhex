@@ -24,6 +24,7 @@ type value struct {
 	choice   *choiceValue
 	mapping  *mapValue
 	set      *setValue
+	stack    *stackValue
 	function *partialValue
 	moment   time.Time
 	zone     *time.Location

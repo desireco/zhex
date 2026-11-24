@@ -602,6 +602,14 @@ Fix: Re-save it as UTF-8; Zhex source has no other encoding.
 
 Learn: https://desireco.github.io/zhex/errors.html#source-utf8
 
+## stack-range
+
+The stack is empty where `stack.pop`, `stack.peek`, `stack.dup`, or `stack.drop` needs the top element, or has fewer than two elements where `stack.swap` needs the top pair.
+
+Fix: Check `stack.length` first, or handle the empty case with `catch`.
+
+Learn: https://desireco.github.io/zhex/errors.html#stack-range
+
 ## string-escape
 
 A string contains an escape Zhex does not support, or invalid UTF-8.

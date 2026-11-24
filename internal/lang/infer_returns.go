@@ -1226,6 +1226,31 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		default:
 			return namedType("Unit")
 		}
+	case "stack.new":
+		return namedType("Stack", freshType())
+	case "stack.push", "stack.pop", "stack.peek", "stack.length", "stack.dup", "stack.swap", "stack.drop":
+		elem := freshType()
+		collection := namedType("Stack", elem)
+		if len(args) > 0 {
+			s.equal(args[0], collection, x.pos)
+		}
+		if x.text == "stack.push" && len(args) > 1 {
+			s.equal(args[1], elem, x.pos)
+		}
+		switch x.text {
+		case "stack.pop", "stack.peek":
+			if checked {
+				return namedType("Result", elem, namedType("Error"))
+			}
+			return elem
+		case "stack.length":
+			return namedType("Int")
+		default:
+			if checked {
+				return namedType("Result", collection, namedType("Error"))
+			}
+			return collection
+		}
 	case "json.decode":
 		if len(args) > 0 {
 			s.equal(args[0], namedType("String"), x.pos)

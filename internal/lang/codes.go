@@ -36,6 +36,7 @@ const (
 	CodeArrayRank           Code = "array-rank"
 	CodeArrayShape          Code = "array-shape"
 	CodeListRange           Code = "list-range"
+	CodeStackRange          Code = "stack-range"
 	CodeCollectionLimit     Code = "collection-limit"
 	CodeCollectionIterating Code = "collection-iterating"
 	CodeExitStatus          Code = "console-exit-status"
@@ -135,7 +136,7 @@ const (
 
 var diagnosticCodes = []Code{
 	CodeDateParse, CodeTimeParse, CodeDurationParse, CodeTemporalInvalid, CodeTemporalRange, CodeInstantParse, CodeTimezoneLoad,
-	CodeErrorNoCause, CodeExitStatus, CodeJSONSyntax, CodeJSONType, CodeJSONField, CodeJSONRange, CodeJSONDepth, CodeXMLSyntax, CodeXMLType, CodeXMLField, CodeXMLRange, CodeXMLDepth, CodeArrayRange, CodeArrayRank, CodeArrayShape, CodeListRange, CodeCollectionLimit, CodeCollectionIterating,
+	CodeErrorNoCause, CodeExitStatus, CodeJSONSyntax, CodeJSONType, CodeJSONField, CodeJSONRange, CodeJSONDepth, CodeXMLSyntax, CodeXMLType, CodeXMLField, CodeXMLRange, CodeXMLDepth, CodeArrayRange, CodeArrayRank, CodeArrayShape, CodeListRange, CodeStackRange, CodeCollectionLimit, CodeCollectionIterating,
 	CodeSourceUTF8, CodeTabCharacter, CodeIndentation, CodeUnterminatedString, CodeUnclosedDelimiter, CodeStringEscape, CodeUnexpectedCharacter,
 	CodeExpectedToken, CodeExpectedName, CodeUnknownType, CodeExpectedIndent, CodeEmptyBlock, CodeNestingLimit,
 	CodeIntegerLiteralRange, CodeExpectedExpression, CodeFlowStep,

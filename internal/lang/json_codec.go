@@ -80,6 +80,18 @@ func (c *checker) buildJSONSchema(typ valueType, active map[valueType]bool, cach
 		s.element = v
 		return s, err
 	}
+	if base, args, ok := typeApplication(typ); ok && base == "Stack" && len(args) == 1 {
+		// A stack encodes as a JSON array bottom first, so the top lands
+		// last — the print order; there is no stack decode target in v1, so
+		// only the encode direction builds a schema.
+		if decoding {
+			return nil, fmt.Errorf("stacks cannot be decoded")
+		}
+		s.kind = "stack"
+		v, err := c.buildJSONSchema(args[0], active, cache, decoding)
+		s.element = v
+		return s, err
+	}
 	if key, val, ok := mapTypes(typ); ok {
 		if key != stringType {
 			return nil, fmt.Errorf("non-string map key")
@@ -584,6 +596,17 @@ func appendJSON(out *bytes.Buffer, v value, s *jsonSchema, path string, depth in
 				out.WriteByte(',')
 			}
 			if err := appendJSON(out, v.set.keyValue(k), s.element, fmt.Sprintf("%s/%d", path, i), depth+1); err != nil {
+				return err
+			}
+		}
+		out.WriteByte(']')
+	case "stack":
+		out.WriteByte('[')
+		for i, item := range v.stack.items {
+			if i > 0 {
+				out.WriteByte(',')
+			}
+			if err := appendJSON(out, item, s.element, fmt.Sprintf("%s/%d", path, i), depth+1); err != nil {
 				return err
 			}
 		}
