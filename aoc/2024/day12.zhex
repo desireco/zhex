@@ -13,7 +13,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(grid, line)
+            list.append(grid, line)
     grid
 
 # Whether the plot at the position holds the given plant; out of bounds
@@ -38,7 +38,7 @@ word _reach(grid: List<String>, cells: List<Int>, seen: List<Int>, row: Int, col
     let id = row * width + column
     if _same(grid, row, column, plant) and not _has(seen, id)
         list.append(cells, id)
-        let added = list.append(seen, id)
+        list.append(seen, id)
 
 # Collect one region, worklist style with a cursor instead of a pop.
 word _region(grid: List<String>, row: Int, column: Int, seen: List<Int>) -> List<Int>
@@ -142,7 +142,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let grid = parse(buffer.to-text(input))
     print(part-one(grid))
     print(part-two(grid))

@@ -12,7 +12,7 @@ word parse(text: String) -> List<String>
     let edges: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(edges, line)
+            list.append(edges, line)
     edges
 
 # One undirected edge into the adjacency map: endpoint sets both ways.
@@ -23,7 +23,7 @@ word _link(adj: Map<String, Map<String, Bool>>, a: String, b: String) -> Unit
             set = neighbors
         case Option.None
             set = {}
-    let placed = map.put(set, b, true)
+    map.put(set, b, true)
     adj[a] = set
 
 word _build-adj(edges: List<String>) -> Map<String, Map<String, Bool>>
@@ -38,7 +38,7 @@ word _build-adj(edges: List<String>) -> Map<String, Map<String, Bool>>
 word _names(adj: Map<String, Map<String, Bool>>) -> List<String>
     let names: List<String> = []
     for name, connected in adj
-        let added = list.append(names, name)
+        list.append(names, name)
     list.sort(names)
 
 word _connected(adj: Map<String, Map<String, Bool>>, a: String, b: String) -> Bool
@@ -67,13 +67,13 @@ word part-one(edges: List<String>) -> Int
                 for second, mark in neighbors
                     if first != second and _connected(adj, first, second)
                         let trio = list.sort([name, first, second])
-                        let seen = map.put(triples, text.join(trio, ","), true)
+                        map.put(triples, text.join(trio, ","), true)
     map.length(triples)
 
 word _copy(values: List<String>) -> List<String>
     let out: List<String> = []
     for value in values
-        let added = list.append(out, value)
+        list.append(out, value)
     out
 
 # Depth-first clique growth: candidates stay sorted and mutually compatible
@@ -87,11 +87,11 @@ word _grow(adj: Map<String, Map<String, Bool>>, clique: List<String>, candidates
     for index in range(0, list.length(candidates))
         let name = candidates[index]
         let next-clique = _copy(clique)
-        let added = list.append(next-clique, name)
+        list.append(next-clique, name)
         let next-candidates: List<String> = []
         for later in range(index + 1, list.length(candidates))
             if _connected(adj, name, candidates[later])
-                let kept = list.append(next-candidates, candidates[later])
+                list.append(next-candidates, candidates[later])
         winner = _grow(adj, next-clique, next-candidates, winner)
     winner
 
@@ -117,7 +117,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let edges = parse(buffer.to-text(input))
     print(part-one(edges))
     print(part-two(edges))

@@ -11,7 +11,7 @@ word parse(text: String) -> List<List<Int>>
             let levels: List<Int> = []
             for field in text.split(line, " ")
                 list.append(levels, text.to-int(field) try)
-            let added = list.append(reports, levels)
+            list.append(reports, levels)
     reports
 
 # All steps must share one direction and stay within 1..3 in size.
@@ -41,7 +41,7 @@ word _without(levels: List<Int>, skip: Int) -> List<Int>
     let rest: List<Int> = []
     for index, value in levels
         if index != skip
-            let added = list.append(rest, value)
+            list.append(rest, value)
     rest
 
 ## Count the reports that are safe, one removable level tolerated.
@@ -75,7 +75,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let reports = parse(buffer.to-text(input)) try
     print(part-one(reports))
     print(part-two(reports))

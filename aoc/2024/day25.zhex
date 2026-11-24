@@ -18,16 +18,16 @@ word _heights(group: List<String>) -> List<Int>
         for row in range(1, 6)
             if text.slice(group[row], column, column + 1) == "#"
                 count = count + 1
-        let added = list.append(heights, count)
+        list.append(heights, count)
     heights
 
 # File one finished schematic: the top border full of # makes a lock.
 word _take(group: List<String>, locks: List<List<Int>>, keys: List<List<Int>>) -> Unit
     if list.length(group) == 7
         if text.slice(group[0], 0, 1) == "#"
-            let added = list.append(locks, _heights(group))
+            list.append(locks, _heights(group))
         else
-            let added = list.append(keys, _heights(group))
+            list.append(keys, _heights(group))
 
 ## Split the schematics apart and read their column heights.
 word parse(text: String) -> Schematics
@@ -39,7 +39,7 @@ word parse(text: String) -> Schematics
             _take(group, locks, keys)
             group = []
         else
-            let added = list.append(group, line)
+            list.append(group, line)
     _take(group, locks, keys)
     Schematics(locks, keys)
 
@@ -78,7 +78,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let schematics = parse(buffer.to-text(input))
     print(part-one(schematics))
     print(part-two(schematics))

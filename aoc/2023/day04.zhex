@@ -12,7 +12,7 @@ word _numbers(section: String) -> List<Int>
     let numbers: List<Int> = []
     for token in text.split(section, " ")
         if text.length(token) > 0
-            let added = list.append(numbers, text.to-int(token) try)
+            list.append(numbers, text.to-int(token) try)
     numbers
 
 word _is(a: Int, b: Int) -> Bool
@@ -34,7 +34,7 @@ word parse(text: String) -> List<Int>
     let matches: List<Int> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(matches, _matches(line) try)
+            list.append(matches, _matches(line) try)
     matches
 
 # Two to the power, by repeated doubling; the exponent is at least one.
@@ -81,7 +81,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let matches = parse(buffer.to-text(input)) try
     print(part-one(matches))
     print(part-two(matches))

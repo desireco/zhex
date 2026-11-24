@@ -27,7 +27,7 @@ word parse(text: String) -> List<Stone>
             let numbers: List<Int> = []
             for token in text.split(text.replace(line, "@", ","), ",")
                 list.append(numbers, text.to-int(text.trim(token)) try)
-            let added = list.append(stones, Stone(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]))
+            list.append(stones, Stone(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5]))
     stones
 
 # Whether p + v * (tn / td) lands in [lo, hi], with td positive, in exact
@@ -251,7 +251,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let stones = parse(buffer.to-text(input)) try
     # the puzzle checks its five-stone example inside 7..27 with a slow rock
     # and the real list inside 2e14..4e14; the door runs the example

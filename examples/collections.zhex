@@ -17,7 +17,7 @@ print(list.length(grown))
 let alias = names
 for index, name in names
     print(int.to-string(index) + ": " + name)
-    let blocked = list.append(alias, "blocked") catch problem
+    list.append(alias, "blocked") catch problem
         print(error.code(problem))
         alias
 

@@ -81,7 +81,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let stones = parse(buffer.to-text(input)) try
     print(part-one(stones))
     print(part-two(stones))

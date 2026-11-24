@@ -41,7 +41,7 @@ word parse(text: String) -> DigPlan
             list.append(dirs, text.index-of("RDLU", parts[0]))
             list.append(dists, text.to-int(parts[1]) try)
             list.append(hex-dirs, _digit(text.slice(parts[2], 7, 8)))
-            let added = list.append(hex-dists, _hex-length(parts[2]))
+            list.append(hex-dists, _hex-length(parts[2]))
     DigPlan(dirs, dists, hex-dirs, hex-dists)
 
 word _step-x(direction: Int) -> Int
@@ -95,7 +95,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let plan = parse(buffer.to-text(input)) try
     print(part-one(plan))
     print(part-two(plan))

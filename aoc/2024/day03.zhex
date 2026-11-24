@@ -122,7 +122,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let memory = parse(buffer.to-text(input))
     print(part-one(memory))
     print(part-two(memory))

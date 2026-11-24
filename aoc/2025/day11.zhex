@@ -21,7 +21,7 @@ word parse(text: String) -> Wiring
             let known = map.contains(wires, name)
             map.put(wires, name, text.split(halves[1], " "))
             if not known
-                let added = list.append(devices, name)
+                list.append(devices, name)
     Wiring(devices, wires)
 
 # A device's current count in a Map<String, Int>; absent means zero.
@@ -53,14 +53,14 @@ word _routes(wiring: Wiring, start: String, skip-one: String, skip-two: String) 
         if device != skip-one and device != skip-two
             for target in _targets-of(wiring, device)
                 if target != skip-one and target != skip-two
-                    let counted = map.put(indegree, target, _count-of(indegree, target) + 1)
+                    map.put(indegree, target, _count-of(indegree, target) + 1)
     let ways: Map<String, Int> = {}
     if start != skip-one and start != skip-two
-        let seeded = map.put(ways, start, 1)
+        map.put(ways, start, 1)
     let queue: List<String> = []
     for device in wiring.devices
         if device != skip-one and device != skip-two and _count-of(indegree, device) == 0
-            let added = list.append(queue, device)
+            list.append(queue, device)
     var head = 0
     while head < list.length(queue)
         let device = queue[head]
@@ -70,7 +70,7 @@ word _routes(wiring: Wiring, start: String, skip-one: String, skip-two: String) 
                 map.put(ways, target, _count-of(ways, target) + _count-of(ways, device))
                 map.put(indegree, target, _count-of(indegree, target) - 1)
                 if _count-of(indegree, target) == 0
-                    let added = list.append(queue, target)
+                    list.append(queue, target)
     _count-of(ways, "out")
 
 ## Count the distinct routes from "you" to "out".
@@ -100,7 +100,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let wiring = parse(buffer.to-text(input))
     print(part-one(wiring))
     print(part-two(wiring))

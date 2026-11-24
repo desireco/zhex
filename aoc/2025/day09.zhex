@@ -26,7 +26,7 @@ word parse(text: String) -> List<Spot>
             let halves = text.split(line, ",")
             let x = text.to-int(halves[0]) try
             let y = text.to-int(halves[1]) try
-            let added = list.append(tiles, Spot(x, y))
+            list.append(tiles, Spot(x, y))
     tiles
 
 ## Largest inclusive rectangle with two red tiles as opposite corners.
@@ -46,7 +46,7 @@ word _distinct-sorted(values: List<Int>) -> List<Int>
     let out: List<Int> = []
     for value in list.sort(values)
         if list.length(out) == 0 or value != out[list.length(out) - 1]
-            let added = list.append(out, value)
+            list.append(out, value)
     out
 
 # Position of a value in a compressed axis; the caller passes a value the
@@ -112,28 +112,28 @@ word _flood-outside(cells: List<Int>, rows: Int, cols: Int)
             if top < list.length(stack)
                 stack[top] = at + 1
             else
-                let added = list.append(stack, at + 1)
+                list.append(stack, at + 1)
             top = top + 1
         if c > 0 and cells[at - 1] == 0
             cells[at - 1] = 2
             if top < list.length(stack)
                 stack[top] = at - 1
             else
-                let added = list.append(stack, at - 1)
+                list.append(stack, at - 1)
             top = top + 1
         if r + 1 < rows and cells[at + cols] == 0
             cells[at + cols] = 2
             if top < list.length(stack)
                 stack[top] = at + cols
             else
-                let added = list.append(stack, at + cols)
+                list.append(stack, at + cols)
             top = top + 1
         if r > 0 and cells[at - cols] == 0
             cells[at - cols] = 2
             if top < list.length(stack)
                 stack[top] = at - cols
             else
-                let added = list.append(stack, at - cols)
+                list.append(stack, at - cols)
             top = top + 1
 
 # Whether any cell of the inclusive compressed rectangle is outside; the
@@ -211,7 +211,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let tiles = parse(buffer.to-text(input)) try
     print(part-one(tiles))
     print(part-two(tiles))

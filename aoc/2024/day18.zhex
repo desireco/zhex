@@ -28,7 +28,7 @@ word parse(text: String) -> Space
             let comma = text.index-of(line, ",")
             let x = text.to-int(text.slice(line, 0, comma)) catch 0
             let y = text.to-int(text.slice(line, comma + 1, text.length(line))) catch 0
-            let added = list.append(bytes, Byte(x, y))
+            list.append(bytes, Byte(x, y))
     if list.length(bytes) == 25
         Space(7, 12, bytes)
     else
@@ -89,7 +89,7 @@ word _bfs(space: Space, count: Int) -> Int
                 let key = "" + nr + ":" + nc
                 if nr >= 0 and nr < space.size and nc >= 0 and nc < space.size and not map.contains(blocked, key) and not map.contains(dist, key)
                     map.put(dist, key, here + 1)
-                    let added = list.append(queue, nr * space.size + nc)
+                    list.append(queue, nr * space.size + nc)
     steps
 
 ## The fewest steps to the exit after the first fallen bytes.
@@ -124,7 +124,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let space = parse(buffer.to-text(input))
     print(part-one(space))
     print(part-two(space))

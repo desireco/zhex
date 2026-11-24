@@ -74,7 +74,7 @@ word _add-form(forms: List<Form>, keys: List<String>, form: Form)
             seen = true
     if not seen
         list.append(keys, key)
-        let added = list.append(forms, form)
+        list.append(forms, form)
 
 # Every distinct orientation: four rotations, each with its two mirror
 # images, duplicates dropped by key.
@@ -106,13 +106,13 @@ word parse(text: String) -> Farm
     var block: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(block, line)
+            list.append(block, line)
         else
             if list.length(block) > 0
                 list.append(blocks, block)
                 block = []
     if list.length(block) > 0
-        let added = list.append(blocks, block)
+        list.append(blocks, block)
     let shapes: List<List<Form>> = []
     for i in range(0, list.length(blocks) - 1)
         let rows: List<String> = []
@@ -142,7 +142,7 @@ word _fill-column(next: Map<Int, Bool>, occ: Int, pend: Int, code: Int, anchor: 
     let shifted = (pend + occ) / _pow2(height)
     let state = shifted * base + code
     if not map.contains(next, state)
-        let added = map.put(next, state, true)
+        map.put(next, state, true)
     var s = from-shape
     while s < list.length(shapes)
         if (code / _pow2(3 * s)) % 8 > 0
@@ -185,7 +185,7 @@ word _region-packs(width: Int, height: Int, shapes: List<List<Form>>, counts: Li
         code = code + counts[s] * _pow2(3 * s)
     let base = _pow2(3 * list.length(counts))
     var frontier: Map<Int, Bool> = {}
-    let seeded = map.put(frontier, code, true)
+    map.put(frontier, code, true)
     var answer = false
     var anchor = 0
     while not answer and anchor < width and map.length(frontier) > 0
@@ -263,7 +263,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let farm = parse(buffer.to-text(input)) try
     print(part-one(farm))
     print(part-two(farm))

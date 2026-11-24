@@ -15,7 +15,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(grid, line)
+            list.append(grid, line)
     grid
 
 word _dx(direction: Int) -> Int
@@ -124,7 +124,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let grid = parse(buffer.to-text(input))
     print(part-one(grid))
     print(part-two(grid))

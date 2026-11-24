@@ -43,7 +43,7 @@ word parse(text: String) -> Schematic
     let parts: List<Part> = []
     for row in text.split(text, "\n")
         if text.length(row) > 0
-            let added = list.append(rows, row)
+            list.append(rows, row)
     for row-index in range(0, list.length(rows))
         for part in _parse-row(rows[row-index], row-index)
             list.append(parts, part)
@@ -91,7 +91,7 @@ word part-two(schematic: Schematic) -> Int
                 let neighbors: List<Int> = []
                 for part in schematic.parts
                     if _touches(part, row-index, column)
-                        let added = list.append(neighbors, part.value)
+                        list.append(neighbors, part.value)
                 if list.length(neighbors) == 2
                     total = total + neighbors[0] * neighbors[1]
     total
@@ -111,7 +111,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let schematic = parse(buffer.to-text(input))
     print(part-one(schematic))
     print(part-two(schematic))

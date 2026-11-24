@@ -45,7 +45,7 @@ word parse(text: String) -> List<Brick>
             let ends = text.split(line, "~")
             let a = _coords(ends[0]) try
             let b = _coords(ends[1]) try
-            let added = list.append(bricks, Brick(_min(a[0], b[0]), _min(a[1], b[1]), _min(a[2], b[2]), _max(a[0], b[0]), _max(a[1], b[1]), _max(a[2], b[2])))
+            list.append(bricks, Brick(_min(a[0], b[0]), _min(a[1], b[1]), _min(a[2], b[2]), _max(a[0], b[0]), _max(a[1], b[1]), _max(a[2], b[2])))
     bricks
 
 # The brick's lowest z, the sort key of the settling order.
@@ -86,7 +86,7 @@ word _supporters(settled: List<Brick>) -> List<List<Int>>
         for i in range(0, list.length(settled))
             let below = settled[i]
             if i != j and below.z2 + 1 == upon.z1 and _overlaps(below, upon)
-                let added = list.append(supporters[j], i)
+                list.append(supporters[j], i)
     supporters
 
 ## How many bricks could disintegrate with nothing else falling: every
@@ -148,7 +148,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let bricks = parse(buffer.to-text(input)) try
     print(part-one(bricks))
     print(part-two(bricks))

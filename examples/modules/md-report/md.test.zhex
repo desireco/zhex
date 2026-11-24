@@ -529,7 +529,7 @@ word _case(seed: Int) -> Gen
         s = _step(s)
         if kinds[index] == prev
             index = (index + 1) % 8
-        let _frag = list.append(frags, _fragment(kinds[index], s))
+        list.append(frags, _fragment(kinds[index], s))
         s = _step(s)
         prev = kinds[index]
         j = j + 1

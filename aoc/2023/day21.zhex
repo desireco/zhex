@@ -17,7 +17,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(grid, line)
+            list.append(grid, line)
     grid
 
 # The grid's width.
@@ -76,7 +76,7 @@ word _count(grid: List<String>, steps: Int, wrap: Bool) -> Int
     var even = 1
     var odd = 0
     let seen: Map<Int, Bool> = {}
-    let init = map.put(seen, (start.y + 500) * 1001 + start.x + 500, true)
+    map.put(seen, (start.y + 500) * 1001 + start.x + 500, true)
     var current: List<Int> = [(start.y + 500) * 1001 + start.x + 500]
     var distance = 0
     while distance < steps and list.length(current) > 0
@@ -94,7 +94,7 @@ word _count(grid: List<String>, steps: Int, wrap: Bool) -> Int
                 if not blocked
                     let nkey = (ny + 500) * 1001 + nx + 500
                     if not map.contains(seen, nkey)
-                        let stored = map.put(seen, nkey, true)
+                        map.put(seen, nkey, true)
                         list.append(next, nkey)
                         if (distance + 1) % 2 == 0
                             even = even + 1
@@ -150,7 +150,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let grid = parse(buffer.to-text(input))
     # the puzzle walks its 11-row example 6 and 100 steps and a real garden
     # 64 and 26501365; the door runs the example

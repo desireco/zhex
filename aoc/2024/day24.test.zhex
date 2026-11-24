@@ -72,13 +72,13 @@ word _writing(outs: List<String>, label: String) -> Int
 word build(bits: Int, seed: Int, swaps: List<Swap>) -> Built
     let names: List<String> = []
     for k in range(0, 4 * bits - 2)
-        let named = list.append(names, _name(k, seed))
+        list.append(names, _name(k, seed))
     let ins: List<String> = []
     let outs: List<String> = []
-    let half-x = list.append(ins, "x00 XOR y00")
-    let half-z = list.append(outs, "z00")
-    let half-a = list.append(ins, "x00 AND y00")
-    let half-g = list.append(outs, _wire(names, bits, "g", 1))
+    list.append(ins, "x00 XOR y00")
+    list.append(outs, "z00")
+    list.append(ins, "x00 AND y00")
+    list.append(outs, _wire(names, bits, "g", 1))
     for stage in range(1, bits)
         let x = "x" + _two(stage)
         let y = "y" + _two(stage)
@@ -89,16 +89,16 @@ word build(bits: Int, seed: Int, swaps: List<Swap>) -> Built
         var carry-out = _z(bits)
         if stage < bits - 1
             carry-out = _wire(names, bits, "g", stage + 1)
-        let gx = list.append(ins, x + " XOR " + y)
-        let ox = list.append(outs, d)
-        let ga = list.append(ins, x + " AND " + y)
-        let oa = list.append(outs, a)
-        let gs = list.append(ins, d + " XOR " + g)
-        let os = list.append(outs, _z(stage))
-        let ge = list.append(ins, d + " AND " + g)
-        let oe = list.append(outs, e)
-        let gc = list.append(ins, a + " OR " + e)
-        let oc = list.append(outs, carry-out)
+        list.append(ins, x + " XOR " + y)
+        list.append(outs, d)
+        list.append(ins, x + " AND " + y)
+        list.append(outs, a)
+        list.append(ins, d + " XOR " + g)
+        list.append(outs, _z(stage))
+        list.append(ins, d + " AND " + g)
+        list.append(outs, e)
+        list.append(ins, a + " OR " + e)
+        list.append(outs, carry-out)
     let moved: List<String> = []
     for swap in swaps
         let wires = _swapped(names, bits, swap)
@@ -106,15 +106,15 @@ word build(bits: Int, seed: Int, swaps: List<Swap>) -> Built
         let second = _writing(outs, wires[1])
         outs[first] = wires[1]
         outs[second] = wires[0]
-        let m1 = list.append(moved, wires[0])
-        let m2 = list.append(moved, wires[1])
+        list.append(moved, wires[0])
+        list.append(moved, wires[1])
     let lines: List<String> = []
     for bit in range(0, bits)
-        let lx = list.append(lines, "x" + _two(bit) + ": " + (bit + seed) % 2)
-        let ly = list.append(lines, "y" + _two(bit) + ": " + (bit + seed + 1) % 2)
-    let blank = list.append(lines, "")
+        list.append(lines, "x" + _two(bit) + ": " + (bit + seed) % 2)
+        list.append(lines, "y" + _two(bit) + ": " + (bit + seed + 1) % 2)
+    list.append(lines, "")
     for g in range(0, list.length(ins))
-        let line = list.append(lines, ins[g] + " -> " + outs[g])
+        list.append(lines, ins[g] + " -> " + outs[g])
     Built(text.join(lines, "\n"), text.join(list.sort(moved), ","))
 
 ## The solver names exactly the swapped wires.

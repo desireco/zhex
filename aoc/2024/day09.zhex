@@ -128,7 +128,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let disk = parse(buffer.to-text(input)) try
     print(part-one(disk))
     print(part-two(disk))

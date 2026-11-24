@@ -32,7 +32,7 @@ word parse(text: String) -> List<Machine>
             let a = _parts(lines[0])
             let b = _parts(lines[1])
             let prize = _parts(lines[2])
-            let added = list.append(machines, Machine(_value(a[0]) try, _value(a[1]) try, _value(b[0]) try, _value(b[1]) try, _value(prize[0]) try, _value(prize[1]) try))
+            list.append(machines, Machine(_value(a[0]) try, _value(a[1]) try, _value(b[0]) try, _value(b[1]) try, _value(prize[0]) try, _value(prize[1]) try))
     machines
 
 # The exact press counts for both axes, or Option.None when the system
@@ -102,7 +102,7 @@ word main()
             else
                 error.message(problem)
         if not done
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let machines = parse(buffer.to-text(input)) try
     print(part-one(machines))
     print(part-two(machines))

@@ -282,32 +282,32 @@ word parse(text: String) -> Doc
                 if _fence-close(lines[j], fence)
                     closed = true
                 else
-                    let _body = list.append(body, lines[j])
+                    list.append(body, lines[j])
                 j = j + 1
             let info = text.trim(text.slice(line, text.length(fence), text.length(line)))
-            let _code = list.append(blocks, Block.Code(fence, info, body))
+            list.append(blocks, Block.Code(fence, info, body))
             next = j
         elif text.trim(line) == ""
             pending = _absorb(blocks, pending)
         elif _is-rule(line)
             pending = _absorb(blocks, pending)
-            let _rule = list.append(blocks, Block.Rule)
+            list.append(blocks, Block.Rule)
         elif _table-at(lines, i)
             pending = _absorb(blocks, pending)
             let header = _table-cells(line)
             var rows: List<List<String>> = list.new()
             var j = i + 2
             while j < list.length(lines) and text.starts-with(lines[j], "|")
-                let _row = list.append(rows, _fit-row(_table-cells(lines[j]), list.length(header)))
+                list.append(rows, _fit-row(_table-cells(lines[j]), list.length(header)))
                 j = j + 1
-            let _table = list.append(blocks, Block.Table(header, rows))
+            list.append(blocks, Block.Table(header, rows))
             next = j
         else
             let level = _heading-level(line)
             if level > 0
                 pending = _absorb(blocks, pending)
                 let body = text.trim(text.slice(line, level, text.length(line)))
-                let _heading = list.append(blocks, Block.Heading(level, body))
+                list.append(blocks, Block.Heading(level, body))
             else
                 let rest = _strip-indent(line)
                 let ind = _indent-of(line)
@@ -315,15 +315,15 @@ word parse(text: String) -> Doc
                 let ordered = _ordered-marker(rest)
                 if text.starts-with(rest, ">")
                     pending = _absorb(blocks, pending)
-                    let _quote = list.append(blocks, Block.Quote(text.trim(text.slice(rest, 1, text.length(rest))), ind))
+                    list.append(blocks, Block.Quote(text.trim(text.slice(rest, 1, text.length(rest))), ind))
                 elif bullet != ""
                     pending = _absorb(blocks, pending)
-                    let _item = list.append(blocks, Block.BulletItem(bullet, _item-text(rest, bullet), ind))
+                    list.append(blocks, Block.BulletItem(bullet, _item-text(rest, bullet), ind))
                 elif ordered != ""
                     pending = _absorb(blocks, pending)
-                    let _item = list.append(blocks, Block.OrderedItem(ordered, _item-text(rest, ordered), ind))
+                    list.append(blocks, Block.OrderedItem(ordered, _item-text(rest, ordered), ind))
                 else
-                    let _line = list.append(pending, line)
+                    list.append(pending, line)
         i = next
     _absorb(blocks, pending)
     Doc(blocks)
@@ -345,9 +345,9 @@ word render(doc: Doc) -> String
         else
             var lines: List<String> = list.new()
             while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == kind
-                let _line = list.append(lines, _item-line(doc.blocks[i]))
+                list.append(lines, _item-line(doc.blocks[i]))
                 i = i + 1
-            let _list = list.append(fragments, text.join(lines, "\n"))
+            list.append(fragments, text.join(lines, "\n"))
     text.join(fragments, "\n\n")
 
 ## Lists every Heading block as a Section row (index, level, text) in
@@ -360,7 +360,7 @@ word outline(doc: Doc) -> List<Section>
     while i < list.length(doc.blocks)
         match doc.blocks[i]
             case Block.Heading(level, text)
-                let _row = list.append(rows, Section(i, level, text))
+                list.append(rows, Section(i, level, text))
             case _
                 let _skip = ""
         i = i + 1
@@ -469,9 +469,9 @@ word replace-block(doc: Doc, at: Int, block: Block) -> Result<Doc, Error>
     var i = 0
     while i < list.length(doc.blocks)
         if i == at
-            let _swapped = list.append(blocks, block)
+            list.append(blocks, block)
         else
-            let _kept = list.append(blocks, doc.blocks[i])
+            list.append(blocks, doc.blocks[i])
         i = i + 1
     ok(Doc(blocks))
 
@@ -571,15 +571,15 @@ word to-html(doc: Doc) -> String
         if kind == "bullet" or kind == "ordered"
             var run: List<Block> = list.new()
             while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == kind
-                let _item = list.append(run, doc.blocks[i])
+                list.append(run, doc.blocks[i])
                 i = i + 1
-            let _list = list.append(fragments, _list-at(run, _norm-indents(run), [0], _indent-of-block(run[0]), _list-tag(kind)))
+            list.append(fragments, _list-at(run, _norm-indents(run), [0], _indent-of-block(run[0]), _list-tag(kind)))
         elif kind == "quote"
             var paras: List<String> = list.new()
             while i < list.length(doc.blocks) and _run-kind(doc.blocks[i]) == "quote"
-                let _line = list.append(paras, "<p>" + _html-esc(_quote-text(doc.blocks[i])) + "</p>")
+                list.append(paras, "<p>" + _html-esc(_quote-text(doc.blocks[i])) + "</p>")
                 i = i + 1
-            let _quote = list.append(fragments, "<blockquote>\n" + text.join(paras, "\n") + "\n</blockquote>")
+            list.append(fragments, "<blockquote>\n" + text.join(paras, "\n") + "\n</blockquote>")
         else
             _html-plain(fragments, doc.blocks[i])
             i = i + 1
@@ -631,9 +631,9 @@ word _shift(doc: Doc, index: Int, delta: Int) -> Doc
     var i = 0
     while i < list.length(doc.blocks)
         if i >= index and i < end
-            let _shifted = list.append(blocks, _shifted-heading(doc.blocks[i], delta))
+            list.append(blocks, _shifted-heading(doc.blocks[i], delta))
         else
-            let _kept = list.append(blocks, doc.blocks[i])
+            list.append(blocks, doc.blocks[i])
         i = i + 1
     Doc(blocks)
 
@@ -684,7 +684,7 @@ word _slice-blocks(doc: Doc, start: Int, end: Int) -> List<Block>
     var out: List<Block> = list.new()
     var i = start
     while i < end
-        let _kept = list.append(out, doc.blocks[i])
+        list.append(out, doc.blocks[i])
         i = i + 1
     out
 
@@ -693,7 +693,7 @@ word _blocks-without(doc: Doc, start: Int, end: Int) -> List<Block>
     var i = 0
     while i < list.length(doc.blocks)
         if i < start or i >= end
-            let _kept = list.append(out, doc.blocks[i])
+            list.append(out, doc.blocks[i])
         i = i + 1
     out
 
@@ -703,12 +703,12 @@ word _splice(base: List<Block>, at: Int, addition: List<Block>) -> List<Block>
     var out: List<Block> = list.new()
     var i = 0
     while i < at
-        let _kept = list.append(out, base[i])
+        list.append(out, base[i])
         i = i + 1
     for block in addition
-        let _added = list.append(out, block)
+        list.append(out, block)
     while i < list.length(base)
-        let _kept = list.append(out, base[i])
+        list.append(out, base[i])
         i = i + 1
     out
 
@@ -725,15 +725,15 @@ word _check-at(doc: Doc, at: Int) -> Result<Bool, Error>
 word _render-plain(fragments: List<String>, block: Block) -> Unit
     match block
         case Block.Heading(level, text)
-            let _frag = list.append(fragments, heading(level, text))
+            list.append(fragments, heading(level, text))
         case Block.Paragraph(text)
-            let _frag = list.append(fragments, paragraph(text))
+            list.append(fragments, paragraph(text))
         case Block.Rule
-            let _frag = list.append(fragments, "---")
+            list.append(fragments, "---")
         case Block.Code(_fence, info, lines)
-            let _frag = list.append(fragments, code-block(info, lines))
+            list.append(fragments, code-block(info, lines))
         case Block.Table(header, rows)
-            let _frag = list.append(fragments, table(header, rows))
+            list.append(fragments, table(header, rows))
         case _
             let _item-kind = ""
 
@@ -810,7 +810,7 @@ word _is-digit(c: String) -> Bool
 
 word _absorb(blocks: List<Block>, pending: List<String>) -> List<String>
     if list.length(pending) > 0
-        let _para = list.append(blocks, Block.Paragraph(text.join(pending, "\n")))
+        list.append(blocks, Block.Paragraph(text.join(pending, "\n")))
     list.new()
 
 word _is-rule(line: String) -> Bool
@@ -892,21 +892,21 @@ word _table-cells(line: String) -> List<String>
         if c == "|" and prev == "\\"
             cur = cur + c
         elif c == "|"
-            let _cell = list.append(cells, text.trim(cur))
+            list.append(cells, text.trim(cur))
             cur = ""
         else
             cur = cur + c
         prev = c
-    let _last = list.append(cells, text.trim(cur))
+    list.append(cells, text.trim(cur))
     cells
 
 word _fit-row(cells: List<String>, width: Int) -> List<String>
     var out: List<String> = list.new()
     for j in range(0, width)
         if j < list.length(cells)
-            let _cell = list.append(out, cells[j])
+            list.append(out, cells[j])
         else
-            let _pad = list.append(out, "")
+            list.append(out, "")
     out
 
 word _esc(text: String) -> String
@@ -1002,15 +1002,15 @@ word _html-plain(fragments: List<String>, block: Block) -> Unit
     match block
         case Block.Heading(level, text)
             let tag = "h" + int.to-string(_clamped(level))
-            let _frag = list.append(fragments, "<" + tag + ">" + _html-esc(text) + "</" + tag + ">")
+            list.append(fragments, "<" + tag + ">" + _html-esc(text) + "</" + tag + ">")
         case Block.Paragraph(text)
-            let _frag = list.append(fragments, "<p>" + _html-esc(text) + "</p>")
+            list.append(fragments, "<p>" + _html-esc(text) + "</p>")
         case Block.Rule
-            let _frag = list.append(fragments, "<hr>")
+            list.append(fragments, "<hr>")
         case Block.Code(_fence, info, lines)
-            let _frag = list.append(fragments, "<pre><code" + _code-class(info) + ">" + _html-esc(text.join(lines, "\n")) + "</code></pre>")
+            list.append(fragments, "<pre><code" + _code-class(info) + ">" + _html-esc(text.join(lines, "\n")) + "</code></pre>")
         case Block.Table(header, rows)
-            let _frag = list.append(fragments, _table-html(header, rows))
+            list.append(fragments, _table-html(header, rows))
         case _
             let _skip = ""
 
@@ -1047,13 +1047,13 @@ word _list-tag(kind: String) -> String
 word _norm-indents(run: List<Block>) -> List<Int>
     var out: List<Int> = list.new()
     var prev = _indent-of-block(run[0])
-    let _first = list.append(out, prev)
+    list.append(out, prev)
     var i = 1
     while i < list.length(run)
         var ind = _indent-of-block(run[i])
         if ind > prev + 1
             ind = prev + 1
-        let _norm = list.append(out, ind)
+        list.append(out, ind)
         prev = ind
         i = i + 1
     out
@@ -1125,8 +1125,8 @@ word _block-text(block: Block) -> String
         case Block.Table(header, rows)
             var cells: List<String> = list.new()
             for cell in header
-                let _cell = list.append(cells, cell)
+                list.append(cells, cell)
             for row in rows
                 for cell in row
-                    let _row-cell = list.append(cells, cell)
+                    list.append(cells, cell)
             text.join(cells, "\n")

@@ -15,7 +15,7 @@ word parse(text: String) -> Dish
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(grid, line)
+            list.append(grid, line)
     Dish(grid)
 
 # n copies of a one-character string joined.
@@ -112,7 +112,7 @@ word part-two(dish: Dish) -> Int
         let key = text.join(grid, "\n")
         let start = _seen-at(seen, key)
         if start < 0
-            let stored = map.put(seen, key, it)
+            map.put(seen, key, it)
         let jump = if start >= 0
             let cycle = it - start
             let remaining = target - it
@@ -140,7 +140,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let dish = parse(buffer.to-text(input))
     print(part-one(dish))
     print(part-two(dish))

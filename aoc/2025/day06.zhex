@@ -18,7 +18,7 @@ word _fields(row: String) -> List<String>
     let fields: List<String> = []
     for field in text.split(row, " ")
         if text.length(field) > 0
-            let added = list.append(fields, field)
+            list.append(fields, field)
     fields
 
 # One empty number list per problem, ready to fill.
@@ -36,7 +36,7 @@ word parse(text: String) -> Worksheet
     let rows: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(rows, line)
+            list.append(rows, line)
     let operators = _fields(rows[list.length(rows) - 1])
     let rowwise = _empty-columns(list.length(operators))
     for index in range(0, list.length(rows) - 1)
@@ -54,7 +54,7 @@ word parse(text: String) -> Worksheet
                 if character != " "
                     digits = digits + character
         if text.length(digits) > 0
-            let added = list.append(columnwise[problem], text.to-int(digits) try)
+            list.append(columnwise[problem], text.to-int(digits) try)
         else
             problem = problem + 1
     Worksheet(operators, rowwise, columnwise)
@@ -100,7 +100,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let worksheet = parse(buffer.to-text(input)) try
     print(part-one(worksheet))
     print(part-two(worksheet))

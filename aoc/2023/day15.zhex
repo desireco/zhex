@@ -42,7 +42,7 @@ word _without(box: List<Lens>, label: String) -> List<Lens>
     let keep: List<Lens> = []
     for lens in box
         if lens.label != label
-            let added = list.append(keep, lens)
+            list.append(keep, lens)
     keep
 
 # The box after one = step: the label's focal length replaced in place,
@@ -55,7 +55,7 @@ word _upsert(box: List<Lens>, label: String, focal: Int) -> List<Lens>
             box[index] = Lens(label, focal)
             done = true
     if not done
-        let added = list.append(box, Lens(label, focal))
+        list.append(box, Lens(label, focal))
     box
 
 ## Sum the HASH of every step.
@@ -106,7 +106,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let steps = parse(buffer.to-text(input))
     print(part-one(steps))
     print(part-two(steps) try)

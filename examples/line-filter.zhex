@@ -6,5 +6,5 @@ let records = "inv-1042;paid\ninv-1043;due\ninv-1044;paid\nquote-77;paid"
 let shipped: List<String> = []
 for line in text.split(records, "\n")
     if text.starts-with(line, "inv-") and text.ends-with(line, "paid")
-        let added = list.append(shipped, text.split(line, ";")[0])
+        list.append(shipped, text.split(line, ";")[0])
 print("shipped: " + text.join(shipped, ", "))

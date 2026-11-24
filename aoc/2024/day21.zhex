@@ -12,7 +12,7 @@ word parse(text: String) -> List<String>
     let codes: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(codes, line)
+            list.append(codes, line)
     codes
 
 word _abs(n: Int) -> Int
@@ -46,7 +46,7 @@ word _dist(a: Int, b: Int) -> Int
 # dropping any that steps onto the gap; each ordering appears exactly once.
 word _walk(pos: Int, vleft: Int, hleft: Int, vdelta: Int, hdelta: Int, vchar: String, hchar: String, prefix: String, gap: Int, out: List<String>) -> Unit
     if vleft == 0 and hleft == 0
-        let added = list.append(out, prefix)
+        list.append(out, prefix)
     else
         if vleft > 0
             let next = pos + vdelta
@@ -147,7 +147,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let codes = parse(buffer.to-text(input))
     print(part-one(codes))
     print(part-two(codes))

@@ -18,7 +18,7 @@ word _tokens(line: String) -> List<String>
     let tokens: List<String> = []
     for token in text.split(text.slice(line, text.index-of(line, ":") + 1, text.length(line)), " ")
         if text.length(token) > 0
-            let added = list.append(tokens, token)
+            list.append(tokens, token)
     tokens
 
 # One line's race values.
@@ -83,7 +83,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let sheet = parse(buffer.to-text(input)) try
     print(part-one(sheet))
     print(part-two(sheet))

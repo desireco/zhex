@@ -13,7 +13,7 @@ word parse(text: String) -> List<Int>
     for line in text.split(text, "\n")
         if text.length(line) > 0
             let secret = text.to-int(line) catch 0
-            let added = list.append(secrets, secret)
+            list.append(secrets, secret)
     secrets
 
 # XOR of two values below 2^24, one bit at a time: a bit is set exactly when
@@ -71,7 +71,7 @@ word part-two(secrets: List<Int>) -> Int
             if count >= 4
                 let window = d1 + "," + d2 + "," + d3 + "," + d4
                 if not map.contains(seen, window)
-                    let marked = map.put(seen, window, true)
+                    map.put(seen, window, true)
                     var added = 0
                     match totals[window]
                         case Option.Some(bananas)
@@ -100,7 +100,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let secrets = parse(buffer.to-text(input))
     print(part-one(secrets))
     print(part-two(secrets))

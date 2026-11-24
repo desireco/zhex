@@ -39,7 +39,7 @@ word parse(text: String) -> Universe
     let rows: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(rows, line)
+            list.append(rows, line)
     let width = text.length(rows[0])
     let galaxies: List<Galaxy> = []
     let row-empty: List<Bool> = []
@@ -95,7 +95,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let universe = parse(buffer.to-text(input))
     print(part-one(universe))
     print(part-two(universe))

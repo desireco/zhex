@@ -20,7 +20,7 @@ word parse(text: String) -> List<Row>
             let groups: List<Int> = []
             for token in text.split(halves[1], ",")
                 list.append(groups, text.to-int(token) try)
-            let added = list.append(rows, Row(halves[0], groups))
+            list.append(rows, Row(halves[0], groups))
     rows
 
 # The number of ways one spring row matches its group sizes.
@@ -99,7 +99,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let records = parse(buffer.to-text(input)) try
     print(part-one(records))
     print(part-two(records))

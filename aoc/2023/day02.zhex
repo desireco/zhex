@@ -38,7 +38,7 @@ word parse(text: String) -> List<Game>
     let games: List<Game> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(games, _parse-game(line) try)
+            list.append(games, _parse-game(line) try)
     games
 
 ## Sum the IDs of the games the bag could have produced.
@@ -70,7 +70,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let games = parse(buffer.to-text(input)) try
     print(part-one(games))
     print(part-two(games))

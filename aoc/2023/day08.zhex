@@ -26,7 +26,7 @@ word parse(text: String) -> Network
             if text.length(directions) == 0
                 directions = line
             elif text.contains(line, "=")
-                let placed = map.put(nodes, text.slice(line, 0, 3), Junction(text.slice(line, 7, 10), text.slice(line, 12, 15)))
+                map.put(nodes, text.slice(line, 0, 3), Junction(text.slice(line, 7, 10), text.slice(line, 12, 15)))
     Network(directions, nodes)
 
 # Where one step from a name leads: its left or right neighbor.
@@ -161,7 +161,7 @@ word main()
             else
                 error.message(problem)
         if not done
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let network = parse(buffer.to-text(input))
     let problem = guard(network)
     if text.length(problem) > 0

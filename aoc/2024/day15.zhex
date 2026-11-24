@@ -25,7 +25,7 @@ word parse(text: String) -> Warehouse
     let lines: List<String> = []
     for line in text.split(sections[0], "\n")
         if text.length(line) > 0
-            let added = list.append(lines, line)
+            list.append(lines, line)
     let rows = list.length(lines)
     let cols = text.length(lines[0])
     let grid: Array<String> = array.new([rows, cols], ".")
@@ -158,16 +158,16 @@ word _lifted(grid: Array<String>, cols: Int, row: Int, column: Int, dr: Int) -> 
         let c = id % cols
         let pc = _partner(grid, r, c)
         if not _has(cells, r * cols + pc)
-            let added = list.append(cells, r * cols + pc)
+            list.append(cells, r * cols + pc)
         if grid[r + dr, c] == "#"
             blocked = true
         else
             if grid[r + dr, c] != "."
                 if not _has(cells, (r + dr) * cols + c)
-                    let added = list.append(cells, (r + dr) * cols + c)
+                    list.append(cells, (r + dr) * cols + c)
                 let bp = _partner(grid, r + dr, c)
                 if not _has(cells, (r + dr) * cols + bp)
-                    let added = list.append(cells, (r + dr) * cols + bp)
+                    list.append(cells, (r + dr) * cols + bp)
     if blocked
         Option.None
     else
@@ -255,7 +255,7 @@ word main()
             else
                 error.message(problem)
         if not done
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let warehouse = parse(buffer.to-text(input))
     print(part-one(warehouse))
     print(part-two(warehouse))

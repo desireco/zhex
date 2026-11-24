@@ -12,7 +12,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(grid, line)
+            list.append(grid, line)
     grid
 
 ## One antenna: its frequency and position.
@@ -28,7 +28,7 @@ word _antennas(grid: List<String>) -> List<Antenna>
         for c in range(0, text.length(grid[0]))
             let cell = text.slice(grid[r], c, c + 1)
             if cell != "."
-                let added = list.append(antennas, Antenna(cell, r, c))
+                list.append(antennas, Antenna(cell, r, c))
     antennas
 
 # A position's set key.
@@ -42,7 +42,7 @@ word _in-bounds(grid: List<String>, r: Int, c: Int) -> Bool
 # Add an in-bounds position to the antinode set.
 word _mark(grid: List<String>, nodes: Map<String, Bool>, r: Int, c: Int) -> Unit
     if _in-bounds(grid, r, c)
-        let updated = map.put(nodes, _key(r, c), true)
+        map.put(nodes, _key(r, c), true)
 
 # The greatest common divisor of two nonnegative numbers.
 word _gcd(a: Int, b: Int) -> Int
@@ -119,7 +119,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let grid = parse(buffer.to-text(input))
     print(part-one(grid))
     print(part-two(grid))

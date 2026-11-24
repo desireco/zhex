@@ -12,7 +12,7 @@ word parse(text: String) -> List<String>
     let grid: List<String> = []
     for line in text.split(text, "\n")
         if text.length(line) > 0
-            let added = list.append(grid, line)
+            list.append(grid, line)
     grid
 
 # The height at one position; every cell is a digit, so the catch only keeps
@@ -25,14 +25,14 @@ word _height(grid: List<String>, r: Int, c: Int) -> Int
 word _climb(grid: List<String>, queue: List<Int>, r: Int, c: Int, target: Int) -> Unit
     if r >= 0 and r < list.length(grid) and c >= 0 and c < text.length(grid[0])
         if _height(grid, r, c) == target
-            let queued = list.append(queue, r * text.length(grid[0]) + c)
+            list.append(queue, r * text.length(grid[0]) + c)
 
 # How many distinct 9-height positions one trailhead's trails reach.
 word _score(grid: List<String>, start-r: Int, start-c: Int) -> Int
     let visited: Map<String, Bool> = {}
     let queue: List<Int> = []
     let width = text.length(grid[0])
-    let first = list.append(queue, start-r * width + start-c)
+    list.append(queue, start-r * width + start-c)
     var index = 0
     var nines = 0
     while index < list.length(queue)
@@ -41,7 +41,7 @@ word _score(grid: List<String>, start-r: Int, start-c: Int) -> Int
         let c = pos % width
         let key = "" + r + ":" + c
         if not map.contains(visited, key)
-            let seen = map.put(visited, key, true)
+            map.put(visited, key, true)
             if _height(grid, r, c) == 9
                 nines = nines + 1
             else
@@ -104,7 +104,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let grid = parse(buffer.to-text(input))
     print(part-one(grid))
     print(part-two(grid))

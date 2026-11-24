@@ -31,7 +31,7 @@ word parse(text: String) -> List<List<Int>>
             let digits: List<Int> = []
             for index in range(0, text.length(line))
                 list.append(digits, text.to-int(text.slice(line, index, index + 1)) try)
-            let added = list.append(banks, digits)
+            list.append(banks, digits)
     banks
 
 ## Sum the largest two-digit number each bank can produce.
@@ -62,7 +62,7 @@ word main()
         if line == "~end-of-input~"
             done = true
         else
-            let added = buffer.add-line(input, line)
+            buffer.add-line(input, line)
     let banks = parse(buffer.to-text(input)) try
     print(part-one(banks))
     print(part-two(banks))
