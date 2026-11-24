@@ -93,48 +93,28 @@ word _draw-border(cells: List<Int>, cols: Int, tiles: List<Spot>, xs: List<Int>,
                 for r in range(lo-row, hi-row + 1)
                     cells[r * cols + a-col] = 1
 
-# Flood-fill the outside from the margin corner. The stack is a plain
-# list plus a live-size counter: no list word pops, so a popped slot is
-# simply overwritten by the next push at the same depth.
+# Flood-fill the outside from the margin corner; the stack is a plain
+# list pushed by list.append and drained by list.pop.
 word _flood-outside(cells: List<Int>, rows: Int, cols: Int)
     let stack: List<Int> = []
-    var top = 0
     cells[0] = 2
     list.append(stack, 0)
-    top = 1
-    while top > 0
-        top = top - 1
-        let at = stack[top]
+    while list.length(stack) > 0
+        let at = list.pop(stack)
         let r = at / cols
         let c = at % cols
         if c + 1 < cols and cells[at + 1] == 0
             cells[at + 1] = 2
-            if top < list.length(stack)
-                stack[top] = at + 1
-            else
-                list.append(stack, at + 1)
-            top = top + 1
+            list.append(stack, at + 1)
         if c > 0 and cells[at - 1] == 0
             cells[at - 1] = 2
-            if top < list.length(stack)
-                stack[top] = at - 1
-            else
-                list.append(stack, at - 1)
-            top = top + 1
+            list.append(stack, at - 1)
         if r + 1 < rows and cells[at + cols] == 0
             cells[at + cols] = 2
-            if top < list.length(stack)
-                stack[top] = at + cols
-            else
-                list.append(stack, at + cols)
-            top = top + 1
+            list.append(stack, at + cols)
         if r > 0 and cells[at - cols] == 0
             cells[at - cols] = 2
-            if top < list.length(stack)
-                stack[top] = at - cols
-            else
-                list.append(stack, at - cols)
-            top = top + 1
+            list.append(stack, at - cols)
 
 # Whether any cell of the inclusive compressed rectangle is outside; the
 # two corners may come in either order, so scan low..high per axis.
