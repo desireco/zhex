@@ -63,7 +63,7 @@ File every new ticket into the board's **Inbox** bucket with no status — never
 3. **Follow the plan** until every part of it is done; keep scope to what the ticket describes.
 4. **Return unfinished tickets.** If you cannot complete the ticket, stop, leave a comment with what is done and what remains, and move the card back to Todo. Never leave a ticket In Progress unattended.
 5. **Verify and record.** Make the functionality work (tests, build, deploy checks), then update everything that records truth wherever it lives: website docs, repository docs, AGENTS.md, ROADMAP.md, and the board. A new word, signature change, or rename/removal follows the checklist in `docs/vocabulary-checklist.md` — every surface from interpreter sync points to editors and truth surfaces, tests first.
-6. **Close last.** A green build on the branch moves the card to Done and closes the issue with a short ship note. Pushing never gates ticket status; work ships when the arc merges.
+6. **Close last.** A green build on the branch moves the card to Done and closes the issue with a short ship note. Pushing never gates ticket status; work ships when the arc merges. **Done is the owner's review queue**: it holds only cards the owner has not reviewed yet. After their review the card moves to **Archive**, where finished work is kept for the record (set up 2026-11-23; the first 198 Done cards moved there).
 
 ## Verifying work
 
