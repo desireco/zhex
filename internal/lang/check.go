@@ -937,7 +937,7 @@ func (c *checker) statement(s *statement, env *scope) (valueType, error) {
 			return left, nil
 		}
 		if left != right {
-			return "", withHint(errorAt(s.pos, CodeBranchType, "branch result types must match: %s and %s", left, right), mutationReceiverHint(left, right, s.body, s.otherwise))
+			return "", withHint(errorAt(s.pos, CodeBranchType, "branch result types must match: %s and %s", left, right), branchMismatchHint)
 		}
 		return left, nil
 	case "for":
@@ -1592,7 +1592,7 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 				if branchType == "" {
 					branchType = result
 				} else if branchType != result {
-					return "", errorAt(arm.pos, CodeBranchType, "match case result types must match: %s and %s", branchType, result)
+					return "", withHint(errorAt(arm.pos, CodeBranchType, "match case result types must match: %s and %s", branchType, result), branchMismatchHint)
 				}
 			}
 			if result != neverType && isResult(result) {

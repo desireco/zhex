@@ -119,47 +119,9 @@ func printHint(typ valueType) string {
 	return tryHint(typ)
 }
 
-// mutationReceivers names the mutation words whose plain result is the
-// receiver itself, keyed by what to call it in a hint.
-var mutationReceivers = map[string]string{
-	"list.append":     "list",
-	"list.insert":     "list",
-	"array.resize":    "array",
-	"map.put":         "map",
-	"map.remove":      "map",
-	"map.into":        "map",
-	"buffer.add-line": "buffer",
-	"buffer.set-line": "buffer",
-}
-
-// mutationReceiverHint explains a branch-type mismatch caused by a mutation
-// word's returned receiver: #156 made those words give back the collection
-// they changed, so a bare call as an if-arm tail stops being Unit.
-func mutationReceiverHint(left, right valueType, body, otherwise []*statement) string {
-	var arm []*statement
-	switch {
-	case left == unitType && right != unitType:
-		arm = otherwise
-	case right == unitType && left != unitType:
-		arm = body
-	default:
-		return ""
-	}
-	if len(arm) == 0 || arm[len(arm)-1].kind != "expression" {
-		return ""
-	}
-	x := arm[len(arm)-1].expr
-	// A checked mutation word (buffer.set-line) carries postfix try at the
-	// arm tail; look through it to the call it unwraps.
-	for x != nil && x.kind == "try" {
-		x = x.left
-	}
-	if x == nil || x.kind != "call" {
-		return ""
-	}
-	kind, ok := mutationReceivers[x.text]
-	if !ok {
-		return ""
-	}
-	return fmt.Sprintf("%s returns the %s it changed; bind it as `let stored = %s(...)` or give both branches the same type", x.text, kind, x.text)
-}
+// branchMismatchHint names both actions for a branch whose value a
+// reader consumes (#229): the arms must agree, or the block can stand as
+// an ordinary line — #226 made that line drop what the arms produce, so
+// the receiver-binding work-around is gone. One hint for `if` and
+// `match`, since the checker enforces the same rule at both.
+const branchMismatchHint = "give both arms the same type, or put the block on an ordinary line to drop what the arms produce"

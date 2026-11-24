@@ -88,6 +88,7 @@ A word with this name already exists, or it collides with a host word. Rename on
 
 ## word-result
 The word's final statement produces a different type than its declared result. Make the last statement's type match the signature, or fix the signature.
+A word with no declared result whose last line is an `if` or `match` with arms of different types fails the same way: if the word returns nothing, declare `-> Unit`; otherwise give both arms the same type.
 
 ## immutable-name
 A name defined with `let` cannot be reassigned. Declare it with `var` to allow updates.
@@ -102,7 +103,7 @@ An `if` condition must be `Bool`. Comparisons return `Bool`; integers and string
 When the checker can trace the value to the word that produced it, the message says where it comes from.
 
 ## branch-type
-The branches of an `if` end in different types. Make every branch produce the same type.
+The branches of an `if` or the cases of a `match` end in different types where the value is read. Give both arms the same type, or put the block on an ordinary line to drop what the arms produce.
 
 ## range-type
 The bounds of `range(start, end)` must both be `Int`; the path of `file.stream(path)` must be `String`.

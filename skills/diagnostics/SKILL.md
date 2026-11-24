@@ -90,9 +90,9 @@ Learn: https://desireco.github.io/zhex/errors.html#bool-operand
 
 ## branch-type
 
-The branches of an `if` end in different types.
+The branches of an `if` or the cases of a `match` end in different types where the value is read.
 
-Fix: Make every branch produce the same type.
+Fix: Give both arms the same type, or put the block on an ordinary line to drop what the arms produce.
 
 Learn: https://desireco.github.io/zhex/errors.html#branch-type
 
@@ -816,7 +816,7 @@ Learn: https://desireco.github.io/zhex/errors.html#with-step
 
 The word's final statement produces a different type than its declared result.
 
-Fix: Make the last statement's type match the signature, or fix the signature.
+Fix: Make the last statement's type match the signature, or fix the signature. A word with no declared result whose last line is an `if` or `match` with arms of different types fails the same way: if the word returns nothing, declare `-> Unit`; otherwise give both arms the same type.
 
 Learn: https://desireco.github.io/zhex/errors.html#word-result
 

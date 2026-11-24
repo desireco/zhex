@@ -73,16 +73,17 @@ func (s *returnInference) equal(a, b *typeConstraint, pos position) {
 	}
 }
 
-// equalAnswer joins a word's answer. It is a distinct seam from equal so
-// the word-tail join (#226 decision 2) can carry its own hint — the text
-// lands with the hint change.
-// equalAnswer joins a word's answer. It is a distinct seam from equal so
-// the word-tail join (#226 decision 2) can carry its own hint — the text
-// lands with the hint change.
+// equalAnswer joins a branch whose value a reader consumes. When the
+// branch is the word's own answer — the word has no declared result and
+// its last line is an if or match with arms of different types — the hint
+// is the owner's wording (#229); any other read keeps the plain
+// annotation hint, since the mismatch is inside the word, not its answer.
 func (s *returnInference) equalAnswer(a, b *typeConstraint, pos position, tail bool) {
-	hint := "add an explicit return annotation or correct the conflicting values"
-	_ = tail
 	if s.err == nil && !unifyTypes(a, b) {
+		hint := "add an explicit return annotation or correct the conflicting values"
+		if tail {
+			hint = "if this word returns nothing, declare `-> Unit`; otherwise give both arms the same type"
+		}
 		s.err = withHint(errorAt(pos, CodeWordResult, "incompatible inferred types"), hint)
 	}
 }

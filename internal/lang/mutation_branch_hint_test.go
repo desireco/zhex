@@ -5,23 +5,39 @@ import (
 	"testing"
 )
 
-// #156 made every mutation word return its receiver, so a mutation call as
-// a branch tail stops being Unit and trips the branch-type check wherever
-// the branch's value is read (#226 narrowed the check to those positions:
-// a branch standing as an ordinary line drops its value and may end with
-// any type). The message stays stable; the hint names the binding fix from
-// the ticket.
-func TestBranchReceiverMismatchHintShape(t *testing.T) {
-	got := runError(t, "let seen = {\"a\": 1}\nlet stored = if map.contains(seen, \"a\")\n    map.put(seen, \"b\", 2)\nelse\n    print(\"missing\")\n")
-	if !strings.HasPrefix(got, `bad.zhex:2:14: branch result types must match: Map<String, Int> and Unit`) {
+// The branch-type hints after #229: where a branch's value is read — an
+// `if` or `match` in a binding, a word tail, any reader — the message's
+// first line is unchanged and the hint (branchMismatchHint) names both
+// actions: give both arms the same type, or put the block on an ordinary
+// line to drop what the arms produce (#226). The old receiver-specific
+// bind advice is gone: the case it worked around is legal now.
+
+func TestBranchMismatchIfNamesBothActions(t *testing.T) {
+	got := runError(t, "let v = if 1 == 1\n    1\nelse\n    \"one\"\n")
+	if !strings.HasPrefix(got, "bad.zhex:1:9: branch result types must match: Int and String") {
 		t.Fatalf("first line changed: %q", got)
 	}
-	if !strings.Contains(got, "map.put returns the map it changed") || !strings.Contains(got, "`let stored = map.put(...)`") {
-		t.Fatalf("missing binding hint: %q", got)
+	if !strings.Contains(got, "hint: "+branchMismatchHint) {
+		t.Fatalf("missing two-action hint: %q", got)
 	}
 }
 
-func TestBranchReceiverMismatchHintCoversEachMutationWord(t *testing.T) {
+func TestBranchMismatchMatchNamesBothActions(t *testing.T) {
+	got := runError(t, "type Shape = choice\n    Dot\n    Ring(radius: Int)\n\nlet v = match Shape.Dot\n    case Shape.Dot\n        1\n    case Shape.Ring(radius)\n        \"ring\"\n")
+	if !strings.HasPrefix(got, "bad.zhex:8:5: match case result types must match: Int and String") {
+		t.Fatalf("first line changed: %q", got)
+	}
+	if !strings.Contains(got, "hint: "+branchMismatchHint) {
+		t.Fatalf("missing two-action hint: %q", got)
+	}
+}
+
+// #156 made every mutation word return its receiver, so a mutation call as
+// a branch tail stops being Unit wherever the branch's value is read. The
+// hint is the shared two-action one — no receiver wording, no binding
+// advice: the bind work-around served the ordinary-line case #226 made
+// legal.
+func TestBranchReceiverMismatchCoversEachMutationWord(t *testing.T) {
 	cases := []struct {
 		source string
 		word   string
@@ -40,9 +56,38 @@ func TestBranchReceiverMismatchHintCoversEachMutationWord(t *testing.T) {
 		if !strings.Contains(got, "branch result types must match") {
 			t.Fatalf("%s: missing branch mismatch: %q", tc.word, got)
 		}
-		if !strings.Contains(got, tc.word+" returns the") || !strings.Contains(got, "`let stored = "+tc.word+"(...)`") {
-			t.Fatalf("%s: missing receiver hint: %q", tc.word, got)
+		if !strings.Contains(got, "hint: "+branchMismatchHint) {
+			t.Fatalf("%s: missing two-action hint: %q", tc.word, got)
 		}
+		if strings.Contains(got, "returns the") || strings.Contains(got, "bind it as") {
+			t.Fatalf("%s: obsolete receiver wording: %q", tc.word, got)
+		}
+	}
+}
+
+// A word with no declared result whose last line is an `if` or `match`
+// with arms of different types still fails — the owner's wording says
+// what to do about it (#229). Nested reads inside the word keep the plain
+// annotation hint: only the word's own answer carries the Unit question.
+func TestInferredWordTailBranchHintSaysUnit(t *testing.T) {
+	got := runError(t, "word pick(c: Bool)\n    if c\n        1\n    else\n        \"one\"\n")
+	if !strings.HasPrefix(got, "bad.zhex:2:5: incompatible inferred types") {
+		t.Fatalf("first line changed: %q", got)
+	}
+	if !strings.Contains(got, "hint: if this word returns nothing, declare `-> Unit`; otherwise give both arms the same type") {
+		t.Fatalf("missing Unit hint: %q", got)
+	}
+	got = runError(t, "type Shape = choice\n    Dot\n    Ring(radius: Int)\n\nword describe(s: Shape)\n    match s\n        case Shape.Dot\n            1\n        case Shape.Ring(radius)\n            \"ring\"\n")
+	if !strings.Contains(got, "incompatible inferred types") {
+		t.Fatalf("match tail: missing mismatch: %q", got)
+	}
+	if !strings.Contains(got, "hint: if this word returns nothing, declare `-> Unit`; otherwise give both arms the same type") {
+		t.Fatalf("match tail: missing Unit hint: %q", got)
+	}
+	// A read that is not the word's answer keeps the annotation hint.
+	got = runError(t, "word nested(c: Bool)\n    if c\n        if c\n            1\n        else\n            \"x\"\n    else\n        print(2)\n")
+	if !strings.Contains(got, "hint: add an explicit return annotation or correct the conflicting values") {
+		t.Fatalf("nested read lost the annotation hint: %q", got)
 	}
 }
 
@@ -64,19 +109,5 @@ func TestBranchReceiverOrdinaryLineRuns(t *testing.T) {
 	}
 	for _, tc := range cases {
 		runOK(t, tc.source)
-	}
-}
-
-func TestBranchMismatchWithoutReceiverStaysHintless(t *testing.T) {
-	got := runError(t, "let v = if 1 == 1\n    list.length([1])\nelse\n    print(\"no\")\n")
-	if !strings.Contains(got, "branch result types must match: Int and Unit") {
-		t.Fatalf("missing mismatch: %q", got)
-	}
-	if strings.Contains(got, "hint:") {
-		t.Fatalf("unexpected hint on a plain value mismatch: %q", got)
-	}
-	got = runError(t, "let v = if 1 == 1\n    1\nelse\n    \"one\"\n")
-	if strings.Contains(got, "hint:") {
-		t.Fatalf("unexpected hint on matching-arm mismatch: %q", got)
 	}
 }

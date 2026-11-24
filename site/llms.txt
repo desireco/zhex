@@ -59,7 +59,7 @@ Every built-in diagnostic code with its one-line meaning and its learn URL, one 
 - [array-shape](https://desireco.github.io/zhex/errors.html#array-shape): An array extent is negative.
 - [assignment-type](https://desireco.github.io/zhex/errors.html#assignment-type): A binding annotation must match its value's type.
 - [bool-operand](https://desireco.github.io/zhex/errors.html#bool-operand): `and`/`or` need `Bool` on both sides.
-- [branch-type](https://desireco.github.io/zhex/errors.html#branch-type): The branches of an `if` end in different types.
+- [branch-type](https://desireco.github.io/zhex/errors.html#branch-type): The branches of an `if` or the cases of a `match` end in different types where the value is read.
 - [buffer-range](https://desireco.github.io/zhex/errors.html#buffer-range): `buffer.line` or `buffer.set-line` received an index outside the buffer's lines.
 - [collection-iterating](https://desireco.github.io/zhex/errors.html#collection-iterating): An active iteration prevents mutation of the traversed collection.
 - [collection-limit](https://desireco.github.io/zhex/errors.html#collection-limit): A list or array would exceed the runtime limit of 1,000,000 elements.
