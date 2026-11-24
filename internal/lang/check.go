@@ -67,6 +67,7 @@ var hostWords = []string{
 	"instant.now", "instant.parse", "instant.to-string", "instant.add-duration", "timezone.load", "timezone.name", "zoned.new", "zoned.to-string", "zoned.instant", "zoned.in-zone", "zoned.add-days", "zoned.add-duration",
 	"json.decode", "json.encode", "json.parse", "xml.decode",
 	"map.length", "map.contains", "map.remove", "map.put", "map.into", "map.keys", "map.values",
+	"set.new", "set.add", "set.remove", "set.contains", "set.length", "set.values",
 	"list.new", "list.length", "list.append", "list.map", "list.filter", "list.select", "list.fold", "list.find", "list.any", "list.all", "list.contains", "list.sort", "list.sort-by", "list.insert", "list.pop", "list.first", "list.last", "array.new", "array.resize", "array.shape", "array.rank", "array.length", "array.select", "ok", "err", "error.set-reporter", "error.report", "error.new", "error.wrap", "error.has-cause", "error.cause", "error.code", "error.message", "error.operation", "error.file", "error.line", "error.column", "error.detail", "print", "int.to-string", "int.mod-floor", "int.and", "int.or", "int.xor", "int.shift-left", "int.shift-right", "text.reverse", "text.to-int", "read-line", "range",
 	"text.length", "text.line-count", "text.word-count", "text.upper", "text.lower",
 	"text.trim", "text.contains", "text.index-of", "text.slice", "text.replace", "text.split", "text.join", "text.to-code-points", "text.from-code-points", "text.starts-with", "text.ends-with", "text.repeat", "text.pad-left", "text.pad-right", "text.wrap", "text.insert", "text.remove", "text.sentences",
@@ -146,7 +147,7 @@ func (c *checker) unknownNameHint(name string, names []string) string {
 	}
 	if HostWord(name) && name != "print" && name != "range" && name != "file.stream" {
 		args := "..."
-		if name == "buffer.new" || name == "list.new" || name == "console.args-count" || name == "instant.now" {
+		if name == "buffer.new" || name == "list.new" || name == "set.new" || name == "console.args-count" || name == "instant.now" {
 			args = ""
 		}
 		return fmt.Sprintf("call %s(%s)", name, args)
@@ -1440,6 +1441,11 @@ func (c *checker) expression(x *expression, env *scope) (valueType, error) {
 					expected = inner
 				}
 			}
+			if (x.text == "set.add" || x.text == "set.contains" || x.text == "set.remove") && i == 1 && len(args) > 0 {
+				if elem, ok := setTypes(args[0]); ok {
+					expected = elem
+				}
+			}
 			if (x.text == "map.put" || x.text == "map.contains" || x.text == "map.remove") && i > 0 && len(args) > 0 {
 				key, val, ok := mapTypes(args[0])
 				if ok {
@@ -1840,7 +1846,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				result = valueType("Result<String, Error>")
 				break
 			}
-			schema, err := c.makeJSONSchema(target, map[valueType]bool{})
+			schema, err := c.makeJSONSchema(target, map[valueType]bool{}, x.text != "json.encode")
 			if err != nil {
 				return "", withSpan(errorAt(x.pos, CodeArgumentType, "%s does not support type %s", x.text, target), x)
 			}
@@ -1898,6 +1904,44 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 				result = valueType("List<" + string(element) + ">")
 			}
 			params = args
+		case "set.new", "set.add", "set.remove", "set.contains", "set.length", "set.values":
+			if x.text == "set.new" {
+				if len(args) != 0 {
+					return "", errorAt(x.pos, CodeArgumentCount, "set.new requires 0 arguments")
+				}
+				_, ok := setTypes(c.expected)
+				if !ok {
+					return "", errorAt(x.pos, CodeArgumentType, "set.new requires an expected Set type")
+				}
+				result = c.expected
+				params = nil
+				break
+			}
+			count := 1
+			if x.text == "set.add" || x.text == "set.remove" || x.text == "set.contains" {
+				count = 2
+			}
+			if len(args) != count {
+				return "", errorAt(x.pos, CodeArgumentCount, "%s requires %d arguments", x.text, count)
+			}
+			elem, ok := setTypes(args[0])
+			if !ok {
+				return "", errorAt(x.pos, CodeArgumentType, "%s requires a Set", x.text)
+			}
+			if (x.text == "set.add" || x.text == "set.remove" || x.text == "set.contains") && args[1] != elem {
+				return "", errorAt(x.pos, CodeArgumentType, "%s item requires %s", x.text, elem)
+			}
+			params = args
+			switch x.text {
+			case "set.add", "set.remove":
+				result = args[0]
+			case "set.contains":
+				result = boolType
+			case "set.length":
+				result = intType
+			case "set.values":
+				result = valueType("List<" + string(elem) + ">")
+			}
 		case "date.new", "time.new":
 			params = []valueType{intType, intType, intType}
 			result = dateType
@@ -2186,7 +2230,7 @@ func (c *checker) call(x *expression, args []valueType) (valueType, error) {
 			if len(args) != 1 {
 				return "", withSpan(errorAt(x.pos, CodeArgumentCount, "print requires 1 argument, found %d", len(args)), x)
 			}
-			if args[0] != intType && args[0] != stringType && args[0] != boolType {
+			if _, isSet := setTypes(args[0]); args[0] != intType && args[0] != stringType && args[0] != boolType && !isSet {
 				var span *expression
 				if len(x.args) > 0 {
 					span = x.args[0]

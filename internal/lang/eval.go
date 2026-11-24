@@ -23,6 +23,7 @@ type value struct {
 	array    *arrayValue
 	choice   *choiceValue
 	mapping  *mapValue
+	set      *setValue
 	function *partialValue
 	moment   time.Time
 	zone     *time.Location

@@ -92,6 +92,36 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 			}
 		}
 		return value{list: &listValue{items: items}}, nil
+	case "set.new":
+		elem, _ := setTypes(x.typ)
+		return value{set: &setValue{elemType: elem, index: make(map[mapKey]int)}}, nil
+	case "set.add":
+		if err := args[0].set.guard(x.pos, "set.add"); err != nil {
+			return value{}, err
+		}
+		args[0].set.add(args[1])
+		return args[0], nil
+	case "set.remove":
+		if err := args[0].set.guard(x.pos, "set.remove"); err != nil {
+			return value{}, err
+		}
+		args[0].set.remove(args[1])
+		return args[0], nil
+	case "set.contains":
+		return value{boolean: args[0].set.has(args[1])}, nil
+	case "set.length":
+		return value{number: zhexrt.I64(int64(len(args[0].set.entries)))}, nil
+	case "set.values":
+		// A read, so the traversal guard does not apply, the map.keys shape.
+		s := args[0].set
+		if int64(len(s.entries)) > maxCollectionElements {
+			return value{}, errorAt(x.pos, CodeCollectionLimit, "%s exceeds element limit", x.text)
+		}
+		items := make([]value, len(s.entries))
+		for i, k := range s.entries {
+			items[i] = s.keyValue(k)
+		}
+		return value{list: &listValue{items: items}}, nil
 	case "array.new":
 		return arrayNew(x.pos, args[0].list, args[1]), nil
 	case "array.resize":
@@ -334,6 +364,9 @@ func (r *runtime) builtin(x *expression, args []value) (value, error) {
 		return value{text: args[0].fault.(*diagnostic).details[args[1].text]}, nil
 	case "print":
 		text := formatValue(args[0], x.inputType)
+		if args[0].set != nil {
+			text = renderSet(x.inputType, args[0].set)
+		}
 		return value{}, r.write(x.pos, text+"\n")
 	case "int.to-string":
 		return value{text: zhexrt.Str(args[0].number)}, nil
@@ -683,6 +716,9 @@ func formatValue(v value, typ valueType) string {
 	case zonedType:
 		return formatZoned(v.moment)
 	}
+	if v.set != nil {
+		return fmt.Sprintf("set(%d members)", len(v.set.entries))
+	}
 	if v.mapping != nil {
 		return fmt.Sprintf("map(%d entries)", len(v.mapping.entries))
 	}
@@ -699,4 +735,22 @@ func formatValue(v value, typ valueType) string {
 		return fmt.Sprintf("record(%s)", v.record.name)
 	}
 	panic(fmt.Sprintf("unchecked print type %s", typ))
+}
+
+// renderSet shows a set's members in insertion order inside set braces;
+// String members keep quotes so the element type stays visible, the shape
+// json.encode emits.
+func renderSet(typ valueType, s *setValue) string {
+	parts := make([]string, len(s.entries))
+	for i, k := range s.entries {
+		switch typ {
+		case "Set<String>":
+			parts[i] = strconv.Quote(k.text)
+		case "Set<Bool>":
+			parts[i] = strconv.FormatBool(k.boolean)
+		default:
+			parts[i] = zhexrt.Str(k.number)
+		}
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
 }

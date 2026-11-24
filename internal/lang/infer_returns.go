@@ -1203,6 +1203,29 @@ func (s *returnInference) call(x *expression, args []*typeConstraint, checked bo
 		default:
 			return namedType("Unit")
 		}
+	case "set.new":
+		return namedType("Set", freshType())
+	case "set.add", "set.remove", "set.contains", "set.length", "set.values":
+		elem := freshType()
+		collection := namedType("Set", elem)
+		if len(args) > 0 {
+			s.equal(args[0], collection, x.pos)
+		}
+		if len(args) > 1 {
+			s.equal(args[1], elem, x.pos)
+		}
+		switch x.text {
+		case "set.add", "set.remove":
+			return collection
+		case "set.contains":
+			return namedType("Bool")
+		case "set.length":
+			return namedType("Int")
+		case "set.values":
+			return namedType("List", elem)
+		default:
+			return namedType("Unit")
+		}
 	case "json.decode":
 		if len(args) > 0 {
 			s.equal(args[0], namedType("String"), x.pos)

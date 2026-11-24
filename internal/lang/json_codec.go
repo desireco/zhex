@@ -35,10 +35,10 @@ func (s *jsonSchema) fieldIdx(name string) (int, bool) {
 	return idx, ok
 }
 
-func (c *checker) makeJSONSchema(typ valueType, active map[valueType]bool) (*jsonSchema, error) {
-	return c.buildJSONSchema(typ, active, make(map[valueType]*jsonSchema))
+func (c *checker) makeJSONSchema(typ valueType, active map[valueType]bool, decoding bool) (*jsonSchema, error) {
+	return c.buildJSONSchema(typ, active, make(map[valueType]*jsonSchema), decoding)
 }
-func (c *checker) buildJSONSchema(typ valueType, active map[valueType]bool, cache map[valueType]*jsonSchema) (*jsonSchema, error) {
+func (c *checker) buildJSONSchema(typ valueType, active map[valueType]bool, cache map[valueType]*jsonSchema, decoding bool) (*jsonSchema, error) {
 	if active[typ] {
 		return nil, fmt.Errorf("recursive type")
 	}
@@ -65,7 +65,18 @@ func (c *checker) buildJSONSchema(typ valueType, active map[valueType]bool, cach
 			return nil, fmt.Errorf("unsupported collection")
 		}
 		s.kind = "list"
-		v, err := c.buildJSONSchema(inner, active, cache)
+		v, err := c.buildJSONSchema(inner, active, cache, decoding)
+		s.element = v
+		return s, err
+	}
+	if elem, args, ok := typeApplication(typ); ok && elem == "Set" && len(args) == 1 {
+		// A set encodes as a JSON array in insertion order; there is no set
+		// decode target in v1, so only the encode direction builds a schema.
+		if decoding {
+			return nil, fmt.Errorf("sets cannot be decoded")
+		}
+		s.kind = "set"
+		v, err := c.buildJSONSchema(args[0], active, cache, decoding)
 		s.element = v
 		return s, err
 	}
@@ -74,13 +85,13 @@ func (c *checker) buildJSONSchema(typ valueType, active map[valueType]bool, cach
 			return nil, fmt.Errorf("non-string map key")
 		}
 		s.kind = "map"
-		v, err := c.buildJSONSchema(val, active, cache)
+		v, err := c.buildJSONSchema(val, active, cache, decoding)
 		s.element = v
 		return s, err
 	}
 	if base, args, ok := typeApplication(typ); ok && base == "Option" && len(args) == 1 {
 		s.kind = "option"
-		v, err := c.buildJSONSchema(args[0], active, cache)
+		v, err := c.buildJSONSchema(args[0], active, cache, decoding)
 		s.element = v
 		if err == nil && v.kind == "option" {
 			return nil, fmt.Errorf("nested Option cannot round-trip through JSON null")
@@ -91,7 +102,7 @@ func (c *checker) buildJSONSchema(typ valueType, active map[valueType]bool, cach
 		s.kind = "record"
 		s.fieldIndex = make(map[string]int, len(record.fields))
 		for i, field := range record.fields {
-			f, err := c.buildJSONSchema(field.typ, active, cache)
+			f, err := c.buildJSONSchema(field.typ, active, cache, decoding)
 			if err != nil {
 				return nil, err
 			}
@@ -562,6 +573,17 @@ func appendJSON(out *bytes.Buffer, v value, s *jsonSchema, path string, depth in
 				out.WriteByte(',')
 			}
 			if err := appendJSON(out, item, s.element, fmt.Sprintf("%s/%d", path, i), depth+1); err != nil {
+				return err
+			}
+		}
+		out.WriteByte(']')
+	case "set":
+		out.WriteByte('[')
+		for i, k := range v.set.entries {
+			if i > 0 {
+				out.WriteByte(',')
+			}
+			if err := appendJSON(out, v.set.keyValue(k), s.element, fmt.Sprintf("%s/%d", path, i), depth+1); err != nil {
 				return err
 			}
 		}

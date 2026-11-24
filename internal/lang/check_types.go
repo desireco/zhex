@@ -85,6 +85,12 @@ func (c *checker) typeError(pos position, typ valueType) error {
 	if record, module := findPrivate(typ); record != nil {
 		return withHint(errorAt(pos, CodePrivateUse, "%q is private to module %q", record.name, module.name), fmt.Sprintf("remove the leading underscore in %s to export it", module.path))
 	}
+	if base, args, ok := typeApplication(typ); ok && base == "Set" {
+		if len(args) == 1 {
+			return errorAt(pos, CodeUnknownType, "Set elements must be Int, String, or Bool, found %s", typ)
+		}
+		return errorAt(pos, CodeUnknownType, "a Set takes exactly one element type, found %s", typ)
+	}
 	return errorAt(pos, CodeUnknownType, "unknown type %q", typ)
 }
 
@@ -132,6 +138,16 @@ func (c *checker) normalizeTypeSeen(typ valueType, seen map[*recordType]bool) (v
 			return "", false
 		}
 		return valueType("Map<" + string(key) + ", " + string(val) + ">"), true
+	}
+	if base, args, ok := typeApplication(typ); ok && base == "Set" {
+		if len(args) != 1 {
+			return "", false
+		}
+		elem, eok := c.normalizeTypeSeen(args[0], seen)
+		if !eok || (elem != stringType && elem != intType && elem != boolType) {
+			return "", false
+		}
+		return valueType("Set<" + string(elem) + ">"), true
 	}
 	if base, args, ok := typeApplication(typ); ok && base != "Result" && base != "List" && base != "Array" {
 		if record := c.types.visible[base]; record != nil && record.typeParam != "" && len(args) == 1 {
@@ -252,7 +268,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 	}
 	for _, record := range records {
-		if record.name == "Map" || record.name == "Option" || record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
+		if record.name == "Map" || record.name == "Set" || record.name == "Option" || record.name == "List" || record.name == "Array" || record.name == "Result" || record.name == "InputError" || record.name == "ParseError" || record.name == "FileError" || record.name == "BufferError" || strings.Contains(record.name, ".") || c.types.visible[record.name] != nil || c.words[record.name] != nil || c.validType(valueType(record.name)) || HostWord(record.name) {
 			return errorAt(record.pos, CodeDuplicateName, "type %q is invalid or already defined", record.name)
 		}
 		c.types.visible[record.name], c.types.visible[record.id()], c.types.all[record.id()] = record, record, record
@@ -271,7 +287,7 @@ func (c *checker) registerRecords(records []*recordType) error {
 		}
 	}
 	for _, record := range records {
-		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "Map" || record.typeParam == "List" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
+		if record.typeParam != "" && (record.typeParam == "_" || strings.Contains(record.typeParam, ".") || record.typeParam == record.name || c.types.visible[record.typeParam] != nil || c.validType(valueType(record.typeParam)) || record.typeParam == "Map" || record.typeParam == "Set" || record.typeParam == "List" || record.typeParam == "Array" || record.typeParam == "Result" || record.typeParam == "InputError" || record.typeParam == "ParseError" || record.typeParam == "FileError" || record.typeParam == "BufferError") {
 			return errorAt(record.pos, CodeDuplicateName, "invalid type parameter %q", record.typeParam)
 		}
 		variants := make(map[string]bool)
@@ -547,6 +563,9 @@ func (c *checker) normalizeTemplate(typ valueType, param string) (valueType, boo
 	if (base == "List" || base == "Array") && len(args) == 1 {
 		return valueType(base + "<" + normalized[0] + ">"), true
 	}
+	if base == "Set" && len(args) == 1 && (normalized[0] == string(stringType) || normalized[0] == string(intType) || normalized[0] == string(boolType)) {
+		return valueType("Set<" + normalized[0] + ">"), true
+	}
 	if base == "Map" && len(args) == 2 && (normalized[0] == string(stringType) || normalized[0] == string(intType) || normalized[0] == string(boolType)) {
 		return valueType("Map<" + normalized[0] + ", " + normalized[1] + ">"), true
 	}
@@ -601,6 +620,14 @@ func containsResultType(typ valueType) bool {
 		}
 	}
 	return false
+}
+
+func setTypes(typ valueType) (valueType, bool) {
+	base, args, ok := typeApplication(typ)
+	if !ok || base != "Set" || len(args) != 1 {
+		return "", false
+	}
+	return args[0], true
 }
 
 func mapTypes(typ valueType) (valueType, valueType, bool) {
