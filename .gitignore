@@ -13,3 +13,4 @@
 /site/.wasm-manifest.json
 /site/public/zhex-engine*
 /site/.engine-hash
+/.pi/
