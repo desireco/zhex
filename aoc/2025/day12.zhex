@@ -124,28 +124,22 @@ word parse(text: String) -> Farm
         list.append(regions, _region(line) try)
     Farm(shapes, regions)
 
-word _pow2(n: Int) -> Int
-    var value = 1
-    for i in range(0, n)
-        value = value * 2
-    value
-
 # Fill one anchor column of a region and emit the reachable states. The
 # occupancy `occ` holds bits for the cells this column's presents cover
-# (bit = column-offset * height + row, no bitwise words, so bits are
-# place values tested with / and %); `pend` holds the coverage earlier
+# (bit = column-offset * height + row, set with int.shift-left, tested
+# with int.and and int.shift-right); `pend` holds the coverage earlier
 # columns already committed into this column's window. Every node emits
 # its state shifted past the finished column, then tries one more
 # present anchored here. Recursion depth is the presents-per-column
 # bound plus one — single digits.
 word _fill-column(next: Map<Int, Bool>, occ: Int, pend: Int, code: Int, anchor: Int, width: Int, height: Int, from-shape: Int, shapes: List<List<Form>>, base: Int)
-    let shifted = (pend + occ) / _pow2(height)
+    let shifted = int.shift-right(pend + occ, height)
     let state = shifted * base + code
     if not map.contains(next, state)
         map.put(next, state, true)
     var s = from-shape
     while s < list.length(shapes)
-        if (code / _pow2(3 * s)) % 8 > 0
+        if int.and(int.shift-right(code, 3 * s), 7) > 0
             var f = 0
             while f < list.length(shapes[s])
                 let form = shapes[s][f]
@@ -161,14 +155,14 @@ word _fill-column(next: Map<Int, Bool>, occ: Int, pend: Int, code: Int, anchor: 
                         if anchor + bit-col >= width
                             ok = false
                         else
-                            let place = _pow2(bit-col * height + bit-row)
+                            let place = int.shift-left(1, bit-col * height + bit-row)
                             if ((pend + occ) / place) % 2 == 1
                                 ok = false
                             else
                                 bits = bits + place
                         i = i + 1
                     if ok
-                        _fill-column(next, occ + bits, pend, code - _pow2(3 * s), anchor, width, height, s, shapes, base)
+                        _fill-column(next, occ + bits, pend, code - int.shift-left(1, 3 * s), anchor, width, height, s, shapes, base)
                     row = row + 1
                 f = f + 1
         s = s + 1
@@ -182,8 +176,8 @@ word _fill-column(next: Map<Int, Bool>, occ: Int, pend: Int, code: Int, anchor: 
 word _region-packs(width: Int, height: Int, shapes: List<List<Form>>, counts: List<Int>) -> Bool
     var code = 0
     for s in range(0, list.length(counts))
-        code = code + counts[s] * _pow2(3 * s)
-    let base = _pow2(3 * list.length(counts))
+        code = code + counts[s] * int.shift-left(1, 3 * s)
+    let base = int.shift-left(1, 3 * list.length(counts))
     var frontier: Map<Int, Bool> = {}
     map.put(frontier, code, true)
     var answer = false
