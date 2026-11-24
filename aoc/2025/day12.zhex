@@ -132,11 +132,10 @@ word parse(text: String) -> Farm
 # its state shifted past the finished column, then tries one more
 # present anchored here. Recursion depth is the presents-per-column
 # bound plus one — single digits.
-word _fill-column(next: Map<Int, Bool>, occ: Int, pend: Int, code: Int, anchor: Int, width: Int, height: Int, from-shape: Int, shapes: List<List<Form>>, base: Int)
+word _fill-column(next: Set<Int>, occ: Int, pend: Int, code: Int, anchor: Int, width: Int, height: Int, from-shape: Int, shapes: List<List<Form>>, base: Int)
     let shifted = int.shift-right(pend + occ, height)
     let state = shifted * base + code
-    if not map.contains(next, state)
-        map.put(next, state, true)
+    set.add(next, state)
     var s = from-shape
     while s < list.length(shapes)
         if int.and(int.shift-right(code, 3 * s), 7) > 0
@@ -178,13 +177,13 @@ word _region-packs(width: Int, height: Int, shapes: List<List<Form>>, counts: Li
     for s in range(0, list.length(counts))
         code = code + counts[s] * int.shift-left(1, 3 * s)
     let base = int.shift-left(1, 3 * list.length(counts))
-    var frontier: Map<Int, Bool> = {}
-    map.put(frontier, code, true)
+    var frontier: Set<Int> = set.new()
+    set.add(frontier, code)
     var answer = false
     var anchor = 0
-    while not answer and anchor < width and map.length(frontier) > 0
-        let next: Map<Int, Bool> = {}
-        for key, value in frontier
+    while not answer and anchor < width and set.length(frontier) > 0
+        let next: Set<Int> = set.new()
+        for key in set.values(frontier)
             if key % base == 0
                 answer = true
             else
@@ -192,7 +191,7 @@ word _region-packs(width: Int, height: Int, shapes: List<List<Form>>, counts: Li
         frontier = next
         anchor = anchor + 1
     if not answer
-        for key, value in frontier
+        for key in set.values(frontier)
             if key % base == 0
                 answer = true
     answer
