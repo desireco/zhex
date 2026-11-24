@@ -613,6 +613,7 @@ func TestDifferential(t *testing.T) {
 		"paths-empty", "sort-by-shapes",
 		"branch-statement",
 		"list-ends",
+		"int-shifts",
 	} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name, lang.WatSkinBrowser)
@@ -1220,6 +1221,38 @@ func TestCompiledIntWidthFence(t *testing.T) {
 	}
 }
 
+// TestCompiledIntShiftBoundaries pins the #231 width rulings on the 64-bit
+// build: a count of 64 or more fails int-shift-width even for a zero value
+// (the interpreter, at full width, succeeds — these are compiled-only
+// assertions like the width fence above), and a shift-left whose
+// mathematical result leaves the signed 64-bit range fails the shared
+// integer-overflow code.
+func TestCompiledIntShiftBoundaries(t *testing.T) {
+	requireTool(t, "wasm-tools")
+	for _, tc := range []struct {
+		name   string
+		source string
+		stderr string
+	}{
+		{"width fence holds for zero", "print(int.shift-left(0, 64))\n", "runtime error: shift count of 64 or more exceeds this build's 64-bit Int width\n"},
+		{"width fence on the right shift", "print(int.shift-right(-1, 100))\n", "runtime error: shift count of 64 or more exceeds this build's 64-bit Int width\n"},
+		{"a literal count of one hundred compiles", "let n = 100\nprint(int.shift-right(8, n))\n", "runtime error: shift count of 64 or more exceeds this build's 64-bit Int width\n"},
+		{"shift-left overflow at the 64-bit edge", "print(int.shift-left(1, 63))\n", "runtime error: integer overflow\n"},
+		{"shift-left overflow inside the width", "print(int.shift-left(4611686018427387904, 2))\n", "runtime error: integer overflow\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			outPath := filepath.Join(t.TempDir(), "shift.wasm")
+			if err := Compile("shift.zhex", tc.source, outPath, nil, lang.WatSkinBrowser); err != nil {
+				t.Fatalf("compile: %v", err)
+			}
+			out, stderr, code := runNode(t, outPath)
+			if code != 1 || out != "" || stderr != tc.stderr {
+				t.Fatalf("code=%d stdout=%q stderr=%q; want code 1 and %q", code, out, stderr, tc.stderr)
+			}
+		})
+	}
+}
+
 func TestCompiledDiagnostics(t *testing.T) {
 	requireTool(t, "wasm-tools")
 	for _, tc := range []struct{ name, stderr string }{
@@ -1229,6 +1262,7 @@ func TestCompiledDiagnostics(t *testing.T) {
 		{"maps-iterate-fail", "runtime error: collection is being iterated\n"},
 		{"array-select-rank", "runtime error: array.select requires a rank-2 array, found rank 3\n"},
 		{"list-ends-fail", "runtime error: list index is out of range\n"},
+		{"int-shifts-fail", "runtime error: shift count is negative\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			wasmPath := compileFixture(t, tc.name, lang.WatSkinBrowser)

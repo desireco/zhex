@@ -119,6 +119,25 @@ const watPreludeArith = `
 (func $zhex_rem (param $a i64) (param $b i64) (result i64)
   (if (i64.eqz (local.get $b)) (then (call $zhex_fail (i32.const 19))))
   (i64.rem_s (local.get $a) (local.get $b)))
+
+(func $zhex_shl (param $a i64) (param $n i64) (result i64)
+  (local $t i64)
+  ;; int.shift-left (#231): negative count, then the 64-bit build's width
+  ;; ruling, then the overflow check — the truncating shift must reverse
+  ;; under the arithmetic one, mirroring zhexrt.ShiftLeft exactly.
+  (if (i64.lt_s (local.get $n) (i64.const 0)) (then (call $zhex_fail (i32.const 20))))
+  (if (i64.ge_s (local.get $n) (i64.const 64)) (then (call $zhex_fail (i32.const 21))))
+  (local.set $t (i64.shl (local.get $a) (local.get $n)))
+  (if (i64.ne (i64.shr_s (local.get $t) (local.get $n)) (local.get $a))
+    (then (call $zhex_fail (i32.const 1))))
+  (local.get $t))
+
+(func $zhex_shr (param $a i64) (param $n i64) (result i64)
+  ;; int.shift-right (#231): same count fences; the shift itself is the
+  ;; arithmetic, sign-keeping one and can never overflow.
+  (if (i64.lt_s (local.get $n) (i64.const 0)) (then (call $zhex_fail (i32.const 20))))
+  (if (i64.ge_s (local.get $n) (i64.const 64)) (then (call $zhex_fail (i32.const 21))))
+  (i64.shr_s (local.get $a) (local.get $n)))
 `
 
 // watPreludeText: strings are arrays of i32 code points (§2).

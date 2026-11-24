@@ -814,11 +814,13 @@ func watWasiFailTexts() string {
 		13: "text.replace old text is empty",
 		14: "text.split exceeds element limit",
 		19: "division or remainder by zero",
+		20: "shift count is negative",
+		21: "shift count of 64 or more exceeds this build's 64-bit Int width",
 	}
 	var b strings.Builder
 	b.WriteString("\n;; fixed fail messages (M1 6a + M2 2c), committed literals\n")
 	b.WriteString(watStrFn("$wasi_fail_prefix", "runtime error: "))
-	for code := 1; code <= 19; code++ {
+	for code := 1; code <= 21; code++ {
 		msg, ok := messages[code]
 		if !ok {
 			continue // 12 and 15 stage dynamic messages via $zhex_fail_msg
@@ -826,7 +828,7 @@ func watWasiFailTexts() string {
 		b.WriteString(watStrFn("$wasi_msg_"+itoa(code), msg))
 	}
 	b.WriteString("(func $wasi_fail_text (param $code i32) (result (ref $zhex_string))\n")
-	for code := 1; code <= 19; code++ {
+	for code := 1; code <= 21; code++ {
 		if _, ok := messages[code]; !ok {
 			continue
 		}

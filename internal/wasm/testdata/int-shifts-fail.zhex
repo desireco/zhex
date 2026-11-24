@@ -1,0 +1,3 @@
+# A negative shift count is the runtime int-shift-count fault in every
+# build; the compiled runner prints the fixed fail-table string.
+print(int.shift-left(1, -1))

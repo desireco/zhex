@@ -1,0 +1,28 @@
+# The #231 bitwise words within the 64-bit width: masks, negative operands
+# under two's complement, counts 0/1/63, the sign-keeping right shift, and
+# the day-12 shape packing and reading fields with shift+mask (flow form).
+print(int.and(12, 10))
+print(int.or(12, 10))
+print(int.xor(12, 10))
+print(int.and(-1, 255))
+print(int.xor(-1, 5))
+print(int.shift-left(21, 0))
+print(int.shift-right(21, 0))
+print(int.shift-left(3, 1))
+print(int.shift-right(256, 1))
+print(int.shift-right(-8, 1))
+print(int.shift-right(-9, 1))
+print(int.shift-left(-1, 5))
+print(int.shift-left(1, 62))
+print(int.shift-right(4611686018427387904, 63))
+let code = int.or(int.shift-left(5, 3), int.shift-left(2, 6))
+print(int.and(int.shift-right(code, 3), 7))
+print(int.and(int.shift-right(code, 6), 7))
+let masked = flow code
+    int.shift-right 6
+    int.and 7
+print(masked)
+word decode(code: Int, s: Int) -> Int
+    int.and(int.shift-right(code, 3 * s), 7)
+print(decode(168, 1))
+print(decode(168, 2))

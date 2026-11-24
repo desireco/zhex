@@ -61,6 +61,25 @@ print(-n * 3)
 	}
 }
 
+// TestWatIntBitWords pins the #231 bitwise words in the emitter: and/or/xor
+// are unchecked limbwise i64 ops (inline, like text.length), while both
+// shifts call the count-checking prelude helpers ($zhex_shl/$zhex_shr).
+func TestWatIntBitWords(t *testing.T) {
+	wat := watOf(t, `
+let code = 168
+print(int.and(code, 7))
+print(int.or(code, 128))
+print(int.xor(code, 255))
+print(int.shift-left(1, 3))
+print(int.shift-right(code, 6))
+`)
+	for _, want := range []string{"i64.and", "i64.or", "i64.xor", "call $zhex_shl", "call $zhex_shr"} {
+		if !strings.Contains(wat, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+}
+
 func TestWatStringConcatAndComparison(t *testing.T) {
 	wat := watOf(t, `
 let a = "foo"

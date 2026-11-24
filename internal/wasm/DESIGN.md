@@ -177,6 +177,8 @@ Inventory:
 | 10 | collection-iterating | `runtime error: collection is being iterated` |
 | 11 | unhandled-result | `runtime error: unhandled failure` |
 | 19 | division-zero | `runtime error: division or remainder by zero` |
+| 20 | int-shift-count | `runtime error: shift count is negative` |
+| 21 | int-shift-width | `runtime error: shift count of 64 or more exceeds this build's 64-bit Int width` |
 
 Messages mirror `eval.go`/`collections.go` phrasing; the `runtime error: ` prefix replaces the
 interpreter's `file:line:column:` position, which the artifact does not carry in M1. After

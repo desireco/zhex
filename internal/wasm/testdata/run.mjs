@@ -29,6 +29,8 @@ const failMessages = {
   13: "text.replace old text is empty",
   14: "text.split exceeds element limit",
   19: "division or remainder by zero",
+  20: "shift count is negative",
+  21: "shift count of 64 or more exceeds this build's 64-bit Int width",
 };
 
 // Dynamic-message codes stage their message as UTF-8 at memory offset 0;

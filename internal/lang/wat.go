@@ -1805,6 +1805,25 @@ func (e *watEmitter) builtinCall(x *expression) {
 	case "int.to-string":
 		e.expr(x.args[0])
 		e.line("call " + watIntToString)
+	case "int.and", "int.or", "int.xor":
+		// Unchecked limbwise bit ops (#231): inline i64 instructions, the
+		// text.length pattern — no prelude helper needed without checks.
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line(map[string]string{
+			"int.and": "i64.and",
+			"int.or":  "i64.or",
+			"int.xor": "i64.xor",
+		}[x.text])
+	case "int.shift-left", "int.shift-right":
+		// The prelude helpers fence the count (int-shift-count, the 64-bit
+		// build's int-shift-width) and check shift-left's overflow (#231).
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		e.line("call " + map[string]string{
+			"int.shift-left":  watIntShl,
+			"int.shift-right": watIntShr,
+		}[x.text])
 	case "duration.new":
 		e.expr(x.args[0]) // passthrough: Duration is Int's unboxed i64 repr
 	case "duration.parse":

@@ -53,6 +53,9 @@ func TestWatPreludePinnedNames(t *testing.T) {
 		"(func $zhex_mul (param $a i64) (param $b i64) (result i64)",
 		"(func $zhex_neg (param $a i64) (result i64)",
 		"(func $zhex_div (param $a i64) (param $b i64) (result i64)",
+		"(func $zhex_rem (param $a i64) (param $b i64) (result i64)",
+		"(func $zhex_shl (param $a i64) (param $n i64) (result i64)",
+		"(func $zhex_shr (param $a i64) (param $n i64) (result i64)",
 	}
 	for _, x := range []string{"i64", "i32", "ref"} {
 		pinned = append(pinned,

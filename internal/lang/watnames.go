@@ -43,6 +43,8 @@ const (
 	watNeg         = "$zhex_neg"
 	watDiv         = "$zhex_div"
 	watRem         = "$zhex_rem"
+	watIntShl      = "$zhex_shl"
+	watIntShr      = "$zhex_shr"
 	watIntToString = "$zhex_int_to_string"
 	watStrEq       = "$zhex_str_eq"
 	watStrConcat   = "$zhex_str_concat"
@@ -66,6 +68,8 @@ const (
 	watFailArrayLimit   = 9  // collection-limit (array)
 	watFailIterating    = 10 // collection-iterating
 	watFailUnhandled    = 11 // unhandled-result
+	watFailShiftCount   = 20 // int-shift-count (negative shift count)
+	watFailShiftWidth   = 21 // int-shift-width (count of 64 or more in the 64-bit build)
 	watFailDivisionZero = 19 // division-zero
 )
 
