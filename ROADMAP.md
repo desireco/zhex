@@ -94,19 +94,19 @@ Build a readable language from small, composable words. The Go interpreter lets 
 
 ## Next
 
-Grow the language's reach: a dedicated domain and funding. This is the proposed order; each step needs working examples and tests.
+Grow the language's reach: funding. This is the proposed order; each step needs working examples and tests.
 
 - Standard library: the researched inventory ships — 129 registered words; what remains is small and triaged.
   - The proposals and dependency order live in `docs/standard-library-plan.md` (#30).
-  - Open gap tickets in the Inbox: #159 bitwise and stack words.
+  - Open gap tickets in Todo: #159 list pop/first/last, #231 bitwise words, and #232 (map keys decision); #231 and #232 await owner design calls.
 - WebAssembly: the A3 WASI runner runs a compiled module under a standalone wasm runtime.
   - `file.*` words work against one preopened directory.
   - It compiles today but stays runtime-untested; `docs/wasm-plan.md` tracks it open.
   - Compiled wasm builds use 64-bit Ints by design — WebAssembly has no wider integer type, and wider values refuse with a named limit (#178 ruled the boundary final); the native Go target keeps the interpreter's full 128-bit width (#185).
-- Domain: buy a dedicated domain for the language and point it at the published site.
 - Funding: enable GitHub Sponsors or Open Collective and pursue the researched channels (#26).
   - A sponsor section on the site.
   - The grant and visibility channels from the funding research.
+- Domain: buy a dedicated domain for the language and point it at the published site (#16).
 
 ## Future
 
