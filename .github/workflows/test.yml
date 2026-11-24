@@ -1,0 +1,49 @@
+name: Verification bar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30af803 # v6
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      # Prebuilt binaries from GitHub Releases: just runs the bar; wasm-tools
+      # and wasmtime keep the wasm corpus and differential gates from skipping
+      # (they skip silently when the tools are absent, which would slim the bar).
+      - name: Install just, wasm-tools, and wasmtime
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2
+        with:
+          tool: just,wasm-tools,wasmtime
+      - name: Install site dependencies
+        run: npm ci --prefix site
+      - name: Check Go source
+        run: go vet ./...
+      - name: Run the verification bar
+        run: just test
+      # Visibility only: the vocabulary-gap sweep never gates the bar.
+      - name: Vocabulary gaps report (non-blocking)
+        run: bin/zhex test examples --gaps
+        continue-on-error: true
