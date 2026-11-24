@@ -1,0 +1,27 @@
+# List end words: pop removes and returns the last element, first and last
+# read the ends, and the flow receiver form threads the stack.
+let xs = [1, 2, 3]
+print(list.first(xs))
+print(list.last(xs))
+print(list.pop(xs))
+print(list.length(xs))
+print(list.first(xs))
+let words = ["a", "b", "c"]
+print(list.pop(words))
+print(list.last(words))
+print(list.length(words))
+let stack: List<Int> = list.new()
+let top = flow stack
+    list.append 4
+    list.append 5
+    list.pop
+print(top)
+print(list.length(stack))
+var total = 0
+while list.length(xs) > 0
+    total = total + list.pop(xs)
+print(total)
+for n in [1, 2, 3]
+    list.append(stack, n)
+print(list.last(stack))
+print(list.first(stack))

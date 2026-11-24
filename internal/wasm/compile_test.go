@@ -612,6 +612,7 @@ func TestDifferential(t *testing.T) {
 		"flow-try-discard", "flow-try-feed", "flow-try-tail", "flow-try-word",
 		"paths-empty", "sort-by-shapes",
 		"branch-statement",
+		"list-ends",
 	} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name, lang.WatSkinBrowser)
@@ -1227,6 +1228,7 @@ func TestCompiledDiagnostics(t *testing.T) {
 		{"text-to-int-fail", "runtime error: \"x\" is not a signed 64-bit decimal integer\n"},
 		{"maps-iterate-fail", "runtime error: collection is being iterated\n"},
 		{"array-select-rank", "runtime error: array.select requires a rank-2 array, found rank 3\n"},
+		{"list-ends-fail", "runtime error: list index is out of range\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			wasmPath := compileFixture(t, tc.name, lang.WatSkinBrowser)

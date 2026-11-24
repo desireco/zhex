@@ -1,0 +1,4 @@
+# Popping an empty list fails the family's list-range diagnostic.
+let xs: List<Int> = []
+print(list.first(xs))
+print(list.pop(xs))

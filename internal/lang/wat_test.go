@@ -543,6 +543,18 @@ func TestWatFencesOutOfSubsetConstructs(t *testing.T) {
 let xs: List<Int> = list.new()
 list.append(xs, 1) try
 `, "checked list.append is not available in this build"},
+		{"checked-pop", `
+let xs: List<Int> = list.new()
+let top = list.pop(xs) try
+`, "checked list.pop is not available in this build"},
+		{"checked-first", `
+let xs: List<Int> = list.new()
+let head = list.first(xs) try
+`, "checked list.first is not available in this build"},
+		{"checked-last", `
+let xs: List<Int> = list.new()
+let tail = list.last(xs) try
+`, "checked list.last is not available in this build"},
 		{"checked-index-array", `
 let grid = array.new([2, 2], 0)
 print(grid[0, 0] try)
@@ -1828,7 +1840,11 @@ print(b)
 			t.Errorf("missing %q in emitted WAT:\n%s", want, wat)
 		}
 	}
-	if strings.Contains(wat, "call "+watListGet(watSpecI64)) {
+	// The negative pin scopes to the program section: the prelude's own
+	// first/last helpers delegate to the plain get by design, so only the
+	// program's call sites must avoid it for a checked read.
+	program := wat[strings.Index(wat, ";; program types"):]
+	if strings.Contains(program, "call "+watListGet(watSpecI64)) {
 		t.Errorf("a checked read must not use the trapping plain get")
 	}
 }

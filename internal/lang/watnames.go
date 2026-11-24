@@ -89,6 +89,9 @@ func watListAppend(s watSpec) string  { return "$zhex_list_append_" + string(s) 
 func watListLength(s watSpec) string  { return "$zhex_list_length_" + string(s) }
 func watListGet(s watSpec) string     { return "$zhex_list_get_" + string(s) }
 func watListSet(s watSpec) string     { return "$zhex_list_set_" + string(s) }
+func watListPop(s watSpec) string     { return "$zhex_list_pop_" + string(s) }
+func watListFirst(s watSpec) string   { return "$zhex_list_first_" + string(s) }
+func watListLast(s watSpec) string    { return "$zhex_list_last_" + string(s) }
 func watArrayNew(s watSpec) string    { return "$zhex_array_new_" + string(s) }
 func watArrayGet(s watSpec) string    { return "$zhex_array_get_" + string(s) }
 func watArraySet(s watSpec) string    { return "$zhex_array_set_" + string(s) }
