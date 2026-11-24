@@ -42,19 +42,19 @@ word part-one(histories: List<List<Int>>) -> Int
     total
 
 ## The sum over all histories of the previous value: each level's first
-## number, collected on the way down and folded from the bottom up as
-## first minus the value below it.
+## number pushed on the way down, then folded popping back up as first
+## minus the value below it.
 word part-two(histories: List<List<Int>>) -> Int
     var total = 0
     for history in histories
-        let firsts: List<Int> = []
+        let firsts: Stack<Int> = stack.new()
         var level = history
         while list.any(level, _nonzero(_))
-            list.append(firsts, level[0])
+            stack.push(firsts, level[0])
             level = _differences(level)
         var previous = 0
-        for index in range(0, list.length(firsts))
-            previous = firsts[list.length(firsts) - 1 - index] - previous
+        while stack.length(firsts) > 0
+            previous = stack.pop(firsts) - previous
         total = total + previous
     total
 
