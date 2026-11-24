@@ -365,6 +365,27 @@ func TestEngineIntShifts(t *testing.T) {
 	}
 }
 
+// TestEngineSetWords pins #235a in the browser engine: the six set words
+// flow through the evaluator (no engine code of their own), so the
+// differential oracle covers build, dedupe, remove, contains, length,
+// insertion-order values, the print braces, and the REPL-style echo path
+// stays out of run mode.
+func TestEngineSetWords(t *testing.T) {
+	engineModule(t)
+	source := "var s: Set<Int> = set.new\nvar i = 0\nwhile i < 50\n    set.add(s, i % 17)\n    i = i + 1\nprint(set.length(s))\nprint(set.contains(s, 16))\nset.remove(s, 16)\nprint(set.contains(s, 16))\nvar total = 0\nlet xs = set.values(s)\nvar j = 0\nwhile j < list.length(xs)\n    total = total + xs[j]\n    j = j + 1\nprint(total)\nprint(s)\nvar names: Set<String> = set.new\nset.add(names, \"Ada\")\nset.add(names, \"Bo\")\nset.add(names, \"Ada\")\nprint(set.length(names))\nprint(names)\nvar flags: Set<Bool> = set.new\nset.add(flags, true)\nset.add(flags, false)\nset.add(flags, true)\nprint(set.length(flags))\nprint(flags)\nlet empty: Set<Int> = set.new\nprint(set.length(empty))\nprint(set.contains(empty, 1))\nprint(empty)\n"
+	var interpreted bytes.Buffer
+	if err := lang.Run("probe.zhex", source, strings.NewReader(""), &interpreted); err != nil {
+		t.Fatalf("interpreter run: %v", err)
+	}
+	result := runProbe(t, source, "")
+	if result.Output != interpreted.String() {
+		t.Fatalf("engine output %q, want %q", result.Output, interpreted.String())
+	}
+	if result.Exit != 0 {
+		t.Fatalf("engine exit %d, want 0; diagnostics %q", result.Exit, result.Diagnostics)
+	}
+}
+
 // TestEngineLoaderWorkerBranch pins the loader in a classic Web Worker
 // (#224), where there is no `document` for a script tag: loadEngine runs the
 // runtime file through importScripts, fetches the module, and returns the
