@@ -4,6 +4,7 @@ Build a readable language from small, composable words. The Go interpreter lets 
 
 ## Done
 
+- Vocabulary: the list end words ship — `list.pop(values)` removes the last element and returns it (`T`, the one exception to mutation-returns-receiver), `list.first(values)` and `list.last(values)` read the ends returning `T` with the list unchanged, all three are checked collection operations (plain call yields `T`, `try`/`catch` selects `Result<T, Error>`), an empty list fails the stable `list-range` code like an out-of-range index, `list.pop` holds the iteration guard and its dropped element still pops on an ordinary line so a loop drains a stack, flows are the receiver form (`flow stack / list.append 4 / list.append 5 / list.pop` gives 5), and `list.remove-first` is deliberately absent — queues keep the head counter, and a head removal would move every element (#159, no new codes, no example per the #160 rule).
 - Review: a second code review of the native target, the WebAssembly prelude, the new words, and the documents modules fixed, among others, a `try` flow step that native builds dropped silently, wrong accented text in PDF output (the PDF font now declares WinAnsiEncoding), an escaped pipe lost from a Markdown table row's last cell, and two programs that could hang — an unwalkable day 8 network now reports `the walk from AAA never reaches ZZZ` from a bounded walk check, and the browser engine no longer parks a delivery that arrives after the run finished; `text.repeat` and the pad pair fail their range codes past the runtime's allocation limit instead of crashing, the native depth diagnostic points at the call that made the 257th call like the interpreter, a Windows target builds a `.exe`, a native rebuild rewrites the copied runtime directory, and a new test fails when a co-located module copy drifts from its original.
 
 - Examples: the writer's showcase ships — `examples/modules/writer/` loads a draft through the md module, reads its outline, runs sentence and word passes with the ordinary list words, takes the stats moment, edits by section and block, and publishes markdown plus an html fragment: passes over layers end to end, no string surgery (#221, closing the documents epic's example debt; pinned by `writer.test.zhex`).
@@ -96,9 +97,9 @@ Build a readable language from small, composable words. The Go interpreter lets 
 
 Grow the language's reach: funding. This is the proposed order; each step needs working examples and tests.
 
-- Standard library: the researched inventory ships — 129 registered words; what remains is small and triaged.
+- Standard library: the researched inventory ships — 132 registered words; what remains is small and triaged.
   - The proposals and dependency order live in `docs/standard-library-plan.md` (#30).
-  - Open gap tickets in Todo: #159 list pop/first/last, #231 bitwise words, and #232 (map keys decision); #231 and #232 await owner design calls.
+  - Open gap tickets in Todo: #231 bitwise words and #232 (map keys decision); both await owner design calls.
 - WebAssembly: the A3 WASI runner runs a compiled module under a standalone wasm runtime.
   - `file.*` words work against one preopened directory.
   - It compiles today but stays runtime-untested; `docs/wasm-plan.md` tracks it open.
