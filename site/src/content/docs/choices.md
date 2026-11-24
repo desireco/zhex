@@ -81,7 +81,19 @@ word short-label(status: Status) -> String
 print(short-label(Status.Failed("network unavailable")))
 ```
 
-`match` can be a statement, the final statement of a word, or the entire right-hand expression of a `let` or `var` binding. It evaluates the matched value once. Payload names are immutable bindings scoped to their case body. Value-producing arms must have compatible result types; a case body can end in a `flow`. A branch that does not return can participate in a value-producing match; for example, `console.exit(1)` or `console.fail(message)` can end one branch while the other branches return a value. See [console](console.html) for those operations.
+`match` can stand on its own line, be the final statement of a word, or be the entire right-hand expression of a `let` or `var` binding. It evaluates the matched value once. Payload names are immutable bindings scoped to their case body. A `match` on its own line drops what its arms return, so its arms may end with different types. A `match` whose value is used — as a word's result or as a binding's value — must have arms that all end with the same type; a case body can end in a `flow`. A branch that does not return can participate in a value-producing match; for example, `console.exit(1)` or `console.fail(message)` can end one branch while the other branches return a value. See [console](console.html) for those operations.
+
+```zhex
+let xs = [1]
+match Option.Some(3)
+    case Option.Some(n)
+        list.append(xs, n)
+    case Option.None
+        print("nothing to add")
+print(list.length(xs))
+```
+
+This prints `2`. The `match` stands on its own line, so nothing reads what its arms return: one ends with the list from `list.append` and the other with `print`.
 
 Choice payload fields cannot contain `Result` values, including through a type argument such as `Maybe<Result<Int, Error>>`. As with record fields, storing a caught concrete-family error as an `Error` payload requires explicit `error.wrap`. There are no guards, nested patterns, or partial patterns in this slice. Choices cannot be printed or compared directly; match them and print or compare the selected payload values.
 

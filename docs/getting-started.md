@@ -218,7 +218,7 @@ word fizzbuzz(n: Int) -> String
         int.to-string(n)
 ```
 
-Conditions must be booleans. Branch result types must agree. Here every branch returns a `String`; `int.to-string` makes the final conversion explicit. There is no automatic conversion between strings and integers.
+Conditions must be booleans. The `if` is the last line of the word, so its value is the word's result and every branch must return the same type. Here every branch returns a `String`; `int.to-string` makes the final conversion explicit. There is no automatic conversion between strings and integers. An `if` on its own line drops what its branches return, so there the branches may end with different types; see the [control flow guide](../site/src/content/docs/control-flow.md).
 
 ## Repeat work and update values
 

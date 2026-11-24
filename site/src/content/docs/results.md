@@ -73,7 +73,7 @@ let count = text.to-int("bad") catch problem
 print(count)
 ```
 
-On success, the handler does not run and the expression produces the parsed integer. On failure, `problem` is available only in the handler and the last statement supplies the replacement integer. An `if` handler needs compatible branch results. `catch` handles returned Result failures; it does not catch runtime faults such as integer overflow or division by zero, including a runtime fault while evaluating the protected expression.
+On success, the handler does not run and the expression produces the parsed integer. On failure, `problem` is available only in the handler and the last statement supplies the replacement integer. An `if` that ends the handler supplies that replacement, so its branches must end with the same type; only an `if` on its own line may end its branches with different types (see [control flow](control-flow.html)). `catch` handles returned Result failures; it does not catch runtime faults such as integer overflow or division by zero, including a runtime fault while evaluating the protected expression.
 
 A short fallback can stay on the same line. Everything after `catch` on that line is one fallback expression:
 

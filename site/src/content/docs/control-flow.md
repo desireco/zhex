@@ -23,7 +23,36 @@ word fizzbuzz(n: Int) -> String
         int.to-string(n)
 ```
 
-When an `if` is used as a value, its branches must return the same type. Without `else`, the missing branch supplies `Unit`, so every present branch must also return `Unit`; a value-producing `if` needs an `else`. Each branch has its own scope.
+An `if` whose value is used must have branches that all return the same type. Its value is used when it is the last line of a word that returns a value, as in `fizzbuzz`, or when it stands after `let`, `var`, or `=`. Without `else`, the missing branch supplies `Unit`, so every present branch must also return `Unit`; an `if` that produces a value needs an `else`.
+
+An `if` on its own line drops what its branches return, because nothing reads it. There each branch may end with any type, and `else` is optional. Such a line is an ordinary line: every line of a program's top level and of a loop body is one.
+
+```zhex
+let xs: List<Int> = []
+for n in range(0, 4)
+    if n > 1
+        list.append(xs, n)
+print(xs[0])
+print(xs[1])
+```
+
+This prints `2` and `3`. `list.append` returns the list it changed, and no other branch has to return the same type.
+
+The last line of a word declared `-> Unit` is an ordinary line too, like the word's other lines:
+
+```zhex
+word seed(xs: List<Int>) -> Unit
+    if list.length(xs) == 0
+        list.append(xs, 1)
+
+let xs: List<Int> = []
+seed(xs)
+print(list.length(xs))
+```
+
+This prints `1`. Without `-> Unit` the checker rejects `seed`: the word would have no declared result, so its last line would be the word's result, and that line returns the list on one path and `Unit` on the other. A word that returns nothing declares `-> Unit`.
+
+An `if` whose branches return different types fails with `branch result types must match` wherever its value is used, including an `if` typed at the REPL prompt: the prompt echoes its value. A branch cannot end in a bare `Result` on any line; handle it with `try` or `catch`. Each branch has its own scope.
 
 ## Repeat a range
 
