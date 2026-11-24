@@ -14,6 +14,9 @@ const watPrelude string = watPreludeBase +
 	watPreludeListI64 +
 	watPreludeListI32 +
 	watPreludeListRef +
+	watPreludeStackI64 +
+	watPreludeStackI32 +
+	watPreludeStackRef +
 	watPreludeArrayI64 +
 	watPreludeArrayI32 +
 	watPreludeArrayRef
@@ -544,6 +547,158 @@ const watPreludeListRef = `
     (then (call $zhex_fail (i32.const 3))))
   (struct.set $zhex_list_ref $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
   (array.get $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+`
+
+// watPreludeStackI64/I32/Ref: the stack words (#236) over the list repr —
+// the top is the end. Underflow fails 22 (stack-range), the interpreter's
+// index/length details mirrored as index -1 (pop/peek/dup/drop) and the
+// len<2 pair check for swap; dup reuses the append helper for its limit
+// (fail 8) check, matching the interpreter's check order.
+const watPreludeStackI64 = `
+(func $zhex_stack_pop_i64 (param $list (ref $zhex_list_i64)) (result i64)
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i64 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (struct.set $zhex_list_i64 $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
+  (array.get $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+
+(func $zhex_stack_peek_i64 (param $list (ref $zhex_list_i64)) (result i64)
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i64 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (array.get $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+
+(func $zhex_stack_dup_i64 (param $list (ref $zhex_list_i64)) (result (ref $zhex_list_i64))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i64 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (call $zhex_list_append_i64 (local.get $list)
+    (array.get $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1)))))
+
+(func $zhex_stack_swap_i64 (param $list (ref $zhex_list_i64)) (result (ref $zhex_list_i64))
+  (local $len i32)
+  (local $top i64)
+  (local.set $len (struct.get $zhex_list_i64 $len (local.get $list)))
+  (if (i32.lt_u (local.get $len) (i32.const 2))
+    (then (call $zhex_fail (i32.const 22))))
+  (local.set $top (array.get $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+  (array.set $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list))
+    (i32.sub (local.get $len) (i32.const 1))
+    (array.get $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 2))))
+  (array.set $zhex_arr_i64 (struct.get $zhex_list_i64 $items (local.get $list))
+    (i32.sub (local.get $len) (i32.const 2))
+    (local.get $top))
+  (local.get $list))
+
+(func $zhex_stack_drop_i64 (param $list (ref $zhex_list_i64)) (result (ref $zhex_list_i64))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i64 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (struct.set $zhex_list_i64 $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
+  (local.get $list))
+`
+
+// watPreludeStackI32: Stack<Bool> — same shape as the i64 family.
+const watPreludeStackI32 = `
+(func $zhex_stack_pop_i32 (param $list (ref $zhex_list_i32)) (result i32)
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i32 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (struct.set $zhex_list_i32 $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
+  (array.get $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+
+(func $zhex_stack_peek_i32 (param $list (ref $zhex_list_i32)) (result i32)
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i32 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (array.get $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+
+(func $zhex_stack_dup_i32 (param $list (ref $zhex_list_i32)) (result (ref $zhex_list_i32))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i32 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (call $zhex_list_append_i32 (local.get $list)
+    (array.get $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1)))))
+
+(func $zhex_stack_swap_i32 (param $list (ref $zhex_list_i32)) (result (ref $zhex_list_i32))
+  (local $len i32)
+  (local $top i32)
+  (local.set $len (struct.get $zhex_list_i32 $len (local.get $list)))
+  (if (i32.lt_u (local.get $len) (i32.const 2))
+    (then (call $zhex_fail (i32.const 22))))
+  (local.set $top (array.get $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+  (array.set $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list))
+    (i32.sub (local.get $len) (i32.const 1))
+    (array.get $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list)) (i32.sub (local.get $len) (i32.const 2))))
+  (array.set $zhex_arr_i32 (struct.get $zhex_list_i32 $items (local.get $list))
+    (i32.sub (local.get $len) (i32.const 2))
+    (local.get $top))
+  (local.get $list))
+
+(func $zhex_stack_drop_i32 (param $list (ref $zhex_list_i32)) (result (ref $zhex_list_i32))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_i32 $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (struct.set $zhex_list_i32 $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
+  (local.get $list))
+`
+
+// watPreludeStackRef: stacks of reference values (strings, records,
+// choices), the eqref payload shape.
+const watPreludeStackRef = `
+(func $zhex_stack_pop_ref (param $list (ref $zhex_list_ref)) (result (ref null eq))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_ref $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (struct.set $zhex_list_ref $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
+  (array.get $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+
+(func $zhex_stack_peek_ref (param $list (ref $zhex_list_ref)) (result (ref null eq))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_ref $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (array.get $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+
+(func $zhex_stack_dup_ref (param $list (ref $zhex_list_ref)) (result (ref $zhex_list_ref))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_ref $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (call $zhex_list_append_ref (local.get $list)
+    (array.get $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1)))))
+
+(func $zhex_stack_swap_ref (param $list (ref $zhex_list_ref)) (result (ref $zhex_list_ref))
+  (local $len i32)
+  (local $top (ref null eq))
+  (local.set $len (struct.get $zhex_list_ref $len (local.get $list)))
+  (if (i32.lt_u (local.get $len) (i32.const 2))
+    (then (call $zhex_fail (i32.const 22))))
+  (local.set $top (array.get $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list)) (i32.sub (local.get $len) (i32.const 1))))
+  (array.set $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list))
+    (i32.sub (local.get $len) (i32.const 1))
+    (array.get $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list)) (i32.sub (local.get $len) (i32.const 2))))
+  (array.set $zhex_arr_ref (struct.get $zhex_list_ref $items (local.get $list))
+    (i32.sub (local.get $len) (i32.const 2))
+    (local.get $top))
+  (local.get $list))
+
+(func $zhex_stack_drop_ref (param $list (ref $zhex_list_ref)) (result (ref $zhex_list_ref))
+  (local $len i32)
+  (local.set $len (struct.get $zhex_list_ref $len (local.get $list)))
+  (if (i32.eq (local.get $len) (i32.const 0))
+    (then (call $zhex_fail (i32.const 22))))
+  (struct.set $zhex_list_ref $len (local.get $list) (i32.sub (local.get $len) (i32.const 1)))
+  (local.get $list))
 `
 
 // watPreludeArrayI64: Array<Int>. $zhex_array_new mirrors collections.go

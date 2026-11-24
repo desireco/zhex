@@ -31,6 +31,7 @@ const failMessages = {
   19: "division or remainder by zero",
   20: "shift count is negative",
   21: "shift count of 64 or more exceeds this build's 64-bit Int width",
+  22: "stack index is out of range",
 };
 
 // Dynamic-message codes stage their message as UTF-8 at memory offset 0;

@@ -71,6 +71,7 @@ const (
 	watFailShiftCount   = 20 // int-shift-count (negative shift count)
 	watFailShiftWidth   = 21 // int-shift-width (count of 64 or more in the 64-bit build)
 	watFailDivisionZero = 19 // division-zero
+	watFailStackRange   = 22 // stack-range
 )
 
 // watSpec is the element specialization of a collection or Option payload:
@@ -96,6 +97,15 @@ func watListSet(s watSpec) string     { return "$zhex_list_set_" + string(s) }
 func watListPop(s watSpec) string     { return "$zhex_list_pop_" + string(s) }
 func watListFirst(s watSpec) string   { return "$zhex_list_first_" + string(s) }
 func watListLast(s watSpec) string    { return "$zhex_list_last_" + string(s) }
+
+// The stack words (#236) lower onto the list repr with the top at the end;
+// underflow fails code 22, the interpreter's stack-range (the family's
+// list-range shape). push reuses the plain append helper.
+func watStackPop(s watSpec) string   { return "$zhex_stack_pop_" + string(s) }
+func watStackPeek(s watSpec) string  { return "$zhex_stack_peek_" + string(s) }
+func watStackDup(s watSpec) string   { return "$zhex_stack_dup_" + string(s) }
+func watStackSwap(s watSpec) string  { return "$zhex_stack_swap_" + string(s) }
+func watStackDrop(s watSpec) string  { return "$zhex_stack_drop_" + string(s) }
 func watArrayNew(s watSpec) string    { return "$zhex_array_new_" + string(s) }
 func watArrayGet(s watSpec) string    { return "$zhex_array_get_" + string(s) }
 func watArraySet(s watSpec) string    { return "$zhex_array_set_" + string(s) }

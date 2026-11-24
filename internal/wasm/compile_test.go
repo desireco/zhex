@@ -615,6 +615,7 @@ func TestDifferential(t *testing.T) {
 		"branch-statement",
 		"list-ends",
 		"int-shifts",
+		"stack",
 	} {
 		t.Run(name, func(t *testing.T) {
 			wasmPath := compileFixture(t, name, lang.WatSkinBrowser)

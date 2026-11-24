@@ -424,6 +424,10 @@ func (e *watEmitter) watValueType(t valueType) string {
 			// The degenerate map: the key machinery, no payload (null eq).
 			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecRef) + ")"
 		}
+		if base == "Stack" && len(args) == 1 {
+			// The list repr: the top is the end of the backing store.
+			return "(ref " + watListType(watSpecOf(args[0])) + ")"
+		}
 		watFence(e.pos, "generic type "+base)
 	}
 	if r := e.byID[string(t)]; r != nil {
@@ -510,6 +514,9 @@ func (e *watEmitter) refTarget(t valueType) string {
 		}
 		if base == "Set" && len(args) == 1 {
 			return "(ref " + watMapType(mapKeySpec(args[0]), watSpecRef) + ")"
+		}
+		if base == "Stack" && len(args) == 1 {
+			return "(ref " + watListType(watSpecOf(args[0])) + ")"
 		}
 	}
 	if r := e.byID[string(t)]; r != nil && !r.choice {
@@ -2020,6 +2027,47 @@ func (e *watEmitter) builtinCall(x *expression) {
 		if spec == watSpecRef && !isUnitValue(inner) {
 			e.castFromEqref(inner)
 		}
+	case "stack.new":
+		// A zero-arg word has no inputType; the result type names the domain.
+		elem, _ := stackTypes(x.typ)
+		e.line("call " + watListNew(watSpecOf(elem)))
+	case "stack.push":
+		// plain form only (try/catch fences with the checked collection
+		// operations), the append contract: returns the receiver list.
+		inner, _ := stackTypes(x.inputType)
+		e.expr(x.args[0])
+		e.expr(x.args[1])
+		if isUnitValue(inner) {
+			e.line("ref.null eq")
+		}
+		e.line("call " + watListAppend(watSpecOf(inner)))
+	case "stack.pop", "stack.peek":
+		// the end words over the list repr (plain form only; try/catch
+		// fences with the other checked collection operations): pop returns
+		// the removed top, peek reads it — both fail 22 on the empty stack.
+		inner, _ := stackTypes(x.inputType)
+		spec := watSpecOf(inner)
+		e.expr(x.args[0])
+		e.line("call " + map[string]string{
+			"stack.pop":  watStackPop(spec),
+			"stack.peek": watStackPeek(spec),
+		}[x.text])
+		if spec == watSpecRef && !isUnitValue(inner) {
+			e.castFromEqref(inner)
+		}
+	case "stack.length":
+		elem, _ := stackTypes(x.inputType)
+		e.expr(x.args[0])
+		e.line("call " + watListLength(watSpecOf(elem)))
+	case "stack.dup", "stack.swap", "stack.drop":
+		// the Forth ops return the receiver list; underflow fails 22.
+		elem, _ := stackTypes(x.inputType)
+		e.expr(x.args[0])
+		e.line("call " + map[string]string{
+			"stack.dup":  watStackDup(watSpecOf(elem)),
+			"stack.swap": watStackSwap(watSpecOf(elem)),
+			"stack.drop": watStackDrop(watSpecOf(elem)),
+		}[x.text])
 	case "array.new":
 		_, inner, _ := collectionInner(x.typ)
 		e.expr(x.args[0])
